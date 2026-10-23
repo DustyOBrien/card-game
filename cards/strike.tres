@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="CardData" format=3]
 
-[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_data"]
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_gi6ei"]
 
 [resource]
-script = ExtResource("1_data")
+script = ExtResource("1_gi6ei")
 card_name = "Strike"
-cost = 1
 types = 1
 schools = 1
 damage = 6
-effect = "Deal 6 damage."
+effect = "Deal 6 Damage"
 color = Color(0.6, 0.22, 0.22, 1)

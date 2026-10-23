@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_r72tp"]
+
+[resource]
+script = ExtResource("1_r72tp")
+card_name = "Shield Bash"
+types = 2
+schools = 8
+damage = 2
+block = 4
+effect = "Gain 4 Block and Deal 2 Damage"
+color = Color(0.5, 0.4, 0.65, 1)

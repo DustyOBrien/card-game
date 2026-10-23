@@ -1,0 +1,13 @@
+Card,Copies,NAME,Cost,School · Card School,Type · Type,Description,Attack,Block,Draw,Discard,Heal,Draw If Full HP,Next Attack Bonus,Next Defense Bonus
+Strike,1,Strike,1,Strength,Attack,Deal 6 Damage,6,0,0,0,0,0,0,0
+Block,1,Block,1,Strength,Defense,Gain 6 Block,0,6,0,0,0,0,0,0
+Rage,1,Rage,0,Strength,Ability,The next Attack Card gains +3 Attack,0,0,0,0,0,0,3,0
+Quick Strike,1,Quick Strike,0,Agility,Attack,Deal 2 Damage,2,0,0,0,0,0,0,0
+Dodge,1,Dodge,1,Agility,Defense,Gain 4 Block,0,4,0,0,0,0,0,0
+Brace,1,Brace,0,Agility,Ability,The next Defense Card gains +3 Block,0,0,0,0,0,0,0,3
+Fireball,1,Fireball,1,Intellect,Attack,Deal 8 Damage Discard 2 Cards at random,8,0,0,2,0,0,0,0
+Mana Shield,1,Mana Shield,1,Intellect,Defense,Gain 8 Block Discard 2 Cards at Random,0,8,0,2,0,0,0,0
+Evocation,1,Evocation,0,Intellect,Ability,Draw 2 Cards,0,0,2,0,0,0,0,0
+Guarded Blow,1,Guarded Blow,1,Wisdom,Attack,Deal 4 Damage and Gain 2 Block,4,2,0,0,0,0,0,0
+Shield Bash,1,Shield Bash,1,Wisdom,Defense,Gain 4 Block and Deal 2 Damage,2,4,0,0,0,0,0,0
+Pray,1,Pray,0,Wisdom,Ability,Heal 3 HP if you are at full life draw a card,0,0,0,0,3,1,0,0

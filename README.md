@@ -7,8 +7,8 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
 
 **What's in it so far**
 
-- A starting deck of 13 cards: 5 **Strike** (deal 6 damage), 5 **Defend** (gain 5 Block),
-  plus **Quick** (0 cost, deal 2), **Fireball** (deal 10, discard 2 random cards) and **Pray** (heal 3, draw 1)
+- 12 cards across four schools (Strength, Agility, Intellect, Wisdom), made from a
+  spreadsheet: `data/cards.csv` (see [Making cards from the spreadsheet](#making-cards-from-the-spreadsheet))
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
 - 3 **energy** per turn; cards you can't afford are greyed out
 - One enemy (a Slime) with HP that shows what it **intends** to do next turn
@@ -73,10 +73,13 @@ card-game/
 │   ├── battle.gd        The rules: deck, drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data and report when it's clicked
 │   ├── card_data.gd     Defines what information a card has (name, cost, damage...)
-│   └── combatant.gd     HP and Block for the player and the enemy
-├── cards/
-│   ├── strike.tres      The Strike card's numbers
-│   └── defend.tres      The Defend card's numbers
+│   ├── combatant.gd     HP and Block for the player and the enemy
+│   └── card_importer.gd Turns the spreadsheet into card files
+├── tools/
+│   └── import_cards.gd  Run this in the editor to re-import the spreadsheet
+├── data/
+│   └── cards.csv        The card spreadsheet (the master list of cards)
+├── cards/               One .tres file per card, made by the importer
 └── docs/                Pictures for this README (Godot ignores this folder)
 ```
 
@@ -163,9 +166,9 @@ in one place.
 ### Bonus idea: Resources and card data
 
 `card_data.gd` defines a **Resource**, which is Godot's name for a piece of
-data saved as a file. `strike.tres` and `defend.tres` are two of them. Click
+data saved as a file. Each file in `cards/` (like `strike.tres`) is one of them. Click
 one in the FileSystem panel and you can change its cost, damage, or colour in
-the **Inspector** on the right. No code needed!
+the **Inspector** on the right. (Changes made there are overwritten the next time you import the spreadsheet, so the spreadsheet is the place for lasting changes.)
 
 Every card has these fields:
 
@@ -180,6 +183,10 @@ Every card has these fields:
 | Heal | HP the player gets back (can't go above max HP) |
 | Draw | Cards the player draws |
 | Discard | Random cards thrown from the player's hand into the discard pile |
+| Draw If Full HP | Cards drawn only if you were at full HP when you played it (Pray) |
+| Next Attack Bonus | Extra damage for your next Attack card (Rage) |
+| Next Defense Bonus | Extra Block for your next Defense card (Brace) |
+| Copies | How many of this card are in the starting deck |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
 
@@ -197,7 +204,7 @@ if card.has_type(CardData.CardType.ATTACK):
 
 ```
 start_battle()
-  └─ build the deck (5 Strike + 5 Defend + Quick, Fireball, Pray), shuffle, then start_player_turn()
+  └─ build the deck (every card in cards/, times its Copies), shuffle, then start_player_turn()
 
 start_player_turn()
   ├─ clear the player's Block, refill energy to 3
@@ -238,12 +245,49 @@ catch mistakes and autocomplete for you.
 
 Small changes, roughly easiest first:
 
-1. **Tweak numbers.** Change Strike's damage in `cards/strike.tres`, or the Slime's `max_hp` by clicking the **Enemy** node in `battle.tscn`.
+1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's `max_hp` by clicking the **Enemy** node in `battle.tscn`.
 2. **Change the enemy's attacks.** Edit `ENEMY_MIN_ATTACK` / `ENEMY_MAX_ATTACK` at the top of `battle.gd`.
-3. **Make a new card.** In the FileSystem panel, duplicate `strike.tres`, rename it `bash.tres`, set cost 2 and damage 8, then add it to the deck in `start_battle()`.
+3. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
 4. **Show HP as a bar** using a `ProgressBar` node instead of a label.
 5. **Give the enemy a second move**, like sometimes gaining Block instead of attacking.
 6. **Add a card reward** after winning, so your deck grows: that's the "deckbuilding" part!
+
+## Making cards from the spreadsheet
+
+All cards live in one spreadsheet, `data/cards.csv`. The game doesn't read the
+spreadsheet directly; an **importer** turns each row into a card file in `cards/`.
+
+**To change cards:**
+
+1. Edit your spreadsheet and export it as CSV (Google Sheets: **File → Download → Comma-separated values**).
+2. Save it over `data/cards.csv` in the project folder (same name).
+3. In Godot, double-click `tools/import_cards.gd`, then in the Script editor choose **File → Run** (Ctrl+Shift+X).
+4. The **Output** panel at the bottom lists every card it made. Press F5 to play.
+
+**Columns** (the order doesn't matter, and capital letters don't matter):
+
+| Column | Example | Notes |
+|---|---|---|
+| NAME | Quick Strike | Also used for the file name (`quick_strike.tres`) |
+| Copies | 2 | How many go in the starting deck |
+| Cost | 1 | |
+| School | Strength, Wisdom | Several allowed, separated by `,` or `/`. Blank = Neutral |
+| Type | Attack | Attack, Defense, Ability. Several allowed, like School |
+| Description | Deal 6 Damage | The text printed on the card |
+| Attack | 6 | Damage dealt |
+| Block | 6 | Block gained |
+| Draw | 2 | Cards drawn |
+| Discard | 2 | Random cards discarded from your hand |
+| Heal | 3 | HP healed |
+| Draw If Full HP | 1 | Cards drawn if you were at full HP |
+| Next Attack Bonus | 3 | Added to your next Attack card's damage |
+| Next Defense Bonus | 3 | Added to your next Defense card's Block |
+
+Blank cells count as 0. The "Card" column is ignored (NAME is used instead).
+
+**The spreadsheet is the boss:** any card file in `cards/` that isn't in the
+spreadsheet gets deleted when you import. So make new cards by adding rows,
+not by duplicating `.tres` files in Godot.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 

@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_knp4j"]
+
+[resource]
+script = ExtResource("1_knp4j")
+card_name = "Dodge"
+types = 2
+schools = 2
+block = 4
+effect = "Gain 4 Block"
+color = Color(0.25, 0.5, 0.3, 1)

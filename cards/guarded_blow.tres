@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_k4t8k"]
+
+[resource]
+script = ExtResource("1_k4t8k")
+card_name = "Guarded Blow"
+types = 1
+schools = 8
+damage = 4
+block = 2
+effect = "Deal 4 Damage and Gain 2 Block"
+color = Color(0.5, 0.4, 0.65, 1)

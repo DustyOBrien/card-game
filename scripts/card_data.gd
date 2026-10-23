@@ -41,6 +41,10 @@ enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 @export var heal: int = 0  # HP the player gets back (never above max HP).
 @export var draw: int = 0  # Cards drawn from the draw pile.
 @export var discard: int = 0  # Random cards from your hand thrown into the discard pile.
+@export var draw_if_full_hp: int = 0  # Extra cards drawn if you were at full HP when you played it.
+@export var next_attack_bonus: int = 0  # Your next Attack card deals this much extra damage.
+@export var next_defense_bonus: int = 0  # Your next Defense card gives this much extra Block.
+@export var copies: int = 1  # How many of this card go in the starting deck.
 @export_multiline var effect: String = ""  # Rules text shown on the card.
 @export var color: Color = Color.WHITE  # Tint used when drawing the card.
 
