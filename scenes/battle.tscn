@@ -1,0 +1,180 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/battle.gd" id="1_battle"]
+[ext_resource type="Script" path="res://scripts/combatant.gd" id="2_combatant"]
+
+[node name="Battle" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_battle")
+
+[node name="Player" type="Node" parent="."]
+script = ExtResource("2_combatant")
+display_name = "You"
+max_hp = 50
+
+[node name="Enemy" type="Node" parent="."]
+script = ExtResource("2_combatant")
+display_name = "Slime"
+max_hp = 45
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.11, 0.16, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 32
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="EnemyBox" type="VBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_horizontal = 4
+
+[node name="EnemySprite" type="ColorRect" parent="Margin/Layout/EnemyBox"]
+custom_minimum_size = Vector2(160, 110)
+layout_mode = 2
+size_flags_horizontal = 4
+color = Color(0.35, 0.75, 0.4, 1)
+
+[node name="EnemyNameLabel" type="Label" parent="Margin/Layout/EnemyBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.55, 0.95, 0.55, 1)
+theme_override_font_sizes/font_size = 40
+text = "Enemy"
+horizontal_alignment = 1
+
+[node name="EnemyHpLabel" type="Label" parent="Margin/Layout/EnemyBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "HP 0 / 0"
+horizontal_alignment = 1
+
+[node name="EnemyIntentLabel" type="Label" parent="Margin/Layout/EnemyBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.6, 0.5, 1)
+theme_override_font_sizes/font_size = 20
+text = "Intends to attack"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="MessageLabel" type="Label" parent="Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+horizontal_alignment = 1
+
+[node name="PlayerBar" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 32
+
+[node name="PlayerHpLabel" type="Label" parent="Margin/Layout/PlayerBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.5, 0.5, 1)
+theme_override_font_sizes/font_size = 24
+text = "HP 0 / 0"
+
+[node name="PlayerBlockLabel" type="Label" parent="Margin/Layout/PlayerBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.75, 1, 1)
+theme_override_font_sizes/font_size = 24
+text = "Block 0"
+
+[node name="EnergyLabel" type="Label" parent="Margin/Layout/PlayerBar"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_font_sizes/font_size = 24
+text = "Energy 0 / 0"
+
+[node name="PilesLabel" type="Label" parent="Margin/Layout/PlayerBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 18
+text = "Draw pile 0   Discard 0"
+
+[node name="EndTurnButton" type="Button" parent="Margin/Layout/PlayerBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "End Turn"
+
+[node name="Hand" type="HBoxContainer" parent="Margin/Layout"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 190)
+layout_mode = 2
+theme_override_constants/separation = 12
+alignment = 1
+
+[node name="GameOverScreen" type="ColorRect" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="Center" type="CenterContainer" parent="GameOverScreen"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="GameOverScreen/Center"]
+custom_minimum_size = Vector2(360, 200)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="GameOverScreen/Center/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 24
+alignment = 1
+
+[node name="ResultLabel" type="Label" parent="GameOverScreen/Center/Panel/VBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 40
+text = "Victory!"
+horizontal_alignment = 1
+
+[node name="RestartButton" type="Button" parent="GameOverScreen/Center/Panel/VBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+size_flags_horizontal = 4
+theme_override_font_sizes/font_size = 22
+text = "Play Again"
