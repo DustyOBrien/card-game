@@ -1,0 +1,226 @@
+# Card Game
+
+A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
+**GDScript**. It's deliberately small so every line can be read and understood.
+
+![Screenshot of a battle](docs/screenshot.png)
+
+**What's in it so far**
+
+- A starting deck of 10 cards: 5 **Strike** (deal 6 damage) and 5 **Defend** (gain 5 Block)
+- Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
+- 3 **energy** per turn; each card costs 1, and cards you can't afford are greyed out
+- One enemy (a Slime) with HP that shows what it **intends** to do next turn
+- Block that soaks up damage and disappears at the start of your next turn
+- A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen and a Play Again button
+
+---
+
+## 1. Get the code onto your computer
+
+Pick **one** of these. GitHub Desktop is recommended because it makes it easy
+to get updates and save your own changes later.
+
+### Option A: GitHub Desktop (recommended)
+
+1. Download and install [GitHub Desktop](https://desktop.github.com/), then sign in with your GitHub account.
+2. Choose **File → Clone repository...**
+3. On the **GitHub.com** tab, pick `DustyOBrien/card-game`.
+4. Leave the **Local path** as it is (usually `Documents\GitHub\card-game`) and click **Clone**.
+
+Later, whenever new code is added on GitHub, click **Fetch origin** and then
+**Pull origin** in GitHub Desktop to download it.
+
+### Option B: Download ZIP (quickest, no extra software)
+
+1. Go to the repo page on GitHub.
+2. Click the green **Code** button, then **Download ZIP**.
+3. Right-click the downloaded ZIP and choose **Extract All...**. Put the folder somewhere easy, like `Documents\card-game`.
+
+With this option you won't get updates automatically; you'd download a fresh ZIP each time.
+
+## 2. Open it in Godot
+
+1. Start Godot. You'll see the **Project Manager** (the list of projects).
+2. Click **Import**.
+3. Browse to the `card-game` folder and select the `project.godot` file inside it.
+4. Click **Import** (or **Import & Edit**). The editor opens.
+5. Press **F5** (or the ▶ Play button at the top right) to play.
+
+The first time you open the project, Godot creates a hidden `.godot` folder.
+That's a cache that Godot can always rebuild, so it isn't saved to GitHub
+(see `.gitignore`).
+
+## 3. How to play
+
+- Click a card to play it. It costs energy (the yellow number in its corner).
+- When you're out of energy or cards, click **End Turn**.
+- The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
+- Bring the Slime to 0 HP to win.
+
+---
+
+## How the project is organized
+
+```
+card-game/
+├── project.godot        Project settings (name, window size, which scene starts first)
+├── scenes/
+│   ├── battle.tscn      The main screen: enemy, player stats, hand, End Turn button
+│   └── card.tscn        What ONE card looks like
+├── scripts/
+│   ├── battle.gd        The rules: deck, drawing, energy, turns, winning and losing
+│   ├── card.gd          Makes a card show its data and report when it's clicked
+│   ├── card_data.gd     Defines what information a card has (name, cost, damage...)
+│   └── combatant.gd     HP and Block for the player and the enemy
+├── cards/
+│   ├── strike.tres      The Strike card's numbers
+│   └── defend.tres      The Defend card's numbers
+└── docs/                Pictures for this README (Godot ignores this folder)
+```
+
+You may also see `.uid` and `.import` files. Godot makes these automatically
+to keep track of files. Leave them alone and keep them in git.
+
+## The four big ideas in Godot
+
+### Nodes
+
+A **node** is one building block that does one job. A `Label` shows text. A
+`Button` can be clicked. An `HBoxContainer` lines up its children side by side.
+A plain `Node` does nothing on its own, but you can give it a script.
+
+Nodes are arranged in a **tree**: each node can have children. Open
+`scenes/battle.tscn` and look at the **Scene** panel (top left) to see it:
+
+```
+Battle (Control)                 ← battle.gd is attached here
+├── Player (Node)                ← combatant.gd: your HP and Block
+├── Enemy (Node)                 ← combatant.gd: the Slime's HP and Block
+├── Background (ColorRect)
+├── Margin (MarginContainer)
+│   └── Layout (VBoxContainer)   ← stacks everything top to bottom
+│       ├── EnemyBox             ← enemy picture, name, HP, intent
+│       ├── Spacer
+│       ├── MessageLabel
+│       ├── PlayerBar            ← HP, Block, Energy, piles, End Turn
+│       └── Hand (HBoxContainer) ← cards get added here while playing
+└── GameOverScreen               ← hidden until someone wins
+```
+
+### Scenes
+
+A **scene** is a tree of nodes saved as a file (`.tscn`). Scenes can be used
+inside other scenes, like a blueprint you can stamp out many times.
+
+`card.tscn` is the blueprint for a single card. The battle script makes a
+new copy of it for every card in your hand:
+
+```gdscript
+var card: Card = CARD_SCENE.instantiate()  # build a new card from the blueprint
+hand_box.add_child(card)                   # put it in the Hand row
+```
+
+Double-click `card.tscn` in the **FileSystem** panel (bottom left) to open
+and edit it on its own.
+
+### Scripts
+
+A **script** (`.gd` file) adds behaviour to a node. The first lines say what
+kind of node it's for, e.g. `extends Button`. That's like inheriting from a
+class in Python: the script *is* a Button, plus whatever we add.
+
+Godot calls some functions for you automatically. The main one here is
+`_ready()`, which runs once when the node appears. It's a lot like Python's
+`__init__`.
+
+### Signals
+
+A **signal** is an announcement: "something just happened". Other nodes
+**connect** a function to it, and that function runs every time the signal
+is **emitted**. The node making the announcement doesn't need to know who's
+listening.
+
+This project uses signals in a chain when you click a card:
+
+1. Godot's `Button` emits `pressed` when clicked.
+2. `card.gd` hears that and emits its own `played` signal, passing along which card it is.
+3. `battle.gd` hears `played`, spends energy, and calls `enemy.take_damage(6)`.
+4. `combatant.gd` lowers HP and emits `stats_changed`.
+5. `battle.gd` hears `stats_changed` and updates the labels on screen.
+
+Connecting in code looks like this (from `battle.gd`):
+
+```gdscript
+player.died.connect(_on_player_died)   # "when the player dies, run _on_player_died"
+```
+
+You can also connect signals without code, in the editor's **Node** tab (next
+to the Inspector). This project connects them in code so you can see them all
+in one place.
+
+### Bonus idea: Resources
+
+`card_data.gd` defines a **Resource**, which is Godot's name for a piece of
+data saved as a file. `strike.tres` and `defend.tres` are two of them. Click
+one in the FileSystem panel and you can change its cost, damage, or colour in
+the **Inspector** on the right. No code needed!
+
+## How a turn works (in `battle.gd`)
+
+```
+start_battle()
+  └─ build the deck (5 Strike + 5 Defend), shuffle, then start_player_turn()
+
+start_player_turn()
+  ├─ clear the player's Block, refill energy to 3
+  ├─ choose the enemy's next attack (shown as its "intent")
+  └─ draw_cards(5)
+
+You click cards  →  _on_card_played()
+  └─ pay energy, deal damage / gain block, move the card to the discard pile
+
+You click End Turn  →  _on_end_turn_pressed()
+  ├─ move the rest of your hand to the discard pile
+  ├─ enemy_turn(): short pause, then the enemy attacks
+  └─ start_player_turn() again (unless someone's HP hit 0)
+```
+
+## GDScript for Python people
+
+| Python                       | GDScript                              |
+|------------------------------|---------------------------------------|
+| `def attack(amount):`        | `func attack(amount: int) -> void:`   |
+| `x = 5`                      | `var x := 5`                          |
+| `MAX = 3` (by convention)    | `const MAX := 3`                      |
+| `None`                       | `null`                                |
+| `True` / `False`             | `true` / `false`                      |
+| `for i in range(5):`         | `for i in 5:`                         |
+| `len(my_list)`               | `my_list.size()`                      |
+| `my_list.pop()`              | `my_list.pop_back()`                  |
+| `random.shuffle(my_list)`    | `my_list.shuffle()`                   |
+| `f"HP {hp}/{max_hp}"`        | `"HP %d / %d" % [hp, max_hp]`         |
+| `self.hp`                    | `hp` (`self.` is optional)            |
+| `import` a class             | `class_name` makes it available everywhere |
+
+Indentation works just like in Python (this project uses tabs). The `: int`
+and `-> void` bits are optional type hints, like Python's. They help Godot
+catch mistakes and autocomplete for you.
+
+## Things to try next
+
+Small changes, roughly easiest first:
+
+1. **Tweak numbers.** Change Strike's damage in `cards/strike.tres`, or the Slime's `max_hp` by clicking the **Enemy** node in `battle.tscn`.
+2. **Change the enemy's attacks.** Edit `ENEMY_MIN_ATTACK` / `ENEMY_MAX_ATTACK` at the top of `battle.gd`.
+3. **Make a new card.** In the FileSystem panel, duplicate `strike.tres`, rename it `bash.tres`, set cost 2 and damage 8, then add it to the deck in `start_battle()`.
+4. **Show HP as a bar** using a `ProgressBar` node instead of a label.
+5. **Give the enemy a second move**, like sometimes gaining Block instead of attacking.
+6. **Add a card reward** after winning, so your deck grows: that's the "deckbuilding" part!
+
+## Saving your own changes to GitHub (GitHub Desktop)
+
+1. Make changes in Godot and save (Ctrl+S).
+2. In GitHub Desktop, you'll see the changed files on the left.
+3. Type a short summary at the bottom left (e.g. "Make Strike deal 7 damage") and click **Commit to main**.
+4. Click **Push origin** to upload it to GitHub.

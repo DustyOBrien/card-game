@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+card_name = "Strike"
+cost = 1
+damage = 6
+description = "Deal 6 damage."
+color = Color(0.6, 0.22, 0.22, 1)
