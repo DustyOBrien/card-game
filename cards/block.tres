@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_iykfl"]
+
+[resource]
+script = ExtResource("1_iykfl")
+card_name = "Block"
+types = 2
+schools = 1
+block = 6
+effect = "Gain 6 Block"
+color = Color(0.6, 0.22, 0.22, 1)

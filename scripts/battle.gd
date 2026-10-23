@@ -12,11 +12,7 @@ extends Control
 # preload() loads a file once, when the script loads. These are the
 # "blueprints" we use to build the deck and the cards on screen.
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const STRIKE := preload("res://cards/strike.tres")
-const DEFEND := preload("res://cards/defend.tres")
-const QUICK := preload("res://cards/quick.tres")
-const FIREBALL := preload("res://cards/fireball.tres")
-const PRAY := preload("res://cards/pray.tres")
+const CARDS_FOLDER := "res://cards/"  # Every card in here goes in the starting deck.
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
@@ -29,6 +25,9 @@ var hand: Array[CardData] = []
 var discard_pile: Array[CardData] = []
 
 var energy := 0
+# Bonuses waiting for your next Attack / Defense card (from Rage and Brace).
+var next_attack_bonus := 0
+var next_defense_bonus := 0
 var enemy_next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
 var game_over := false
 
@@ -74,17 +73,19 @@ func start_battle() -> void:
 	player.reset()
 	enemy.reset()
 
-	# Build the starting deck: 5 Strikes, 5 Defends, and one each of
-	# Quick, Fireball and Pray. Then shuffle it.
+	next_attack_bonus = 0
+	next_defense_bonus = 0
+
+	# Build the starting deck from every card file in the cards/ folder,
+	# adding as many of each as its `copies` number says. Then shuffle it.
 	hand.clear()
 	discard_pile.clear()
 	draw_pile.clear()
-	for i in 5:
-		draw_pile.append(STRIKE)
-		draw_pile.append(DEFEND)
-	draw_pile.append(QUICK)
-	draw_pile.append(FIREBALL)
-	draw_pile.append(PRAY)
+	for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
+		if file_name.ends_with(".tres"):
+			var card: CardData = load(CARDS_FOLDER + file_name)
+			for i in card.copies:
+				draw_pile.append(card)
 	draw_pile.shuffle()
 
 	message_label.text = "A %s appears!" % enemy.display_name
@@ -156,13 +157,32 @@ func _on_card_played(card: CardData) -> void:
 	# can't pick the card you're playing.
 	hand.erase(card)
 
-	# Apply each effect the card has. A card can have several (Pray heals AND draws).
+	# Check this BEFORE healing, otherwise healing could fill you up first.
+	var was_at_full_hp := player.hp == player.max_hp
+
+	# Apply each effect the card has. A card can have several (Guarded Blow
+	# deals damage AND gives Block).
 	if card.damage > 0:
-		enemy.take_damage(card.damage)
+		var damage := card.damage
+		# Rage: an Attack card uses up the waiting attack bonus.
+		if card.has_type(CardData.CardType.ATTACK):
+			damage += next_attack_bonus
+			next_attack_bonus = 0
+		enemy.take_damage(damage)
 	if card.block > 0:
-		player.gain_block(card.block)
+		var block := card.block
+		# Brace: a Defense card uses up the waiting block bonus.
+		if card.has_type(CardData.CardType.DEFENSE):
+			block += next_defense_bonus
+			next_defense_bonus = 0
+		player.gain_block(block)
 	if card.heal > 0:
 		player.heal(card.heal)
+	if card.draw_if_full_hp > 0 and was_at_full_hp:
+		draw_cards(card.draw_if_full_hp)
+	# Rage / Brace: save a bonus for the next Attack / Defense card.
+	next_attack_bonus += card.next_attack_bonus
+	next_defense_bonus += card.next_defense_bonus
 	if card.discard > 0:
 		discard_random_cards(card.discard)
 	if card.draw > 0:
@@ -216,6 +236,11 @@ func update_ui() -> void:
 
 	player_hp_label.text = "HP %d / %d" % [player.hp, player.max_hp]
 	player_block_label.text = "Block %d" % player.block
+	# Show waiting Rage / Brace bonuses next to your Block.
+	if next_attack_bonus > 0:
+		player_block_label.text += "   Next Attack +%d" % next_attack_bonus
+	if next_defense_bonus > 0:
+		player_block_label.text += "   Next Defense +%d" % next_defense_bonus
 	energy_label.text = "Energy %d / %d" % [energy, MAX_ENERGY]
 	piles_label.text = "Draw pile %d   Discard %d" % [draw_pile.size(), discard_pile.size()]
 
