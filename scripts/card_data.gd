@@ -38,6 +38,9 @@ enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 
 @export var damage: int = 0  # Damage dealt to the enemy when played.
 @export var block: int = 0  # Block gained by the player when played.
+@export var heal: int = 0  # HP the player gets back (never above max HP).
+@export var draw: int = 0  # Cards drawn from the draw pile.
+@export var discard: int = 0  # Random cards from your hand thrown into the discard pile.
 @export_multiline var effect: String = ""  # Rules text shown on the card.
 @export var color: Color = Color.WHITE  # Tint used when drawing the card.
 

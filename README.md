@@ -7,9 +7,10 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
 
 **What's in it so far**
 
-- A starting deck of 10 cards: 5 **Strike** (deal 6 damage) and 5 **Defend** (gain 5 Block)
+- A starting deck of 13 cards: 5 **Strike** (deal 6 damage), 5 **Defend** (gain 5 Block),
+  plus **Quick** (0 cost, deal 2), **Fireball** (deal 10, discard 2 random cards) and **Pray** (heal 3, draw 1)
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
-- 3 **energy** per turn; each card costs 1, and cards you can't afford are greyed out
+- 3 **energy** per turn; cards you can't afford are greyed out
 - One enemy (a Slime) with HP that shows what it **intends** to do next turn
 - Block that soaks up damage and disappears at the start of your next turn
 - A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen and a Play Again button
@@ -176,6 +177,9 @@ Every card has these fields:
 | Schools | Checkboxes: **Strength**, **Agility**, **Intellect**, **Wisdom**. A card can have several, or none (Neutral). Shown as STR / AGI / INT / WIS for now. |
 | Damage | Damage dealt to the enemy |
 | Block | Block the player gains |
+| Heal | HP the player gets back (can't go above max HP) |
+| Draw | Cards the player draws |
+| Discard | Random cards thrown from the player's hand into the discard pile |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
 
@@ -193,7 +197,7 @@ if card.has_type(CardData.CardType.ATTACK):
 
 ```
 start_battle()
-  └─ build the deck (5 Strike + 5 Defend), shuffle, then start_player_turn()
+  └─ build the deck (5 Strike + 5 Defend + Quick, Fireball, Pray), shuffle, then start_player_turn()
 
 start_player_turn()
   ├─ clear the player's Block, refill energy to 3
