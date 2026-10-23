@@ -14,6 +14,9 @@ extends Control
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const STRIKE := preload("res://cards/strike.tres")
 const DEFEND := preload("res://cards/defend.tres")
+const QUICK := preload("res://cards/quick.tres")
+const FIREBALL := preload("res://cards/fireball.tres")
+const PRAY := preload("res://cards/pray.tres")
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
@@ -71,13 +74,17 @@ func start_battle() -> void:
 	player.reset()
 	enemy.reset()
 
-	# Build the starting deck: 5 Strikes and 5 Defends, then shuffle it.
+	# Build the starting deck: 5 Strikes, 5 Defends, and one each of
+	# Quick, Fireball and Pray. Then shuffle it.
 	hand.clear()
 	discard_pile.clear()
 	draw_pile.clear()
 	for i in 5:
 		draw_pile.append(STRIKE)
 		draw_pile.append(DEFEND)
+	draw_pile.append(QUICK)
+	draw_pile.append(FIREBALL)
+	draw_pile.append(PRAY)
 	draw_pile.shuffle()
 
 	message_label.text = "A %s appears!" % enemy.display_name
@@ -145,15 +152,39 @@ func _on_card_played(card: CardData) -> void:
 		return
 
 	energy -= card.cost
+	# Take the card out of your hand FIRST, so effects like "discard 2 cards"
+	# can't pick the card you're playing.
+	hand.erase(card)
+
+	# Apply each effect the card has. A card can have several (Pray heals AND draws).
 	if card.damage > 0:
 		enemy.take_damage(card.damage)
 	if card.block > 0:
 		player.gain_block(card.block)
+	if card.heal > 0:
+		player.heal(card.heal)
+	if card.discard > 0:
+		discard_random_cards(card.discard)
+	if card.draw > 0:
+		draw_cards(card.draw)
 
-	# Move the card from the hand to the discard pile.
-	hand.erase(card)
+	# The played card goes to the discard pile like everything else.
 	discard_pile.append(card)
 	refresh_hand()
+
+
+# Throw `amount` random cards from the hand into the discard pile.
+func discard_random_cards(amount: int) -> void:
+	var discarded: Array[String] = []
+	for i in amount:
+		if hand.is_empty():
+			break  # Nothing left to discard.
+		var index := randi() % hand.size()  # A random position in the hand.
+		var card: CardData = hand.pop_at(index)  # Remove it from the hand...
+		discard_pile.append(card)  # ...and put it on the discard pile.
+		discarded.append(card.card_name)
+	if not discarded.is_empty():
+		message_label.text = "Discarded " + ", ".join(discarded)
 
 
 # Rebuild the row of card buttons so it matches the `hand` array.

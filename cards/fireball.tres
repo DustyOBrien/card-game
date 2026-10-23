@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_data"]
+
+[resource]
+script = ExtResource("1_data")
+card_name = "Fireball"
+cost = 1
+types = 1
+schools = 4
+damage = 10
+discard = 2
+effect = "Deal 10 damage. Discard 2 random cards."
+color = Color(0.75, 0.38, 0.12, 1)

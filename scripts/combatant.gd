@@ -50,6 +50,11 @@ func gain_block(amount: int) -> void:
 	stats_changed.emit()
 
 
+func heal(amount: int) -> void:
+	hp = mini(hp + amount, max_hp)  # Can't heal above max HP.
+	stats_changed.emit()
+
+
 # In Slay the Spire, Block goes away at the start of your next turn.
 func clear_block() -> void:
 	block = 0
