@@ -1,0 +1,17 @@
+# Godot 4 generates these folders/files on your computer. They can always be
+# rebuilt, so we don't store them in git.
+.godot/
+/android/
+
+# Exported game builds (if you export to these folders)
+/build/
+/export/
+*.exe
+*.pck
+*.zip
+
+# Editor / OS clutter
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
