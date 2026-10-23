@@ -5,15 +5,18 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
 
 ![Screenshot of a battle](docs/screenshot.png)
 
+![Screenshot of the deck builder](docs/deck_builder.png)
+
 **What's in it so far**
 
+- A **deck builder** before each battle: pick which cards (and how many copies) go in your deck
 - 12 cards across four schools (Strength, Agility, Intellect, Wisdom), made from a
   spreadsheet: `data/cards.csv` (see [Making cards from the spreadsheet](#making-cards-from-the-spreadsheet))
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
 - 3 **energy** per turn; cards you can't afford are greyed out
 - One enemy (a Slime) with HP that shows what it **intends** to do next turn
 - Block that soaks up damage and disappears at the start of your next turn
-- A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen and a Play Again button
+- A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen with Play Again and Change Deck buttons
 
 ---
 
@@ -54,6 +57,14 @@ That's a cache that Godot can always rebuild, so it isn't saved to GitHub
 
 ## 3. How to play
 
+The game starts on the **deck builder**:
+
+- Click a card on the left to add a copy to your deck. Click a line in **Your deck** on the right to take one copy out.
+- **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number in the spreadsheet).
+- Your deck needs **10 to 20 cards**, with **at most 3 copies** of any card. Then click **Start Battle**.
+
+In the battle:
+
 - Click a card to play it. It costs energy (the yellow number in its corner).
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
@@ -67,10 +78,13 @@ That's a cache that Godot can always rebuild, so it isn't saved to GitHub
 card-game/
 ├── project.godot        Project settings (name, window size, which scene starts first)
 ├── scenes/
-│   ├── battle.tscn      The main screen: enemy, player stats, hand, End Turn button
+│   ├── deck_builder.tscn The first screen: pick the cards for your deck
+│   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
 │   └── card.tscn        What ONE card looks like
 ├── scripts/
-│   ├── battle.gd        The rules: deck, drawing, energy, turns, winning and losing
+│   ├── game_state.gd    Autoload: keeps your deck while scenes change
+│   ├── deck_builder.gd  Adding and removing cards, deck rules, Start Battle
+│   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data and report when it's clicked
 │   ├── card_data.gd     Defines what information a card has (name, cost, damage...)
 │   ├── combatant.gd     HP and Block for the player and the enemy
@@ -163,6 +177,29 @@ You can also connect signals without code, in the editor's **Node** tab (next
 to the Inspector). This project connects them in code so you can see them all
 in one place.
 
+### Switching scenes, and autoloads
+
+The game has two screens, and each one is its own scene. Moving between them is one line:
+
+```gdscript
+get_tree().change_scene_to_file("res://scenes/battle.tscn")
+```
+
+That throws the current scene away (and every variable in it!) and loads the
+new one. So how does the battle know which deck you built? It's kept in an
+**autoload**: a script Godot creates once when the game starts and never throws
+away. This project has one, `game_state.gd`, registered under the name
+`GameState` in **Project → Project Settings → Globals → Autoload**. Any script
+can use it by name:
+
+```gdscript
+GameState.deck.append(card)              # deck builder: add a card
+draw_pile = GameState.deck.duplicate()   # battle: copy the deck, then shuffle the copy
+```
+
+Keep autoloads small: only things that really must outlive a scene belong there
+(later: the player's HP between fights, gold, which floor you're on...).
+
 ### Bonus idea: Resources and card data
 
 `card_data.gd` defines a **Resource**, which is Godot's name for a piece of
@@ -186,7 +223,7 @@ Every card has these fields:
 | Draw If Full HP | Cards drawn only if you were at full HP when you played it (Pray) |
 | Next Attack Bonus | Extra damage for your next Attack card (Rage) |
 | Next Defense Bonus | Extra Block for your next Defense card (Brace) |
-| Copies | How many of this card are in the starting deck |
+| Copies | How many of this card are in the Starter Deck |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
 
@@ -204,7 +241,7 @@ if card.has_type(CardData.CardType.ATTACK):
 
 ```
 start_battle()
-  └─ build the deck (every card in cards/, times its Copies), shuffle, then start_player_turn()
+  └─ copy the deck you built (GameState.deck), shuffle, then start_player_turn()
 
 start_player_turn()
   ├─ clear the player's Block, refill energy to 3
@@ -246,11 +283,12 @@ catch mistakes and autocomplete for you.
 Small changes, roughly easiest first:
 
 1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's `max_hp` by clicking the **Enemy** node in `battle.tscn`.
-2. **Change the enemy's attacks.** Edit `ENEMY_MIN_ATTACK` / `ENEMY_MAX_ATTACK` at the top of `battle.gd`.
-3. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
-4. **Show HP as a bar** using a `ProgressBar` node instead of a label.
-5. **Give the enemy a second move**, like sometimes gaining Block instead of attacking.
-6. **Add a card reward** after winning, so your deck grows: that's the "deckbuilding" part!
+2. **Change the deck rules.** Edit `MIN_DECK_SIZE`, `MAX_DECK_SIZE` and `MAX_COPIES` at the top of `deck_builder.gd`.
+3. **Change the enemy's attacks.** Edit `ENEMY_MIN_ATTACK` / `ENEMY_MAX_ATTACK` at the top of `battle.gd`.
+4. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
+5. **Show HP as a bar** using a `ProgressBar` node instead of a label.
+6. **Give the enemy a second move**, like sometimes gaining Block instead of attacking.
+7. **Add a card reward** after winning, so your deck grows: that's the "deckbuilding" part!
 
 ## Making cards from the spreadsheet
 
@@ -269,7 +307,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Column | Example | Notes |
 |---|---|---|
 | NAME | Quick Strike | Also used for the file name (`quick_strike.tres`) |
-| Copies | 2 | How many go in the starting deck |
+| Copies | 2 | How many go in the Starter Deck (the deck builder's default) |
 | Cost | 1 | |
 | School | Strength, Wisdom | Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |

@@ -1,0 +1,133 @@
+[gd_scene format=3]
+
+[ext_resource type="Script" path="res://scripts/deck_builder.gd" id="1_deck_builder"]
+
+[node name="DeckBuilder" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_deck_builder")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.12, 0.11, 0.16, 1)
+
+[node name="Margin" type="MarginContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 32
+theme_override_constants/margin_top = 24
+theme_override_constants/margin_right = 32
+theme_override_constants/margin_bottom = 24
+
+[node name="Layout" type="VBoxContainer" parent="Margin"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="TitleLabel" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 36
+text = "Build Your Deck"
+horizontal_alignment = 1
+
+[node name="HelpLabel" type="Label" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.7)
+theme_override_font_sizes/font_size = 18
+text = "Click a card to add it to your deck. Click a card in your deck list to take one out."
+horizontal_alignment = 1
+
+[node name="Columns" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 16
+
+[node name="PoolScroll" type="ScrollContainer" parent="Margin/Layout/Columns"]
+layout_mode = 2
+size_flags_horizontal = 3
+horizontal_scroll_mode = 0
+
+[node name="PoolGrid" type="GridContainer" parent="Margin/Layout/Columns/PoolScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 6
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 12
+columns = 5
+
+[node name="DeckPanel" type="PanelContainer" parent="Margin/Layout/Columns"]
+custom_minimum_size = Vector2(320, 0)
+layout_mode = 2
+
+[node name="DeckMargin" type="MarginContainer" parent="Margin/Layout/Columns/DeckPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 12
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="DeckBox" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DeckCountLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Your deck: 0 cards"
+
+[node name="DeckScroll" type="ScrollContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+layout_mode = 2
+size_flags_vertical = 3
+horizontal_scroll_mode = 0
+
+[node name="DeckList" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox/DeckScroll"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="DeckButtons" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="ClearButton" type="Button" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox/DeckButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Clear"
+
+[node name="DefaultButton" type="Button" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox/DeckButtons"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Starter Deck"
+
+[node name="BottomBar" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="RulesLabel" type="Label" parent="Margin/Layout/BottomBar"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 20
+text = "Deck rules"
+
+[node name="StartButton" type="Button" parent="Margin/Layout/BottomBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Start Battle"

@@ -12,7 +12,7 @@ extends Control
 # preload() loads a file once, when the script loads. These are the
 # "blueprints" we use to build the deck and the cards on screen.
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const CARDS_FOLDER := "res://cards/"  # Every card in here goes in the starting deck.
+const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
@@ -49,6 +49,7 @@ var game_over := false
 @onready var game_over_screen: ColorRect = %GameOverScreen
 @onready var result_label: Label = %ResultLabel
 @onready var restart_button: Button = %RestartButton
+@onready var change_deck_button: Button = %ChangeDeckButton
 
 
 func _ready() -> void:
@@ -59,6 +60,7 @@ func _ready() -> void:
 	enemy.died.connect(_on_enemy_died)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	restart_button.pressed.connect(start_battle)
+	change_deck_button.pressed.connect(_on_change_deck_pressed)
 
 	start_battle()
 
@@ -76,16 +78,16 @@ func start_battle() -> void:
 	next_attack_bonus = 0
 	next_defense_bonus = 0
 
-	# Build the starting deck from every card file in the cards/ folder,
-	# adding as many of each as its `copies` number says. Then shuffle it.
+	# The deck you built in the deck builder is waiting in GameState (an autoload,
+	# see game_state.gd). If it's empty, e.g. you pressed F6 to run only this
+	# scene, use the starter deck instead.
+	if GameState.deck.is_empty():
+		GameState.deck = GameState.make_default_deck()
 	hand.clear()
 	discard_pile.clear()
-	draw_pile.clear()
-	for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
-		if file_name.ends_with(".tres"):
-			var card: CardData = load(CARDS_FOLDER + file_name)
-			for i in card.copies:
-				draw_pile.append(card)
+	# duplicate() makes a COPY of the list. We shuffle and draw from the copy,
+	# so the deck you built stays the same for the next battle.
+	draw_pile = GameState.deck.duplicate()
 	draw_pile.shuffle()
 
 	message_label.text = "A %s appears!" % enemy.display_name
@@ -255,6 +257,11 @@ func _on_enemy_died() -> void:
 
 func _on_player_died() -> void:
 	end_battle("Defeat...")
+
+
+# Go back to the deck builder. Your deck is still in GameState, so it's kept.
+func _on_change_deck_pressed() -> void:
+	get_tree().change_scene_to_file(DECK_BUILDER_SCENE)
 
 
 func end_battle(result: String) -> void:

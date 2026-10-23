@@ -44,7 +44,7 @@ enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 @export var draw_if_full_hp: int = 0  # Extra cards drawn if you were at full HP when you played it.
 @export var next_attack_bonus: int = 0  # Your next Attack card deals this much extra damage.
 @export var next_defense_bonus: int = 0  # Your next Defense card gives this much extra Block.
-@export var copies: int = 1  # How many of this card go in the starting deck.
+@export var copies: int = 1  # How many of this card are in the Starter Deck (the deck builder's default).
 @export_multiline var effect: String = ""  # Rules text shown on the card.
 @export var color: Color = Color.WHITE  # Tint used when drawing the card.
 
