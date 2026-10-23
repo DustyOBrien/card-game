@@ -12,9 +12,13 @@ config_version=5
 
 config/name="Card Game"
 config/description="A tiny Slay the Spire style deckbuilder, made for learning Godot."
-run/main_scene="res://scenes/battle.tscn"
+run/main_scene="res://scenes/deck_builder.tscn"
 config/features=PackedStringArray("4.7", "GL Compatibility")
 config/icon="res://icon.svg"
+
+[autoload]
+
+GameState="*res://scripts/game_state.gd"
 
 [display]
 
