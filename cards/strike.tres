@@ -6,6 +6,8 @@
 script = ExtResource("1_data")
 card_name = "Strike"
 cost = 1
+types = 1
+schools = 1
 damage = 6
-description = "Deal 6 damage."
+effect = "Deal 6 damage."
 color = Color(0.6, 0.22, 0.22, 1)

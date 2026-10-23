@@ -159,12 +159,35 @@ You can also connect signals without code, in the editor's **Node** tab (next
 to the Inspector). This project connects them in code so you can see them all
 in one place.
 
-### Bonus idea: Resources
+### Bonus idea: Resources and card data
 
 `card_data.gd` defines a **Resource**, which is Godot's name for a piece of
 data saved as a file. `strike.tres` and `defend.tres` are two of them. Click
 one in the FileSystem panel and you can change its cost, damage, or colour in
 the **Inspector** on the right. No code needed!
+
+Every card has these fields:
+
+| Field | What it is |
+|---|---|
+| Card Name | The name at the top of the card |
+| Cost | Energy needed to play it |
+| Types | Checkboxes: **Attack** (deals damage), **Defense** (gains Block), **Ability** (other effects, like drawing a card). A card can have several. |
+| Schools | Checkboxes: **Strength**, **Agility**, **Intellect**, **Wisdom**. A card can have several, or none (Neutral). Shown as STR / AGI / INT / WIS for now. |
+| Damage | Damage dealt to the enemy |
+| Block | Block the player gains |
+| Effect | The rules text printed on the card (typed by hand) |
+| Color | The card's background colour |
+
+Types and Schools use **bit flags**: each option is a power of two (1, 2, 4, 8)
+and the card stores them added together, so Attack + Ability is 1 + 4 = 5.
+The comments in `card_data.gd` explain this, and the helpers
+`has_type()` / `has_school()` do the checking for you:
+
+```gdscript
+if card.has_type(CardData.CardType.ATTACK):
+	print("This card is an attack!")
+```
 
 ## How a turn works (in `battle.gd`)
 
