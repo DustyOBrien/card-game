@@ -16,8 +16,10 @@ var card_data: CardData
 # don't exist yet when the script is first created.
 # The % symbol finds a child node marked "Access as Unique Name" in the editor.
 @onready var cost_label: Label = %CostLabel
+@onready var school_label: Label = %SchoolLabel
 @onready var name_label: Label = %NameLabel
-@onready var description_label: Label = %DescriptionLabel
+@onready var type_label: Label = %TypeLabel
+@onready var effect_label: Label = %EffectLabel
 
 
 func _ready() -> void:
@@ -29,8 +31,10 @@ func _ready() -> void:
 func setup(data: CardData) -> void:
 	card_data = data
 	cost_label.text = str(data.cost)
+	school_label.text = data.get_school_text()
 	name_label.text = data.card_name
-	description_label.text = data.description
+	type_label.text = data.get_type_text()
+	effect_label.text = data.effect
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
 
