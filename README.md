@@ -13,7 +13,7 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
 
 - A **Character Select** screen: each class (Adventurer, Knight) has its own deck-building rules
 - A **deck builder** before each battle: pick which cards (and how many copies) go in your deck
-- 12 cards across four schools (Strength, Agility, Intellect, Wisdom), made from a
+- 22 cards: four schools (Strength, Agility, Intellect, Wisdom), Neutral cards, and class-only cards, made from a
   spreadsheet: `data/cards.csv` (see [Making cards from the spreadsheet](#making-cards-from-the-spreadsheet))
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
 - 3 **energy** per turn; cards you can't afford are greyed out
@@ -62,15 +62,17 @@ That's a cache that Godot can always rebuild, so it isn't saved to GitHub
 
 The game starts on **Character Select**. Your class decides which cards you can use:
 
-| Class | Can use | Copies per card | Deck size |
-|---|---|---|---|
-| Adventurer | Strength, Agility, Intellect, Wisdom, Neutral | 1 (Neutral: 2) | 10 to 20 |
-| Knight | Strength, Neutral | 3 (Neutral: 2) | 9 to 20 |
+| Class | HP | Can use | Copies per card | Deck size |
+|---|---|---|---|---|
+| Adventurer | 50 | Strength, Agility, Intellect, Wisdom, Neutral, Adventurer cards | 1 (Neutral: 2) | 12 to 20 |
+| Knight | 60 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 to 20 |
+
+Class-only cards say so on their type line, e.g. **Attack - Knight**.
 
 Then you're on the **deck builder**, holding your class's starter deck:
 
 - Click a card on the left to add a copy to your deck. Click a line in **Your deck** on the right to take one copy out.
-- **Clear** empties the deck; **Starter Deck** puts back the suggested deck (as many of each card as your class allows).
+- **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
 - When the deck is big enough, click **Start Battle**. **Change Class** goes back to Character Select.
 
 In the battle:
@@ -237,7 +239,10 @@ Every card has these fields:
 | Draw If Full HP | Cards drawn only if you were at full HP when you played it (Pray) |
 | Next Attack Bonus | Extra damage for your next Attack card (Rage) |
 | Next Defense Bonus | Extra Block for your next Defense card (Brace) |
-| Copies | Not used right now (each class builds its own starter deck) |
+| Copies | How many go in the Starter Deck (a class may allow fewer) |
+| Class Only | Which classes may use it, e.g. Knight. Empty = every class |
+| Energy | Energy you gain when you play it (Adrenaline) |
+| Lose HP | HP you lose when you play it. Block doesn't stop it (Reckless Swing) |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
 
@@ -321,7 +326,8 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Column | Example | Notes |
 |---|---|---|
 | NAME | Quick Strike | Also used for the file name (`quick_strike.tres`) |
-| Copies | 2 | Not used right now (each class builds its own starter deck) |
+| Copies | 2 | How many go in the Starter Deck. A class can allow fewer: the Adventurer only ever gets 1 of a school card |
+| Class | Knight | Only these classes can use the card. Several allowed, like School. Blank = every class |
 | Cost | 1 | |
 | School | Strength, Wisdom | Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
@@ -334,6 +340,8 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Draw If Full HP | 1 | Cards drawn if you were at full HP |
 | Next Attack Bonus | 3 | Added to your next Attack card's damage |
 | Next Defense Bonus | 3 | Added to your next Defense card's Block |
+| Energy | 1 | Energy gained |
+| Lose HP | 2 | HP lost (Block doesn't stop it) |
 
 Blank cells count as 0. The "Card" column is ignored (NAME is used instead).
 
@@ -348,10 +356,12 @@ made from `character_class.gd`. To add one, you don't write any code:
 
 1. In the **FileSystem** panel, right-click `classes/knight.tres` and choose **Duplicate...**. Name it, e.g. `rogue.tres`.
 2. Click the new file. In the **Inspector**, change:
-   - **Display Name**, **Description**, **Color**
+   - **Display Name**, **Description**, **Color**, **Max HP**
    - **Sort Order**: where it appears on Character Select (lower = further left)
    - **Deck Rules**: which **Allowed Schools** are ticked, **Allow Neutral**, **Max Copies** (school cards), **Max Copies Neutral**, **Min / Max Deck Size**
 3. Press F5. The new class is on Character Select, and its rules text is written for you from those numbers.
+
+To give the new class its own cards, type its **Display Name** in the **Class** column of the spreadsheet and re-import.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 

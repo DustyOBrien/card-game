@@ -9,5 +9,6 @@ cost = 0
 types = 4
 schools = 2
 next_defense_bonus = 3
+class_only = PackedStringArray()
 effect = "The next Defense Card gains +3 Block"
 color = Color(0.25, 0.5, 0.3, 1)

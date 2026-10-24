@@ -44,7 +44,11 @@ enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 @export var draw_if_full_hp: int = 0  # Extra cards drawn if you were at full HP when you played it.
 @export var next_attack_bonus: int = 0  # Your next Attack card deals this much extra damage.
 @export var next_defense_bonus: int = 0  # Your next Defense card gives this much extra Block.
-@export var copies: int = 1  # From the Copies column. Not used right now: each class builds its own starter deck.
+@export var energy: int = 0  # Energy the player gains when played.
+@export var lose_hp: int = 0  # HP the player loses when played (Block doesn't stop it).
+@export var copies: int = 1  # How many go in the Starter Deck (a class may allow fewer).
+# Classes allowed to use this card, e.g. ["Knight"]. Empty means every class.
+@export var class_only: PackedStringArray = []
 @export_multiline var effect: String = ""  # Rules text shown on the card.
 @export var color: Color = Color.WHITE  # Tint used when drawing the card.
 
@@ -59,6 +63,11 @@ func has_type(type: CardType) -> bool:
 # Does this card belong to the given school? Example: card.has_school(CardData.School.STRENGTH)
 func has_school(school: School) -> bool:
 	return (schools & school) != 0
+
+
+# Can only some classes use this card?
+func is_class_card() -> bool:
+	return not class_only.is_empty()
 
 
 # Is this card neutral (no school ticked at all)?

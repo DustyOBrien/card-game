@@ -34,6 +34,9 @@ func setup(data: CardData) -> void:
 	school_label.text = data.get_school_text()
 	name_label.text = data.card_name
 	type_label.text = data.get_type_text()
+	if data.is_class_card():
+		# e.g. "Attack - Knight", so you can see who's allowed to use it.
+		type_label.text += " - " + ", ".join(data.class_only)
 	effect_label.text = data.effect
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color

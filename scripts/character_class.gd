@@ -17,6 +17,7 @@ extends Resource
 @export_multiline var description: String = ""  # A line of flavour text.
 @export var color: Color = Color(0.4, 0.4, 0.42)  # Panel colour on the select screen.
 @export var sort_order: int = 0  # Lower numbers are shown further left.
+@export var max_hp: int = 50  # The player's HP in battle.
 
 @export_group("Deck rules")
 # Which schools' cards this class may put in its deck. Same checkboxes as on cards.
@@ -24,12 +25,15 @@ extends Resource
 @export var allow_neutral: bool = true  # Can it use cards with no school?
 @export var max_copies: int = 2  # Most copies of each card that HAS a school.
 @export var max_copies_neutral: int = 2  # Most copies of each neutral card.
-@export var min_deck_size: int = 10  # Can't start a battle with fewer cards.
+@export var min_deck_size: int = 12  # Can't start a battle with fewer cards.
 @export var max_deck_size: int = 20  # Can't add cards beyond this.
 
 
 # How many copies of this card may the deck hold? 0 means "not allowed at all".
 func max_copies_of(card: CardData) -> int:
+	# Class cards (the Class column) are only for the classes they name.
+	if card.is_class_card() and not card.class_only.has(display_name):
+		return 0
 	if card.is_neutral():
 		return max_copies_neutral if allow_neutral else 0
 	# A card with several schools is allowed if ANY of them is allowed.
@@ -59,4 +63,5 @@ func get_rules_text() -> String:
 	if allow_neutral:
 		lines.append("Neutral cards: up to %d each" % max_copies_neutral)
 	lines.append("Deck size: %d to %d cards" % [min_deck_size, max_deck_size])
+	lines.append("HP: %d" % max_hp)
 	return "\n".join(lines)

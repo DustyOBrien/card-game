@@ -67,6 +67,9 @@ static func import_cards() -> int:
 		card.draw_if_full_hp = _to_int(_cell(row, columns, "draw if full hp"))
 		card.next_attack_bonus = _to_int(_cell(row, columns, "next attack bonus"))
 		card.next_defense_bonus = _to_int(_cell(row, columns, "next defense bonus"))
+		card.energy = _to_int(_cell(row, columns, "energy"))
+		card.lose_hp = _to_int(_cell(row, columns, "lose hp"))
+		card.class_only = _parse_list(_cell(row, columns, "class"))
 		card.color = _pick_color(card.schools)
 
 		var path := CARDS_FOLDER + _file_name_for(card_name)
@@ -114,6 +117,17 @@ static func _parse_flags(text: String, options: Dictionary) -> int:
 			result |= options[key]  # |= means "turn this flag on".
 		elif not key.is_empty():
 			push_warning("Unknown value '%s' in the spreadsheet" % part)
+	return result
+
+
+# "Knight, Adventurer" -> ["Knight", "Adventurer"]. Blank -> [] (every class).
+static func _parse_list(text: String) -> PackedStringArray:
+	var result := PackedStringArray()
+	for separator in ["/", ";", "|"]:
+		text = text.replace(separator, ",")
+	for part in text.split(",", false):
+		if not part.strip_edges().is_empty():
+			result.append(part.strip_edges())
 	return result
 
 

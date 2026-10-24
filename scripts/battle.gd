@@ -72,6 +72,8 @@ func _ready() -> void:
 func start_battle() -> void:
 	game_over = false
 	game_over_screen.visible = false
+	GameState.ensure_ready()
+	player.max_hp = GameState.character_class.max_hp  # Each class has its own HP.
 	player.reset()
 	enemy.reset()
 
@@ -79,9 +81,8 @@ func start_battle() -> void:
 	next_defense_bonus = 0
 
 	# The deck you built in the deck builder is waiting in GameState (an autoload,
-	# see game_state.gd). ensure_ready() gives you a starter deck if there isn't
-	# one, e.g. when you press F6 to run only this scene.
-	GameState.ensure_ready()
+	# see game_state.gd). ensure_ready() above gives you a starter deck if there
+	# isn't one, e.g. when you press F6 to run only this scene.
 	hand.clear()
 	discard_pile.clear()
 	# duplicate() makes a COPY of the list. We shuffle and draw from the copy,
@@ -179,6 +180,10 @@ func _on_card_played(card: CardData) -> void:
 		player.gain_block(block)
 	if card.heal > 0:
 		player.heal(card.heal)
+	if card.energy > 0:
+		energy += card.energy
+	if card.lose_hp > 0:
+		player.lose_hp(card.lose_hp)
 	if card.draw_if_full_hp > 0 and was_at_full_hp:
 		draw_cards(card.draw_if_full_hp)
 	# Rage / Brace: save a bonus for the next Attack / Defense card.

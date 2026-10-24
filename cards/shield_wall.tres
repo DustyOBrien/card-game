@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_lalkh"]
+
+[resource]
+script = ExtResource("1_lalkh")
+card_name = "Shield Wall"
+cost = 2
+types = 2
+schools = 1
+block = 13
+class_only = PackedStringArray("Knight")
+effect = "Gain 13 Block"
+color = Color(0.6, 0.22, 0.22, 1)

@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_hw5h6"]
+
+[resource]
+script = ExtResource("1_hw5h6")
+card_name = "Heavy Swing"
+cost = 2
+types = 1
+schools = 1
+damage = 14
+class_only = PackedStringArray("Knight")
+effect = "Deal 14 Damage"
+color = Color(0.6, 0.22, 0.22, 1)

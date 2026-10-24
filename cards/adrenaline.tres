@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_d3otd"]
+
+[resource]
+script = ExtResource("1_d3otd")
+card_name = "Adrenaline"
+cost = 0
+types = 4
+energy = 1
+lose_hp = 3
+class_only = PackedStringArray()
+effect = "Gain 1 Energy and Lose 3 HP"
+color = Color(0.4, 0.4, 0.42, 1)

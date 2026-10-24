@@ -45,6 +45,14 @@ func take_damage(amount: int) -> void:
 		died.emit()
 
 
+# Losing HP (from your own cards) skips Block and goes straight to HP.
+func lose_hp(amount: int) -> void:
+	hp = maxi(hp - amount, 0)
+	stats_changed.emit()
+	if hp == 0:
+		died.emit()
+
+
 func gain_block(amount: int) -> void:
 	block += amount
 	stats_changed.emit()

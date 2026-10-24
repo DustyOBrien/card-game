@@ -9,5 +9,6 @@ cost = 0
 types = 1
 schools = 2
 damage = 2
+class_only = PackedStringArray()
 effect = "Deal 2 Damage"
 color = Color(0.25, 0.5, 0.3, 1)

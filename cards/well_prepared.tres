@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_bn0xk"]
+
+[resource]
+script = ExtResource("1_bn0xk")
+card_name = "Well Prepared"
+types = 2
+block = 4
+heal = 2
+class_only = PackedStringArray("Adventurer")
+effect = "Gain 4 Block and Heal 2 HP"
+color = Color(0.4, 0.4, 0.42, 1)

@@ -9,5 +9,6 @@ types = 1
 schools = 4
 damage = 8
 discard = 2
+class_only = PackedStringArray()
 effect = "Deal 8 Damage Discard 2 Cards at random"
 color = Color(0.22, 0.35, 0.65, 1)

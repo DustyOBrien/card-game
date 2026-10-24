@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_23muy"]
+
+[resource]
+script = ExtResource("1_23muy")
+card_name = "Reckless Swing"
+types = 1
+damage = 9
+lose_hp = 2
+class_only = PackedStringArray()
+effect = "Deal 9 Damage and Lose 2 HP"
+color = Color(0.4, 0.4, 0.42, 1)

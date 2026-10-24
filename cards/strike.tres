@@ -8,5 +8,7 @@ card_name = "Strike"
 types = 1
 schools = 1
 damage = 6
+copies = 3
+class_only = PackedStringArray()
 effect = "Deal 6 Damage"
 color = Color(0.6, 0.22, 0.22, 1)

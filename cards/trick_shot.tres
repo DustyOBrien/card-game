@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_org0y"]
+
+[resource]
+script = ExtResource("1_org0y")
+card_name = "Trick Shot"
+types = 1
+damage = 3
+draw = 1
+class_only = PackedStringArray("Adventurer")
+effect = "Deal 3 Damage and Draw 1 Card"
+color = Color(0.4, 0.4, 0.42, 1)

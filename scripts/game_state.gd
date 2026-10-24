@@ -60,13 +60,14 @@ func load_card_pool() -> Array[CardData]:
 	return pool
 
 
-# The suggested starting deck for the chosen class: as many copies of every
-# card it can use as its rules allow, stopping if the deck gets full.
+# The suggested starting deck for the chosen class: every card it can use,
+# as many times as the Copies column says, but never more than the class
+# allows (so a Copies of 3 still gives the Adventurer just 1).
 # Used when you pick a class, and by the deck builder's Starter Deck button.
 func make_starter_deck() -> Array[CardData]:
 	var starter: Array[CardData] = []
 	for card in load_card_pool():
-		for i in character_class.max_copies_of(card):
+		for i in mini(card.copies, character_class.max_copies_of(card)):
 			if starter.size() < character_class.max_deck_size:
 				starter.append(card)
 	return starter
