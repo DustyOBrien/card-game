@@ -37,6 +37,7 @@ layout_mode = 2
 theme_override_constants/separation = 12
 
 [node name="TitleLabel" type="Label" parent="Margin/Layout"]
+unique_name_in_owner = true
 layout_mode = 2
 theme_override_font_sizes/font_size = 36
 text = "Build Your Deck"
@@ -117,6 +118,13 @@ text = "Starter Deck"
 [node name="BottomBar" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2
 theme_override_constants/separation = 16
+
+[node name="BackButton" type="Button" parent="Margin/Layout/BottomBar"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(200, 48)
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Change Class"
 
 [node name="RulesLabel" type="Label" parent="Margin/Layout/BottomBar"]
 unique_name_in_owner = true

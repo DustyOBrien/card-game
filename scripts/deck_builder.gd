@@ -2,7 +2,8 @@
 #
 # The screen before the battle (scenes/deck_builder.tscn).
 #
-#   - Left side: the card POOL, one of every card. Click one to add it to your deck.
+#   - Left side: the card POOL, one of every card your class can use.
+#     Click one to add it to your deck.
 #   - Right side: your DECK. Click a line to take one copy back out.
 #   - "Start Battle" saves the deck into GameState (see game_state.gd) and
 #     switches to the battle scene, which reads it from there.
@@ -10,15 +11,14 @@ extends Control
 
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const BATTLE_SCENE := "res://scenes/battle.tscn"
+const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
 
-# --- Deck rules -----------------------------------------------------------------
-# Change these to try different rules. Everything else on the screen follows them.
-const MIN_DECK_SIZE := 10  # You can't start a battle with fewer cards than this.
-const MAX_DECK_SIZE := 20  # You can't add cards beyond this.
-const MAX_COPIES := 3  # The most copies of any one card a deck may have.
-
+# The deck rules (deck size, copies per card) come from the class you picked.
+# They live in classes/*.tres: click one in Godot and change them in the Inspector.
+var rules: CharacterClass
 var card_pool: Array[CardData] = []
 
+@onready var title_label: Label = %TitleLabel
 @onready var pool_grid: GridContainer = %PoolGrid
 @onready var deck_list: VBoxContainer = %DeckList
 @onready var deck_count_label: Label = %DeckCountLabel
@@ -26,20 +26,24 @@ var card_pool: Array[CardData] = []
 @onready var clear_button: Button = %ClearButton
 @onready var default_button: Button = %DefaultButton
 @onready var start_button: Button = %StartButton
+@onready var back_button: Button = %BackButton
 
 
 func _ready() -> void:
 	clear_button.pressed.connect(_on_clear_pressed)
 	default_button.pressed.connect(_on_default_pressed)
 	start_button.pressed.connect(_on_start_pressed)
+	back_button.pressed.connect(_on_back_pressed)
 
-	card_pool = GameState.load_card_pool()
+	# Picking a class already gave you its starter deck, and coming back from a
+	# battle keeps your last deck. ensure_ready() only matters when you press F6
+	# to run this scene on its own.
+	GameState.ensure_ready()
+	rules = GameState.character_class
+	title_label.text = "Build Your Deck: %s" % rules.display_name
+
+	card_pool = GameState.load_card_pool()  # Only the cards this class can use.
 	build_pool()
-
-	# First visit: start from the suggested deck so you can jump straight in.
-	# Coming back from a battle: GameState.deck still holds your last deck, keep it.
-	if GameState.deck.is_empty():
-		GameState.deck = GameState.make_default_deck()
 	refresh()
 
 
@@ -75,7 +79,7 @@ func refresh() -> void:
 		var card: Card = cell.get_child(0)
 		var count_label: Label = cell.get_child(1)
 		var count := deck.count(card_pool[i])  # How many times this card is in the list.
-		count_label.text = "In deck: %d / %d" % [count, MAX_COPIES]
+		count_label.text = "In deck: %d / %d" % [count, rules.max_copies_of(card_pool[i])]
 		card.disabled = not can_add(card_pool[i])
 
 	# Deck list: throw away the old lines and make one button per kind of card.
@@ -97,12 +101,12 @@ func refresh() -> void:
 	deck_count_label.text = "Your deck: %d cards" % deck.size()
 
 	# Only allow starting once the deck is big enough, and say why if it isn't.
-	start_button.disabled = deck.size() < MIN_DECK_SIZE
-	if deck.size() < MIN_DECK_SIZE:
-		rules_label.text = "Add %d more card(s) to start." % (MIN_DECK_SIZE - deck.size())
+	start_button.disabled = deck.size() < rules.min_deck_size
+	if deck.size() < rules.min_deck_size:
+		rules_label.text = "Add %d more card(s) to start." % (rules.min_deck_size - deck.size())
 	else:
-		rules_label.text = "Deck size %d to %d, up to %d copies of each card." % [
-			MIN_DECK_SIZE, MAX_DECK_SIZE, MAX_COPIES]
+		rules_label.text = "%s deck: %d to %d cards." % [
+			rules.display_name, rules.min_deck_size, rules.max_deck_size]
 
 
 # ---------------------------------------------------------------------------
@@ -110,7 +114,8 @@ func refresh() -> void:
 # ---------------------------------------------------------------------------
 
 func can_add(card_data: CardData) -> bool:
-	return GameState.deck.size() < MAX_DECK_SIZE and GameState.deck.count(card_data) < MAX_COPIES
+	return (GameState.deck.size() < rules.max_deck_size
+			and GameState.deck.count(card_data) < rules.max_copies_of(card_data))
 
 
 # ---------------------------------------------------------------------------
@@ -134,7 +139,7 @@ func _on_clear_pressed() -> void:
 
 
 func _on_default_pressed() -> void:
-	GameState.deck = GameState.make_default_deck()
+	GameState.deck = GameState.make_starter_deck()
 	refresh()
 
 
@@ -142,3 +147,8 @@ func _on_start_pressed() -> void:
 	# change_scene_to_file() throws away this whole scene and loads the battle.
 	# The deck survives because it lives in GameState, not in this scene.
 	get_tree().change_scene_to_file(BATTLE_SCENE)
+
+
+# Back to Character Select to pick a different class.
+func _on_back_pressed() -> void:
+	get_tree().change_scene_to_file(CHARACTER_SELECT_SCENE)

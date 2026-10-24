@@ -79,10 +79,9 @@ func start_battle() -> void:
 	next_defense_bonus = 0
 
 	# The deck you built in the deck builder is waiting in GameState (an autoload,
-	# see game_state.gd). If it's empty, e.g. you pressed F6 to run only this
-	# scene, use the starter deck instead.
-	if GameState.deck.is_empty():
-		GameState.deck = GameState.make_default_deck()
+	# see game_state.gd). ensure_ready() gives you a starter deck if there isn't
+	# one, e.g. when you press F6 to run only this scene.
+	GameState.ensure_ready()
 	hand.clear()
 	discard_pile.clear()
 	# duplicate() makes a COPY of the list. We shuffle and draw from the copy,

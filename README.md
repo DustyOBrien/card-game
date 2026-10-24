@@ -5,10 +5,13 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
 
 ![Screenshot of a battle](docs/screenshot.png)
 
+![Screenshot of the character select screen](docs/character_select.png)
+
 ![Screenshot of the deck builder](docs/deck_builder.png)
 
 **What's in it so far**
 
+- A **Character Select** screen: each class (Adventurer, Knight) has its own deck-building rules
 - A **deck builder** before each battle: pick which cards (and how many copies) go in your deck
 - 12 cards across four schools (Strength, Agility, Intellect, Wisdom), made from a
   spreadsheet: `data/cards.csv` (see [Making cards from the spreadsheet](#making-cards-from-the-spreadsheet))
@@ -57,11 +60,18 @@ That's a cache that Godot can always rebuild, so it isn't saved to GitHub
 
 ## 3. How to play
 
-The game starts on the **deck builder**:
+The game starts on **Character Select**. Your class decides which cards you can use:
+
+| Class | Can use | Copies per card | Deck size |
+|---|---|---|---|
+| Adventurer | Strength, Agility, Intellect, Wisdom, Neutral | 1 (Neutral: 2) | 10 to 20 |
+| Knight | Strength, Neutral | 3 (Neutral: 2) | 9 to 20 |
+
+Then you're on the **deck builder**, holding your class's starter deck:
 
 - Click a card on the left to add a copy to your deck. Click a line in **Your deck** on the right to take one copy out.
-- **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number in the spreadsheet).
-- Your deck needs **10 to 20 cards**, with **at most 3 copies** of any card. Then click **Start Battle**.
+- **Clear** empties the deck; **Starter Deck** puts back the suggested deck (as many of each card as your class allows).
+- When the deck is big enough, click **Start Battle**. **Change Class** goes back to Character Select.
 
 In the battle:
 
@@ -78,12 +88,15 @@ In the battle:
 card-game/
 ├── project.godot        Project settings (name, window size, which scene starts first)
 ├── scenes/
-│   ├── deck_builder.tscn The first screen: pick the cards for your deck
+│   ├── character_select.tscn The first screen: pick a class
+│   ├── deck_builder.tscn Pick the cards for your deck
 │   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
 │   └── card.tscn        What ONE card looks like
 ├── scripts/
-│   ├── game_state.gd    Autoload: keeps your deck while scenes change
-│   ├── deck_builder.gd  Adding and removing cards, deck rules, Start Battle
+│   ├── game_state.gd    Autoload: keeps your class and deck while scenes change
+│   ├── character_class.gd Defines what a class is (its deck rules)
+│   ├── character_select.gd Shows one panel per class
+│   ├── deck_builder.gd  Adding and removing cards, following your class's rules
 │   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data and report when it's clicked
 │   ├── card_data.gd     Defines what information a card has (name, cost, damage...)
@@ -94,6 +107,7 @@ card-game/
 ├── data/
 │   └── cards.csv        The card spreadsheet (the master list of cards)
 ├── cards/               One .tres file per card, made by the importer
+├── classes/             One .tres file per class (adventurer.tres, knight.tres)
 └── docs/                Pictures for this README (Godot ignores this folder)
 ```
 
@@ -223,7 +237,7 @@ Every card has these fields:
 | Draw If Full HP | Cards drawn only if you were at full HP when you played it (Pray) |
 | Next Attack Bonus | Extra damage for your next Attack card (Rage) |
 | Next Defense Bonus | Extra Block for your next Defense card (Brace) |
-| Copies | How many of this card are in the Starter Deck |
+| Copies | Not used right now (each class builds its own starter deck) |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
 
@@ -283,7 +297,7 @@ catch mistakes and autocomplete for you.
 Small changes, roughly easiest first:
 
 1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's `max_hp` by clicking the **Enemy** node in `battle.tscn`.
-2. **Change the deck rules.** Edit `MIN_DECK_SIZE`, `MAX_DECK_SIZE` and `MAX_COPIES` at the top of `deck_builder.gd`.
+2. **Change a class's deck rules.** Click `classes/knight.tres` in the FileSystem panel and change the numbers in the Inspector. Or make a new class (see [Adding a class](#adding-a-class)).
 3. **Change the enemy's attacks.** Edit `ENEMY_MIN_ATTACK` / `ENEMY_MAX_ATTACK` at the top of `battle.gd`.
 4. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
 5. **Show HP as a bar** using a `ProgressBar` node instead of a label.
@@ -307,7 +321,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Column | Example | Notes |
 |---|---|---|
 | NAME | Quick Strike | Also used for the file name (`quick_strike.tres`) |
-| Copies | 2 | How many go in the Starter Deck (the deck builder's default) |
+| Copies | 2 | Not used right now (each class builds its own starter deck) |
 | Cost | 1 | |
 | School | Strength, Wisdom | Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
@@ -326,6 +340,18 @@ Blank cells count as 0. The "Card" column is ignored (NAME is used instead).
 **The spreadsheet is the boss:** any card file in `cards/` that isn't in the
 spreadsheet gets deleted when you import. So make new cards by adding rows,
 not by duplicating `.tres` files in Godot.
+
+## Adding a class
+
+Classes are data, just like cards: each one is a `.tres` file in `classes/`,
+made from `character_class.gd`. To add one, you don't write any code:
+
+1. In the **FileSystem** panel, right-click `classes/knight.tres` and choose **Duplicate...**. Name it, e.g. `rogue.tres`.
+2. Click the new file. In the **Inspector**, change:
+   - **Display Name**, **Description**, **Color**
+   - **Sort Order**: where it appears on Character Select (lower = further left)
+   - **Deck Rules**: which **Allowed Schools** are ticked, **Allow Neutral**, **Max Copies** (school cards), **Max Copies Neutral**, **Min / Max Deck Size**
+3. Press F5. The new class is on Character Select, and its rules text is written for you from those numbers.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 
