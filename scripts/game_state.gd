@@ -42,15 +42,23 @@ func load_classes() -> Array[CharacterClass]:
 	return classes
 
 
-# Every card the chosen class is allowed to build with (one of each), loaded
-# from the cards/ folder. Sorted by school, then name, so schools sit together.
-func load_card_pool() -> Array[CardData]:
-	var pool: Array[CardData] = []
+# Every card in the game (one of each), loaded from the cards/ folder.
+# Character Select uses this to count unlocked cards for class unlocks.
+func load_all_cards() -> Array[CardData]:
+	var cards: Array[CardData] = []
 	for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
 		if file_name.ends_with(".tres"):
-			var card: CardData = load(CARDS_FOLDER + file_name)
-			if character_class == null or character_class.can_use(card):
-				pool.append(card)
+			cards.append(load(CARDS_FOLDER + file_name))
+	return cards
+
+
+# Every card the chosen class is allowed to build with (one of each).
+# Sorted by school, then name, so schools sit together.
+func load_card_pool() -> Array[CardData]:
+	var pool: Array[CardData] = []
+	for card in load_all_cards():
+		if character_class == null or character_class.can_use(card):
+			pool.append(card)
 	# sort_custom() takes a function that answers "should a come before b?".
 	# `func(a, b): ...` is a lambda: a small function with no name (like Python's lambda).
 	pool.sort_custom(func(a: CardData, b: CardData) -> bool:
@@ -67,10 +75,10 @@ func load_card_pool() -> Array[CardData]:
 func make_starter_deck() -> Array[CardData]:
 	var starter: Array[CardData] = []
 	for card in load_card_pool():
-		if not card.unlocked:
-			continue  # Locked cards never go in the starter deck.
 		for i in mini(card.copies, character_class.max_copies_of(card)):
-			if starter.size() < character_class.max_deck_size:
+			# can_add_to() checks every deck rule, including "locked cards
+			# can't be added" and the deck-size and per-school limits.
+			if character_class.can_add_to(starter, card):
 				starter.append(card)
 	return starter
 

@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- A magic star with sparks: the Mage's spells. -->
+  <circle cx="64" cy="64" r="56" fill="#17213f" stroke="#7aa2f0" stroke-width="6"/>
+  <polygon points="64,16 74,54 112,64 74,74 64,112 54,74 16,64 54,54" fill="#bcd0ff"/>
+  <polygon points="64,36 70,58 92,64 70,70 64,92 58,70 36,64 58,58" fill="#ffffff"/>
+  <circle cx="98" cy="30" r="5" fill="#bcd0ff"/>
+  <circle cx="30" cy="98" r="4" fill="#bcd0ff"/>
+</svg>

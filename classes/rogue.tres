@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CharacterClass" format=3]
+
+[ext_resource type="Script" path="res://scripts/character_class.gd" id="1_class"]
+[ext_resource type="Texture2D" path="res://emblems/rogue.svg" id="2_emblem"]
+
+[resource]
+script = ExtResource("1_class")
+display_name = "Rogue"
+emblem = ExtResource("2_emblem")
+description = "Strikes fast and slips away. Wins with lots of cheap, quick cards."
+color = Color(0.25, 0.5, 0.3, 1)
+sort_order = 2
+max_hp = 45
+unlock_school = 2
+allowed_schools = 2
+max_copies = 3

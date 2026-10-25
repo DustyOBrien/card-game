@@ -22,6 +22,7 @@ var card_pool: Array[CardData] = []
 @onready var pool_grid: GridContainer = %PoolGrid
 @onready var deck_list: VBoxContainer = %DeckList
 @onready var deck_count_label: Label = %DeckCountLabel
+@onready var school_count_label: Label = %SchoolCountLabel
 @onready var rules_label: Label = %RulesLabel
 @onready var clear_button: Button = %ClearButton
 @onready var default_button: Button = %DefaultButton
@@ -101,6 +102,7 @@ func refresh() -> void:
 		deck_list.add_child(line)
 
 	deck_count_label.text = "Your deck: %d cards" % deck.size()
+	school_count_label.text = get_school_count_text(deck)
 
 	# Only allow starting once the deck is big enough, and say why if it isn't.
 	start_button.disabled = deck.size() < rules.min_deck_size
@@ -115,10 +117,28 @@ func refresh() -> void:
 # Rules
 # ---------------------------------------------------------------------------
 
+# The school tracker under "Your deck", e.g. "STR 3   AGI 2   INT 0   WIS 1".
+# If the class limits cards per school, it shows the limit too: "STR 1/1".
+func get_school_count_text(deck: Array[CardData]) -> String:
+	var parts: Array[String] = []
+	for school_name in CardData.School.keys():
+		var school: int = CardData.School[school_name]
+		if (rules.allowed_schools & school) == 0:
+			continue  # This class can't use the school, so don't show it.
+		var text := "%s %d" % [school_name.substr(0, 3), CharacterClass.count_school(deck, school)]
+		if rules.max_cards_per_school > 0:
+			text += "/%d" % rules.max_cards_per_school
+		parts.append(text)
+	var neutral := 0
+	for card in deck:
+		if card.is_neutral():
+			neutral += 1
+	parts.append("Neutral %d" % neutral)
+	return "   ".join(parts)
+
+
 func can_add(card_data: CardData) -> bool:
-	return (card_data.unlocked
-			and GameState.deck.size() < rules.max_deck_size
-			and GameState.deck.count(card_data) < rules.max_copies_of(card_data))
+	return rules.can_add_to(GameState.deck, card_data)  # All the rules live in character_class.gd.
 
 
 # ---------------------------------------------------------------------------

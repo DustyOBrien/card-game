@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CharacterClass" format=3]
+
+[ext_resource type="Script" path="res://scripts/character_class.gd" id="1_class"]
+[ext_resource type="Texture2D" path="res://emblems/mage.svg" id="2_emblem"]
+
+[resource]
+script = ExtResource("1_class")
+display_name = "Mage"
+emblem = ExtResource("2_emblem")
+description = "Bends Intellect into fire and shields. Fragile, but hits hard."
+color = Color(0.22, 0.35, 0.65, 1)
+sort_order = 3
+max_hp = 40
+unlock_school = 4
+allowed_schools = 4
+max_copies = 3

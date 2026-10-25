@@ -1,13 +1,16 @@
 [gd_resource type="Resource" script_class="CharacterClass" format=3]
 
 [ext_resource type="Script" path="res://scripts/character_class.gd" id="1_class"]
+[ext_resource type="Texture2D" path="res://emblems/knight.svg" id="2_emblem"]
 
 [resource]
 script = ExtResource("1_class")
 display_name = "Knight"
+emblem = ExtResource("2_emblem")
 description = "A master of Strength. Trusts only steel, but trusts it a lot."
 color = Color(0.6, 0.22, 0.22, 1)
 sort_order = 1
 max_hp = 60
+unlock_school = 1
 allowed_schools = 1
 max_copies = 3

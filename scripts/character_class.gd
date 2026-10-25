@@ -14,10 +14,18 @@ class_name CharacterClass
 extends Resource
 
 @export var display_name: String = "New Class"  # Name shown on screen.
+@export var emblem: Texture2D  # The class's symbol. Drag an image from emblems/ onto this in the Inspector.
 @export_multiline var description: String = ""  # A line of flavour text.
 @export var color: Color = Color(0.4, 0.4, 0.42)  # Panel colour on the select screen.
 @export var sort_order: int = 0  # Lower numbers are shown further left.
 @export var max_hp: int = 50  # The player's HP in battle.
+
+@export_group("Unlocking")
+@export var starts_unlocked: bool = false  # true = playable from the start (the Adventurer).
+# Otherwise the class unlocks once this many cards of this school are unlocked
+# (the Unlocked column in the card spreadsheet).
+@export_enum("Strength:1", "Agility:2", "Intellect:4", "Wisdom:8") var unlock_school: int = 1
+@export var unlock_card_count: int = 12
 
 @export_group("Deck rules")
 # Which schools' cards this class may put in its deck. Same checkboxes as on cards.
@@ -25,6 +33,8 @@ extends Resource
 @export var allow_neutral: bool = true  # Can it use cards with no school?
 @export var max_copies: int = 2  # Most copies of each card that HAS a school.
 @export var max_copies_neutral: int = 2  # Most copies of each neutral card.
+# Most cards from any ONE school in the deck (all its cards added up). 0 = no limit.
+@export var max_cards_per_school: int = 0
 @export var min_deck_size: int = 12  # Can't start a battle with fewer cards.
 @export var max_deck_size: int = 20  # Can't add cards beyond this.
 
@@ -47,6 +57,56 @@ func can_use(card: CardData) -> bool:
 	return max_copies_of(card) > 0
 
 
+# Could this card go into `deck` right now? Checks every rule in one place,
+# so the deck builder and the starter deck follow exactly the same rules.
+func can_add_to(deck: Array[CardData], card: CardData) -> bool:
+	if not card.unlocked:
+		return false
+	if deck.size() >= max_deck_size:
+		return false
+	if deck.count(card) >= max_copies_of(card):
+		return false
+	if max_cards_per_school > 0:
+		# Every school on the card must still have room.
+		for school in CardData.School.values():
+			if card.has_school(school) and count_school(deck, school) >= max_cards_per_school:
+				return false
+	return true
+
+
+# How many cards in `deck` belong to `school`? (A STR + WIS card counts for both.)
+static func count_school(deck: Array[CardData], school: int) -> int:
+	var total := 0
+	for card in deck:
+		if card.has_school(school):
+			total += 1
+	return total
+
+
+# ---------------------------------------------------------------------------
+# Unlocking
+# ---------------------------------------------------------------------------
+
+# How many unlocked cards of our unlock school are in this list of cards?
+func unlock_progress(all_cards: Array[CardData]) -> int:
+	var total := 0
+	for card in all_cards:
+		if card.unlocked and card.has_school(unlock_school):
+			total += 1
+	return total
+
+
+func is_unlocked(all_cards: Array[CardData]) -> bool:
+	return starts_unlocked or unlock_progress(all_cards) >= unlock_card_count
+
+
+# e.g. "Unlock 12 Strength cards (6 / 12)"
+func get_unlock_text(all_cards: Array[CardData]) -> String:
+	var school_name: String = CardData.School.find_key(unlock_school).capitalize()
+	return "Unlock %d %s cards (%d / %d)" % [
+		unlock_card_count, school_name, unlock_progress(all_cards), unlock_card_count]
+
+
 # A short summary of the rules, built from the numbers above so it never goes
 # out of date. Shown on the Character Select screen.
 func get_rules_text() -> String:
@@ -60,6 +120,8 @@ func get_rules_text() -> String:
 		lines.append("No school cards")
 	else:
 		lines.append("%s cards: up to %d each" % [", ".join(school_names), max_copies])
+	if max_cards_per_school > 0:
+		lines.append("At most %d card(s) from each school" % max_cards_per_school)
 	if allow_neutral:
 		lines.append("Neutral cards: up to %d each" % max_copies_neutral)
 	lines.append("Deck size: %d to %d cards" % [min_deck_size, max_deck_size])

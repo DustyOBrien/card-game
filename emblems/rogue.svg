@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Two crossed daggers: the Rogue is quick. -->
+  <circle cx="64" cy="64" r="56" fill="#183324" stroke="#6fcf8a" stroke-width="6"/>
+  <g transform="rotate(45 64 64)">
+    <polygon points="64,14 72,30 72,78 56,78 56,30" fill="#d8f2df"/>
+    <rect x="46" y="78" width="36" height="8" rx="3" fill="#6fcf8a"/>
+    <rect x="59" y="86" width="10" height="24" rx="3" fill="#3d7a52"/>
+  </g>
+  <g transform="rotate(-45 64 64)">
+    <polygon points="64,14 72,30 72,78 56,78 56,30" fill="#d8f2df"/>
+    <rect x="46" y="78" width="36" height="8" rx="3" fill="#6fcf8a"/>
+    <rect x="59" y="86" width="10" height="24" rx="3" fill="#3d7a52"/>
+  </g>
+</svg>

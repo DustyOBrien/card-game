@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- A shield with a cross: the Knight's steel. -->
+  <path d="M64 8 L112 24 L112 62 C112 92 90 112 64 122 C38 112 16 92 16 62 L16 24 Z"
+        fill="#5a1c1c" stroke="#e07a6a" stroke-width="6" stroke-linejoin="round"/>
+  <rect x="57" y="28" width="14" height="78" rx="3" fill="#f0d0c8"/>
+  <rect x="32" y="52" width="64" height="14" rx="3" fill="#f0d0c8"/>
+</svg>

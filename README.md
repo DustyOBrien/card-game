@@ -62,10 +62,18 @@ That's a cache that Godot can always rebuild, so it isn't saved to GitHub
 
 The game starts on **Character Select**. Your class decides which cards you can use:
 
-| Class | HP | Can use | Copies per card | Deck size |
+| Class | HP | Can use | Copies per card | Unlocks when |
 |---|---|---|---|---|
-| Adventurer | 50 | Strength, Agility, Intellect, Wisdom, Neutral, Adventurer cards | 1 (Neutral: 2) | 12 to 20 |
-| Knight | 60 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 to 20 |
+| Adventurer | 50 | Every school, Neutral, Adventurer cards | 1 (Neutral: 2) | Unlocked from the start |
+| Knight | 60 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 Strength cards are unlocked |
+| Rogue | 45 | Agility, Neutral, Rogue cards | 3 (Neutral: 2) | 12 Agility cards are unlocked |
+| Mage | 40 | Intellect, Neutral, Mage cards | 3 (Neutral: 2) | 12 Intellect cards are unlocked |
+| Priest | 55 | Wisdom, Neutral, Priest cards | 3 (Neutral: 2) | 12 Wisdom cards are unlocked |
+
+Every deck needs 12 to 20 cards. "Unlocked" means the card's **Unlocked**
+column says Yes in the spreadsheet. A locked class shows its progress, e.g.
+"Unlock 12 Strength cards (6 / 12)". In the deck builder, the line under
+**Your deck** counts your cards per school (`STR 3   AGI 2 ...`).
 
 Class-only cards say so on their type line, e.g. **Attack - Knight**.
 
@@ -112,7 +120,8 @@ card-game/
 ├── data/
 │   └── cards.csv        The card spreadsheet (the master list of cards)
 ├── cards/               One .tres file per card, made by the importer
-├── classes/             One .tres file per class (adventurer.tres, knight.tres)
+├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
+├── emblems/             The class emblems (SVG pictures)
 └── docs/                Pictures for this README (Godot ignores this folder)
 ```
 
@@ -382,8 +391,10 @@ made from `character_class.gd`. To add one, you don't write any code:
 1. In the **FileSystem** panel, right-click `classes/knight.tres` and choose **Duplicate...**. Name it, e.g. `rogue.tres`.
 2. Click the new file. In the **Inspector**, change:
    - **Display Name**, **Description**, **Color**, **Max HP**
+   - **Emblem**: drag an image onto it from the FileSystem panel. The emblems are simple drawings in `emblems/` (SVG files, which you can edit in a free program like Inkscape, or swap for your own PNGs)
+   - **Unlocking**: tick **Starts Unlocked**, or pick the **Unlock School** and **Unlock Card Count**
    - **Sort Order**: where it appears on Character Select (lower = further left)
-   - **Deck Rules**: which **Allowed Schools** are ticked, **Allow Neutral**, **Max Copies** (school cards), **Max Copies Neutral**, **Min / Max Deck Size**
+   - **Deck Rules**: which **Allowed Schools** are ticked, **Allow Neutral**, **Max Copies** (school cards), **Max Copies Neutral**, **Max Cards Per School** (0 = no limit), **Min / Max Deck Size**
 3. Press F5. The new class is on Character Select, and its rules text is written for you from those numbers.
 
 To give the new class its own cards, type its **Display Name** in the **Class** column of the spreadsheet and re-import.

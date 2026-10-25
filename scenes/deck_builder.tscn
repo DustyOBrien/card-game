@@ -89,6 +89,14 @@ layout_mode = 2
 theme_override_font_sizes/font_size = 24
 text = "Your deck: 0 cards"
 
+[node name="SchoolCountLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.75)
+theme_override_font_sizes/font_size = 15
+text = "STR 0   AGI 0   INT 0   WIS 0   Neutral 0"
+autowrap_mode = 3
+
 [node name="DeckScroll" type="ScrollContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
 layout_mode = 2
 size_flags_vertical = 3
