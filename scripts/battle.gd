@@ -118,6 +118,7 @@ func start_battle() -> void:
 	# see game_state.gd). ensure_ready() above gives you a starter deck if there
 	# isn't one, e.g. when you press F6 to run only this scene.
 	hand.clear()
+	refresh_hand()  # Also remove the old fight's cards from the screen.
 	discard_pile.clear()
 	# We give every card its OWN copy (card.duplicate()), so two Strikes can
 	# each remember their own dice roll. The deck you built stays untouched
@@ -263,6 +264,8 @@ func roll_text(card: CardData) -> String:
 func _on_card_played(card: CardData) -> void:
 	if busy or game_over or card.cost > energy:
 		return
+	if not hand.has(card):
+		return  # Only cards really in your hand can be played.
 
 	busy = true  # Until this card is done, nothing else can be played.
 	energy -= card.cost
