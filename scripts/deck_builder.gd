@@ -80,6 +80,8 @@ func refresh() -> void:
 		var count_label: Label = cell.get_child(1)
 		var count := deck.count(card_pool[i])  # How many times this card is in the list.
 		count_label.text = "In deck: %d / %d" % [count, rules.max_copies_of(card_pool[i])]
+		if not card_pool[i].unlocked:
+			count_label.text = "Locked"
 		card.disabled = not can_add(card_pool[i])
 
 	# Deck list: throw away the old lines and make one button per kind of card.
@@ -114,7 +116,8 @@ func refresh() -> void:
 # ---------------------------------------------------------------------------
 
 func can_add(card_data: CardData) -> bool:
-	return (GameState.deck.size() < rules.max_deck_size
+	return (card_data.unlocked
+			and GameState.deck.size() < rules.max_deck_size
 			and GameState.deck.count(card_data) < rules.max_copies_of(card_data))
 
 

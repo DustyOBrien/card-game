@@ -241,6 +241,8 @@ Every card has these fields:
 | Next Defense Bonus | Extra Block for your next Defense card (Brace) |
 | Copies | How many go in the Starter Deck (a class may allow fewer) |
 | Class Only | Which classes may use it, e.g. Knight. Empty = every class |
+| Rarity | Common, Uncommon or Rare. Shown at the bottom of the card (grey, blue, gold) |
+| Unlocked | Off = the deck builder shows the card as **Locked** and you can't add it |
 | Energy | Energy you gain when you play it (Adrenaline) |
 | Lose HP | HP you lose when you play it. Block doesn't stop it (Reckless Swing) |
 | Effect | The rules text printed on the card (typed by hand) |
@@ -328,6 +330,8 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | NAME | Quick Strike | Also used for the file name (`quick_strike.tres`) |
 | Copies | 2 | How many go in the Starter Deck. A class can allow fewer: the Adventurer only ever gets 1 of a school card |
 | Class | Knight | Only these classes can use the card. Several allowed, like School. Blank = every class |
+| Rarity | Rare | Common, Uncommon or Rare. Blank = Common |
+| Unlocked | No | Yes or No. No = shown as Locked in the deck builder and left out of the Starter Deck. Blank = Yes |
 | Cost | 1 | |
 | School | Strength, Wisdom | Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |

@@ -8,6 +8,7 @@ card_name = "Reckless Swing"
 types = 1
 damage = 9
 lose_hp = 2
+rarity = 1
 class_only = PackedStringArray()
 effect = "Deal 9 Damage and Lose 2 HP"
 color = Color(0.4, 0.4, 0.42, 1)

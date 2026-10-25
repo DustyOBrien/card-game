@@ -20,6 +20,7 @@ var card_data: CardData
 @onready var name_label: Label = %NameLabel
 @onready var type_label: Label = %TypeLabel
 @onready var effect_label: Label = %EffectLabel
+@onready var rarity_label: Label = %RarityLabel
 
 
 func _ready() -> void:
@@ -38,6 +39,8 @@ func setup(data: CardData) -> void:
 		# e.g. "Attack - Knight", so you can see who's allowed to use it.
 		type_label.text += " - " + ", ".join(data.class_only)
 	effect_label.text = data.effect
+	rarity_label.text = data.get_rarity_text()
+	rarity_label.add_theme_color_override("font_color", CardData.RARITY_COLORS[data.rarity])
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
 

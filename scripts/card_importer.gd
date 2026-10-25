@@ -70,6 +70,8 @@ static func import_cards() -> int:
 		card.energy = _to_int(_cell(row, columns, "energy"))
 		card.lose_hp = _to_int(_cell(row, columns, "lose hp"))
 		card.class_only = _parse_list(_cell(row, columns, "class"))
+		card.rarity = _parse_rarity(_cell(row, columns, "rarity"))
+		card.unlocked = _parse_yes_no(_cell(row, columns, "unlocked"), true)
 		card.color = _pick_color(card.schools)
 
 		var path := CARDS_FOLDER + _file_name_for(card_name)
@@ -129,6 +131,28 @@ static func _parse_list(text: String) -> PackedStringArray:
 		if not part.strip_edges().is_empty():
 			result.append(part.strip_edges())
 	return result
+
+
+# "Rare" -> Rarity.RARE. Blank means Common.
+static func _parse_rarity(text: String) -> CardData.Rarity:
+	var key := text.strip_edges().to_upper()
+	if key.is_empty():
+		return CardData.Rarity.COMMON
+	if not CardData.Rarity.has(key):
+		push_warning("Unknown rarity '%s', using Common" % text)
+		return CardData.Rarity.COMMON
+	return CardData.Rarity[key]
+
+
+# "Yes" / "Y" / "True" / "1" -> true, "No" / "N" / "False" / "0" -> false.
+# A blank cell gives `default` instead.
+static func _parse_yes_no(text: String, default: bool) -> bool:
+	var value := text.strip_edges().to_lower()
+	if value in ["yes", "y", "true", "1"]:
+		return true
+	if value in ["no", "n", "false", "0"]:
+		return false
+	return default
 
 
 static func _pick_color(schools: int) -> Color:

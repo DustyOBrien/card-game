@@ -9,6 +9,7 @@ cost = 2
 types = 2
 schools = 1
 block = 13
+rarity = 2
 class_only = PackedStringArray("Knight")
 effect = "Gain 13 Block"
 color = Color(0.6, 0.22, 0.22, 1)

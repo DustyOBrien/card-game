@@ -9,6 +9,7 @@ cost = 0
 types = 4
 discard = 1
 energy = 1
+rarity = 2
 class_only = PackedStringArray("Adventurer")
 effect = "Gain 1 Energy and Discard 1 Card at random"
 color = Color(0.4, 0.4, 0.42, 1)

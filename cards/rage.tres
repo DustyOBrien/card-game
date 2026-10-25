@@ -9,6 +9,7 @@ cost = 0
 types = 4
 schools = 1
 next_attack_bonus = 3
+rarity = 1
 class_only = PackedStringArray()
 effect = "The next Attack Card gains +3 Attack"
 color = Color(0.6, 0.22, 0.22, 1)

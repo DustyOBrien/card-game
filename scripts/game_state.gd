@@ -67,6 +67,8 @@ func load_card_pool() -> Array[CardData]:
 func make_starter_deck() -> Array[CardData]:
 	var starter: Array[CardData] = []
 	for card in load_card_pool():
+		if not card.unlocked:
+			continue  # Locked cards never go in the starter deck.
 		for i in mini(card.copies, character_class.max_copies_of(card)):
 			if starter.size() < character_class.max_deck_size:
 				starter.append(card)

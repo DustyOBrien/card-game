@@ -28,6 +28,14 @@ extends Resource
 enum CardType { ATTACK = 1, DEFENSE = 2, ABILITY = 4 }
 enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 
+# Rarity is just one value per card, so it's a normal enum (0, 1, 2), not flags.
+enum Rarity { COMMON, UNCOMMON, RARE }
+const RARITY_COLORS := {
+	Rarity.COMMON: Color(0.85, 0.85, 0.85),
+	Rarity.UNCOMMON: Color(0.45, 0.75, 1.0),
+	Rarity.RARE: Color(1.0, 0.8, 0.3),
+}
+
 # @export makes a variable show up in the Inspector so you can edit it there.
 @export var card_name: String = "New Card"
 @export var cost: int = 1  # Energy needed to play the card.
@@ -47,6 +55,8 @@ enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 @export var energy: int = 0  # Energy the player gains when played.
 @export var lose_hp: int = 0  # HP the player loses when played (Block doesn't stop it).
 @export var copies: int = 1  # How many go in the Starter Deck (a class may allow fewer).
+@export var rarity: Rarity = Rarity.COMMON  # Shown as a dropdown in the Inspector.
+@export var unlocked: bool = true  # Locked cards show in the deck builder but can't be added.
 # Classes allowed to use this card, e.g. ["Knight"]. Empty means every class.
 @export var class_only: PackedStringArray = []
 @export_multiline var effect: String = ""  # Rules text shown on the card.
@@ -63,6 +73,11 @@ func has_type(type: CardType) -> bool:
 # Does this card belong to the given school? Example: card.has_school(CardData.School.STRENGTH)
 func has_school(school: School) -> bool:
 	return (schools & school) != 0
+
+
+# "Common", "Uncommon" or "Rare".
+func get_rarity_text() -> String:
+	return Rarity.keys()[rarity].capitalize()  # keys() gives ["COMMON", "UNCOMMON", "RARE"].
 
 
 # Can only some classes use this card?

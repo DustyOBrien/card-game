@@ -9,6 +9,7 @@ cost = 2
 types = 1
 schools = 1
 damage = 14
+rarity = 2
 class_only = PackedStringArray("Knight")
 effect = "Deal 14 Damage"
 color = Color(0.6, 0.22, 0.22, 1)

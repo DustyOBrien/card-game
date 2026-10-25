@@ -10,6 +10,7 @@ types = 4
 schools = 1
 next_attack_bonus = 2
 next_defense_bonus = 2
+rarity = 1
 class_only = PackedStringArray("Knight")
 effect = "Your next Attack and Defense Cards gain +2"
 color = Color(0.6, 0.22, 0.22, 1)
