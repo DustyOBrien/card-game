@@ -18,6 +18,10 @@ const PREVIEW_SCALE := 0.8  # The dragged card is a bit smaller, so it hides les
 const HOVER_SCALE := 1.35  # How big a card in your hand gets when you point at it.
 const HOVER_TIME := 0.1  # Seconds the zoom takes.
 const ICON_SIZE := 24  # Width and height of an effect symbol, in pixels.
+const DIE_SIZE := 32.0  # The little dice on a card in your hand.
+const ROLL_STEPS := 8  # Random faces that flash by while a card's dice tumble...
+const ROLL_STEP_TIME := 0.06  # ...and how long each one shows (seconds).
+const ROLL_TIME := ROLL_STEPS * ROLL_STEP_TIME + 0.2  # How long roll_dice() takes, roughly.
 
 # The symbols shown on cards instead of rules text.
 # preload() loads a file once, when this script loads (the path must be fixed text).
@@ -27,6 +31,7 @@ const ICONS := {
 	"draw": preload("res://icons/draw.svg"),
 	"discard": preload("res://icons/discard.svg"),
 	"heal": preload("res://icons/heal.svg"),
+	"armor": preload("res://icons/armor.svg"),
 }
 
 var card_data: CardData
@@ -46,7 +51,8 @@ var zoom_tween: Tween  # The running hover zoom animation, if any.
 @onready var icon_row: HFlowContainer = %IconRow  # Symbol + number for each effect.
 @onready var effect_label: Label = %EffectLabel  # Text for effects with no symbol.
 @onready var rarity_label: Label = %RarityLabel
-@onready var roll_label: Label = %RollLabel  # Shows a dice card's roll, when it has one.
+@onready var keyword_label: Label = %KeywordLabel  # "Wild", "Vanish"... next to the rarity.
+@onready var dice_row: HBoxContainer = %DiceRow  # The card's dice, once it has rolled.
 
 
 func _ready() -> void:
@@ -72,6 +78,10 @@ func setup(data: CardData) -> void:
 	rarity_label.add_theme_color_override("font_color", CardData.RARITY_COLORS[data.rarity])
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
+	keyword_label.text = data.get_keyword_text()
+	keyword_label.visible = not keyword_label.text.is_empty()
+	# Keyword on the left and rarity on the right, or just the rarity in the middle.
+	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if keyword_label.visible else HORIZONTAL_ALIGNMENT_CENTER
 	show_roll()
 
 
@@ -101,6 +111,8 @@ func show_effects(data: CardData) -> void:
 		add_icon("discard", str(data.discard))
 	if not data.heal.is_empty():
 		add_icon("heal", data.heal)
+	if data.armor > 0:
+		add_icon("armor", str(data.armor))
 	# Anything without a symbol (Rage, Energy...) still gets a few words,
 	# and so does what a Critical does.
 	var lines := data.get_extra_text()
@@ -137,43 +149,62 @@ func add_icon(icon_name: String, amount: String) -> void:
 	icon_row.add_child(chip)
 
 
-# Dice cards that already rolled (when "roll on draw" is on) show their dice
-# right on the card, e.g. "Rolled 3! 1", so you can plan with them.
-# A "!" marks a die on its top number: that's a crit for sure. (A lower die can
-# still crit if a bonus pushes it to the top. The drag banner shows that.)
+# A dice card that rolled when you drew it shows its dice right on the card,
+# so you can plan with them. A gold die is a Critical.
 func show_roll() -> void:
-	roll_label.visible = card_data.is_rolled()
-	if card_data.is_rolled():
-		roll_label.text = "Rolled " + roll_text(card_data.roll_result)
-
-
-func roll_text(raw: Dictionary) -> String:
-	var parts: Array[String] = []
-	var formulas := card_data.get_formulas()
-	for key in raw:
-		var sides: int = Dice.parse(formulas[key]).get("sides", 0)
-		for value: int in raw[key]:
-			parts.append(str(value) + ("!" if value == sides else ""))
-	return " ".join(parts)
-
-
-# A short "tumbling dice" animation for a card that was just drawn and rolled:
-# flash random numbers for a moment, then land on the real roll.
-# `await` pauses this function (not the whole game) until the timer finishes.
-func animate_roll() -> void:
+	for child in dice_row.get_children():
+		dice_row.remove_child(child)  # Take it out now (queue_free() waits for the end of the frame).
+		child.queue_free()
+	dice_row.visible = card_data.is_rolled()
 	if not card_data.is_rolled():
 		return
-	roll_label.visible = true
-	for i in 8:
-		roll_label.text = "Rolling " + roll_text(CardRoller.roll(card_data))
-		await get_tree().create_timer(0.05).timeout
+	var formulas := card_data.get_formulas()
+	for key in formulas:
+		var sides: int = Dice.parse(formulas[key]).get("sides", 0)
+		for value: int in card_data.roll_result.get(key, []):
+			var die := DieView.new(DIE_SIZE)
+			die.sides = sides
+			die.show_value(value, value >= sides)  # The top number is always a crit.
+			dice_row.add_child(die)
+
+
+# Bonuses (like Master of None's +1) can turn a lower die into a crit. The
+# battle works that out with CardRoller.resolve() and passes in its "rolls",
+# and we light up the matching dice.
+func show_crits(rolls: Array) -> void:
+	var crits: Array[bool] = []
+	for roll: Dictionary in rolls:
+		crits.append_array(roll.crit_dice)
+	var dice := dice_row.get_children()
+	for i in mini(dice.size(), crits.size()):
+		var die: DieView = dice[i]
+		if die.is_crit != crits[i]:
+			die.show_value(die.value, crits[i])
+
+
+# The card was just drawn and rolled: tumble its dice, then land them on
+# the real roll with a little bounce. Call it with `await` to wait for it.
+# `await` pauses this function (not the whole game) until the timer finishes.
+func roll_dice() -> void:
+	show_roll()  # Make the dice (already showing the real roll)...
+	var dice := dice_row.get_children()
+	var landed: Array = []  # ...and remember what they really show.
+	for die: DieView in dice:
+		landed.append([die.value, die.is_crit])
+	for step in ROLL_STEPS:
+		for die: DieView in dice:
+			die.show_value(randi_range(1, die.sides))
+			die.rotation = randf_range(-0.7, 0.7)  # In radians: about ±40°.
+		await get_tree().create_timer(ROLL_STEP_TIME).timeout
 		if not is_inside_tree():
 			return  # The hand was rebuilt while we waited; this card is gone.
-	show_roll()
-	# A little "pop" so your eye catches where it landed.
-	roll_label.pivot_offset = roll_label.size / 2
-	roll_label.scale = Vector2(1.4, 1.4)
-	create_tween().tween_property(roll_label, "scale", Vector2.ONE, 0.15)
+	for i in dice.size():
+		var die: DieView = dice[i]
+		die.show_value(landed[i][0], landed[i][1])
+		die.rotation = 0.0
+		die.scale = Vector2.ONE * 1.4
+		# TRANS_BACK overshoots a little before settling: a bouncy landing.
+		create_tween().tween_property(die, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 
 
 func _on_pressed() -> void:

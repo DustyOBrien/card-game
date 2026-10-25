@@ -64,6 +64,11 @@ static func import_cards() -> int:
 		card.next_defense_bonus = _to_int(_cell(row, columns, "next defense bonus"))
 		card.energy = _to_int(_cell(row, columns, "energy"))
 		card.lose_hp = _to_int(_cell(row, columns, "lose hp"))
+		card.armor = _to_int(_cell(row, columns, "armor"))
+		# Wild can be a TRUE/FALSE "Wild" column, or a "Roll" column saying Play (Draw = normal).
+		card.wild = _parse_yes_no(_cell(row, columns, "wild"), false) \
+				or _cell(row, columns, "roll").to_lower() == "play"
+		card.vanish = _parse_yes_no(_cell(row, columns, "vanish"), false)
 		card.class_only = _parse_list(_cell(row, columns, "class"))
 		card.rarity = _parse_rarity(_cell(row, columns, "rarity"))
 		card.unlocked = _parse_yes_no(_cell(row, columns, "unlocked"), true)

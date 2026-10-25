@@ -202,7 +202,7 @@ anchors_preset = 1
 anchor_left = 1.0
 anchor_right = 1.0
 offset_left = -300.0
-offset_top = 68.0
+offset_top = 24.0
 offset_right = -24.0
 offset_bottom = 404.0
 grow_horizontal = 0
@@ -237,21 +237,6 @@ theme_override_font_sizes/bold_font_size = 14
 bbcode_enabled = true
 scroll_following = true
 selection_enabled = true
-
-[node name="RollOnDrawToggle" type="CheckButton" parent="."]
-unique_name_in_owner = true
-layout_mode = 1
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -276.0
-offset_top = 24.0
-offset_right = -36.0
-offset_bottom = 56.0
-grow_horizontal = 0
-focus_mode = 0
-theme_override_font_sizes/font_size = 15
-text = "Roll dice when drawn"
 
 [node name="GameOverScreen" type="ColorRect" parent="."]
 unique_name_in_owner = true

@@ -20,6 +20,9 @@ signal died  # HP reached 0.
 
 var hp: int = 0
 var block: int = 0
+# Armor is Block that doesn't go away: at the start of each turn your Block
+# resets to your Armor instead of to 0. It lasts until the end of the fight.
+var armor: int = 0
 
 
 # _ready() runs once, when the node enters the scene. Think of it like __init__.
@@ -31,6 +34,7 @@ func _ready() -> void:
 func reset() -> void:
 	hp = max_hp
 	block = 0
+	armor = 0
 	stats_changed.emit()
 
 
@@ -63,9 +67,18 @@ func heal(amount: int) -> void:
 	stats_changed.emit()
 
 
+# Gaining Armor also gives that much Block right away, so the card does
+# something this turn too.
+func gain_armor(amount: int) -> void:
+	armor += amount
+	block += amount
+	stats_changed.emit()
+
+
 # In Slay the Spire, Block goes away at the start of your next turn.
+# Here it drops back to your Armor (0 if you have none).
 func clear_block() -> void:
-	block = 0
+	block = armor
 	stats_changed.emit()
 
 

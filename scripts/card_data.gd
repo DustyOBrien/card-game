@@ -71,6 +71,12 @@ const RARITY_COLORS := {
 @export var energy: int = 0  # Energy the player gains when played.
 @export var lose_hp: int = 0  # HP the player loses when played (Block doesn't stop it).
 @export var next_roll_bonus: int = 0  # Added to every die of the next card you play that rolls dice.
+@export var armor: int = 0  # Armor gained when played (lasts the fight). See combatant.gd.
+# Keywords:
+#   Wild:   the dice roll when you PLAY the card, not when you draw it. A gamble!
+#   Vanish: once played, the card is gone for the rest of the run.
+@export var wild: bool = false
+@export var vanish: bool = false
 # What happens on a Critical: each die that reaches its top number (modifiers
 # count!). Written like the spreadsheet, e.g. "+1 Damage" or "Draw 1, Gain 1 Energy".
 @export var critical: String = ""
@@ -198,6 +204,8 @@ func make_description() -> String:
 		parts.append("Gain %s Block" % get_block_text())
 	if not heal.is_empty():
 		parts.append("Heal %s HP" % heal)
+	if armor > 0:
+		parts.append("Gain %d Armor" % armor)
 	if draw > 0:
 		parts.append("Draw %d" % draw)
 	if discard > 0:
@@ -208,6 +216,8 @@ func make_description() -> String:
 	var sentence := ". ".join(parts)
 	if not critical.is_empty():
 		sentence += ". Critical: " + critical
+	if not get_keyword_text().is_empty():
+		sentence = get_keyword_text() + ". " + sentence  # e.g. "Wild. Deal d6 damage."
 	return sentence + "." if not sentence.is_empty() else ""
 
 
@@ -229,6 +239,22 @@ func get_extra_text() -> String:
 	if next_roll_bonus > 0:
 		lines.append("Next roll +%d" % next_roll_bonus)
 	return "\n".join(lines)
+
+
+# The card's keywords as text, e.g. "Wild · Vanish". "" if it has none.
+func get_keyword_text() -> String:
+	var words: Array[String] = []
+	if wild and has_dice():
+		words.append("Wild")  # Wild only means something on a card with dice.
+	if vanish:
+		words.append("Vanish")
+	return " · ".join(words)
+
+
+# Does this card roll its dice as soon as you draw it?
+# Every dice card does, except Wild ones, which roll when played.
+func rolls_on_draw() -> bool:
+	return has_dice() and not wild
 
 
 # "Common", "Uncommon" or "Rare".

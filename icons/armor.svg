@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Armor: a knight's helmet. -->
+  <path d="M10 34 C10 16 20 6 32 6 C44 6 54 16 54 34 L54 58 L10 58 Z"
+        fill="#a9b2bd" stroke="#10151c" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M32 6 C24 6 17 12 15 22 L15 34 L49 34 L49 22 C47 12 40 6 32 6 Z" fill="#d3d9e0"/>
+  <rect x="13" y="30" width="38" height="7" rx="2" fill="#10151c"/>
+  <path d="M30 37 L34 37 L34 58 L30 58 Z" fill="#10151c"/>
+</svg>

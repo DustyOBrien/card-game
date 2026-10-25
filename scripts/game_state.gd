@@ -23,11 +23,6 @@ var character_class: CharacterClass
 # Strike appears twice in the list. The battle copies this and shuffles the copy.
 var deck: Array[CardData] = []
 
-# Dice test setting (the checkbox in the battle's top-left corner):
-#   false = dice cards roll when you PLAY them (you see the roll happen),
-#   true  = they roll when you DRAW them (the number sits on the card, so you can plan).
-var roll_dice_on_draw := false
-
 # --- The run --------------------------------------------------------------
 # A "run" is FIGHTS_PER_RUN battles in a row. Your HP carries over from one
 # fight to the next. Win them all, or die, and you go to the shop. From the
@@ -43,6 +38,9 @@ var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP
 var run_died := false  # Did the last run end in a defeat?
 # Booster packs bought in the shop, by name: {"Strength Pack": 2}. They do nothing yet.
 var booster_packs := {}
+# Cards that Vanished this run, by their position in `deck` (so with two
+# Bandages, we know WHICH one is gone). The battle leaves these out.
+var vanished: Array[int] = []
 
 
 # Called when you leave the deck builder or the shop to fight: a fresh run.
@@ -51,6 +49,7 @@ func start_run() -> void:
 	run_gold = 0
 	run_hp = -1
 	run_died = false
+	vanished.clear()  # Vanished cards come back for a new run.
 
 
 # Which fight of the run is next (or now): 1 to FIGHTS_PER_RUN.

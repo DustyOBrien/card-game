@@ -13,7 +13,7 @@
 class_name DieView
 extends Control
 
-const SIZE := 60.0  # Width and height in pixels.
+const SIZE := 60.0  # Normal width and height in pixels (the dice tray).
 const FACE_COLOR := Color(0.96, 0.93, 0.86)  # Ivory, like a real die.
 const EDGE_COLOR := Color(0.12, 0.1, 0.14)
 const TEXT_COLOR := Color(0.12, 0.1, 0.14)
@@ -21,15 +21,19 @@ const CRIT_FACE_COLOR := Color(1.0, 0.8, 0.3)  # Gold.
 const CRIT_EDGE_COLOR := Color(0.85, 0.3, 0.1)
 const GLOW_COLOR := Color(1.0, 0.6, 0.2, 0.35)
 
-var sides := 6
-var value := 1
-var is_crit := false
+# @export so that duplicate() copies them too (the dragged card is a copy).
+@export var sides := 6
+@export var value := 1
+@export var is_crit := false
+@export var die_size := SIZE  # Smaller dice sit on the cards in your hand.
 
 
-func _init() -> void:
-	custom_minimum_size = Vector2(SIZE, SIZE)
+# DieView.new(30) makes a 30 pixel die. Leave the number out for a normal one.
+func _init(new_size: float = SIZE) -> void:
+	die_size = new_size
+	custom_minimum_size = Vector2(die_size, die_size)
 	mouse_filter = Control.MOUSE_FILTER_IGNORE
-	pivot_offset = Vector2(SIZE, SIZE) / 2  # Spin around the middle, not the corner.
+	pivot_offset = Vector2(die_size, die_size) / 2  # Spin around the middle, not the corner.
 
 
 # Change what the die shows, then ask Godot to draw it again.
@@ -40,23 +44,23 @@ func show_value(new_value: int, crit: bool = false) -> void:
 
 
 func _draw() -> void:
-	var center := Vector2(SIZE, SIZE) / 2
-	var points := _shape_points(center, SIZE * 0.46)
+	var center := Vector2(die_size, die_size) / 2
+	var points := _shape_points(center, die_size * 0.46)
 	if is_crit:
-		draw_circle(center, SIZE * 0.56, GLOW_COLOR)  # Soft glow behind the die.
+		draw_circle(center, die_size * 0.56, GLOW_COLOR)  # Soft glow behind the die.
 
 	draw_colored_polygon(points, CRIT_FACE_COLOR if is_crit else FACE_COLOR)
 	# A closed outline: the polyline goes round the shape and back to the start.
 	var outline := points.duplicate()
 	outline.append(points[0])
-	draw_polyline(outline, CRIT_EDGE_COLOR if is_crit else EDGE_COLOR, 3.0, true)
+	draw_polyline(outline, CRIT_EDGE_COLOR if is_crit else EDGE_COLOR, maxf(die_size / 20, 1.5), true)
 
 	# The number in the middle. A triangle's middle is lower down, so nudge it.
 	var font := get_theme_default_font()
-	var font_size := 26
+	var font_size := roundi(die_size * 0.43)  # 26 on a normal die.
 	var text := str(value)
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-	var nudge := SIZE * 0.1 if sides == 3 else 0.0
+	var nudge := die_size * 0.1 if sides == 3 else 0.0
 	var baseline := center + Vector2(-text_size.x / 2, font_size * 0.36 + nudge)
 	draw_string(font, baseline, text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size, TEXT_COLOR)
 

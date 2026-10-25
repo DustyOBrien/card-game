@@ -94,6 +94,7 @@ Cards show **symbols** instead of rules text, so you can read them at a glance:
 | ![](icons/draw.svg) card + arrow | Cards you draw |
 | ![](icons/discard.svg) card + cross | Random cards you discard from your hand |
 | ![](icons/heal.svg) heart | HP you heal |
+| ![](icons/armor.svg) helmet | Armor you gain |
 
 Effects without a symbol (Rage's "Next Attack +3", "+1 Energy", "Lose 2 HP"...)
 are still written as a few words. The spreadsheet's Description column is
@@ -104,10 +105,12 @@ In the battle:
 - Point at a card in your hand to zoom in on it.
 - **Drag** a card up out of your hand and let go above it to play it. Attacks can be dropped anywhere above your hand too: the enemy lights up to show it will be hit. (With several enemies later, set `ATTACKS_NEED_TARGET` in `play_zone.gd` to make attacks aim at one.) It costs energy (the yellow number in its corner).
 - While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 20 → 17`. Let go over your hand to change your mind.
-- **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...). The drag banner shows the range (`Deal 1–4 damage`). When the card lands, real dice tumble in the **dice tray** on the left: a d3 is a triangle and a d6 a square. They land one by one, with the bonus and total next to them, and a die that crits turns gold. The dice stay up until your next roll or End Turn.
+- **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...), and they roll **when you draw them**: cards are dealt one at a time and their little dice tumble right on the card, then stay there so you can plan your turn. A d3 is a triangle and a d6 a square, and a gold die is a Critical (a bonus like Master of None's +1 lights up the dice it turns into crits). When you play the card, the **dice tray** on the left shows the roll with its bonus and total. The dice stay up until your next card or End Turn.
+- **Wild** cards (marked *Wild* at the bottom) are the gamble: they DON'T roll when drawn. Their dice tumble in the dice tray when you play them, so you don't know what you'll get. The drag banner shows their range (`Deal 1–6 damage`).
 - The **Battle Log** on the right lists everything that happens: each turn, the cards you draw and play, every roll, damage, Block and Heal. **Copy** puts the whole log on your clipboard, handy for pasting a game into a note when you test cards.
 - **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
-- The **Roll dice when drawn** switch (top right) changes WHEN cards roll: off = when you play them, on = when you draw them, so the dice sit on the card ("Rolled 3! 1", where `!` means top number) and you can plan around them. Try both!
+- **Armor** (the helmet symbol) is Block that sticks around. Normally your Block drops to 0 at the start of your turn; with Armor 3 it drops to 3 instead. Gaining Armor also gives you that much Block straight away. Armor lasts until the end of the fight, and is shown next to your Block: `Block 5  (Armor 1)`.
+- **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
 - Bring the Slime to 0 HP to win. It drops **1 to 5 gold**.
@@ -334,6 +337,9 @@ Every card has these fields:
 | Unlocked | Off = the deck builder shows the card as **Locked** and you can't add it |
 | Energy | Energy you gain when you play it (Adrenaline) |
 | Lose HP | HP you lose when you play it. Block doesn't stop it (Reckless Swing) |
+| Armor | Armor you gain when you play it (your Block resets to your Armor each turn) |
+| Wild | On = its dice roll when you play it, not when you draw it |
+| Vanish | On = gone for the rest of the run once played |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
 
@@ -354,12 +360,13 @@ start_battle()
   └─ copy the deck you built (GameState.deck), shuffle, then start_player_turn()
 
 start_player_turn()
-  ├─ clear the player's Block, refill energy to 3
+  ├─ the player's Block drops to their Armor, refill energy to 3
   ├─ choose the enemy's next attack (shown as its "intent")
-  └─ draw_cards(5)
+  └─ await draw_cards(5): deal cards one by one, dice cards (not Wild) roll
 
 You drag a card onto the play zone  →  _on_card_played()
-  └─ pay energy, deal damage / gain block, move the card to the discard pile
+  └─ pay energy, roll (Wild) and show the dice, deal damage / gain block,
+     then move the card to the discard pile (or Vanish it)
 
 You click End Turn  →  _on_end_turn_pressed()
   ├─ move the rest of your hand to the discard pile
@@ -441,6 +448,9 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Energy | 1 | Energy gained |
 | Lose HP | 2 | HP lost (Block doesn't stop it) |
 | Critical | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1`, `Gain 1 Energy`. Blank or `-` = none |
+| Armor | 1 | Armor gained (lasts the fight). Also gives that much Block right away |
+| Wild | TRUE | TRUE = the dice roll when played, not when drawn. (Or a **Roll** column with `Play` / `Draw`.) Blank = FALSE |
+| Vanish | TRUE | TRUE = gone for the rest of the run once played. Blank = FALSE |
 
 Blank cells count as 0 (and FALSE). The "Card" column is ignored (Name is used instead).
 If the importer can't read a cell (like a Critical it doesn't know), it prints a
@@ -471,16 +481,22 @@ The dice you see are drawn by **`die_view.gd`** with `_draw()`, Godot's way of
 painting shapes and text with code (no picture files): `draw_colored_polygon()`
 for the die, `draw_polyline()` for its edge, `draw_string()` for the number.
 **`dice_tray.gd`** spins them with `rotation`, and a Tween with `TRANS_BACK`
-gives the landing its little bounce.
+gives the landing its little bounce. The small dice on cards in your hand are
+the same `DieView`, made with `DieView.new(32)` for a 32 pixel die, and
+`card.gd`'s `roll_dice()` tumbles them as the card is drawn.
 
 Two Godot ideas show up in `battle.gd`:
 
-- **`await`**: `await show_dice_roll(...)` pauses that function (not the
+- **`await`**: `await dice_tray.play(...)` pauses that function (not the
   whole game) until the dice animation finishes, then carries on and deals the
-  damage. While it waits, `busy` is true so you can't play another card.
+  damage. `await draw_cards(5)` waits for the cards to be dealt and their dice
+  to land. While it waits, `busy` is true so you can't play another card.
 - **`duplicate()`**: at the start of a battle every card in the deck is copied.
   Each copy remembers its own roll (`roll_result`), so two Strikes in your hand
-  can show different numbers, and the card files on disk never change.
+  can show different numbers, and the card files on disk never change. Each
+  copy is also tagged with `set_meta("deck_index", i)`, its place in your deck,
+  so when it Vanishes, `GameState.vanished` knows exactly which card to leave
+  out of the next fights.
 
 ## Adding a class
 

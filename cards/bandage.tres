@@ -8,6 +8,7 @@ card_name = "Bandage"
 types = 4
 attack = PackedStringArray()
 heal = "d3"
+vanish = true
 critical = "+1 Heal"
 copies = 2
 class_only = PackedStringArray()
