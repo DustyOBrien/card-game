@@ -64,7 +64,7 @@ The game starts on **Character Select**. Your class decides which cards you can 
 
 | Class | HP | Can use | Copies per card | Unlocks when |
 |---|---|---|---|---|
-| Adventurer | 50 | Every school, Neutral, Adventurer cards | 1 (Neutral: 2) | Unlocked from the start |
+| Adventurer | 50 | Every school, Neutral, Adventurer cards | **Only 1 card from each school** in the whole deck (Neutral: 2 copies each) | Unlocked from the start |
 | Knight | 60 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 Strength cards are unlocked |
 | Rogue | 45 | Agility, Neutral, Rogue cards | 3 (Neutral: 2) | 12 Agility cards are unlocked |
 | Mage | 40 | Intellect, Neutral, Mage cards | 3 (Neutral: 2) | 12 Intellect cards are unlocked |

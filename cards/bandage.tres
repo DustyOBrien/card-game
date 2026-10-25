@@ -7,6 +7,7 @@ script = ExtResource("1_48osm")
 card_name = "Bandage"
 types = 4
 heal = 4
+copies = 2
 class_only = PackedStringArray()
 effect = "Heal 4 HP"
 color = Color(0.4, 0.4, 0.42, 1)
