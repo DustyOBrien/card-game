@@ -53,11 +53,16 @@ const RARITY_COLORS := {
 @export_flags("Attack", "Defense", "Ability") var types: int = 0
 @export_flags("Strength", "Agility", "Intellect", "Wisdom") var schools: int = 0
 
-@export var damage: int = 0  # Damage dealt to the enemy when played.
-# Dice damage, e.g. "2d3+2" (see dice.gd). When set, it's used INSTEAD of `damage`.
-@export var dice: String = ""
-@export var block: int = 0  # Block gained by the player when played.
-@export var heal: int = 0  # HP the player gets back (never above max HP).
+# Attack, Block and Heal can each be a plain number ("6") or dice ("d3", "2d6+1").
+# See dice.gd. An empty text means the card doesn't do that.
+#
+# `attack` is a LIST: one entry per hit. Multi Strike is ["d3", "d3"]: two
+# separate hits, each rolled on its own (and each can crit on its own).
+@export var attack: PackedStringArray = []
+@export var attack_modifier: int = 0  # Added to every attack die: d3 with modifier 1 = d3 + 1.
+@export var block: String = ""  # Block gained by the player when played.
+@export var block_modifier: int = 0  # Added to the block roll.
+@export var heal: String = ""  # HP the player gets back (never above max HP).
 @export var draw: int = 0  # Cards drawn from the draw pile.
 @export var discard: int = 0  # Random cards from your hand thrown into the discard pile.
 @export var draw_if_full_hp: int = 0  # Extra cards drawn if you were at full HP when you played it.
@@ -65,6 +70,10 @@ const RARITY_COLORS := {
 @export var next_defense_bonus: int = 0  # Your next Defense card gives this much extra Block.
 @export var energy: int = 0  # Energy the player gains when played.
 @export var lose_hp: int = 0  # HP the player loses when played (Block doesn't stop it).
+@export var next_roll_bonus: int = 0  # Added to every die of the next card you play that rolls dice.
+# What happens on a Critical: each die that reaches its top number (modifiers
+# count!). Written like the spreadsheet, e.g. "+1 Damage" or "Draw 1, Gain 1 Energy".
+@export var critical: String = ""
 @export var copies: int = 1  # How many go in the Starter Deck (a class may allow fewer).
 @export var rarity: Rarity = Rarity.COMMON  # Shown as a dropdown in the Inspector.
 @export var unlocked: bool = true  # Locked cards show in the deck builder but can't be added.
@@ -90,11 +99,37 @@ func has_school(school: School) -> bool:
 # These are NOT @export, so they aren't saved in the .tres file. The battle
 # gives every card in your deck its own copy (duplicate()), so two Strikes can
 # each have their own roll.
-var roll_result: Dictionary = {}  # The last roll, e.g. {"dice": [2, 3], "bonus": 2, "total": 7}. {} = not rolled.
+# The dice this card rolled, before any modifiers, e.g.
+# {"attack 0": [3], "attack 1": [1], "block": [2]}. {} = not rolled yet.
+# Modifiers are added when you PLAY the card (see card_roller.gd), so a bonus you
+# get after drawing it still counts.
+var roll_result: Dictionary = {}
+
+# The words a Critical can use, and the effect each one adds.
+# "+1 Damage" -> {"damage": 1}, "Draw 1" -> {"draw": 1}, "Gain 2 Energy" -> {"energy": 2}
+const CRITICAL_WORDS := {"damage": "damage", "block": "block", "heal": "heal", "hp": "heal",
+	"draw": "draw", "card": "draw", "cards": "draw", "energy": "energy"}
 
 
+# Does this card roll any dice?
 func has_dice() -> bool:
-	return not dice.is_empty()
+	for formula in get_formulas().values():
+		if Dice.has_dice(formula):
+			return true
+	return false
+
+
+# Every formula on the card, by name: {"attack 0": "d3", "attack 1": "d3", "block": "d3"}.
+# The names match the keys in roll_result.
+func get_formulas() -> Dictionary:
+	var formulas := {}
+	for i in attack.size():
+		formulas["attack %d" % i] = attack[i]
+	if not block.is_empty():
+		formulas["block"] = block
+	if not heal.is_empty():
+		formulas["heal"] = heal
+	return formulas
 
 
 func is_rolled() -> bool:
@@ -103,12 +138,82 @@ func is_rolled() -> bool:
 
 # Does playing this card hurt the enemy? (Then it must be dropped on the enemy.)
 func deals_damage() -> bool:
-	return damage > 0 or has_dice()
+	return not attack.is_empty()
+
+
+# Reads the Critical text into numbers: "+1 Damage, Draw 1" -> {"damage": 1, "draw": 1}.
+# Anything it doesn't understand is skipped (the importer warns about it).
+func get_critical_effects() -> Dictionary:
+	var effects := {}
+	for part in critical.split(",", false):
+		var amount := 0
+		var effect := ""
+		for word in part.strip_edges().to_lower().split(" ", false):
+			if word.replace("+", "").is_valid_int():
+				amount = word.replace("+", "").to_int()
+			elif CRITICAL_WORDS.has(word):
+				effect = CRITICAL_WORDS[word]
+		if amount > 0 and not effect.is_empty():
+			effects[effect] = effects.get(effect, 0) + amount
+	return effects
+
+
+# The attack as short text for the card: "d3", "d3+1", or "d3 x2" for two equal hits.
+func get_attack_text() -> String:
+	if attack.is_empty():
+		return ""
+	var hits: Array[String] = []
+	for formula in attack:
+		hits.append(_with_modifier(formula, attack_modifier))
+	if hits.count(hits[0]) == hits.size() and hits.size() > 1:
+		return "%s x%d" % [hits[0], hits.size()]  # All hits the same.
+	return " + ".join(hits)
+
+
+func get_block_text() -> String:
+	return _with_modifier(block, block_modifier)
+
+
+# "d3" with modifier 1 -> "d3+1". A plain number just gets added: "6" + 1 -> "7".
+static func _with_modifier(formula: String, modifier: int) -> String:
+	if formula.is_empty() or modifier == 0:
+		return formula
+	if formula.is_valid_int():
+		return str(formula.to_int() + modifier)
+	return "%s%+d" % [formula, modifier]  # %+d always shows the sign: +1, -2.
+
+
+# A sentence describing the card, for cards whose Description cell is blank.
+# e.g. "Deal d3 damage twice. Discard 1 at random. Critical: Draw 1."
+func make_description() -> String:
+	var parts: Array[String] = []
+	if not attack.is_empty():
+		var text := "Deal %s damage" % _with_modifier(attack[0], attack_modifier)
+		if attack.size() > 1 and get_attack_text().contains(" x"):
+			text += " %d times" % attack.size() if attack.size() > 2 else " twice"
+		elif attack.size() > 1:
+			text = "Deal %s damage" % get_attack_text()
+		parts.append(text)
+	if not block.is_empty():
+		parts.append("Gain %s Block" % get_block_text())
+	if not heal.is_empty():
+		parts.append("Heal %s HP" % heal)
+	if draw > 0:
+		parts.append("Draw %d" % draw)
+	if discard > 0:
+		parts.append("Discard %d at random" % discard)
+	var extra := get_extra_text()
+	if not extra.is_empty():
+		parts.append_array(extra.split("\n"))
+	var sentence := ". ".join(parts)
+	if not critical.is_empty():
+		sentence += ". Critical: " + critical
+	return sentence + "." if not sentence.is_empty() else ""
 
 
 # Effects that have no symbol on the card get a short line of text instead,
 # e.g. "Next Attack +3" or "Lose 2 HP". (Attack, Block, Draw, Discard and Heal
-# are shown as symbols by card.gd.)
+# are shown as symbols by card.gd. The Critical gets its own line on the card.)
 func get_extra_text() -> String:
 	var lines: Array[String] = []
 	if next_attack_bonus > 0:
@@ -121,6 +226,8 @@ func get_extra_text() -> String:
 		lines.append("Full HP: Draw %d" % draw_if_full_hp)
 	if lose_hp > 0:
 		lines.append("Lose %d HP" % lose_hp)
+	if next_roll_bonus > 0:
+		lines.append("Next roll +%d" % next_roll_bonus)
 	return "\n".join(lines)
 
 

@@ -50,17 +50,16 @@ static func import_cards() -> int:
 		card.cost = _to_int(_cell(row, columns, "cost"))
 		card.schools = _parse_flags(_cell(row, columns, "school"), CardData.School)
 		card.types = _parse_flags(_cell(row, columns, "type"), CardData.CardType)
-		card.effect = _cell(row, columns, "description")
-		card.damage = _to_int(_cell(row, columns, "attack"))
-		card.dice = _cell(row, columns, "dice")
-		if card.has_dice() and not Dice.is_valid(card.dice):
-			push_warning("%s: can't read the dice '%s' (try something like d6+2)" % [card_name, card.dice])
-			card.dice = ""
-		card.block = _to_int(_cell(row, columns, "block"))
+		card.attack = _read_attacks(row, columns, card_name)
+		card.attack_modifier = _to_int(_cell(row, columns, "attack modifier"))
+		card.block = _read_formula(_cell(row, columns, "block"), card_name)
+		card.block_modifier = _to_int(_cell(row, columns, "block modifier"))
+		card.heal = _read_formula(_cell(row, columns, "heal"), card_name)
 		card.draw = _to_int(_cell(row, columns, "draw"))
 		card.discard = _to_int(_cell(row, columns, "discard"))
-		card.heal = _to_int(_cell(row, columns, "heal"))
-		card.draw_if_full_hp = _to_int(_cell(row, columns, "draw if full hp"))
+		card.draw_if_full_hp = _to_int(_yes_no_as_number(_cell(row, columns, "draw if full hp")))
+		card.next_roll_bonus = _to_int(_cell(row, columns, "next die roll bonus"),
+				_to_int(_cell(row, columns, "next roll bonus")))  # Either name works.
 		card.next_attack_bonus = _to_int(_cell(row, columns, "next attack bonus"))
 		card.next_defense_bonus = _to_int(_cell(row, columns, "next defense bonus"))
 		card.energy = _to_int(_cell(row, columns, "energy"))
@@ -69,6 +68,11 @@ static func import_cards() -> int:
 		card.rarity = _parse_rarity(_cell(row, columns, "rarity"))
 		card.unlocked = _parse_yes_no(_cell(row, columns, "unlocked"), true)
 		card.color = _pick_color(card.schools)
+		card.critical = _read_critical(_cell(row, columns, "critical"), card_name)
+		# The Description is optional: a blank one is written for you from the numbers.
+		card.effect = _cell(row, columns, "description")
+		if card.effect.is_empty():
+			card.effect = card.make_description()
 
 		var path := CARDS_FOLDER + _file_name_for(card_name)
 		var error := ResourceSaver.save(card, path)
@@ -97,6 +101,62 @@ static func _clean_column_name(column_name: String) -> String:
 	return column_name.get_slice("·", 0).strip_edges().to_lower()
 
 
+# The Attack column, plus Attack (2), Attack (3)... for extra hits, plus an
+# optional Hits column that repeats the attack. Each entry is one hit.
+#   Attack "d3", Attack (2) "d3"  -> ["d3", "d3"]
+#   Attack "d3", Hits 3           -> ["d3", "d3", "d3"]
+static func _read_attacks(row: PackedStringArray, columns: Dictionary, card_name: String) -> PackedStringArray:
+	var hits := PackedStringArray()
+	var first := _read_formula(_cell(row, columns, "attack"), card_name)
+	if not first.is_empty():
+		hits.append(first)
+	for number in range(2, 10):
+		var extra := _read_formula(_cell(row, columns, "attack (%d)" % number), card_name)
+		if not extra.is_empty():
+			hits.append(extra)
+	var repeat := _to_int(_cell(row, columns, "hits"), 1)
+	if repeat > 1 and hits.size() == 1:
+		for i in repeat - 1:
+			hits.append(first)
+	return hits
+
+
+# A cell that can hold a number or dice ("6", "d3", "2d6+1").
+# 0 and blank both mean "nothing", so they give "".
+static func _read_formula(text: String, card_name: String) -> String:
+	text = text.strip_edges().replace(" ", "")
+	if text.is_empty() or text == "0" or text == "-":
+		return ""
+	if not Dice.is_valid(text):
+		push_warning("%s: can't read '%s' (use a number or dice like d6+2)" % [card_name, text])
+		return ""
+	return text
+
+
+# Keeps the Critical text, but warns about parts the game can't understand.
+# "-" or blank means no critical.
+static func _read_critical(text: String, card_name: String) -> String:
+	if text == "-" or text.is_empty():
+		return ""
+	var card := CardData.new()
+	for part in text.split(",", false):
+		card.critical = part
+		if card.get_critical_effects().is_empty():
+			push_warning("%s: Critical '%s' isn't understood. Try +1 Damage, +1 Block, +1 Heal, Draw 1 or Gain 1 Energy" % [card_name, part.strip_edges()])
+	return text
+
+
+# TRUE -> "1", FALSE -> "0", anything else unchanged. For columns that
+# used to hold a number but are now ticked like a checkbox.
+static func _yes_no_as_number(text: String) -> String:
+	match text.strip_edges().to_lower():
+		"true", "yes":
+			return "1"
+		"false", "no":
+			return "0"
+	return text
+
+
 # "6" -> 6. A blank cell gives `default` instead.
 static func _to_int(text: String, default: int = 0) -> int:
 	return text.to_int() if text.is_valid_int() else default
@@ -111,6 +171,8 @@ static func _parse_flags(text: String, options: Dictionary) -> int:
 		text = text.replace(separator, ",")
 	for part in text.split(",", false):
 		var key := part.strip_edges().to_upper()
+		if key in ["NEUTRAL", "NONE"]:
+			continue  # Neutral = no school ticked, same as a blank cell.
 		if options.has(key):
 			result |= options[key]  # |= means "turn this flag on".
 		elif not key.is_empty():

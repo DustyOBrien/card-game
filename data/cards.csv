@@ -1,23 +1,8 @@
-Card,Copies,NAME,Cost,School · Card School,Type · Type,Class,Rarity,Unlocked,Description,Attack,Dice,Block,Draw,Discard,Heal,Draw If Full HP,Next Attack Bonus,Next Defense Bonus,Energy,Lose HP
-Strike,3,Strike,1,Strength,Attack,,Common,Yes,Deal 2d3+2 Damage,0,2d3+2,0,0,0,0,0,0,0,0,0
-Block,3,Block,1,Strength,Defense,,Common,Yes,Gain 6 Block,0,,6,0,0,0,0,0,0,0,0
-Rage,1,Rage,0,Strength,Ability,,Uncommon,Yes,The next Attack Card gains +3 Attack,0,,0,0,0,0,0,3,0,0,0
-Quick Strike,1,Quick Strike,0,Agility,Attack,,Common,Yes,Deal d3 Damage,0,d3,0,0,0,0,0,0,0,0,0
-Dodge,1,Dodge,1,Agility,Defense,,Common,Yes,Gain 4 Block,0,,4,0,0,0,0,0,0,0,0
-Brace,1,Brace,0,Agility,Ability,,Uncommon,Yes,The next Defense Card gains +3 Block,0,,0,0,0,0,0,0,3,0,0
-Fireball,1,Fireball,1,Intellect,Attack,,Uncommon,Yes,Deal 2d6+1 Damage. Discard 2 at random,0,2d6+1,0,0,2,0,0,0,0,0,0
-Mana Shield,1,Mana Shield,1,Intellect,Defense,,Uncommon,Yes,Gain 8 Block Discard 2 Cards at Random,0,,8,0,2,0,0,0,0,0,0
-Evocation,1,Evocation,0,Intellect,Ability,,Uncommon,Yes,Draw 2 Cards,0,,0,2,0,0,0,0,0,0,0
-Guarded Blow,1,Guarded Blow,1,Wisdom,Attack,,Common,Yes,Deal 4 Damage and Gain 2 Block,4,,2,0,0,0,0,0,0,0,0
-Shield Bash,1,Shield Bash,1,Wisdom,Defense,,Common,Yes,Gain 4 Block and Deal 2 Damage,2,,4,0,0,0,0,0,0,0,0
-Pray,1,Pray,0,Wisdom,Ability,,Uncommon,Yes,Heal 3 HP if you are at full life draw a card,0,,0,0,0,3,1,0,0,0,0
-Reckless Swing,1,Reckless Swing,1,,Attack,,Uncommon,Yes,Deal 9 Damage and Lose 2 HP,9,,0,0,0,0,0,0,0,0,2
-Bandage,2,Bandage,1,,Ability,,Common,Yes,Heal 4 HP,0,,0,0,0,4,0,0,0,0,0
-Adrenaline,1,Adrenaline,0,,Ability,,Uncommon,Yes,Gain 1 Energy and Lose 3 HP,0,,0,0,0,0,0,0,0,1,3
-Steady,2,Steady,1,,Defense,,Common,Yes,Gain 3 Block and Draw 1 Card,0,,3,1,0,0,0,0,0,0,0
-Heavy Swing,1,Heavy Swing,2,Strength,Attack,Knight,Rare,Yes,Deal 14 Damage,14,,0,0,0,0,0,0,0,0,0
-Shield Wall,1,Shield Wall,2,Strength,Defense,Knight,Rare,Yes,Gain 13 Block,0,,13,0,0,0,0,0,0,0,0
-Battle Cry,1,Battle Cry,0,Strength,Ability,Knight,Uncommon,Yes,Your next Attack and Defense Cards gain +2,0,,0,0,0,0,0,2,2,0,0
-Improvise,1,Improvise,0,,Ability,Adventurer,Rare,Yes,Gain 1 Energy and Discard 1 Card at random,0,,0,0,1,0,0,0,0,1,0
-Trick Shot,1,Trick Shot,1,,Attack,Adventurer,Uncommon,Yes,Deal 3 Damage and Draw 1 Card,3,,0,1,0,0,0,0,0,0,0
-Well Prepared,1,Well Prepared,1,,Defense,Adventurer,Uncommon,Yes,Gain 4 Block and Heal 2 HP,0,,4,0,0,2,0,0,0,0,0
+﻿Card,Copies,Name,Cost,School · Card School · Card School,Type · Type · Type,Class,Rarity,Unlocked,Description,Attack · Dice,Attack (2) · Dice,Attack Modifier,Block · Dice,Block Modifier,Heal · Dice,Draw,Discard,Draw If Full HP,Next Die Roll Bonus,Next Attack Bonus,Next Defense Bonus,Energy,Lose HP,Critical
+Strike,2,Strike,1,Neutral,Attack,,Common,TRUE,Deal d3 Damage,d3,0,0,0,0,0,0,0,FALSE,0,0,0,0,0,+1 Damage
+Guard,2,Guard,1,Neutral,Defense,,Common,TRUE,Gain d3 Block,0,0,0,d3,0,0,0,0,FALSE,0,0,0,0,0,+1 Block
+Multi Strike,1,Multi Strike,1,Neutral,Attack,,Common,TRUE,Deal d3x2 Damage,d3,d3,0,0,0,0,0,1,FALSE,0,0,0,0,0,Draw 1
+Bandage,2,Bandage,1,Neutral,Ability,,Common,TRUE,Heal d3,0,0,0,0,0,d3,0,0,FALSE,0,0,0,0,0,+1 Heal
+Master of None,1,Master of None,0,Neutral,Ability,Adventurer,Common,TRUE,add +1 to your next die roll,0,0,0,0,0,0,0,0,FALSE,1,0,0,0,0,-
+Heavy Strike,2,Heavy Strike,2,Neutral,Attack,,Common,TRUE,,d6,0,0,0,0,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy
+Full Guard,2,Full Guard,2,Neutral,Defense,,Common,TRUE,,0,0,0,d6,0,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy

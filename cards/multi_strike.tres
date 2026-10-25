@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_l6kya"]
+
+[resource]
+script = ExtResource("1_l6kya")
+card_name = "Multi Strike"
+types = 1
+attack = PackedStringArray("d3", "d3")
+discard = 1
+critical = "Draw 1"
+class_only = PackedStringArray()
+effect = "Deal d3x2 Damage"
+color = Color(0.4, 0.4, 0.42, 1)

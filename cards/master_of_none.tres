@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_hnhc6"]
+
+[resource]
+script = ExtResource("1_hnhc6")
+card_name = "Master of None"
+cost = 0
+types = 4
+attack = PackedStringArray()
+next_roll_bonus = 1
+class_only = PackedStringArray("Adventurer")
+effect = "add +1 to your next die roll"
+color = Color(0.4, 0.4, 0.42, 1)

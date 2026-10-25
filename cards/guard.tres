@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_uhrcn"]
+
+[resource]
+script = ExtResource("1_uhrcn")
+card_name = "Guard"
+types = 2
+attack = PackedStringArray()
+block = "d3"
+critical = "+1 Block"
+copies = 2
+class_only = PackedStringArray()
+effect = "Gain d3 Block"
+color = Color(0.4, 0.4, 0.42, 1)

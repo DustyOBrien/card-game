@@ -64,11 +64,11 @@ The game starts on **Character Select**. Your class decides which cards you can 
 
 | Class | HP | Can use | Copies per card | Unlocks when |
 |---|---|---|---|---|
-| Adventurer | 50 | Every school, Neutral, Adventurer cards | **Only 1 card from each school** in the whole deck (Neutral: 2 copies each) | Unlocked from the start |
-| Knight | 60 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 Strength cards are unlocked |
-| Rogue | 45 | Agility, Neutral, Rogue cards | 3 (Neutral: 2) | 12 Agility cards are unlocked |
-| Mage | 40 | Intellect, Neutral, Mage cards | 3 (Neutral: 2) | 12 Intellect cards are unlocked |
-| Priest | 55 | Wisdom, Neutral, Priest cards | 3 (Neutral: 2) | 12 Wisdom cards are unlocked |
+| Adventurer | 25 | Every school, Neutral, Adventurer cards | **Only 1 card from each school** in the whole deck (Neutral: 2 copies each) | Unlocked from the start |
+| Knight | 30 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 Strength cards are unlocked |
+| Rogue | 22 | Agility, Neutral, Rogue cards | 3 (Neutral: 2) | 12 Agility cards are unlocked |
+| Mage | 20 | Intellect, Neutral, Mage cards | 3 (Neutral: 2) | 12 Intellect cards are unlocked |
+| Priest | 28 | Wisdom, Neutral, Priest cards | 3 (Neutral: 2) | 12 Wisdom cards are unlocked |
 
 Every deck needs 12 to 20 cards. "Unlocked" means the card's **Unlocked**
 column says Yes in the spreadsheet. A locked class shows its progress, e.g.
@@ -89,7 +89,7 @@ Cards show **symbols** instead of rules text, so you can read them at a glance:
 
 | Symbol | Means |
 |---|---|
-| ![](icons/attack.svg) sword | Damage to the enemy (or its dice, like `2d3+2`) |
+| ![](icons/attack.svg) sword | Damage to the enemy: a number or dice. `d3 x2` = two hits of d3 |
 | ![](icons/block.svg) shield | Block you gain |
 | ![](icons/draw.svg) card + arrow | Cards you draw |
 | ![](icons/discard.svg) card + cross | Random cards you discard from your hand |
@@ -103,9 +103,10 @@ In the battle:
 
 - Point at a card in your hand to zoom in on it.
 - **Drag** a card up out of your hand and let go above it to play it. Cards that deal damage have to be dropped **on the enemy** (it lights up when you're on target). It costs energy (the yellow number in its corner).
-- While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 45 → 36`. Let go over your hand to change your mind.
-- **Dice cards** (an experiment: Strike, Quick Strike and Fireball) deal dice damage like `2d3+2` instead of a fixed number. The drag banner shows the range (`Deal 4–8 damage`), and when the card lands the dice roll above your stats, e.g. `Strike rolled 2d3+2:  [2] [3] + 2 = 7`.
-- The **Roll dice when drawn** switch (top right) changes WHEN dice cards roll: off = when you play them, on = when you draw them, so the number sits on the card ("Rolled 7") and you can plan around it. Try both!
+- While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 20 → 17`. Let go over your hand to change your mind.
+- **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...). The drag banner shows the range (`Deal 1–4 damage`), and when the card lands the dice roll above your stats, e.g. `Strike   Attack: [3] + 1 crit = 4  CRIT!`.
+- **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
+- The **Roll dice when drawn** switch (top right) changes WHEN cards roll: off = when you play them, on = when you draw them, so the dice sit on the card ("Rolled 3! 1", where `!` means top number) and you can plan around them. Try both!
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
 - Bring the Slime to 0 HP to win.
@@ -294,10 +295,13 @@ Every card has these fields:
 | Cost | Energy needed to play it |
 | Types | Checkboxes: **Attack** (deals damage), **Defense** (gains Block), **Ability** (other effects, like drawing a card). A card can have several. |
 | Schools | Checkboxes: **Strength**, **Agility**, **Intellect**, **Wisdom**. A card can have several, or none (Neutral). Shown as STR / AGI / INT / WIS for now. |
-| Damage | Damage dealt to the enemy |
-| Dice | Dice damage instead, e.g. `2d3+2`. Blank = no dice (see "Dice" below) |
-| Block | Block the player gains |
-| Heal | HP the player gets back (can't go above max HP) |
+| Attack | A list with one entry per hit, each a number or dice: `["d3", "d3"]` = Multi Strike |
+| Attack Modifier | Added to every attack die (d3 + 1) |
+| Block | Block the player gains: a number or dice |
+| Block Modifier | Added to the block roll |
+| Heal | HP the player gets back (can't go above max HP): a number or dice |
+| Next Roll Bonus | Added to every die of the next card that rolls (Master of None) |
+| Critical | What a Critical does, e.g. `+1 Damage` or `Draw 1, Gain 1 Energy` |
 | Draw | Cards the player draws |
 | Discard | Random cards thrown from the player's hand into the discard pile |
 | Draw If Full HP | Cards drawn only if you were at full HP when you played it (Pray) |
@@ -391,52 +395,65 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 
 | Column | Example | Notes |
 |---|---|---|
-| NAME | Quick Strike | Also used for the file name (`quick_strike.tres`) |
+| Name | Multi Strike | Also used for the file name (`multi_strike.tres`) |
 | Copies | 2 | How many go in the Starter Deck. A class can allow fewer: the Adventurer only ever gets 1 of a school card |
-| Class | Knight | Only these classes can use the card. Several allowed, like School. Blank = every class |
-| Rarity | Rare | Common, Uncommon or Rare. Blank = Common |
-| Unlocked | No | Yes or No. No = shown as Locked in the deck builder and left out of the Starter Deck. Blank = Yes |
 | Cost | 1 | |
-| School | Strength, Wisdom | Several allowed, separated by `,` or `/`. Blank = Neutral |
+| School | Neutral | Strength, Agility, Intellect, Wisdom or Neutral. Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
-| Description | Deal 6 Damage | The text printed on the card |
-| Attack | 6 | Damage dealt |
-| Dice | 2d3+2 | Dice damage, rolled in battle. `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1. Use it instead of Attack (set Attack to 0). Blank = no dice |
-| Block | 6 | Block gained |
+| Class | Adventurer | Only these classes can use the card. Several allowed, like School. Blank = every class |
+| Rarity | Rare | Common, Uncommon or Rare. Blank = Common |
+| Unlocked | TRUE | TRUE/FALSE or Yes/No. FALSE = shown as Locked in the deck builder and left out of the Starter Deck. Blank = TRUE |
+| Description | Deal d3x2 Damage | Hover text in the deck list. **Leave it blank** and it's written for you from the numbers |
+| Attack | d3 | A number (`6`) or dice: `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1 |
+| Attack (2) | d3 | A second hit, rolled separately. Attack (3), (4)... work too |
+| Hits | 2 | Optional, instead of Attack (2): repeats the Attack this many times |
+| Attack Modifier | 1 | Added to every attack die, and counts towards a crit (d3 + 1 crits on a 2 or a 3) |
+| Block | d3 | A number or dice, like Attack |
+| Block Modifier | 1 | Added to the block roll |
+| Heal | d3 | A number or dice, like Attack |
 | Draw | 2 | Cards drawn |
-| Discard | 2 | Random cards discarded from your hand |
-| Heal | 3 | HP healed |
-| Draw If Full HP | 1 | Cards drawn if you were at full HP |
-| Next Attack Bonus | 3 | Added to your next Attack card's damage |
+| Discard | 1 | Random cards discarded from your hand |
+| Draw If Full HP | 1 | Cards drawn if you were at full HP. TRUE counts as 1 |
+| Next Die Roll Bonus | 1 | Added to every die of the next card you play that rolls |
+| Next Attack Bonus | 3 | Added to every hit of your next Attack card (counts towards crits) |
 | Next Defense Bonus | 3 | Added to your next Defense card's Block |
 | Energy | 1 | Energy gained |
 | Lose HP | 2 | HP lost (Block doesn't stop it) |
+| Critical | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1`, `Gain 1 Energy`. Blank or `-` = none |
 
-Blank cells count as 0. The "Card" column is ignored (NAME is used instead).
+Blank cells count as 0 (and FALSE). The "Card" column is ignored (Name is used instead).
+If the importer can't read a cell (like a Critical it doesn't know), it prints a
+warning in Godot's Output panel and skips that part.
 
 **The spreadsheet is the boss:** any card file in `cards/` that isn't in the
 spreadsheet gets deleted when you import. So make new cards by adding rows,
 not by duplicating `.tres` files in Godot.
 
-## Dice
+## Dice and Criticals
 
-Dice formulas are read by `scripts/dice.gd`, which has small helper functions
-you call on the class itself, like `Dice.roll("2d3+2")` (they're `static`, so no
-Dice object is needed, like functions in a Python module). It uses a **RegEx**
-(a text pattern) to split `2d3+2` into 2 dice, 3 sides, +2 bonus.
+Three scripts share the work:
+
+- **`dice.gd`** reads a formula. `Dice.parse("2d3+2")` gives 2 dice, 3 sides,
+  +2 bonus, and `"6"` gives no dice and a bonus of 6. It uses a **RegEx** (a text
+  pattern). Its functions are `static`: you call them on the class itself, like
+  functions in a Python module.
+- **`card_roller.gd`** is the rules. `CardRoller.roll(card)` rolls the bare dice,
+  and `CardRoller.resolve(card, dice, bonuses)` adds the modifiers, checks every
+  die for a crit (die + modifiers reaching its top number) and adds up the hits,
+  Block, Heal, Draw and Energy. Keeping the rules in one place means the drag
+  preview and the real play can never disagree: the preview simply resolves the
+  card with every die on 1 (worst case) and every die on top (best case).
+- **`battle.gd`** applies the result: one `take_damage()` per hit, Block, Heal,
+  then any extra cards to draw.
 
 Two Godot ideas show up in `battle.gd`:
 
-- **`await`**: `await show_dice_roll(card, true)` pauses that function (not the
+- **`await`**: `await show_dice_roll(...)` pauses that function (not the
   whole game) until the dice animation finishes, then carries on and deals the
   damage. While it waits, `busy` is true so you can't play another card.
 - **`duplicate()`**: at the start of a battle every card in the deck is copied.
   Each copy remembers its own roll (`roll_result`), so two Strikes in your hand
   can show different numbers, and the card files on disk never change.
-
-To try dice on another card, put a formula in its Dice column (and 0 in
-Attack), then re-run the importer. The old average is a good guide: Strike
-used to deal 6, and `2d3+2` also averages 6.
 
 ## Adding a class
 

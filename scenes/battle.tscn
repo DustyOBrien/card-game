@@ -16,12 +16,12 @@ script = ExtResource("1_battle")
 [node name="Player" type="Node" parent="."]
 script = ExtResource("2_combatant")
 display_name = "You"
-max_hp = 50
+max_hp = 25
 
 [node name="Enemy" type="Node" parent="."]
 script = ExtResource("2_combatant")
 display_name = "Slime"
-max_hp = 45
+max_hp = 20
 
 [node name="Background" type="ColorRect" parent="."]
 layout_mode = 1

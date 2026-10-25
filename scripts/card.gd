@@ -17,7 +17,7 @@ const PREVIEW_LINE_HEIGHT := 26  # Height of one line in the drag preview banner
 const PREVIEW_SCALE := 0.8  # The dragged card is a bit smaller, so it hides less of the screen.
 const HOVER_SCALE := 1.35  # How big a card in your hand gets when you point at it.
 const HOVER_TIME := 0.1  # Seconds the zoom takes.
-const ICON_SIZE := 26  # Width and height of an effect symbol, in pixels.
+const ICON_SIZE := 24  # Width and height of an effect symbol, in pixels.
 
 # The symbols shown on cards instead of rules text.
 # preload() loads a file once, when this script loads (the path must be fixed text).
@@ -62,6 +62,7 @@ func setup(data: CardData) -> void:
 	cost_label.text = str(data.cost)
 	school_label.text = data.get_school_text()
 	name_label.text = data.card_name
+	fit_name()
 	type_label.text = data.get_type_text()
 	if data.is_class_card():
 		# e.g. "Attack - Knight", so you can see who's allowed to use it.
@@ -74,25 +75,38 @@ func setup(data: CardData) -> void:
 	show_roll()
 
 
+# Long names like "Master of None" would wrap onto two lines and push the
+# card's bottom off. Shrink the font until the name fits on one line.
+func fit_name() -> void:
+	var font := name_label.get_theme_font("font")
+	var width := custom_minimum_size.x - 20  # The card minus its side margins.
+	for size in [20, 18, 16, 14]:
+		name_label.add_theme_font_size_override("font_size", size)
+		if font.get_string_size(card_data.card_name, HORIZONTAL_ALIGNMENT_LEFT, -1, size).x <= width:
+			return
+
+
 # Instead of a sentence like "Deal 4 Damage and Gain 2 Block", show a symbol
 # with a number for each effect: [sword] 4  [shield] 2. Much quicker to read.
 func show_effects(data: CardData) -> void:
 	for child in icon_row.get_children():
 		child.queue_free()
-	if data.has_dice():
-		add_icon("attack", data.dice)  # e.g. [sword] 2d3+2
-	elif data.damage > 0:
-		add_icon("attack", str(data.damage))
-	if data.block > 0:
-		add_icon("block", str(data.block))
+	if data.deals_damage():
+		add_icon("attack", data.get_attack_text())  # e.g. [sword] d3, or d3 x2 for two hits
+	if not data.block.is_empty():
+		add_icon("block", data.get_block_text())
 	if data.draw > 0:
 		add_icon("draw", str(data.draw))
 	if data.discard > 0:
 		add_icon("discard", str(data.discard))
-	if data.heal > 0:
-		add_icon("heal", str(data.heal))
-	# Anything without a symbol (Rage, Energy...) still gets a few words.
-	effect_label.text = data.get_extra_text()
+	if not data.heal.is_empty():
+		add_icon("heal", data.heal)
+	# Anything without a symbol (Rage, Energy...) still gets a few words,
+	# and so does what a Critical does.
+	var lines := data.get_extra_text()
+	if not data.critical.is_empty():
+		lines += ("\n" if not lines.is_empty() else "") + "Crit: " + data.critical
+	effect_label.text = lines
 	effect_label.visible = not effect_label.text.is_empty()
 
 
@@ -113,7 +127,7 @@ func add_icon(icon_name: String, amount: String) -> void:
 	var label := Label.new()
 	label.text = amount
 	# Dice text like "2d6+1" is longer, so it's a bit smaller.
-	label.add_theme_font_size_override("font_size", 16 if amount.contains("d") else 22)
+	label.add_theme_font_size_override("font_size", 16 if amount.length() > 3 else 22)
 	# A dark outline keeps the number readable on every card colour.
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
 	label.add_theme_constant_override("outline_size", 5)
@@ -123,12 +137,24 @@ func add_icon(icon_name: String, amount: String) -> void:
 	icon_row.add_child(chip)
 
 
-# Dice cards that already rolled (when "roll on draw" is on) show the number
-# right on the card, e.g. "Rolled 7", so you can plan with it.
+# Dice cards that already rolled (when "roll on draw" is on) show their dice
+# right on the card, e.g. "Rolled 3! 1", so you can plan with them.
+# A "!" marks a die on its top number: that's a crit for sure. (A lower die can
+# still crit if a bonus pushes it to the top. The drag banner shows that.)
 func show_roll() -> void:
 	roll_label.visible = card_data.is_rolled()
 	if card_data.is_rolled():
-		roll_label.text = "Rolled %d" % card_data.roll_result.total
+		roll_label.text = "Rolled " + roll_text(card_data.roll_result)
+
+
+func roll_text(raw: Dictionary) -> String:
+	var parts: Array[String] = []
+	var formulas := card_data.get_formulas()
+	for key in raw:
+		var sides: int = Dice.parse(formulas[key]).get("sides", 0)
+		for value: int in raw[key]:
+			parts.append(str(value) + ("!" if value == sides else ""))
+	return " ".join(parts)
 
 
 # A short "tumbling dice" animation for a card that was just drawn and rolled:
@@ -137,11 +163,9 @@ func show_roll() -> void:
 func animate_roll() -> void:
 	if not card_data.is_rolled():
 		return
-	var low := Dice.min_total(card_data.dice)
-	var high := Dice.max_total(card_data.dice)
 	roll_label.visible = true
 	for i in 8:
-		roll_label.text = "Rolling %d" % randi_range(low, high)
+		roll_label.text = "Rolling " + roll_text(CardRoller.roll(card_data))
 		await get_tree().create_timer(0.05).timeout
 		if not is_inside_tree():
 			return  # The hand was rebuilt while we waited; this card is gone.
