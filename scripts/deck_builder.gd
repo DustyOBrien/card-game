@@ -399,6 +399,7 @@ func _on_default_pressed() -> void:
 func _on_start_pressed() -> void:
 	# change_scene_to_file() throws away this whole scene and loads the battle.
 	# The deck survives because it lives in GameState, not in this scene.
+	GameState.start_run()  # Fight 1 of a new run, at full HP.
 	get_tree().change_scene_to_file(BATTLE_SCENE)
 
 

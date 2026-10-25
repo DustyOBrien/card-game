@@ -110,7 +110,20 @@ In the battle:
 - The **Roll dice when drawn** switch (top right) changes WHEN cards roll: off = when you play them, on = when you draw them, so the dice sit on the card ("Rolled 3! 1", where `!` means top number) and you can plan around them. Try both!
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
-- Bring the Slime to 0 HP to win.
+- Bring the Slime to 0 HP to win. It drops **1 to 5 gold**.
+
+**Runs and the shop.** A run is **5 Slimes in a row**, and your HP carries over
+from one fight to the next (the enemy's name shows `(2 / 5)`). After a win,
+**Next Slime** starts the next fight. Beat all 5, or die, and you go to the
+**Shop**:
+
+- It shows how the run went and your gold.
+- Buy **booster packs** (Neutral 3 gold, school packs 5 gold). They don't do anything yet: they're counted under "Your packs", ready for a later update.
+- **Start Next Run** begins a new run at full HP. Your unspent gold is kept (until you close the game).
+- **Edit Deck** goes back to the deck builder first.
+
+Gold amounts, the run length and pack prices live at the top of
+`game_state.gd` (`GOLD_MIN`, `GOLD_MAX`, `FIGHTS_PER_RUN`) and in `PACKS` in `shop.gd`.
 
 ---
 
@@ -123,9 +136,10 @@ card-game/
 │   ├── character_select.tscn The first screen: pick a class
 │   ├── deck_builder.tscn Pick the cards for your deck
 │   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
+│   ├── shop.tscn        Between runs: spend gold on booster packs
 │   └── card.tscn        What ONE card looks like
 ├── scripts/
-│   ├── game_state.gd    Autoload: keeps your class and deck while scenes change
+│   ├── game_state.gd    Autoload: keeps your class, deck, gold and run while scenes change
 │   ├── character_class.gd Defines what a class is (its deck rules)
 │   ├── character_select.gd Shows one panel per class
 │   ├── deck_builder.gd  Adding and removing cards, filters, deck stats
@@ -139,6 +153,7 @@ card-game/
 │   ├── die_view.gd      One die on screen, drawn with code (_draw)
 │   ├── dice_tray.gd     The panel where dice tumble and land
 │   ├── battle_log.gd    The Battle Log panel (a RichTextLabel)
+│   ├── shop.gd          The shop: pack list, buying, starting the next run
 │   └── card_importer.gd Turns the spreadsheet into card files
 ├── tools/
 │   └── import_cards.gd  Run this in the editor to re-import the spreadsheet

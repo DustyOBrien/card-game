@@ -12,7 +12,7 @@ extends Control
 # preload() loads a file once, when the script loads. These are the
 # "blueprints" we use to build the deck and the cards on screen.
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
+const SHOP_SCENE := "res://scenes/shop.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
@@ -55,7 +55,9 @@ var newly_rolled: Array[CardData] = []  # Cards that just rolled on draw (to ani
 @onready var hand_box: HBoxContainer = %Hand
 @onready var game_over_screen: ColorRect = %GameOverScreen
 @onready var result_label: Label = %ResultLabel
-@onready var restart_button: Button = %RestartButton
+@onready var reward_label: Label = %RewardLabel
+@onready var continue_button: Button = %ContinueButton
+@onready var gold_label: Label = %GoldLabel
 @onready var play_zone: PlayZone = %PlayZone
 @onready var play_zone_hint: Control = %PlayZoneHint
 @onready var hint_label: Label = %HintLabel
@@ -63,7 +65,6 @@ var newly_rolled: Array[CardData] = []  # Cards that just rolled on draw (to ani
 @onready var dice_tray: DiceTray = %DiceTray  # Where the dice tumble (dice_tray.gd).
 @onready var battle_log: BattleLog = %BattleLog  # The list of what happened (battle_log.gd).
 @onready var roll_on_draw_toggle: CheckButton = %RollOnDrawToggle
-@onready var change_deck_button: Button = %ChangeDeckButton
 
 
 func _ready() -> void:
@@ -73,8 +74,7 @@ func _ready() -> void:
 	player.died.connect(_on_player_died)
 	enemy.died.connect(_on_enemy_died)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
-	restart_button.pressed.connect(start_battle)
-	change_deck_button.pressed.connect(_on_change_deck_pressed)
+	continue_button.pressed.connect(_on_continue_pressed)
 	play_zone.card_dropped.connect(_on_card_played)  # Dropping a card plays it.
 	play_zone.enemy_target = enemy_box  # Attacks have to be dropped on this.
 	roll_on_draw_toggle.button_pressed = GameState.roll_dice_on_draw
@@ -93,6 +93,8 @@ func start_battle() -> void:
 	GameState.ensure_ready()
 	player.max_hp = GameState.character_class.max_hp  # Each class has its own HP.
 	player.reset()
+	if GameState.run_hp > 0:
+		player.hp = GameState.run_hp  # Later fights in a run keep the HP you had left.
 	enemy.reset()
 
 	next_attack_bonus = 0
@@ -115,8 +117,10 @@ func start_battle() -> void:
 	turn = 0
 	battle_log.clear()
 	message_label.text = "A %s appears!" % enemy.display_name
-	battle_log.add("A %s appears! (%d HP)" % [enemy.display_name, enemy.max_hp], BattleLog.ENEMY_COLOR)
-	battle_log.add("You are the %s (%d HP)" % [GameState.character_class.display_name, player.max_hp], BattleLog.PLAYER_COLOR)
+	battle_log.add("Fight %d of %d: a %s appears! (%d HP)" % [GameState.current_fight(),
+		GameState.FIGHTS_PER_RUN, enemy.display_name, enemy.max_hp], BattleLog.ENEMY_COLOR)
+	battle_log.add("You are the %s (HP %d/%d, %d gold)" % [GameState.character_class.display_name,
+		player.hp, player.max_hp, GameState.gold], BattleLog.PLAYER_COLOR)
 	start_player_turn()
 
 
@@ -439,7 +443,10 @@ func refresh_hand() -> void:
 
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
-	enemy_name_label.text = enemy.display_name
+	enemy_name_label.text = "%s  (%d / %d)" % [enemy.display_name, GameState.current_fight(), GameState.FIGHTS_PER_RUN]
+	if game_over and not GameState.run_died:
+		enemy_name_label.text = enemy.display_name  # The count moved on; don't show "6 / 5".
+	gold_label.text = "Gold %d" % GameState.gold
 	enemy_hp_label.text = "HP %d / %d" % [enemy.hp, enemy.max_hp]
 	if enemy.block > 0:
 		enemy_hp_label.text += "   Block %d" % enemy.block
@@ -496,23 +503,40 @@ func show_drag_preview() -> void:
 
 
 func _on_enemy_died() -> void:
-	end_battle("Victory!")
+	# Loot! The Slime drops some gold.
+	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX)
+	GameState.gold += loot
+	GameState.run_gold += loot
+	GameState.fights_won += 1
+	GameState.run_hp = player.hp  # Carry your HP into the next fight.
+	battle_log.add("The %s drops %d gold (you have %d)" % [enemy.display_name, loot, GameState.gold], BattleLog.TURN_COLOR)
+	var reward := "The %s dropped %d gold!" % [enemy.display_name, loot]
+	if GameState.is_run_over():
+		end_battle("Run complete!", reward + "\nYou beat all %d Slimes." % GameState.FIGHTS_PER_RUN, "Go to the Shop →")
+	else:
+		end_battle("Victory!", reward, "Next Slime →  (%d / %d)" % [GameState.current_fight(), GameState.FIGHTS_PER_RUN])
 
 
 func _on_player_died() -> void:
-	end_battle("Defeat...")
+	GameState.run_died = true
+	end_battle("Defeat...", "You beat %d Slime(s) and earned %d gold this run." % [GameState.fights_won, GameState.run_gold], "Go to the Shop →")
 
 
-# Go back to the deck builder. Your deck is still in GameState, so it's kept.
-func _on_change_deck_pressed() -> void:
-	get_tree().change_scene_to_file(DECK_BUILDER_SCENE)
+# The button on the end-of-fight panel: the next fight, or the shop once the run is over.
+func _on_continue_pressed() -> void:
+	if GameState.is_run_over():
+		get_tree().change_scene_to_file(SHOP_SCENE)
+	else:
+		start_battle()
 
 
-func end_battle(result: String) -> void:
+func end_battle(result: String, reward: String, button_text: String) -> void:
 	game_over = true
 	battle_log.add("\n" + result, BattleLog.TURN_COLOR)
 	end_turn_button.disabled = true
 	message_label.text = ""
 	result_label.text = result
+	reward_label.text = reward
+	continue_button.text = button_text
 	game_over_screen.visible = true
 	update_ui()

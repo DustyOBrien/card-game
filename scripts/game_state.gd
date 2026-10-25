@@ -28,6 +28,39 @@ var deck: Array[CardData] = []
 #   true  = they roll when you DRAW them (the number sits on the card, so you can plan).
 var roll_dice_on_draw := false
 
+# --- The run --------------------------------------------------------------
+# A "run" is FIGHTS_PER_RUN battles in a row. Your HP carries over from one
+# fight to the next. Win them all, or die, and you go to the shop. From the
+# shop you start a new run with full HP.
+const FIGHTS_PER_RUN := 5
+const GOLD_MIN := 1  # Gold a Slime drops (a random amount between these).
+const GOLD_MAX := 5
+
+var gold := 0  # Kept between runs (for now: it resets when you close the game).
+var fights_won := 0  # Slimes beaten in this run.
+var run_gold := 0  # Gold earned in this run, for the shop's summary.
+var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
+var run_died := false  # Did the last run end in a defeat?
+# Booster packs bought in the shop, by name: {"Strength Pack": 2}. They do nothing yet.
+var booster_packs := {}
+
+
+# Called when you leave the deck builder or the shop to fight: a fresh run.
+func start_run() -> void:
+	fights_won = 0
+	run_gold = 0
+	run_hp = -1
+	run_died = false
+
+
+# Which fight of the run is next (or now): 1 to FIGHTS_PER_RUN.
+func current_fight() -> int:
+	return fights_won + 1
+
+
+func is_run_over() -> bool:
+	return run_died or fights_won >= FIGHTS_PER_RUN
+
 
 # Called by the Character Select screen. A new class means a new deck,
 # so we throw the old one away and start from that class's starter deck.
