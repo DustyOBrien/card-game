@@ -128,15 +128,17 @@ from one fight to the next (the enemy's name shows `(2 / 5)`). After a win,
 **Shop**:
 
 - It shows how the run went and your gold.
-- Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!** or "Owned 2 / 3".
-- Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), but never one you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
+- Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
+- Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
 - **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept (until you close the game).
 - **Edit Deck** goes back to the deck builder first.
 
-**Your card collection.** You own cards, up to **3 copies** of each. You start
-with 3 of every card marked **Unlocked** in the spreadsheet; every other card
-has to come from a booster pack. The deck builder only shows cards you own,
-and a deck can't hold more copies than you own (or than your class allows).
+**Your card collection.** You start owning every card marked **Unlocked** in
+the spreadsheet, as many copies as its **Copies** column (your starter deck);
+every other card has to come from a booster pack. You can own more than 3 of a
+card (extras will be used for something later), but a deck uses at most **3**.
+The deck builder only shows cards you own, and a deck can't hold more copies
+than you own (or than your class allows).
 The collection lives in `GameState.collection`. It isn't saved when you close
 the game yet.
 
@@ -451,7 +453,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
 | Class | Adventurer | Only these classes can use the card. Several allowed, like School. Blank = every class |
 | Rarity | Rare | Common, Uncommon or Rare. Blank = Common |
-| Unlocked | TRUE | TRUE/FALSE or Yes/No. TRUE = you own 3 from the start. FALSE = you have to find it in a booster pack first (until then it's hidden in the deck builder). Blank = TRUE |
+| Unlocked | TRUE | TRUE/FALSE or Yes/No. TRUE = you start owning it (as many as Copies). FALSE = you have to find it in a booster pack first (until then it's hidden in the deck builder). Blank = TRUE |
 | Description | Deal d3x2 Damage | Hover text in the deck list. **Leave it blank** and it's written for you from the numbers |
 | Attack | d3, d3 | A number (`6`) or dice: `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1. Several hits separated by commas: `d3, d3` = two hits, each rolled on its own (Multi Strike) |
 | Attack (2) | d3 | A second hit, rolled separately. Attack (3), (4)... work too |

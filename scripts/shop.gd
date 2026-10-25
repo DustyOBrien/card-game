@@ -198,19 +198,17 @@ func _add_reveal(item: Dictionary, row: HBoxContainer) -> void:
 	var note := Label.new()
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	note.add_theme_font_size_override("font_size", 20)
-	if item.card == null:
-		# You already own 3 of every card. Have a gold coin instead.
-		GameState.gold += 1
-		note.text = "Collection complete!\n+1 gold"
-		box.add_child(note)
-		refresh()
-		return
 	var card: Card = CARD_SCENE.instantiate()
 	box.add_child(card)
 	card.setup(item.card)
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Just for looking at.
-	# e.g. "NEW!  Rare" or "Owned 2 / 3  Common", in the rarity's colour.
-	var owned_text := "NEW!" if item.new else "Owned %d / %d" % [item.owned, GameState.MAX_OWNED]
+	# e.g. "NEW!  Rare", "Owned 2 / 3  Common" or "Extra! Owned 4  Common",
+	# in the rarity's colour. Extras (past 3) will be used for something later.
+	var owned_text := "Owned %d / %d" % [item.owned, GameState.MAX_COPIES]
+	if item.new:
+		owned_text = "NEW!"
+	elif item.owned > GameState.MAX_COPIES:
+		owned_text = "Extra! Owned %d" % item.owned
 	note.text = "%s\n%s" % [owned_text, item.card.get_rarity_text()]
 	note.add_theme_color_override("font_color", CardData.RARITY_COLORS[item.card.rarity])
 	box.add_child(note)

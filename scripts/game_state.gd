@@ -46,9 +46,11 @@ var booster_packs := {}
 # --- Your card collection ----------------------------------------------------
 # Which cards you own, and how many: {"Strike": 3, "Punch": 1}. The deck
 # builder only shows cards you own, and a deck can't hold more copies than you
-# own. You start with 3 of every card marked Unlocked in the spreadsheet, and
-# find the rest in booster packs.
-const MAX_OWNED := 3  # The most copies of one card you can own.
+# own. Cards marked Unlocked in the spreadsheet start in your collection (as
+# many as their Copies column, so you own your starter deck), and you find the
+# rest in booster packs. You can own MORE than 3 of a card; the extras will be
+# used for something later, but a deck still uses at most MAX_COPIES.
+const MAX_COPIES := 3  # The most copies of one card a deck can use.
 # The chance of each rarity for every card in a pack. They add up to 100.
 const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10}
 const CARDS_PER_PACK := 3
@@ -61,7 +63,7 @@ var vanished: Array[int] = []
 func _ready() -> void:
 	for card in load_all_cards():
 		if card.unlocked:
-			collection[card.card_name] = MAX_OWNED
+			collection[card.card_name] = maxi(card.copies, 1)
 
 
 # How many copies of this card do you own? (0 = you haven't found it yet.)
@@ -72,15 +74,11 @@ func owned(card: CardData) -> int:
 # Open one booster pack: CARDS_PER_PACK cards, each one added to your
 # collection. Returns what you got, for the shop to show:
 #   [{"card": CardData, "new": true/false, "owned": 2}, ...]
-# A card you already own 3 of is never picked, so packs always give you
-# something useful. If you own 3 of EVERYTHING, "card" is null.
+# Any card can come out, even one you already own 3 (or more) of.
 func open_pack() -> Array[Dictionary]:
 	var opened: Array[Dictionary] = []
 	for i in CARDS_PER_PACK:
 		var card := _pick_pack_card()
-		if card == null:
-			opened.append({"card": null, "new": false, "owned": 0})
-			continue
 		var is_new := owned(card) == 0
 		collection[card.card_name] = owned(card) + 1
 		opened.append({"card": card, "new": is_new, "owned": owned(card)})
@@ -88,18 +86,15 @@ func open_pack() -> Array[Dictionary]:
 
 
 # One random card for a pack. First roll its rarity (60 / 30 / 10), then pick
-# any card of that rarity you don't have 3 of yet. If there's none left of that
-# rarity, roll again among the rarities that still have some.
+# any card of that rarity. If the spreadsheet has no cards of some rarity, its
+# odds are shared out among the rarities that do have cards.
 func _pick_pack_card() -> CardData:
-	var by_rarity := {}  # Rarity -> the cards you could still get.
+	var by_rarity := {}  # Rarity -> the cards of that rarity.
 	for card in load_all_cards():
-		if owned(card) < MAX_OWNED:
-			if not by_rarity.has(card.rarity):
-				by_rarity[card.rarity] = []
-			by_rarity[card.rarity].append(card)
-	if by_rarity.is_empty():
-		return null  # You own 3 of every card!
-	# Add up the odds of the rarities that are still possible, and pick one.
+		if not by_rarity.has(card.rarity):
+			by_rarity[card.rarity] = []
+		by_rarity[card.rarity].append(card)
+	# Add up the odds of the rarities that have cards, and pick one.
 	var total := 0
 	for rarity in by_rarity:
 		total += PACK_ODDS[rarity]
