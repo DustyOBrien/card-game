@@ -11,6 +11,7 @@ description = "Draws on Wisdom to heal and protect. Hard to wear down."
 color = Color(0.5, 0.4, 0.65, 1)
 sort_order = 4
 max_hp = 28
+armor = 2
 unlock_school = 8
 allowed_schools = 8
 max_copies = 3

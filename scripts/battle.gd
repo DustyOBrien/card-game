@@ -87,6 +87,7 @@ func _ready() -> void:
 
 func start_battle() -> void:
 	game_over = false
+	busy = false
 	game_over_screen.visible = false
 	GameState.ensure_ready()
 	player.max_hp = GameState.character_class.max_hp  # Each class has its own HP...
@@ -162,7 +163,9 @@ func _on_end_turn_pressed() -> void:
 	hand.clear()
 	refresh_hand()
 
+	busy = true  # Nothing can be played (or End Turn pressed again) during the enemy's turn.
 	await enemy_turn()  # `await` waits for enemy_turn() to finish.
+	busy = false
 	if not game_over:
 		start_player_turn()
 
@@ -273,8 +276,15 @@ func _on_card_played(card: CardData) -> void:
 
 	# Apply each effect the card has. A card can have several.
 	for hit: int in result.hits:  # Each hit goes through the enemy's Block on its own.
+		if game_over:
+			break  # An earlier hit already won the fight.
 		enemy.take_damage(hit)
 		battle_log.add("%s takes %d damage (HP %d/%d)" % [enemy.display_name, hit, enemy.hp, enemy.max_hp])
+	if game_over:
+		# The fight is over, so the rest of the card (draws, heals...) doesn't matter.
+		put_away(card)  # But a Vanish card still Vanishes.
+		busy = false
+		return
 	if card.has_type(CardData.CardType.ATTACK):
 		next_attack_bonus = 0  # An Attack card uses up the waiting attack bonus (Rage).
 	if result.block > 0:
@@ -291,6 +301,10 @@ func _on_card_played(card: CardData) -> void:
 	if card.lose_hp > 0:
 		player.lose_hp(card.lose_hp)
 		battle_log.add("You lose %d HP (HP %d/%d)" % [card.lose_hp, player.hp, player.max_hp])
+		if game_over:
+			put_away(card)
+			busy = false
+			return  # That was the last of your HP.
 	if card.draw_if_full_hp > 0 and was_at_full_hp:
 		await draw_cards(card.draw_if_full_hp)
 	# Save bonuses for later cards.
@@ -317,6 +331,13 @@ func _on_card_played(card: CardData) -> void:
 		message_label.text = crit_text
 		battle_log.add("Critical! %s" % card.critical + (" (x%d)" % result.crits if result.crits > 1 else ""), BattleLog.CRIT_COLOR)
 
+	put_away(card)
+	busy = false
+	refresh_hand()
+
+
+# A played card is done: into the discard pile, or gone for the run if it Vanishes.
+func put_away(card: CardData) -> void:
 	card.roll_result = {}  # It rolls again next time.
 	if card.vanish:
 		# Gone for the rest of the run: it doesn't go to the discard pile, and
@@ -324,12 +345,10 @@ func _on_card_played(card: CardData) -> void:
 		if card.has_meta("deck_index"):
 			GameState.vanished.append(card.get_meta("deck_index"))
 		battle_log.add("%s Vanishes for the rest of the run" % card.card_name, BattleLog.DIM_COLOR)
-		if message_label.text.is_empty():
+		if message_label.text.is_empty() and not game_over:
 			message_label.text = "%s Vanished" % card.card_name
 	else:
 		discard_pile.append(card)  # The played card goes to the discard pile like everything else.
-	busy = false
-	refresh_hand()
 
 
 # The bonuses waiting right now, in the form CardRoller.resolve() wants.

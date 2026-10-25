@@ -38,6 +38,8 @@ func reset() -> void:
 
 
 func take_damage(amount: int) -> void:
+	if hp == 0:
+		return  # Already defeated. (Multi Strike's 2nd hit mustn't make it "die" twice.)
 	# Block soaks up damage first, then the rest comes off HP.
 	var blocked := mini(block, amount)  # mini() = min() for ints
 	block -= blocked
@@ -50,6 +52,8 @@ func take_damage(amount: int) -> void:
 
 # Losing HP (from your own cards) skips Block and goes straight to HP.
 func lose_hp(amount: int) -> void:
+	if hp == 0:
+		return
 	hp = maxi(hp - amount, 0)
 	stats_changed.emit()
 	if hp == 0:
