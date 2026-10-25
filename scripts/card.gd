@@ -17,6 +17,17 @@ const PREVIEW_LINE_HEIGHT := 26  # Height of one line in the drag preview banner
 const PREVIEW_SCALE := 0.8  # The dragged card is a bit smaller, so it hides less of the screen.
 const HOVER_SCALE := 1.35  # How big a card in your hand gets when you point at it.
 const HOVER_TIME := 0.1  # Seconds the zoom takes.
+const ICON_SIZE := 26  # Width and height of an effect symbol, in pixels.
+
+# The symbols shown on cards instead of rules text.
+# preload() loads a file once, when this script loads (the path must be fixed text).
+const ICONS := {
+	"attack": preload("res://icons/attack.svg"),
+	"block": preload("res://icons/block.svg"),
+	"draw": preload("res://icons/draw.svg"),
+	"discard": preload("res://icons/discard.svg"),
+	"heal": preload("res://icons/heal.svg"),
+}
 
 var card_data: CardData
 var draggable := false  # true in battle: drag to play instead of clicking.
@@ -32,7 +43,8 @@ var zoom_tween: Tween  # The running hover zoom animation, if any.
 @onready var school_label: Label = %SchoolLabel
 @onready var name_label: Label = %NameLabel
 @onready var type_label: Label = %TypeLabel
-@onready var effect_label: Label = %EffectLabel
+@onready var icon_row: HFlowContainer = %IconRow  # Symbol + number for each effect.
+@onready var effect_label: Label = %EffectLabel  # Text for effects with no symbol.
 @onready var rarity_label: Label = %RarityLabel
 @onready var roll_label: Label = %RollLabel  # Shows a dice card's roll, when it has one.
 
@@ -54,12 +66,61 @@ func setup(data: CardData) -> void:
 	if data.is_class_card():
 		# e.g. "Attack - Knight", so you can see who's allowed to use it.
 		type_label.text += " - " + ", ".join(data.class_only)
-	effect_label.text = data.effect
+	show_effects(data)
 	rarity_label.text = data.get_rarity_text()
 	rarity_label.add_theme_color_override("font_color", CardData.RARITY_COLORS[data.rarity])
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
 	show_roll()
+
+
+# Instead of a sentence like "Deal 4 Damage and Gain 2 Block", show a symbol
+# with a number for each effect: [sword] 4  [shield] 2. Much quicker to read.
+func show_effects(data: CardData) -> void:
+	for child in icon_row.get_children():
+		child.queue_free()
+	if data.has_dice():
+		add_icon("attack", data.dice)  # e.g. [sword] 2d3+2
+	elif data.damage > 0:
+		add_icon("attack", str(data.damage))
+	if data.block > 0:
+		add_icon("block", str(data.block))
+	if data.draw > 0:
+		add_icon("draw", str(data.draw))
+	if data.discard > 0:
+		add_icon("discard", str(data.discard))
+	if data.heal > 0:
+		add_icon("heal", str(data.heal))
+	# Anything without a symbol (Rage, Energy...) still gets a few words.
+	effect_label.text = data.get_extra_text()
+	effect_label.visible = not effect_label.text.is_empty()
+
+
+# One symbol with its number next to it, built in code.
+func add_icon(icon_name: String, amount: String) -> void:
+	var chip := HBoxContainer.new()
+	chip.add_theme_constant_override("separation", 2)
+	chip.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Let the card get the mouse.
+
+	var icon := TextureRect.new()
+	icon.texture = ICONS[icon_name]
+	icon.custom_minimum_size = Vector2(ICON_SIZE, ICON_SIZE)
+	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE  # Shrink the 64px image to ICON_SIZE.
+	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(icon)
+
+	var label := Label.new()
+	label.text = amount
+	# Dice text like "2d6+1" is longer, so it's a bit smaller.
+	label.add_theme_font_size_override("font_size", 16 if amount.contains("d") else 22)
+	# A dark outline keeps the number readable on every card colour.
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 5)
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	chip.add_child(label)
+
+	icon_row.add_child(chip)
 
 
 # Dice cards that already rolled (when "roll on draw" is on) show the number

@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Discard: a card with a cross over it. -->
+  <rect x="12" y="6" width="30" height="44" rx="4" transform="rotate(-12 27 28)"
+        fill="#c9b8a0" stroke="#10151c" stroke-width="3"/>
+  <g stroke-linecap="round">
+    <path d="M30 30 L56 56 M56 30 L30 56" stroke="#10151c" stroke-width="12"/>
+    <path d="M30 30 L56 56 M56 30 L30 56" stroke="#e8604a" stroke-width="6"/>
+  </g>
+</svg>

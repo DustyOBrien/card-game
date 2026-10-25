@@ -106,6 +106,24 @@ func deals_damage() -> bool:
 	return damage > 0 or has_dice()
 
 
+# Effects that have no symbol on the card get a short line of text instead,
+# e.g. "Next Attack +3" or "Lose 2 HP". (Attack, Block, Draw, Discard and Heal
+# are shown as symbols by card.gd.)
+func get_extra_text() -> String:
+	var lines: Array[String] = []
+	if next_attack_bonus > 0:
+		lines.append("Next Attack +%d" % next_attack_bonus)
+	if next_defense_bonus > 0:
+		lines.append("Next Defense +%d" % next_defense_bonus)
+	if energy > 0:
+		lines.append("+%d Energy" % energy)
+	if draw_if_full_hp > 0:
+		lines.append("Full HP: Draw %d" % draw_if_full_hp)
+	if lose_hp > 0:
+		lines.append("Lose %d HP" % lose_hp)
+	return "\n".join(lines)
+
+
 # "Common", "Uncommon" or "Rare".
 func get_rarity_text() -> String:
 	return Rarity.keys()[rarity].capitalize()  # keys() gives ["COMMON", "UNCOMMON", "RARE"].

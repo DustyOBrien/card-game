@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Heal: a heart with a plus. -->
+  <path d="M32 58 C10 42 4 30 4 20 C4 11 11 5 19 5 C25 5 30 9 32 13 C34 9 39 5 45 5 C53 5 60 11 60 20 C60 30 54 42 32 58 Z"
+        fill="#6cd27a" stroke="#0f1c12" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M32 18 L32 40 M21 29 L43 29" stroke="#ffffff" stroke-width="7" stroke-linecap="round"/>
+</svg>

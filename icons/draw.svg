@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Draw: a card with an arrow coming out of the deck. -->
+  <g stroke="#10151c" stroke-width="3" stroke-linejoin="round">
+    <rect x="6" y="18" width="26" height="38" rx="4" fill="#8a96a8"/>
+    <rect x="14" y="12" width="26" height="38" rx="4" fill="#f2f4f7"/>
+    <path d="M44 40 L44 22 L38 22 L49 8 L60 22 L54 22 L54 40 Z" fill="#7fd3f0"/>
+  </g>
+</svg>

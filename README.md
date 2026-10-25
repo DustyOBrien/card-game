@@ -85,6 +85,20 @@ Then you're on the **deck builder**, holding your class's starter deck:
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
 - When the deck is big enough, click **Start Battle**. **Change Class** goes back to Character Select.
 
+Cards show **symbols** instead of rules text, so you can read them at a glance:
+
+| Symbol | Means |
+|---|---|
+| ![](icons/attack.svg) sword | Damage to the enemy (or its dice, like `2d3+2`) |
+| ![](icons/block.svg) shield | Block you gain |
+| ![](icons/draw.svg) card + arrow | Cards you draw |
+| ![](icons/discard.svg) card + cross | Random cards you discard from your hand |
+| ![](icons/heal.svg) heart | HP you heal |
+
+Effects without a symbol (Rage's "Next Attack +3", "+1 Energy", "Lose 2 HP"...)
+are still written as a few words. The spreadsheet's Description column is
+still used for the tooltip on rows in **Your Deck**.
+
 In the battle:
 
 - Point at a card in your hand to zoom in on it.
@@ -126,6 +140,7 @@ card-game/
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
 ├── emblems/             The class emblems (SVG pictures)
+├── icons/               Card symbols: attack, block, draw, discard, heal (SVG)
 ├── themes/              main_theme.tres: how buttons and panels look everywhere
 └── docs/                Pictures for this README (Godot ignores this folder)
 ```
