@@ -15,7 +15,6 @@ extends PanelContainer
 const TUMBLE_STEPS := 10  # How many random faces flash by while the dice tumble...
 const TUMBLE_TIME := 0.05  # ...and how long each one shows (seconds).
 const LAND_GAP := 0.15  # Pause between one die landing and the next.
-const SHOW_TIME := 2.5  # Seconds the result stays before fading out.
 const KIND_COLORS := {
 	"attack": Color(1.0, 0.55, 0.45),
 	"block": Color(0.55, 0.75, 1.0),
@@ -25,7 +24,6 @@ const CRIT_COLOR := Color(1.0, 0.6, 0.2)
 
 var title_label: Label
 var groups_box: HBoxContainer
-var fade_tween: Tween
 
 
 func _ready() -> void:
@@ -56,10 +54,7 @@ func _ready() -> void:
 # one. Without it (the card rolled when drawn), they appear straight away.
 # Call it with `await`: it returns once every die has landed.
 func play(card_name: String, rolls: Array, animate: bool) -> void:
-	if fade_tween:
-		fade_tween.kill()  # A new roll replaces one that's still fading.
-	modulate.a = 1.0
-	visible = true
+	visible = true  # The last roll stays up until this one replaces it.
 	title_label.text = card_name
 	for child in groups_box.get_children():
 		child.queue_free()
@@ -83,12 +78,9 @@ func play(card_name: String, rolls: Array, animate: bool) -> void:
 	for label in totals:
 		label.visible = true  # "= 4" appears once its dice are down.
 
-	# Leave the result up for a while, then fade it away. This runs by itself;
-	# play() doesn't wait for it, so the card's effects happen straight away.
-	fade_tween = create_tween()
-	fade_tween.tween_interval(SHOW_TIME)
-	fade_tween.tween_property(self, "modulate:a", 0.0, 0.5)
-	fade_tween.tween_callback(hide)
+	# A short pause so you can see the result before the damage lands.
+	# The dice then stay up until the next roll, or until the battle hides
+	# the tray at the end of your turn.
 	await get_tree().create_timer(0.3).timeout
 
 

@@ -4,13 +4,15 @@
 # It's the "drop" half of Godot's drag and drop (card.gd is the "drag" half).
 # It doesn't play the card itself: it just tells the battle with a signal.
 #
-# Cards that deal damage have to be dropped ON the enemy. Every other card
-# can be dropped anywhere in the zone.
+# Every card can be dropped anywhere in the zone. With only one enemy, an
+# attack always knows who to hit. When there are several enemies, turn on
+# ATTACKS_NEED_TARGET so attacks have to be dropped ON the enemy they hit.
 class_name PlayZone
 extends Control
 
 signal card_dropped(card_data: CardData)
 
+const ATTACKS_NEED_TARGET := false  # true = attacks must be dropped on the enemy.
 const TARGET_MARGIN := 24.0  # Extra pixels around the enemy that still count as "on" it.
 
 var enemy_target: Control  # The battle sets this to the enemy's box.
@@ -18,7 +20,12 @@ var enemy_target: Control  # The battle sets this to the enemy's box.
 
 # Does this card have to be dropped on the enemy?
 func needs_target(card: CardData) -> bool:
-	return card.deals_damage()
+	return ATTACKS_NEED_TARGET and card.deals_damage()
+
+
+# Is this point on the screen inside the drop zone?
+func is_over_zone(screen_point: Vector2) -> bool:
+	return get_global_rect().has_point(screen_point)
 
 
 # Is this point on the screen over the enemy?

@@ -136,6 +136,7 @@ func _on_end_turn_pressed() -> void:
 	if game_over or busy:
 		return
 	end_turn_button.disabled = true
+	dice_tray.hide()  # Clear this turn's dice.
 
 	# Everything left in your hand goes to the discard pile.
 	battle_log.add("You end your turn" + (" (%d cards discarded)" % hand.size() if not hand.is_empty() else ""), BattleLog.DIM_COLOR)
@@ -376,6 +377,8 @@ func _notification(what: int) -> void:
 			play_zone_hint.visible = true
 			if play_zone.needs_target(data):
 				hint_label.text = "Drop on the %s to attack" % enemy.display_name
+			elif data.deals_damage():
+				hint_label.text = "Drop here to attack the %s" % enemy.display_name
 			else:
 				hint_label.text = "Drop here to play"
 			update_ui()
@@ -386,11 +389,14 @@ func _notification(what: int) -> void:
 		update_ui()
 
 
-# _process() runs every frame. While you aim an attack, light up the enemy
-# when the mouse is over it, so you know letting go will hit.
+# _process() runs every frame. While you drag an attack, light up the enemy
+# when letting go would hit it.
 func _process(_delta: float) -> void:
-	if dragged_card != null and play_zone.needs_target(dragged_card):
-		enemy_box.modulate = TARGET_COLOR if play_zone.is_over_enemy(get_global_mouse_position()) else Color.WHITE
+	if dragged_card != null and dragged_card.deals_damage():
+		var mouse := get_global_mouse_position()
+		var on_target := play_zone.is_over_enemy(mouse) if play_zone.needs_target(dragged_card) \
+				else play_zone.is_over_zone(mouse)
+		enemy_box.modulate = TARGET_COLOR if on_target else Color.WHITE
 
 
 # Throw `amount` random cards from the hand into the discard pile.

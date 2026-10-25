@@ -102,9 +102,9 @@ still used for the tooltip on rows in **Your Deck**.
 In the battle:
 
 - Point at a card in your hand to zoom in on it.
-- **Drag** a card up out of your hand and let go above it to play it. Cards that deal damage have to be dropped **on the enemy** (it lights up when you're on target). It costs energy (the yellow number in its corner).
+- **Drag** a card up out of your hand and let go above it to play it. Attacks can be dropped anywhere above your hand too: the enemy lights up to show it will be hit. (With several enemies later, set `ATTACKS_NEED_TARGET` in `play_zone.gd` to make attacks aim at one.) It costs energy (the yellow number in its corner).
 - While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 20 → 17`. Let go over your hand to change your mind.
-- **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...). The drag banner shows the range (`Deal 1–4 damage`). When the card lands, real dice tumble in the **dice tray** on the left: a d3 is a triangle and a d6 a square. They land one by one, with the bonus and total next to them, and a die that crits turns gold.
+- **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...). The drag banner shows the range (`Deal 1–4 damage`). When the card lands, real dice tumble in the **dice tray** on the left: a d3 is a triangle and a d6 a square. They land one by one, with the bonus and total next to them, and a die that crits turns gold. The dice stay up until your next roll or End Turn.
 - The **Battle Log** on the right lists everything that happens: each turn, the cards you draw and play, every roll, damage, Block and Heal. **Copy** puts the whole log on your clipboard, handy for pasting a game into a note when you test cards.
 - **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
 - The **Roll dice when drawn** switch (top right) changes WHEN cards roll: off = when you play them, on = when you draw them, so the dice sit on the card ("Rolled 3! 1", where `!` means top number) and you can plan around them. Try both!
