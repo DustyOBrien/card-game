@@ -79,7 +79,9 @@ Class-only cards say so on their type line, e.g. **Attack - Knight**.
 
 Then you're on the **deck builder**, holding your class's starter deck:
 
-- Click a card on the left to add a copy to your deck. Click a line in **Your deck** on the right to take one copy out.
+- Click a card on the left to add a copy to your deck. Click a row in **Your Deck** on the right to take one copy out.
+- The buttons at the top right (**All**, **Strength**...) show one school at a time.
+- **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
 - When the deck is big enough, click **Start Battle**. **Change Class** goes back to Character Select.
 
@@ -108,7 +110,7 @@ card-game/
 │   ├── game_state.gd    Autoload: keeps your class and deck while scenes change
 │   ├── character_class.gd Defines what a class is (its deck rules)
 │   ├── character_select.gd Shows one panel per class
-│   ├── deck_builder.gd  Adding and removing cards, following your class's rules
+│   ├── deck_builder.gd  Adding and removing cards, filters, deck stats
 │   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data; clicked (deck builder) or dragged (battle)
 │   ├── play_zone.gd     The area above your hand where you drop cards to play them
@@ -122,6 +124,7 @@ card-game/
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
 ├── emblems/             The class emblems (SVG pictures)
+├── themes/              main_theme.tres: how buttons and panels look everywhere
 └── docs/                Pictures for this README (Godot ignores this folder)
 ```
 
@@ -245,6 +248,19 @@ draw_pile = GameState.deck.duplicate()   # battle: copy the deck, then shuffle t
 
 Keep autoloads small: only things that really must outlive a scene belong there
 (later: the player's HP between fights, gold, which floor you're on...).
+
+### Themes: one look for every screen
+
+Instead of styling every button by hand, the project has a **Theme**:
+`themes/main_theme.tres`. It says what every `Button`, `PanelContainer`,
+`ProgressBar` and scrollbar looks like (colours, rounded corners, borders), and
+it's switched on for the whole game in **Project Settings → GUI → Theme → Custom**.
+Double-click it in the FileSystem panel to open the **Theme editor** and try
+changing a colour: every screen updates at once.
+
+A theme can also have **variations**. `PrimaryButton` is a gold version of
+`Button`; the deck builder's **Start Battle** uses it by setting
+`theme_type_variation` to `PrimaryButton` in the Inspector.
 
 ### Bonus idea: Resources and card data
 

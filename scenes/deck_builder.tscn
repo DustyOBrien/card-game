@@ -18,7 +18,7 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.12, 0.11, 0.16, 1)
+color = Color(0.1, 0.09, 0.13, 1)
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -27,97 +27,157 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-theme_override_constants/margin_left = 32
-theme_override_constants/margin_top = 24
-theme_override_constants/margin_right = 32
-theme_override_constants/margin_bottom = 24
+theme_override_constants/margin_left = 24
+theme_override_constants/margin_top = 16
+theme_override_constants/margin_right = 24
+theme_override_constants/margin_bottom = 16
 
 [node name="Layout" type="VBoxContainer" parent="Margin"]
 layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="TitleLabel" type="Label" parent="Margin/Layout"]
+[node name="Header" type="HBoxContainer" parent="Margin/Layout"]
+layout_mode = 2
+theme_override_constants/separation = 14
+
+[node name="Emblem" type="TextureRect" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(56, 56)
+layout_mode = 2
+expand_mode = 1
+stretch_mode = 5
+
+[node name="Titles" type="VBoxContainer" parent="Margin/Layout/Header"]
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 0
+
+[node name="TitleLabel" type="Label" parent="Margin/Layout/Header/Titles"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 36
-text = "Build Your Deck"
-horizontal_alignment = 1
+theme_override_font_sizes/font_size = 28
+text = "Adventurer"
 
-[node name="HelpLabel" type="Label" parent="Margin/Layout"]
+[node name="SubtitleLabel" type="Label" parent="Margin/Layout/Header/Titles"]
+unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.7)
-theme_override_font_sizes/font_size = 18
-text = "Click a card to add it to your deck. Click a card in your deck list to take one out."
-horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 0.6)
+theme_override_font_sizes/font_size = 15
+text = "Build your deck"
+
+[node name="HeaderSpacer" type="Control" parent="Margin/Layout/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FilterBar" type="HBoxContainer" parent="Margin/Layout/Header"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 4
+theme_override_constants/separation = 6
 
 [node name="Columns" type="HBoxContainer" parent="Margin/Layout"]
 layout_mode = 2
 size_flags_vertical = 3
 theme_override_constants/separation = 16
 
-[node name="PoolScroll" type="ScrollContainer" parent="Margin/Layout/Columns"]
+[node name="PoolPanel" type="PanelContainer" parent="Margin/Layout/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
+
+[node name="PoolScroll" type="ScrollContainer" parent="Margin/Layout/Columns/PoolPanel"]
+layout_mode = 2
 horizontal_scroll_mode = 0
 
-[node name="PoolGrid" type="GridContainer" parent="Margin/Layout/Columns/PoolScroll"]
+[node name="PoolGrid" type="GridContainer" parent="Margin/Layout/Columns/PoolPanel/PoolScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 6
-theme_override_constants/h_separation = 12
-theme_override_constants/v_separation = 12
+theme_override_constants/h_separation = 14
+theme_override_constants/v_separation = 14
 columns = 5
 
 [node name="DeckPanel" type="PanelContainer" parent="Margin/Layout/Columns"]
-custom_minimum_size = Vector2(320, 0)
+custom_minimum_size = Vector2(340, 0)
 layout_mode = 2
 
-[node name="DeckMargin" type="MarginContainer" parent="Margin/Layout/Columns/DeckPanel"]
-layout_mode = 2
-theme_override_constants/margin_left = 12
-theme_override_constants/margin_top = 12
-theme_override_constants/margin_right = 12
-theme_override_constants/margin_bottom = 12
-
-[node name="DeckBox" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin"]
+[node name="DeckBox" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="DeckCountLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+[node name="DeckTitleRow" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
+layout_mode = 2
+
+[node name="DeckTitle" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckBox/DeckTitleRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 22
+text = "Your Deck"
+
+[node name="DeckCountLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckBox/DeckTitleRow"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "Your deck: 0 cards"
+theme_override_font_sizes/font_size = 22
+text = "0 / 20"
 
-[node name="SchoolCountLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+[node name="DeckSizeBar" type="ProgressBar" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+max_value = 20.0
+show_percentage = false
+
+[node name="SchoolChips" type="HFlowContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 1, 1, 0.75)
-theme_override_font_sizes/font_size = 15
-text = "STR 0   AGI 0   INT 0   WIS 0   Neutral 0"
-autowrap_mode = 3
+theme_override_constants/h_separation = 6
+theme_override_constants/v_separation = 6
 
-[node name="DeckScroll" type="ScrollContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+[node name="StatsRow" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="CostCurve" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox/StatsRow"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 74)
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="TypeCountLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckBox/StatsRow"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(1, 1, 1, 0.7)
+theme_override_font_sizes/font_size = 14
+text = "0 Attack
+0 Defense
+0 Ability"
+
+[node name="Separator" type="HSeparator" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
+layout_mode = 2
+
+[node name="DeckScroll" type="ScrollContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
 layout_mode = 2
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="DeckList" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox/DeckScroll"]
+[node name="DeckList" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox/DeckScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 4
 
-[node name="DeckButtons" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox"]
+[node name="DeckButtons" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
 layout_mode = 2
 theme_override_constants/separation = 8
 
-[node name="ClearButton" type="Button" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox/DeckButtons"]
+[node name="ClearButton" type="Button" parent="Margin/Layout/Columns/DeckPanel/DeckBox/DeckButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 text = "Clear"
 
-[node name="DefaultButton" type="Button" parent="Margin/Layout/Columns/DeckPanel/DeckMargin/DeckBox/DeckButtons"]
+[node name="DefaultButton" type="Button" parent="Margin/Layout/Columns/DeckPanel/DeckBox/DeckButtons"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -129,21 +189,24 @@ theme_override_constants/separation = 16
 
 [node name="BackButton" type="Button" parent="Margin/Layout/BottomBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(190, 48)
 layout_mode = 2
-theme_override_font_sizes/font_size = 22
-text = "Change Class"
+theme_override_font_sizes/font_size = 20
+text = "← Change Class"
 
 [node name="RulesLabel" type="Label" parent="Margin/Layout/BottomBar"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
-theme_override_font_sizes/font_size = 20
+theme_override_colors/font_color = Color(1, 1, 1, 0.75)
+theme_override_font_sizes/font_size = 18
 text = "Deck rules"
+horizontal_alignment = 1
 
 [node name="StartButton" type="Button" parent="Margin/Layout/BottomBar"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(200, 48)
+custom_minimum_size = Vector2(220, 48)
 layout_mode = 2
+theme_type_variation = &"PrimaryButton"
 theme_override_font_sizes/font_size = 22
-text = "Start Battle"
+text = "Start Battle →"

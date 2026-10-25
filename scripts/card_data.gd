@@ -28,6 +28,15 @@ extends Resource
 enum CardType { ATTACK = 1, DEFENSE = 2, ABILITY = 4 }
 enum School { STRENGTH = 1, AGILITY = 2, INTELLECT = 4, WISDOM = 8 }
 
+# Each school's colour, used for cards and for the deck builder's school chips.
+const SCHOOL_COLORS := {
+	School.STRENGTH: Color(0.6, 0.22, 0.22),
+	School.AGILITY: Color(0.25, 0.5, 0.3),
+	School.INTELLECT: Color(0.22, 0.35, 0.65),
+	School.WISDOM: Color(0.5, 0.4, 0.65),
+}
+const NEUTRAL_COLOR := Color(0.4, 0.4, 0.42)
+
 # Rarity is just one value per card, so it's a normal enum (0, 1, 2), not flags.
 enum Rarity { COMMON, UNCOMMON, RARE }
 const RARITY_COLORS := {

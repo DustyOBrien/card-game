@@ -17,14 +17,6 @@ extends RefCounted
 const CSV_PATH := "res://data/cards.csv"
 const CARDS_FOLDER := "res://cards/"
 
-# Card colour, picked from the card's first school.
-const SCHOOL_COLORS := {
-	CardData.School.STRENGTH: Color(0.6, 0.22, 0.22),
-	CardData.School.AGILITY: Color(0.25, 0.5, 0.3),
-	CardData.School.INTELLECT: Color(0.22, 0.35, 0.65),
-	CardData.School.WISDOM: Color(0.5, 0.4, 0.65),
-}
-const NEUTRAL_COLOR := Color(0.4, 0.4, 0.42)
 
 
 # Reads the CSV and writes the card files. Returns how many cards were made.
@@ -156,10 +148,11 @@ static func _parse_yes_no(text: String, default: bool) -> bool:
 
 
 static func _pick_color(schools: int) -> Color:
-	for school in SCHOOL_COLORS:
+	# The card's colour comes from its first school (colours are in card_data.gd).
+	for school in CardData.SCHOOL_COLORS:
 		if schools & school:
-			return SCHOOL_COLORS[school]
-	return NEUTRAL_COLOR
+			return CardData.SCHOOL_COLORS[school]
+	return CardData.NEUTRAL_COLOR
 
 
 # "Quick Strike" -> "quick_strike.tres"
