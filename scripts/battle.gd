@@ -362,7 +362,10 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 	for hit: int in result.hits:  # Each hit goes through the enemy's Block on its own.
 		if game_over:
 			break  # An earlier hit already won the fight.
-		for view in pick_targets(card, target):
+		var targets := pick_targets(card, target)
+		if targets.is_empty():
+			battle_log.add("    Hit wasted: its target is already defeated", BattleLog.DIM_COLOR)
+		for view in targets:
 			view.combatant.take_damage(hit)
 			view.show_hurt()
 			battle_log.add("%s takes %d damage (HP %d/%d)" % [view.data.display_name, hit,
@@ -431,8 +434,8 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 # Who does one hit of this card land on?
 #   AoE (Target ALL): every enemy still standing.
 #   Random: one random enemy still standing.
-#   Single: the enemy you dropped it on. If that one is already defeated (say
-#           by Multi Strike's first hit), the next hit moves on to another one.
+#   Single: the enemy you dropped it on, and only that one. If Multi Strike's
+#           first hit defeats it, the second hit is wasted (like in Slay the Spire).
 func pick_targets(card: CardData, target: EnemyView) -> Array[EnemyView]:
 	var living := living_enemies()
 	if living.is_empty():
@@ -442,8 +445,10 @@ func pick_targets(card: CardData, target: EnemyView) -> Array[EnemyView]:
 			return living
 		CardData.Target.RANDOM:
 			return [living.pick_random()]
-	if target == null or not target.is_alive():
-		return [living[0]]
+	if target == null:
+		return [living[0]]  # Dropped anywhere with only one enemy left: that one.
+	if not target.is_alive():
+		return []  # Its target is already defeated.
 	return [target]
 
 

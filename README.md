@@ -126,7 +126,7 @@ In the battle:
 - When you're out of energy or cards, click **End Turn**.
 - **Several enemies:** a fight can have up to three enemies side by side, each with its own health bar and attack. To hit one with an attack, **drop the card on that enemy** (it lights up). With only one enemy left, you can drop attacks anywhere.
 - **AoE and Random attacks:** a card's **Target** decides who it hits. **AoE** cards (marked *AoE*, like Sweep) hit **every** enemy, and **Random** cards send each hit to a random enemy. Drop them anywhere. While you drag, the health bars of the enemies it would hit show the damage.
-- If a single-target card's first hit defeats its enemy (say Multi Strike), the next hits move on to another enemy.
+- A single-target card only ever hits the enemy you dropped it on. If Multi Strike's first hit defeats it, the second hit is wasted (like in Slay the Spire). Right between two enemies, the nearer one is the target, and only that one lights up.
 - The enemies then attack, left to right, for the numbers shown under their names. Your Block absorbs damage first.
 - Defeat every enemy to win. Each one drops **1 to 5 gold**.
 

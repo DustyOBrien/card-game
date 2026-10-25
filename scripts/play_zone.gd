@@ -13,7 +13,7 @@ extends Control
 # `target` is the enemy the card was dropped on (null if it wasn't on one).
 signal card_dropped(card_data: CardData, target: EnemyView)
 
-const TARGET_MARGIN := 24.0  # Extra pixels around an enemy that still count as "on" it.
+const TARGET_MARGIN := 12.0  # Extra pixels around an enemy that still count as "on" it.
 
 var enemy_views: Array[EnemyView] = []  # The battle fills this in at the start of each fight.
 
@@ -33,12 +33,19 @@ func is_over_zone(screen_point: Vector2) -> bool:
 	return get_global_rect().has_point(screen_point)
 
 
-# The living enemy at this point on the screen, or null.
+# The living enemy at this point on the screen, or null. Right between two
+# enemies both can be close enough, so the one whose middle is nearest wins.
 func enemy_at(screen_point: Vector2) -> EnemyView:
+	var best: EnemyView = null
+	var best_distance := INF
 	for view in living_enemies():
-		if view.has_point(screen_point, TARGET_MARGIN):
-			return view
-	return null
+		if not view.has_point(screen_point, TARGET_MARGIN):
+			continue
+		var distance := screen_point.distance_to(view.get_global_rect().get_center())
+		if distance < best_distance:
+			best = view
+			best_distance = distance
+	return best
 
 
 # Godot asks this over and over while you drag over the zone:
