@@ -108,7 +108,8 @@ In the battle:
 
 - Point at a card in your hand to zoom in on it.
 - **Drag** a card up out of your hand and let go above it to play it. Attacks can be dropped anywhere above your hand too: the enemy lights up to show it will be hit. (With several enemies later, set `ATTACKS_NEED_TARGET` in `play_zone.gd` to make attacks aim at one.) It costs energy (the yellow number in its corner).
-- While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 20 → 17`. Let go over your hand to change your mind.
+- While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold. Let go over your hand to change your mind.
+- The enemy has a **health bar** (its Block shows as a blue shield on the left). While you drag an attack, the bar shows the damage: the **bright, blinking** part is HP it will surely take, and the **striped** part is HP it might take, depending on the dice (`20 → 14–19`). When a hit lands, the lost part flashes yellow and shrinks away.
 - **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...), and they roll **when you draw them**: cards are dealt one at a time and their little dice tumble right on the card, then stay there so you can plan your turn. A d3 is a triangle and a d6 a square, and a gold die is a Critical (a bonus like Master of None's +1 lights up the dice it turns into crits). When you play the card, the **dice tray** on the left shows the roll with its bonus and total. The dice stay up until your next card or End Turn.
 - **Wild** cards (marked *Wild* at the bottom) are the gamble: they DON'T roll when drawn. Their dice tumble in the dice tray when you play them, so you don't know what you'll get. The drag banner shows their range (`Deal 1–6 damage`).
 - The **Battle Log** on the right lists everything that happens: each turn, the cards you draw and play, every roll, damage, Block and Heal. **Copy** puts the whole log on your clipboard, handy for pasting a game into a note when you test cards.
@@ -161,6 +162,7 @@ card-game/
 │   ├── dice.gd          Reads dice formulas like "2d6+1" and rolls them
 │   ├── card_roller.gd   The dice rules: modifiers, crits, hits, totals
 │   ├── die_view.gd      One die on screen, drawn with code (_draw)
+│   ├── health_bar.gd    The enemy's health bar and damage preview, drawn with code
 │   ├── dice_tray.gd     The panel where dice tumble and land
 │   ├── battle_log.gd    The Battle Log panel (a RichTextLabel)
 │   ├── shop.gd          The shop: pack list, buying, starting the next run

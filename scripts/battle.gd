@@ -45,7 +45,7 @@ var busy := false  # true while cards are dealt or dice roll, so you can't play 
 @onready var enemy: Combatant = $Enemy
 
 @onready var enemy_name_label: Label = %EnemyNameLabel
-@onready var enemy_hp_label: Label = %EnemyHpLabel
+@onready var enemy_health_bar: HealthBar = %EnemyHealthBar  # health_bar.gd
 @onready var enemy_intent_label: Label = %EnemyIntentLabel
 @onready var message_label: Label = %MessageLabel
 @onready var player_hp_label: Label = %PlayerHpLabel
@@ -567,9 +567,7 @@ func update_ui() -> void:
 	if game_over and not GameState.run_died:
 		enemy_name_label.text = enemy.display_name  # The count moved on; don't show "6 / 5".
 	gold_label.text = "Gold %d" % GameState.gold
-	enemy_hp_label.text = "HP %d / %d" % [enemy.hp, enemy.max_hp]
-	if enemy.block > 0:
-		enemy_hp_label.text += "   Block %d" % enemy.block
+	enemy_health_bar.set_values(enemy.hp, enemy.max_hp, enemy.block)
 	enemy_intent_label.text = "Intends to attack for %d" % enemy_next_attack
 
 	player_hp_label.text = "HP %d / %d" % [player.hp, player.max_hp]
@@ -603,17 +601,22 @@ func update_ui() -> void:
 # While a card is being dragged, show "before -> after" on the numbers it
 # would change, in gold, so you can see what will happen before you drop it.
 func show_drag_preview() -> void:
-	var labels: Array[Label] = [enemy_hp_label, player_hp_label, player_block_label, energy_label]
+	var labels: Array[Label] = [player_hp_label, player_block_label, energy_label]
 	for label in labels:
 		label.modulate = Color.WHITE  # Back to normal colours.
 	var card := dragged_card
+	if card == null or not card.deals_damage():
+		enemy_health_bar.clear_preview()
 	if card == null:
 		return
 
 	var outcomes := get_outcomes(card)
 	if card.deals_damage():
-		enemy_hp_label.text = "HP %d → %s / %d" % [enemy.hp, enemy_hp_after_text(card), enemy.max_hp]
-		enemy_hp_label.modulate = PREVIEW_COLOR
+		# The health bar shows the HP this attack would take: for sure (blinking)
+		# and maybe, depending on the dice (striped).
+		var damage := outcome_range(outcomes, "damage")
+		enemy_health_bar.set_preview(enemy_hp_after(damage.y), enemy_hp_after(damage.x),
+			"%d → %s" % [enemy.hp, enemy_hp_after_text(card)])
 	if outcomes[1].heal > 0 or card.lose_hp > 0:
 		var heal := outcome_range(outcomes, "heal")
 		var low := maxi(mini(player.hp + heal.x, player.max_hp) - card.lose_hp, 0)

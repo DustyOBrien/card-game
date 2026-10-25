@@ -6,6 +6,7 @@
 [ext_resource type="Script" path="res://scripts/dice_tray.gd" id="4_dice_tray"]
 [ext_resource type="Script" path="res://scripts/battle_log.gd" id="5_battle_log"]
 [ext_resource type="Texture2D" path="res://art/enemies/slime.svg" id="6_slime"]
+[ext_resource type="Script" path="res://scripts/health_bar.gd" id="7_health_bar"]
 
 [node name="Battle" type="Control"]
 layout_mode = 3
@@ -87,14 +88,13 @@ theme_override_font_sizes/font_size = 40
 text = "Enemy"
 horizontal_alignment = 1
 
-[node name="EnemyHpLabel" type="Label" parent="Margin/Layout/EnemyBox"]
+[node name="EnemyHealthBar" type="Control" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 28)
 layout_mode = 2
-theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
-theme_override_constants/outline_size = 7
-theme_override_font_sizes/font_size = 24
-text = "HP 0 / 0"
-horizontal_alignment = 1
+size_flags_horizontal = 4
+mouse_filter = 2
+script = ExtResource("7_health_bar")
 
 [node name="EnemyIntentLabel" type="Label" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
