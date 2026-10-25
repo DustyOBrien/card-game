@@ -71,7 +71,6 @@ const RARITY_COLORS := {
 @export var energy: int = 0  # Energy the player gains when played.
 @export var lose_hp: int = 0  # HP the player loses when played (Block doesn't stop it).
 @export var next_roll_bonus: int = 0  # Added to every die of the next card you play that rolls dice.
-@export var armor: int = 0  # Armor gained when played (lasts the fight). See combatant.gd.
 # Keywords:
 #   Wild:   the dice roll when you PLAY the card, not when you draw it. A gamble!
 #   Vanish: once played, the card is gone for the rest of the run.
@@ -204,8 +203,6 @@ func make_description() -> String:
 		parts.append("Gain %s Block" % get_block_text())
 	if not heal.is_empty():
 		parts.append("Heal %s HP" % heal)
-	if armor > 0:
-		parts.append("Gain %d Armor" % armor)
 	if draw > 0:
 		parts.append("Draw %d" % draw)
 	if discard > 0:

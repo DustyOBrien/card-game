@@ -66,6 +66,8 @@ func _ready() -> void:
 	title_label.text = rules.display_name
 	subtitle_label.text = "Build your deck  ·  %d HP  ·  %d to %d cards" % [
 		rules.max_hp, rules.min_deck_size, rules.max_deck_size]
+	if rules.armor > 0:
+		subtitle_label.text = subtitle_label.text.replace(" HP ", " HP  ·  %d Armor " % rules.armor)
 	deck_size_bar.max_value = rules.max_deck_size
 
 	card_pool = GameState.load_card_pool()  # Only the cards this class can use.

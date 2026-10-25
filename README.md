@@ -94,7 +94,6 @@ Cards show **symbols** instead of rules text, so you can read them at a glance:
 | ![](icons/draw.svg) card + arrow | Cards you draw |
 | ![](icons/discard.svg) card + cross | Random cards you discard from your hand |
 | ![](icons/heal.svg) heart | HP you heal |
-| ![](icons/armor.svg) helmet | Armor you gain |
 
 Effects without a symbol (Rage's "Next Attack +3", "+1 Energy", "Lose 2 HP"...)
 are still written as a few words. The spreadsheet's Description column is
@@ -109,7 +108,7 @@ In the battle:
 - **Wild** cards (marked *Wild* at the bottom) are the gamble: they DON'T roll when drawn. Their dice tumble in the dice tray when you play them, so you don't know what you'll get. The drag banner shows their range (`Deal 1–6 damage`).
 - The **Battle Log** on the right lists everything that happens: each turn, the cards you draw and play, every roll, damage, Block and Heal. **Copy** puts the whole log on your clipboard, handy for pasting a game into a note when you test cards.
 - **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
-- **Armor** (the helmet symbol) is Block that sticks around. Normally your Block drops to 0 at the start of your turn; with Armor 3 it drops to 3 instead. Gaining Armor also gives you that much Block straight away. Armor lasts until the end of the fight, and is shown next to your Block: `Block 5  (Armor 1)`.
+- **Armor** is Block that sticks around, and it's part of your class (the Adventurer has 3). Normally your Block would drop to 0 at the start of your turn; with Armor 3 it drops to 3 instead, so you start every turn with 3 Block. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`.
 - **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
@@ -337,7 +336,6 @@ Every card has these fields:
 | Unlocked | Off = the deck builder shows the card as **Locked** and you can't add it |
 | Energy | Energy you gain when you play it (Adrenaline) |
 | Lose HP | HP you lose when you play it. Block doesn't stop it (Reckless Swing) |
-| Armor | Armor you gain when you play it (your Block resets to your Armor each turn) |
 | Wild | On = its dice roll when you play it, not when you draw it |
 | Vanish | On = gone for the rest of the run once played |
 | Effect | The rules text printed on the card (typed by hand) |
@@ -448,7 +446,6 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Energy | 1 | Energy gained |
 | Lose HP | 2 | HP lost (Block doesn't stop it) |
 | Critical | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1`, `Gain 1 Energy`. Blank or `-` = none |
-| Armor | 1 | Armor gained (lasts the fight). Also gives that much Block right away |
 | Wild | TRUE | TRUE = the dice roll when played, not when drawn. (Or a **Roll** column with `Play` / `Draw`.) Blank = FALSE |
 | Vanish | TRUE | TRUE = gone for the rest of the run once played. Blank = FALSE |
 

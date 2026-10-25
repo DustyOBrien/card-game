@@ -1,8 +1,8 @@
-﻿Card,Copies,Name,Cost,School · Card School · Card School,Type · Type · Type,Class,Rarity,Unlocked,Description,Attack · Dice,Attack (2) · Dice,Attack Modifier,Block · Dice,Block Modifier,Heal · Dice,Draw,Discard,Draw If Full HP,Next Die Roll Bonus,Next Attack Bonus,Next Defense Bonus,Energy,Lose HP,Critical,Armor,Wild,Vanish
-Strike,2,Strike,1,Neutral,Attack,,Common,TRUE,Deal d3 Damage,d3,0,0,0,0,0,0,0,FALSE,0,0,0,0,0,+1 Damage,0,FALSE,FALSE
-Guard,2,Guard,1,Neutral,Defense,,Common,TRUE,Gain d3 Block,0,0,0,d3,0,0,0,0,FALSE,0,0,0,0,0,+1 Block,0,FALSE,FALSE
-Multi Strike,1,Multi Strike,1,Neutral,Attack,,Common,TRUE,Deal d3x2 Damage,d3,d3,0,0,0,0,0,1,FALSE,0,0,0,0,0,Draw 1,0,FALSE,FALSE
-Bandage,2,Bandage,1,Neutral,Ability,,Common,TRUE,Heal d3,0,0,0,0,0,d3,0,0,FALSE,0,0,0,0,0,+1 Heal,0,FALSE,TRUE
-Master of None,1,Master of None,0,Neutral,Ability,Adventurer,Common,TRUE,add +1 to your next die roll,0,0,0,0,0,0,0,0,FALSE,1,0,0,0,0,-,0,FALSE,FALSE
-Heavy Strike,2,Heavy Strike,2,Neutral,Attack,,Common,TRUE,,d6,0,0,0,0,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,0,TRUE,FALSE
-Full Guard,2,Full Guard,2,Neutral,Defense,,Common,TRUE,,0,0,0,d6,0,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,1,FALSE,FALSE
+﻿Card,Copies,Name,Cost,School · Card School · Card School,Type · Type · Type,Class,Rarity,Unlocked,Description,Attack · Dice,Attack (2) · Dice,Attack Modifier,Block · Dice,Block Modifier,Heal · Dice,Draw,Discard,Draw If Full HP,Next Die Roll Bonus,Next Attack Bonus,Next Defense Bonus,Energy,Lose HP,Critical,Wild,Vanish
+Strike,2,Strike,1,Neutral,Attack,,Common,TRUE,Deal d3 Damage,d3,0,0,0,0,0,0,0,FALSE,0,0,0,0,0,+1 Damage,FALSE,FALSE
+Guard,2,Guard,1,Neutral,Defense,,Common,TRUE,Gain d3 Block,0,0,0,d3,0,0,0,0,FALSE,0,0,0,0,0,+1 Block,FALSE,FALSE
+Multi Strike,1,Multi Strike,1,Neutral,Attack,,Common,TRUE,Deal d3x2 Damage,d3,d3,0,0,0,0,0,1,FALSE,0,0,0,0,0,Draw 1,FALSE,FALSE
+Bandage,2,Bandage,1,Neutral,Ability,,Common,TRUE,Heal d3,0,0,0,0,0,d3,0,0,FALSE,0,0,0,0,0,+1 Heal,FALSE,TRUE
+Master of None,1,Master of None,0,Neutral,Ability,Adventurer,Common,TRUE,add +1 to your next die roll,0,0,0,0,0,0,0,0,FALSE,1,0,0,0,0,-,FALSE,FALSE
+Heavy Strike,2,Heavy Strike,2,Neutral,Attack,,Common,TRUE,,d6,0,0,0,0,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE
+Full Guard,2,Full Guard,2,Neutral,Defense,,Common,TRUE,,0,0,0,d6,0,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,FALSE,FALSE

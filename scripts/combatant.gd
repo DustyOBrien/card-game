@@ -21,7 +21,7 @@ signal died  # HP reached 0.
 var hp: int = 0
 var block: int = 0
 # Armor is Block that doesn't go away: at the start of each turn your Block
-# resets to your Armor instead of to 0. It lasts until the end of the fight.
+# resets to your Armor instead of to 0. The player's comes from their class.
 var armor: int = 0
 
 
@@ -34,7 +34,6 @@ func _ready() -> void:
 func reset() -> void:
 	hp = max_hp
 	block = 0
-	armor = 0
 	stats_changed.emit()
 
 
@@ -64,14 +63,6 @@ func gain_block(amount: int) -> void:
 
 func heal(amount: int) -> void:
 	hp = mini(hp + amount, max_hp)  # Can't heal above max HP.
-	stats_changed.emit()
-
-
-# Gaining Armor also gives that much Block right away, so the card does
-# something this turn too.
-func gain_armor(amount: int) -> void:
-	armor += amount
-	block += amount
 	stats_changed.emit()
 
 

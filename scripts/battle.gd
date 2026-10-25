@@ -89,7 +89,8 @@ func start_battle() -> void:
 	game_over = false
 	game_over_screen.visible = false
 	GameState.ensure_ready()
-	player.max_hp = GameState.character_class.max_hp  # Each class has its own HP.
+	player.max_hp = GameState.character_class.max_hp  # Each class has its own HP...
+	player.armor = GameState.character_class.armor  # ...and Armor.
 	player.reset()
 	if GameState.run_hp > 0:
 		player.hp = GameState.run_hp  # Later fights in a run keep the HP you had left.
@@ -279,9 +280,6 @@ func _on_card_played(card: CardData) -> void:
 	if result.block > 0:
 		player.gain_block(result.block)
 		battle_log.add("You gain %d Block (Block %d)" % [result.block, player.block])
-	if card.armor > 0:
-		player.gain_armor(card.armor)
-		battle_log.add("You gain %d Armor (Armor %d, Block %d)" % [card.armor, player.armor, player.block])
 	if card.has_type(CardData.CardType.DEFENSE):
 		next_defense_bonus = 0  # A Defense card uses up the waiting block bonus (Brace).
 	if result.heal > 0:
@@ -391,8 +389,6 @@ func describe_card(card: CardData) -> String:
 		lines.append("Gain %s Block" % range_text(outcome_range(outcomes, "block")))
 	if outcomes[1].heal > 0:
 		lines.append("Heal %s HP" % range_text(outcome_range(outcomes, "heal")))
-	if card.armor > 0:
-		lines.append("Gain %d Armor" % card.armor)
 	if card.energy > 0:
 		lines.append("Gain %d Energy" % card.energy)
 	if card.lose_hp > 0:
@@ -554,8 +550,8 @@ func show_drag_preview() -> void:
 		var high := maxi(mini(player.hp + heal.y, player.max_hp) - card.lose_hp, 0)
 		player_hp_label.text = "HP %d → %s / %d" % [player.hp, range_text(Vector2i(low, high)), player.max_hp]
 		player_hp_label.modulate = PREVIEW_COLOR
-	if outcomes[1].block > 0 or card.armor > 0:
-		var block := outcome_range(outcomes, "block") + Vector2i(card.armor, card.armor)  # Armor gives Block now too.
+	if outcomes[1].block > 0:
+		var block := outcome_range(outcomes, "block")
 		player_block_label.text = "Block %d → %s" % [player.block, range_text(Vector2i(player.block + block.x, player.block + block.y))]
 		player_block_label.modulate = PREVIEW_COLOR
 	var energy_after := energy - card.cost + card.energy

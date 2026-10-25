@@ -31,7 +31,6 @@ const ICONS := {
 	"draw": preload("res://icons/draw.svg"),
 	"discard": preload("res://icons/discard.svg"),
 	"heal": preload("res://icons/heal.svg"),
-	"armor": preload("res://icons/armor.svg"),
 }
 
 var card_data: CardData
@@ -111,8 +110,6 @@ func show_effects(data: CardData) -> void:
 		add_icon("discard", str(data.discard))
 	if not data.heal.is_empty():
 		add_icon("heal", data.heal)
-	if data.armor > 0:
-		add_icon("armor", str(data.armor))
 	# Anything without a symbol (Rage, Energy...) still gets a few words,
 	# and so does what a Critical does.
 	var lines := data.get_extra_text()

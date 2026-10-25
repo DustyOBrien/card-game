@@ -11,6 +11,7 @@ description = "A jack of all trades. Can learn from every school, but only a lit
 color = Color(0.45, 0.38, 0.22, 1)
 sort_order = 0
 max_hp = 25
+armor = 3
 starts_unlocked = true
 max_copies = 1
 max_cards_per_school = 1
