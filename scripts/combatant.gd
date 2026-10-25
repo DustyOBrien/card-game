@@ -22,8 +22,9 @@ var hp: int = 0
 var block: int = 0
 # Armor SAVES leftover Block: at the start of each turn, up to this much of
 # your Block stays instead of dropping to 0. It never gives Block by itself.
-# The player's comes from their class.
-var armor: int = 0
+# The player's comes from their class. An enemy's is set on its node in
+# battle.tscn (click Enemy and change Armor in the Inspector).
+@export var armor: int = 0
 
 
 # _ready() runs once, when the node enters the scene. Think of it like __init__.

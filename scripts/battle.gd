@@ -186,7 +186,10 @@ func enemy_turn() -> void:
 	# create_timer() makes a one-shot timer; we wait for its `timeout` signal.
 	await get_tree().create_timer(0.6).timeout
 
-	enemy.clear_block()
+	var enemy_leftover := enemy.block
+	enemy.clear_block()  # Enemies with Armor keep some of their Block too.
+	if enemy.armor > 0 and enemy_leftover > 0:
+		battle_log.add("%s's Armor saves %d Block" % [enemy.display_name, enemy.block], BattleLog.ENEMY_COLOR)
 	var blocked := mini(player.block, enemy_next_attack)  # Worked out before Block is used up.
 	player.take_damage(enemy_next_attack)
 	var log_line := "%s attacks for %d" % [enemy.display_name, enemy_next_attack]
@@ -570,6 +573,8 @@ func update_ui() -> void:
 	gold_label.text = "Gold %d" % GameState.gold
 	enemy_health_bar.set_values(enemy.hp, enemy.max_hp, enemy.block)
 	enemy_intent_label.text = "Intends to attack for %d" % enemy_next_attack
+	if enemy.armor > 0:
+		enemy_intent_label.text += "   (Armor %d)" % enemy.armor
 
 	player_hp_label.text = "HP %d / %d" % [player.hp, player.max_hp]
 	player_block_label.text = "Block %d" % player.block
