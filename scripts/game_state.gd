@@ -23,6 +23,11 @@ var character_class: CharacterClass
 # Strike appears twice in the list. The battle copies this and shuffles the copy.
 var deck: Array[CardData] = []
 
+# Dice test setting (the checkbox in the battle's top-left corner):
+#   false = dice cards roll when you PLAY them (you see the roll happen),
+#   true  = they roll when you DRAW them (the number sits on the card, so you can plan).
+var roll_dice_on_draw := false
+
 
 # Called by the Character Select screen. A new class means a new deck,
 # so we throw the old one away and start from that class's starter deck.

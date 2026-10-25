@@ -54,6 +54,8 @@ const RARITY_COLORS := {
 @export_flags("Strength", "Agility", "Intellect", "Wisdom") var schools: int = 0
 
 @export var damage: int = 0  # Damage dealt to the enemy when played.
+# Dice damage, e.g. "2d3+2" (see dice.gd). When set, it's used INSTEAD of `damage`.
+@export var dice: String = ""
 @export var block: int = 0  # Block gained by the player when played.
 @export var heal: int = 0  # HP the player gets back (never above max HP).
 @export var draw: int = 0  # Cards drawn from the draw pile.
@@ -82,6 +84,26 @@ func has_type(type: CardType) -> bool:
 # Does this card belong to the given school? Example: card.has_school(CardData.School.STRENGTH)
 func has_school(school: School) -> bool:
 	return (schools & school) != 0
+
+
+# --- Battle-only values ----------------------------------------------------------
+# These are NOT @export, so they aren't saved in the .tres file. The battle
+# gives every card in your deck its own copy (duplicate()), so two Strikes can
+# each have their own roll.
+var roll_result: Dictionary = {}  # The last roll, e.g. {"dice": [2, 3], "bonus": 2, "total": 7}. {} = not rolled.
+
+
+func has_dice() -> bool:
+	return not dice.is_empty()
+
+
+func is_rolled() -> bool:
+	return not roll_result.is_empty()
+
+
+# Does playing this card hurt the enemy? (Then it must be dropped on the enemy.)
+func deals_damage() -> bool:
+	return damage > 0 or has_dice()
 
 
 # "Common", "Uncommon" or "Rare".

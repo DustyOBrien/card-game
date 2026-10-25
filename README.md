@@ -90,6 +90,8 @@ In the battle:
 - Point at a card in your hand to zoom in on it.
 - **Drag** a card up out of your hand and let go above it to play it. Cards that deal damage have to be dropped **on the enemy** (it lights up when you're on target). It costs energy (the yellow number in its corner).
 - While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 45 → 36`. Let go over your hand to change your mind.
+- **Dice cards** (an experiment: Strike, Quick Strike and Fireball) deal dice damage like `2d3+2` instead of a fixed number. The drag banner shows the range (`Deal 4–8 damage`), and when the card lands the dice roll above your stats, e.g. `Strike rolled 2d3+2:  [2] [3] + 2 = 7`.
+- The **Roll dice when drawn** switch (top right) changes WHEN dice cards roll: off = when you play them, on = when you draw them, so the number sits on the card ("Rolled 7") and you can plan around it. Try both!
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
 - Bring the Slime to 0 HP to win.
@@ -278,6 +280,7 @@ Every card has these fields:
 | Types | Checkboxes: **Attack** (deals damage), **Defense** (gains Block), **Ability** (other effects, like drawing a card). A card can have several. |
 | Schools | Checkboxes: **Strength**, **Agility**, **Intellect**, **Wisdom**. A card can have several, or none (Neutral). Shown as STR / AGI / INT / WIS for now. |
 | Damage | Damage dealt to the enemy |
+| Dice | Dice damage instead, e.g. `2d3+2`. Blank = no dice (see "Dice" below) |
 | Block | Block the player gains |
 | Heal | HP the player gets back (can't go above max HP) |
 | Draw | Cards the player draws |
@@ -383,6 +386,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
 | Description | Deal 6 Damage | The text printed on the card |
 | Attack | 6 | Damage dealt |
+| Dice | 2d3+2 | Dice damage, rolled in battle. `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1. Use it instead of Attack (set Attack to 0). Blank = no dice |
 | Block | 6 | Block gained |
 | Draw | 2 | Cards drawn |
 | Discard | 2 | Random cards discarded from your hand |
@@ -398,6 +402,26 @@ Blank cells count as 0. The "Card" column is ignored (NAME is used instead).
 **The spreadsheet is the boss:** any card file in `cards/` that isn't in the
 spreadsheet gets deleted when you import. So make new cards by adding rows,
 not by duplicating `.tres` files in Godot.
+
+## Dice
+
+Dice formulas are read by `scripts/dice.gd`, which has small helper functions
+you call on the class itself, like `Dice.roll("2d3+2")` (they're `static`, so no
+Dice object is needed, like functions in a Python module). It uses a **RegEx**
+(a text pattern) to split `2d3+2` into 2 dice, 3 sides, +2 bonus.
+
+Two Godot ideas show up in `battle.gd`:
+
+- **`await`**: `await show_dice_roll(card, true)` pauses that function (not the
+  whole game) until the dice animation finishes, then carries on and deals the
+  damage. While it waits, `busy` is true so you can't play another card.
+- **`duplicate()`**: at the start of a battle every card in the deck is copied.
+  Each copy remembers its own roll (`roll_result`), so two Strikes in your hand
+  can show different numbers, and the card files on disk never change.
+
+To try dice on another card, put a formula in its Dice column (and 0 in
+Attack), then re-run the importer. The old average is a good guide: Strike
+used to deal 6, and `2d3+2` also averages 6.
 
 ## Adding a class
 

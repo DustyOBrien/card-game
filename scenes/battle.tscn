@@ -86,6 +86,15 @@ horizontal_alignment = 1
 layout_mode = 2
 size_flags_vertical = 3
 
+[node name="DiceLabel" type="Label" parent="Margin/Layout"]
+unique_name_in_owner = true
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 8
+theme_override_font_sizes/font_size = 28
+horizontal_alignment = 1
+
 [node name="MessageLabel" type="Label" parent="Margin/Layout"]
 unique_name_in_owner = true
 layout_mode = 2
@@ -172,6 +181,21 @@ offset_bottom = 38.0
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 0.8)
 theme_override_font_sizes/font_size = 18
 text = "Drop here to play"
+
+[node name="RollOnDrawToggle" type="CheckButton" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -276.0
+offset_top = 24.0
+offset_right = -36.0
+offset_bottom = 56.0
+grow_horizontal = 0
+focus_mode = 0
+theme_override_font_sizes/font_size = 15
+text = "Roll dice when drawn"
 
 [node name="GameOverScreen" type="ColorRect" parent="."]
 unique_name_in_owner = true

@@ -52,6 +52,10 @@ static func import_cards() -> int:
 		card.types = _parse_flags(_cell(row, columns, "type"), CardData.CardType)
 		card.effect = _cell(row, columns, "description")
 		card.damage = _to_int(_cell(row, columns, "attack"))
+		card.dice = _cell(row, columns, "dice")
+		if card.has_dice() and not Dice.is_valid(card.dice):
+			push_warning("%s: can't read the dice '%s' (try something like d6+2)" % [card_name, card.dice])
+			card.dice = ""
 		card.block = _to_int(_cell(row, columns, "block"))
 		card.draw = _to_int(_cell(row, columns, "draw"))
 		card.discard = _to_int(_cell(row, columns, "discard"))

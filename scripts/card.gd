@@ -34,6 +34,7 @@ var zoom_tween: Tween  # The running hover zoom animation, if any.
 @onready var type_label: Label = %TypeLabel
 @onready var effect_label: Label = %EffectLabel
 @onready var rarity_label: Label = %RarityLabel
+@onready var roll_label: Label = %RollLabel  # Shows a dice card's roll, when it has one.
 
 
 func _ready() -> void:
@@ -58,6 +59,36 @@ func setup(data: CardData) -> void:
 	rarity_label.add_theme_color_override("font_color", CardData.RARITY_COLORS[data.rarity])
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
+	show_roll()
+
+
+# Dice cards that already rolled (when "roll on draw" is on) show the number
+# right on the card, e.g. "Rolled 7", so you can plan with it.
+func show_roll() -> void:
+	roll_label.visible = card_data.is_rolled()
+	if card_data.is_rolled():
+		roll_label.text = "Rolled %d" % card_data.roll_result.total
+
+
+# A short "tumbling dice" animation for a card that was just drawn and rolled:
+# flash random numbers for a moment, then land on the real roll.
+# `await` pauses this function (not the whole game) until the timer finishes.
+func animate_roll() -> void:
+	if not card_data.is_rolled():
+		return
+	var low := Dice.min_total(card_data.dice)
+	var high := Dice.max_total(card_data.dice)
+	roll_label.visible = true
+	for i in 8:
+		roll_label.text = "Rolling %d" % randi_range(low, high)
+		await get_tree().create_timer(0.05).timeout
+		if not is_inside_tree():
+			return  # The hand was rebuilt while we waited; this card is gone.
+	show_roll()
+	# A little "pop" so your eye catches where it landed.
+	roll_label.pivot_offset = roll_label.size / 2
+	roll_label.scale = Vector2(1.4, 1.4)
+	create_tween().tween_property(roll_label, "scale", Vector2.ONE, 0.15)
 
 
 func _on_pressed() -> void:

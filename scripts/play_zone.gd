@@ -18,7 +18,7 @@ var enemy_target: Control  # The battle sets this to the enemy's box.
 
 # Does this card have to be dropped on the enemy?
 func needs_target(card: CardData) -> bool:
-	return card.damage > 0
+	return card.deals_damage()
 
 
 # Is this point on the screen over the enemy?

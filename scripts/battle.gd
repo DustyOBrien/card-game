@@ -18,6 +18,8 @@ const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
 const ENEMY_MIN_ATTACK := 6
 const ENEMY_MAX_ATTACK := 11
+const DICE_SPIN_STEPS := 10  # How many fake numbers flash by before the real roll...
+const DICE_SPIN_TIME := 0.05  # ...and how long each one shows (seconds).
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
 const TARGET_COLOR := Color(1.4, 1.2, 0.8)  # Enemy tint while you aim an attack at it. Above 1 = brighter.
 
@@ -33,6 +35,8 @@ var next_defense_bonus := 0
 var enemy_next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
 var game_over := false
 var dragged_card: CardData = null  # The card being dragged right now, if any.
+var busy := false  # true while dice are rolling, so you can't play two cards at once.
+var newly_rolled: Array[CardData] = []  # Cards that just rolled on draw (to animate in the hand).
 
 # References to nodes in the scene. $Name finds a direct child by name;
 # %Name finds any node marked as a "unique name" anywhere in this scene.
@@ -56,6 +60,8 @@ var dragged_card: CardData = null  # The card being dragged right now, if any.
 @onready var play_zone_hint: Control = %PlayZoneHint
 @onready var hint_label: Label = %HintLabel
 @onready var enemy_box: Control = %EnemyBox
+@onready var dice_label: Label = %DiceLabel
+@onready var roll_on_draw_toggle: CheckButton = %RollOnDrawToggle
 @onready var change_deck_button: Button = %ChangeDeckButton
 
 
@@ -70,6 +76,8 @@ func _ready() -> void:
 	change_deck_button.pressed.connect(_on_change_deck_pressed)
 	play_zone.card_dropped.connect(_on_card_played)  # Dropping a card plays it.
 	play_zone.enemy_target = enemy_box  # Attacks have to be dropped on this.
+	roll_on_draw_toggle.button_pressed = GameState.roll_dice_on_draw
+	roll_on_draw_toggle.toggled.connect(_on_roll_on_draw_toggled)
 
 	start_battle()
 
@@ -94,10 +102,13 @@ func start_battle() -> void:
 	# isn't one, e.g. when you press F6 to run only this scene.
 	hand.clear()
 	discard_pile.clear()
-	# duplicate() makes a COPY of the list. We shuffle and draw from the copy,
-	# so the deck you built stays the same for the next battle.
-	draw_pile = GameState.deck.duplicate()
+	# We give every card its OWN copy (card.duplicate()), so two Strikes can
+	# each remember their own dice roll. map() runs the function on every card
+	# and makes a new list; assign() copies that list into our typed array.
+	# The deck you built stays untouched for the next battle.
+	draw_pile.assign(GameState.deck.map(func(card: CardData) -> CardData: return card.duplicate()))
 	draw_pile.shuffle()
+	dice_label.text = ""
 
 	message_label.text = "A %s appears!" % enemy.display_name
 	start_player_turn()
@@ -113,7 +124,7 @@ func start_player_turn() -> void:
 
 
 func _on_end_turn_pressed() -> void:
-	if game_over:
+	if game_over or busy:
 		return
 	end_turn_button.disabled = true
 
@@ -154,13 +165,18 @@ func draw_cards(amount: int) -> void:
 			draw_pile.append_array(discard_pile)
 			discard_pile.clear()
 			draw_pile.shuffle()
-		hand.append(draw_pile.pop_back())
+		var card: CardData = draw_pile.pop_back()
+		card.roll_result = {}  # Forget any old roll.
+		if GameState.roll_dice_on_draw and card.has_dice():
+			card.roll_result = Dice.roll(card.dice)  # Roll now; the number shows on the card.
+			newly_rolled.append(card)
+		hand.append(card)
 	refresh_hand()
 
 
 # Called when a card is dropped on the play zone (see play_zone.gd).
 func _on_card_played(card: CardData) -> void:
-	if game_over or card.cost > energy:
+	if busy or game_over or card.cost > energy:
 		return
 
 	energy -= card.cost
@@ -171,9 +187,22 @@ func _on_card_played(card: CardData) -> void:
 	# Check this BEFORE healing, otherwise healing could fill you up first.
 	var was_at_full_hp := player.hp == player.max_hp
 
+	# Dice cards: roll now (unless the card already rolled when it was drawn),
+	# and show the roll. `await` pauses here until the animation is done.
+	if card.has_dice():
+		busy = true
+		refresh_hand()  # The card leaves your hand while the dice roll.
+		var animate := not card.is_rolled()
+		if not card.is_rolled():
+			card.roll_result = Dice.roll(card.dice)
+		await show_dice_roll(card, animate)
+		busy = false
+		if game_over:
+			return
+
 	# Apply each effect the card has. A card can have several (Guarded Blow
 	# deals damage AND gives Block).
-	if card.damage > 0:
+	if card.deals_damage():
 		enemy.take_damage(get_damage(card))
 		# Rage: an Attack card uses up the waiting attack bonus.
 		if card.has_type(CardData.CardType.ATTACK):
@@ -200,24 +229,81 @@ func _on_card_played(card: CardData) -> void:
 		draw_cards(card.draw)
 
 	# The played card goes to the discard pile like everything else.
+	card.roll_result = {}  # It rolls again next time.
 	discard_pile.append(card)
 	refresh_hand()
 
 
-# How much damage this card would deal right now, including a Rage bonus.
+# Show a dice roll above your stats, e.g. "Strike rolled 2d3+2:  [2] [3] + 2 = 7".
+# With `animate`, the numbers spin for a moment first, like dice tumbling.
+func show_dice_roll(card: CardData, animate: bool) -> void:
+	dice_label.modulate.a = 1.0
+	if animate:
+		for i in DICE_SPIN_STEPS:
+			# Show a random fake roll each step. Only the real one counts.
+			dice_label.text = "%s  %s" % [card.dice, Dice.describe_roll(Dice.roll(card.dice))]
+			await get_tree().create_timer(DICE_SPIN_TIME).timeout
+	var text := "%s rolled %s:   %s" % [card.card_name, card.dice, Dice.describe_roll(card.roll_result)]
+	if card.has_type(CardData.CardType.ATTACK) and next_attack_bonus > 0:
+		text += "   (+%d bonus)" % next_attack_bonus
+	dice_label.text = text
+	# A little "pop", then fade the text away after a while.
+	dice_label.pivot_offset = dice_label.size / 2
+	dice_label.scale = Vector2(1.25, 1.25)
+	var tween := create_tween()
+	tween.tween_property(dice_label, "scale", Vector2.ONE, 0.15)
+	tween.tween_property(dice_label, "modulate:a", 0.0, 0.5).set_delay(2.0)
+	await get_tree().create_timer(0.45).timeout
+
+
+func _on_roll_on_draw_toggled(on: bool) -> void:
+	GameState.roll_dice_on_draw = on
+
+
+# The lowest and highest damage this card could deal right now, including a
+# Rage bonus, as Vector2i(lowest, highest). For a normal card, or a dice card
+# that has already rolled, both numbers are the same.
 # Used both to play the card and to preview it, so the two always agree.
-func get_damage(card: CardData) -> int:
-	if card.damage == 0:
-		return 0
+func get_damage_range(card: CardData) -> Vector2i:
+	if not card.deals_damage():
+		return Vector2i.ZERO
+	var low := card.damage
+	var high := card.damage
+	if card.has_dice() and card.is_rolled():
+		low = card.roll_result.total
+		high = low
+	elif card.has_dice():
+		low = Dice.min_total(card.dice)
+		high = Dice.max_total(card.dice)
 	if card.has_type(CardData.CardType.ATTACK):
-		return card.damage + next_attack_bonus
-	return card.damage
+		low += next_attack_bonus
+		high += next_attack_bonus
+	return Vector2i(low, high)
 
 
-# The enemy's HP after this card hits. Enemy Block soaks up damage first,
-# just like in Combatant.take_damage().
-func enemy_hp_after(card: CardData) -> int:
-	return maxi(enemy.hp - maxi(get_damage(card) - enemy.block, 0), 0)
+# The damage this card deals when played (dice cards have rolled by then).
+func get_damage(card: CardData) -> int:
+	return get_damage_range(card).x
+
+
+# The enemy's HP after taking `amount` damage. Enemy Block soaks up damage
+# first, just like in Combatant.take_damage().
+func enemy_hp_after(amount: int) -> int:
+	return maxi(enemy.hp - maxi(amount - enemy.block, 0), 0)
+
+
+# The enemy's HP after this card, as text: "38", or "36–41" before dice roll.
+func enemy_hp_after_text(card: CardData) -> String:
+	var damage := get_damage_range(card)
+	# Most damage leaves the LEAST HP, so the order flips.
+	return range_text(Vector2i(enemy_hp_after(damage.y), enemy_hp_after(damage.x)))
+
+
+# Vector2i(5, 5) -> "5",  Vector2i(4, 8) -> "4–8"
+func range_text(values: Vector2i) -> String:
+	if values.x == values.y:
+		return str(values.x)
+	return "%d–%d" % [values.x, values.y]
 
 
 # How much Block this card would give right now, including a Brace bonus.
@@ -232,9 +318,12 @@ func get_block(card: CardData) -> int:
 # The text in the banner above a dragged card, one effect per line.
 func describe_card(card: CardData) -> String:
 	var lines: Array[String] = []
-	if card.damage > 0:
-		lines.append("Deal %d damage" % get_damage(card))
-		lines.append("%s: %d → %d HP" % [enemy.display_name, enemy.hp, enemy_hp_after(card)])
+	if card.deals_damage():
+		var damage_text := "Deal %s damage" % range_text(get_damage_range(card))
+		if card.has_dice() and not card.is_rolled():
+			damage_text += " (%s)" % card.dice  # Not rolled yet, so it's a range.
+		lines.append(damage_text)
+		lines.append("%s: %d → %s HP" % [enemy.display_name, enemy.hp, enemy_hp_after_text(card)])
 	if card.block > 0:
 		lines.append("Gain %d Block" % get_block(card))
 	if card.heal > 0:
@@ -309,6 +398,10 @@ func refresh_hand() -> void:
 		hand_box.add_child(card)
 		card.setup(card_data)
 		card.draggable = true  # In battle you drag cards up to play them.
+		# Cards rolled as they were drawn get a little dice animation.
+		if newly_rolled.has(card_data):
+			card.animate_roll()
+	newly_rolled.clear()
 	update_ui()
 
 
@@ -336,7 +429,7 @@ func update_ui() -> void:
 
 	# Grey out cards you can't afford, and tell each card what it would do.
 	for card: Card in hand_box.get_children():
-		card.disabled = game_over or card.card_data.cost > energy
+		card.disabled = game_over or busy or card.card_data.cost > energy
 		card.preview_text = describe_card(card.card_data)
 
 	show_drag_preview()
@@ -352,8 +445,8 @@ func show_drag_preview() -> void:
 	if card == null:
 		return
 
-	if card.damage > 0:
-		enemy_hp_label.text = "HP %d → %d / %d" % [enemy.hp, enemy_hp_after(card), enemy.max_hp]
+	if card.deals_damage():
+		enemy_hp_label.text = "HP %d → %s / %d" % [enemy.hp, enemy_hp_after_text(card), enemy.max_hp]
 		enemy_hp_label.modulate = PREVIEW_COLOR
 	if card.heal > 0 or card.lose_hp > 0:
 		var hp_after := mini(player.hp + card.heal, player.max_hp) - card.lose_hp
