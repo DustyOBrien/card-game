@@ -18,10 +18,7 @@ const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
 const ENEMY_MIN_ATTACK := 2
 const ENEMY_MAX_ATTACK := 5
-const DICE_SPIN_STEPS := 10  # How many fake numbers flash by before the real roll...
-const DICE_SPIN_TIME := 0.05  # ...and how long each one shows (seconds).
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
-const CRIT_COLOR := Color(1, 0.45, 0.25)  # The dice display when a die crits.
 const TARGET_COLOR := Color(1.4, 1.2, 0.8)  # Enemy tint while you aim an attack at it. Above 1 = brighter.
 
 # The three card piles. `Array[CardData]` means "a list that only holds CardData".
@@ -36,6 +33,7 @@ var next_defense_bonus := 0
 var next_roll_bonus := 0  # Added to every die of the next card that rolls (Master of None).
 var enemy_next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
 var game_over := false
+var turn := 0  # Turn number, for the battle log.
 var dragged_card: CardData = null  # The card being dragged right now, if any.
 var busy := false  # true while dice are rolling, so you can't play two cards at once.
 var newly_rolled: Array[CardData] = []  # Cards that just rolled on draw (to animate in the hand).
@@ -62,7 +60,8 @@ var newly_rolled: Array[CardData] = []  # Cards that just rolled on draw (to ani
 @onready var play_zone_hint: Control = %PlayZoneHint
 @onready var hint_label: Label = %HintLabel
 @onready var enemy_box: Control = %EnemyBox
-@onready var dice_label: Label = %DiceLabel
+@onready var dice_tray: DiceTray = %DiceTray  # Where the dice tumble (dice_tray.gd).
+@onready var battle_log: BattleLog = %BattleLog  # The list of what happened (battle_log.gd).
 @onready var roll_on_draw_toggle: CheckButton = %RollOnDrawToggle
 @onready var change_deck_button: Button = %ChangeDeckButton
 
@@ -111,9 +110,13 @@ func start_battle() -> void:
 	# The deck you built stays untouched for the next battle.
 	draw_pile.assign(GameState.deck.map(func(card: CardData) -> CardData: return card.duplicate()))
 	draw_pile.shuffle()
-	dice_label.text = ""
+	dice_tray.hide()
 
+	turn = 0
+	battle_log.clear()
 	message_label.text = "A %s appears!" % enemy.display_name
+	battle_log.add("A %s appears! (%d HP)" % [enemy.display_name, enemy.max_hp], BattleLog.ENEMY_COLOR)
+	battle_log.add("You are the %s (%d HP)" % [GameState.character_class.display_name, player.max_hp], BattleLog.PLAYER_COLOR)
 	start_player_turn()
 
 
@@ -122,6 +125,9 @@ func start_player_turn() -> void:
 	energy = MAX_ENERGY
 	# Decide now what the enemy will do, so the player can plan around it.
 	enemy_next_attack = randi_range(ENEMY_MIN_ATTACK, ENEMY_MAX_ATTACK)
+	turn += 1
+	battle_log.add_turn(turn)
+	battle_log.add("%s intends to attack for %d" % [enemy.display_name, enemy_next_attack], BattleLog.ENEMY_COLOR)
 	draw_cards(HAND_SIZE)
 	end_turn_button.disabled = false
 
@@ -132,6 +138,7 @@ func _on_end_turn_pressed() -> void:
 	end_turn_button.disabled = true
 
 	# Everything left in your hand goes to the discard pile.
+	battle_log.add("You end your turn" + (" (%d cards discarded)" % hand.size() if not hand.is_empty() else ""), BattleLog.DIM_COLOR)
 	discard_pile.append_array(hand)
 	hand.clear()
 	refresh_hand()
@@ -148,7 +155,12 @@ func enemy_turn() -> void:
 	await get_tree().create_timer(0.6).timeout
 
 	enemy.clear_block()
+	var blocked := mini(player.block, enemy_next_attack)  # Worked out before Block is used up.
 	player.take_damage(enemy_next_attack)
+	var log_line := "%s attacks for %d" % [enemy.display_name, enemy_next_attack]
+	if blocked > 0:
+		log_line += ": %d blocked, you take %d" % [blocked, enemy_next_attack - blocked]
+	battle_log.add(log_line + " (HP %d/%d)" % [player.hp, player.max_hp], BattleLog.ENEMY_COLOR)
 	if game_over:
 		return  # The attack defeated the player.
 	message_label.text = "%s attacks for %d!" % [enemy.display_name, enemy_next_attack]
@@ -160,6 +172,7 @@ func enemy_turn() -> void:
 # ---------------------------------------------------------------------------
 
 func draw_cards(amount: int) -> void:
+	var drawn: Array[String] = []
 	for i in amount:
 		# Out of cards? Shuffle the discard pile to make a new draw pile.
 		if draw_pile.is_empty():
@@ -168,12 +181,16 @@ func draw_cards(amount: int) -> void:
 			draw_pile.append_array(discard_pile)
 			discard_pile.clear()
 			draw_pile.shuffle()
+			battle_log.add("Discard pile shuffled into the draw pile", BattleLog.DIM_COLOR)
 		var card: CardData = draw_pile.pop_back()
 		card.roll_result = {}  # Forget any old roll.
 		if GameState.roll_dice_on_draw and card.has_dice():
 			card.roll_result = CardRoller.roll(card)  # Roll now; the dice show on the card.
 			newly_rolled.append(card)
 		hand.append(card)
+		drawn.append(card.card_name)
+	if not drawn.is_empty():
+		battle_log.add("You draw " + ", ".join(drawn), BattleLog.DIM_COLOR)
 	refresh_hand()
 
 
@@ -184,6 +201,7 @@ func _on_card_played(card: CardData) -> void:
 
 	energy -= card.cost
 	message_label.text = ""
+	battle_log.add("You play %s (%d energy)" % [card.card_name, card.cost], BattleLog.PLAYER_COLOR)
 	# Take the card out of your hand FIRST, so effects like "discard 2 cards"
 	# can't pick the card you're playing.
 	hand.erase(card)
@@ -202,7 +220,9 @@ func _on_card_played(card: CardData) -> void:
 	if card.has_dice():
 		busy = true
 		refresh_hand()  # The card leaves your hand while the dice roll.
-		await show_dice_roll(card, result, animate)
+		await dice_tray.play(card.card_name, result.rolls, animate)
+		for line: String in result.lines:  # e.g. "Hit 1: [3] + 1 = 4  CRIT!"
+			battle_log.add("    " + line, BattleLog.CRIT_COLOR if line.ends_with("!") else Color.WHITE)
 		busy = false
 		if game_over:
 			return
@@ -211,23 +231,35 @@ func _on_card_played(card: CardData) -> void:
 	# Apply each effect the card has. A card can have several.
 	for hit: int in result.hits:  # Each hit goes through the enemy's Block on its own.
 		enemy.take_damage(hit)
+		battle_log.add("%s takes %d damage (HP %d/%d)" % [enemy.display_name, hit, enemy.hp, enemy.max_hp])
 	if card.has_type(CardData.CardType.ATTACK):
 		next_attack_bonus = 0  # An Attack card uses up the waiting attack bonus (Rage).
 	if result.block > 0:
 		player.gain_block(result.block)
+		battle_log.add("You gain %d Block (Block %d)" % [result.block, player.block])
 	if card.has_type(CardData.CardType.DEFENSE):
 		next_defense_bonus = 0  # A Defense card uses up the waiting block bonus (Brace).
 	if result.heal > 0:
 		player.heal(result.heal)
+		battle_log.add("You heal %d (HP %d/%d)" % [result.heal, player.hp, player.max_hp])
 	energy += card.energy + result.energy
+	if card.energy + result.energy > 0:
+		battle_log.add("You gain %d energy" % (card.energy + result.energy))
 	if card.lose_hp > 0:
 		player.lose_hp(card.lose_hp)
+		battle_log.add("You lose %d HP (HP %d/%d)" % [card.lose_hp, player.hp, player.max_hp])
 	if card.draw_if_full_hp > 0 and was_at_full_hp:
 		draw_cards(card.draw_if_full_hp)
 	# Save bonuses for later cards.
 	next_attack_bonus += card.next_attack_bonus
 	next_defense_bonus += card.next_defense_bonus
 	next_roll_bonus += card.next_roll_bonus
+	if card.next_roll_bonus > 0:
+		battle_log.add("Your next roll gets +%d" % next_roll_bonus)
+	if card.next_attack_bonus > 0:
+		battle_log.add("Your next Attack gets +%d" % next_attack_bonus)
+	if card.next_defense_bonus > 0:
+		battle_log.add("Your next Defense gets +%d" % next_defense_bonus)
 	if card.discard > 0:
 		discard_random_cards(card.discard)
 	if card.draw + result.draw > 0:
@@ -240,33 +272,12 @@ func _on_card_played(card: CardData) -> void:
 		if message_label.text.begins_with("Discarded"):
 			crit_text += "   " + message_label.text
 		message_label.text = crit_text
+		battle_log.add("Critical! %s" % card.critical + (" (x%d)" % result.crits if result.crits > 1 else ""), BattleLog.CRIT_COLOR)
 
 	# The played card goes to the discard pile like everything else.
 	card.roll_result = {}  # It rolls again next time.
 	discard_pile.append(card)
 	refresh_hand()
-
-
-# Show a dice roll above your stats, e.g. "Strike   Attack: [3] + 1 crit = 4  CRIT!".
-# With `animate`, the numbers spin for a moment first, like dice tumbling.
-func show_dice_roll(card: CardData, result: Dictionary, animate: bool) -> void:
-	dice_label.modulate.a = 1.0
-	if animate:
-		for i in DICE_SPIN_STEPS:
-			# Show a random fake roll each step. Only the real one counts.
-			var fake := CardRoller.resolve(card, CardRoller.roll(card), get_bonuses())
-			dice_label.text = "%s   %s" % [card.card_name, "    ".join(fake.lines)]
-			await get_tree().create_timer(DICE_SPIN_TIME).timeout
-	dice_label.text = "%s   %s" % [card.card_name, "    ".join(result.lines)]
-	# Crits are shown in red-gold so they stand out.
-	dice_label.add_theme_color_override("font_color", CRIT_COLOR if result.crits > 0 else PREVIEW_COLOR)
-	# A little "pop", then fade the text away after a while.
-	dice_label.pivot_offset = dice_label.size / 2
-	dice_label.scale = Vector2(1.4, 1.4) if result.crits > 0 else Vector2(1.25, 1.25)
-	var tween := create_tween()
-	tween.tween_property(dice_label, "scale", Vector2.ONE, 0.15)
-	tween.tween_property(dice_label, "modulate:a", 0.0, 0.5).set_delay(2.5)
-	await get_tree().create_timer(0.6 if result.crits > 0 else 0.45).timeout
 
 
 func _on_roll_on_draw_toggled(on: bool) -> void:
@@ -394,6 +405,7 @@ func discard_random_cards(amount: int) -> void:
 		discarded.append(card.card_name)
 	if not discarded.is_empty():
 		message_label.text = "Discarded " + ", ".join(discarded)
+		battle_log.add("You discard " + ", ".join(discarded) + " at random")
 
 
 # Rebuild the row of card buttons so it matches the `hand` array.
@@ -492,6 +504,7 @@ func _on_change_deck_pressed() -> void:
 
 func end_battle(result: String) -> void:
 	game_over = true
+	battle_log.add("\n" + result, BattleLog.TURN_COLOR)
 	end_turn_button.disabled = true
 	message_label.text = ""
 	result_label.text = result

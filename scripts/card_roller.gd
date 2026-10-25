@@ -48,9 +48,11 @@ static func fixed_roll(card: CardData, highest: bool) -> Dictionary:
 #   hits:   damage of each hit, e.g. [4, 1]
 #   block, heal, draw, energy: totals, crits included
 #   crits:  how many dice crit
-#   lines:  the working, for the dice display, e.g. "Hit 1: [3] + 1 = 4  CRIT!"
+#   lines:  the working as text, for the battle log, e.g. "Hit 1: [3] + 1 = 4  CRIT!"
+#   rolls:  the same working as data, for the dice tray (dice_tray.gd), one per roll:
+#           {name, sides, dice, crit_dice, modifier, crit_bonus, total, crits}
 static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dictionary:
-	var result := {"hits": [], "block": 0, "heal": 0, "draw": 0, "energy": 0, "crits": 0, "lines": []}
+	var result := {"hits": [], "block": 0, "heal": 0, "draw": 0, "energy": 0, "crits": 0, "lines": [], "rolls": []}
 	var crit_effects := card.get_critical_effects()
 	var formulas := card.get_formulas()
 	var extra_damage := 0  # Crit damage from a die that isn't an attack die.
@@ -66,9 +68,12 @@ static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dic
 
 		var total := modifier
 		var crits := 0
+		var crit_dice: Array[bool] = []  # Which of the dice crit, for the dice tray.
 		for value: int in values:
 			total += value
-			if value + modifier >= dice.sides:  # Top number reached (modifiers count).
+			var is_crit: bool = value + modifier >= dice.sides  # Top number reached (modifiers count).
+			crit_dice.append(is_crit)
+			if is_crit:
 				crits += 1
 
 		# Crit effects that add to THIS roll: +Damage on an attack, +Block on a block...
@@ -99,7 +104,11 @@ static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dic
 				result.heal += total
 
 		if not values.is_empty():
-			result.lines.append(_describe(card, key, values, modifier, crit_bonus, total, crits))
+			var name := _roll_name(card, key)
+			result.lines.append(_describe(name, values, modifier, crit_bonus, total, crits))
+			result.rolls.append({"name": name, "kind": kind, "sides": dice.sides, "dice": values,
+				"crit_dice": crit_dice, "modifier": modifier, "crit_bonus": crit_bonus,
+				"total": total, "crits": crits})
 
 	if extra_damage > 0 and not result.hits.is_empty():
 		result.hits[0] += extra_damage
@@ -130,16 +139,16 @@ static func _modifier_for(card: CardData, key: String, bonuses: Dictionary) -> i
 	return modifier
 
 
-# "Hit 1: [3] + 1 + 1 crit = 5  CRIT!"
-static func _describe(card: CardData, key: String, values: Array, modifier: int,
-		crit_bonus: int, total: int, crits: int) -> String:
-	var name := "Attack"
+# "attack 1" -> "Hit 2" (or just "Attack" for a single hit), "block" -> "Block".
+static func _roll_name(card: CardData, key: String) -> String:
 	if key.begins_with("attack") and card.attack.size() > 1:
-		name = "Hit %d" % (key.get_slice(" ", 1).to_int() + 1)
-	elif key == "block":
-		name = "Block"
-	elif key == "heal":
-		name = "Heal"
+		return "Hit %d" % (key.get_slice(" ", 1).to_int() + 1)
+	return key.get_slice(" ", 0).capitalize()
+
+
+# "Hit 1: [3] + 1 + 1 crit = 5  CRIT!"
+static func _describe(name: String, values: Array, modifier: int,
+		crit_bonus: int, total: int, crits: int) -> String:
 	var text := "%s: %s" % [name, " ".join(values.map(func(v): return "[%d]" % v))]
 	if modifier > 0:
 		text += " + %d" % modifier

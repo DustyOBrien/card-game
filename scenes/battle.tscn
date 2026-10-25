@@ -3,6 +3,8 @@
 [ext_resource type="Script" path="res://scripts/battle.gd" id="1_battle"]
 [ext_resource type="Script" path="res://scripts/combatant.gd" id="2_combatant"]
 [ext_resource type="Script" path="res://scripts/play_zone.gd" id="3_play_zone"]
+[ext_resource type="Script" path="res://scripts/dice_tray.gd" id="4_dice_tray"]
+[ext_resource type="Script" path="res://scripts/battle_log.gd" id="5_battle_log"]
 
 [node name="Battle" type="Control"]
 layout_mode = 3
@@ -85,15 +87,6 @@ horizontal_alignment = 1
 [node name="Spacer" type="Control" parent="Margin/Layout"]
 layout_mode = 2
 size_flags_vertical = 3
-
-[node name="DiceLabel" type="Label" parent="Margin/Layout"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 8
-theme_override_font_sizes/font_size = 28
-horizontal_alignment = 1
 
 [node name="MessageLabel" type="Label" parent="Margin/Layout"]
 unique_name_in_owner = true
@@ -181,6 +174,62 @@ offset_bottom = 38.0
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 0.8)
 theme_override_font_sizes/font_size = 18
 text = "Drop here to play"
+
+[node name="DiceTray" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchor_left = 0.2
+anchor_top = 0.36
+anchor_right = 0.2
+anchor_bottom = 0.36
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("4_dice_tray")
+
+[node name="BattleLog" type="PanelContainer" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 68.0
+offset_right = -24.0
+offset_bottom = 404.0
+grow_horizontal = 0
+script = ExtResource("5_battle_log")
+
+[node name="LogBox" type="VBoxContainer" parent="BattleLog"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="LogHeader" type="HBoxContainer" parent="BattleLog/LogBox"]
+layout_mode = 2
+
+[node name="LogTitle" type="Label" parent="BattleLog/LogBox/LogHeader"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_font_sizes/font_size = 16
+text = "Battle Log"
+
+[node name="CopyLogButton" type="Button" parent="BattleLog/LogBox/LogHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+focus_mode = 0
+theme_override_font_sizes/font_size = 13
+text = "Copy"
+
+[node name="LogText" type="RichTextLabel" parent="BattleLog/LogBox"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_font_sizes/normal_font_size = 13
+theme_override_font_sizes/bold_font_size = 14
+bbcode_enabled = true
+scroll_following = true
+selection_enabled = true
 
 [node name="RollOnDrawToggle" type="CheckButton" parent="."]
 unique_name_in_owner = true
