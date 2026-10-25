@@ -222,7 +222,9 @@ func refresh_pool(deck: Array[CardData]) -> void:
 		var limit := rules.max_copies_of(card_data)
 		if rules.max_cards_per_school > 0 and not card_data.is_neutral():
 			limit = mini(limit, rules.max_cards_per_school)
-		parts.pips.text = "[center]%s[/center]" % make_pips(count, mini(owned, limit), limit)
+		# The dots always show all the copies you OWN, even when your class
+		# can only put fewer in the deck (the Adventurer's 1 per school).
+		parts.pips.text = "[center]%s[/center]" % make_pips(count, owned, GameState.MAX_COPIES)
 
 		var reason := rules.why_not(deck, card_data)
 		card.disabled = not reason.is_empty()
@@ -231,7 +233,8 @@ func refresh_pool(deck: Array[CardData]) -> void:
 			# Every copy you can use is already in. That's good news, so the
 			# card only dims a little and the note is gold.
 			card.modulate = ALL_IN_TINT
-			note.text = "✓ All in deck"
+			# "All in deck", or "In deck (max 1)" when the class allows fewer than you own.
+			note.text = "✓ All in deck" if count >= owned else "✓ In deck (max %d)" % limit
 			note.add_theme_color_override("font_color", GOLD)
 		elif card.disabled:
 			# Blocked by a rule: darken it and say why ("Deck is full"...).
@@ -250,13 +253,13 @@ func refresh_pool(deck: Array[CardData]) -> void:
 
 
 # The copy dots as BBCode: `in_deck` gold dots, then grey ones up to
-# `usable` (owned and allowed), then hollow ones up to `limit`.
-func make_pips(in_deck: int, usable: int, limit: int) -> String:
+# `owned`, then hollow ones up to `limit` (3).
+func make_pips(in_deck: int, owned: int, limit: int) -> String:
 	var text := ""
 	for i in limit:
 		if i < in_deck:
 			text += "[color=#ffd94d]●[/color]"
-		elif i < usable:
+		elif i < owned:
 			text += "[color=#ffffff66]●[/color]"
 		else:
 			text += "[color=#ffffff40]○[/color]"

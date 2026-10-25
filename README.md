@@ -83,7 +83,7 @@ Class-only cards say so on their type line, e.g. **Attack - Knight**.
 Then you're on the **deck builder**, holding your class's starter deck:
 
 - Click a card on the left to add a copy to your deck. Click a row in **Your Deck** on the right to take one copy out.
-- The dots under each card are its copies: **gold** = in your deck, **grey** = owned but not in it, **hollow** = not owned yet. The line under them shows the card's level and Exp, or why you can't add it ("Deck is full", "1 Strength card max").
+- The dots under each card are its copies: **gold** = in your deck, **grey** = owned but not in it, **hollow** = not owned yet. They always show every copy you own, even when your class can only use fewer (the Adventurer's school cards say "In deck (max 1)"). The line under them shows the card's level and Exp, or why you can't add it ("Deck is full", "1 Strength card max").
 - The tabs at the top right (**All 8**, **Strength 0**...) show one school at a time, with how many of your cards are in each. **Sort by** orders the cards by School, Cost, Name or Rarity.
 - Your class's level and Exp bar are under its name.
 - **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
