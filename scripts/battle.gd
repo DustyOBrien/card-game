@@ -74,6 +74,7 @@ var busy := false  # true while cards are dealt or dice roll, so you can't play 
 @onready var enemy_sprite: TextureRect = %EnemySprite
 
 var idle_tween: Tween  # The enemy's endless "breathing" wobble.
+var exp_bar: ExpBar  # Your class's Exp bar on the victory panel (made in _ready).
 
 
 func _ready() -> void:
@@ -88,6 +89,11 @@ func _ready() -> void:
 	play_zone.enemy_target = enemy_box  # Attacks have to be dropped on this.
 	# Squash and stretch from the enemy's feet, not its top-left corner.
 	enemy_sprite.pivot_offset = Vector2(enemy_sprite.custom_minimum_size.x / 2, enemy_sprite.custom_minimum_size.y)
+	# The Exp bar on the victory panel, just above the Continue button.
+	exp_bar = ExpBar.new()
+	exp_bar.custom_minimum_size = Vector2(320, 22)
+	continue_button.add_sibling(exp_bar)
+	exp_bar.get_parent().move_child(exp_bar, continue_button.get_index())
 
 	start_battle()
 
@@ -127,7 +133,8 @@ func start_battle() -> void:
 	for i in GameState.deck.size():
 		if GameState.vanished.has(i):
 			continue  # This card Vanished earlier in the run.
-		var card: CardData = GameState.deck[i].duplicate()
+		# leveled() swaps in the card's level 2 or 3 version once it has leveled up.
+		var card: CardData = GameState.leveled(GameState.deck[i]).duplicate()
 		# set_meta() tags the copy with where it came from in the deck,
 		# so if it Vanishes we know which deck card to leave out next fight.
 		card.set_meta("deck_index", i)
@@ -731,14 +738,45 @@ func _on_enemy_died() -> void:
 	GameState.run_hp = player.hp  # Carry your HP into the next fight.
 	battle_log.add("The %s drops %d gold (you have %d)" % [enemy.display_name, loot, GameState.gold], BattleLog.TURN_COLOR)
 	var reward := "The %s dropped %d gold!" % [enemy.display_name, loot]
+
+	# Class Exp: some for every Slime, and a bonus for finishing the run.
+	var exp_gain := GameState.EXP_PER_FIGHT
+	if GameState.is_run_over():
+		exp_gain += GameState.EXP_PER_RUN
+	# Remember where the bar was, so it can fill up from there.
+	var before_level := GameState.class_level(GameState.character_class)
+	var before_progress := GameState.class_exp_progress(GameState.character_class)
+	var level_ups := GameState.add_class_exp(exp_gain)
+	battle_log.add("You gain %d Exp" % exp_gain, BattleLog.TURN_COLOR)
+
 	if GameState.is_run_over():
 		end_battle("Run complete!", reward + "\nYou beat all %d Slimes." % GameState.FIGHTS_PER_RUN, "Go to the Shop →")
 	else:
 		end_battle("Victory!", reward, "Next Slime →  (%d / %d)" % [GameState.current_fight(), GameState.FIGHTS_PER_RUN])
+	show_exp_gain(before_level, before_progress, exp_gain, level_ups)
+
+
+# Fill the Exp bar on the victory panel, then list any level ups and the
+# class cards they gave you.
+func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, level_ups: Array[Dictionary]) -> void:
+	exp_bar.show()
+	var hero_name := GameState.character_class.display_name
+	await exp_bar.play_gain(GameState.character_class, before_level, before_progress, amount)
+	for level_up in level_ups:
+		var line := "%s reached level %d!" % [hero_name, level_up.level]
+		battle_log.add(line, BattleLog.PLAYER_COLOR)
+		for item in level_up.cards:
+			var card_line := "New class card: %s" % item.card.card_name
+			if item.exp:
+				card_line = "%s: +1 card Exp" % item.card.card_name  # You already had 3.
+			line += "\n" + card_line
+			battle_log.add(card_line, BattleLog.PLAYER_COLOR)
+		reward_label.text += "\n" + line
 
 
 func _on_player_died() -> void:
 	GameState.run_died = true
+	exp_bar.hide()  # No Exp for losing (you kept the Exp from the Slimes you beat).
 	end_battle("Defeat...", "You beat %d Slime(s) and earned %d gold this run." % [GameState.fights_won, GameState.run_gold], "Go to the Shop →")
 
 

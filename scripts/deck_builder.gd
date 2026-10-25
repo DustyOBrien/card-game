@@ -2,10 +2,12 @@
 #
 # The screen before the battle (scenes/deck_builder.tscn).
 #
-#   - Top: your class, and filter buttons to show one school at a time.
+#   - Top: your class with its level and Exp bar, and filter tabs to show one
+#     school at a time.
 #   - Left: the card POOL, one of every card you own that your class can use.
 #     (Cards you haven't found in booster packs yet don't show up.)
-#     Click one to add it to your deck.
+#     Click one to add it to your deck. Under each card, dots show its copies:
+#       gold = in your deck, grey = owned but not in it, hollow = not owned.
 #   - Right: your DECK, with some stats (size, schools, costs, types).
 #     Click a row to take one copy back out.
 #   - "To the Map" goes to the map, where you pick an area to fight in. The
@@ -26,16 +28,31 @@ const BAR_TOO_SMALL := Color(0.85, 0.38, 0.32)  # Deck size bar below the minimu
 const BAR_READY := Color(0.42, 0.78, 0.47)  # ...and once it's big enough.
 const COST_BAR_STEP := 8  # Pixels of bar per card in the cost curve.
 const COST_BAR_MAX := 44  # Tallest a cost bar can get.
+const BLOCKED_TINT := Color(0.5, 0.5, 0.55)  # Cards you can't add right now are drawn darker...
+const ALL_IN_TINT := Color(0.85, 0.85, 0.85)  # ...but only a little when every copy is already in.
+const REASON_COLOR := Color(1, 0.6, 0.45)  # "Deck is full" and other reasons.
+const DIM_TEXT := Color(1, 1, 1, 0.5)
+
+# The ways the pool can be sorted (the "Sort by" menu).
+const SORT_OPTIONS := ["School", "Cost", "Name", "Rarity"]
 
 # The deck rules (deck size, copies per card) come from the class you picked.
 # They live in classes/*.tres: click one in Godot and change them in the Inspector.
 var rules: CharacterClass
 var card_pool: Array[CardData] = []
 var school_filter := ALL_SCHOOLS
+var sort_mode := 0  # Index into SORT_OPTIONS.
+# The pieces of each card's cell in the pool, so refresh() can update them:
+# CardData -> {"cell": VBoxContainer, "card": Card, "pips": RichTextLabel, "note": Label}
+var cells := {}
 
 @onready var emblem: TextureRect = %Emblem
 @onready var title_label: Label = %TitleLabel
 @onready var subtitle_label: Label = %SubtitleLabel
+@onready var exp_bar: ExpBar = %ExpBar
+@onready var pool_count_label: Label = %PoolCountLabel
+@onready var sort_button: OptionButton = %SortButton
+@onready var empty_label: Label = %EmptyLabel
 @onready var filter_bar: HBoxContainer = %FilterBar
 @onready var pool_grid: GridContainer = %PoolGrid
 @onready var deck_count_label: Label = %DeckCountLabel
@@ -70,10 +87,17 @@ func _ready() -> void:
 	if rules.armor > 0:
 		subtitle_label.text = subtitle_label.text.replace(" HP ", " HP  ·  %d Armor " % rules.armor)
 	deck_size_bar.max_value = rules.max_deck_size
+	exp_bar.show_class(rules)
+
+	# The "Sort by" menu. An OptionButton is a drop-down list.
+	for option in SORT_OPTIONS:
+		sort_button.add_item(option)
+	sort_button.item_selected.connect(_on_sort_selected)
 
 	card_pool = GameState.load_card_pool()  # Only the cards this class can use.
 	build_filters()
 	build_pool()
+	sort_pool()
 	refresh()
 
 
@@ -96,7 +120,9 @@ func build_filters() -> void:
 
 	for option in options:
 		var button := Button.new()
-		button.text = option[0]
+		# e.g. "Strength 3": how many of your cards are in that tab.
+		var count := card_pool.filter(func(card: CardData) -> bool: return matches(card, option[1])).size()
+		button.text = "%s  %d" % [option[0], count]
 		button.toggle_mode = true  # Stays pressed in, like a tab.
 		button.button_group = group
 		button.button_pressed = option[1] == school_filter
@@ -104,22 +130,64 @@ func build_filters() -> void:
 		filter_bar.add_child(button)
 
 
-# Make one clickable card (plus a small badge under it) for every card in the
-# pool. This only happens once; refresh() updates the badges later.
+# Make one clickable card (plus its copy dots and a note) for every card in
+# the pool. This only happens once; refresh() updates them later.
 func build_pool() -> void:
 	for card_data in card_pool:
 		var cell := VBoxContainer.new()  # .new() makes a node in code instead of in a scene.
-		cell.add_theme_constant_override("separation", 6)
+		cell.add_theme_constant_override("separation", 2)
 		pool_grid.add_child(cell)
 
 		var card: Card = CARD_SCENE.instantiate()
 		cell.add_child(card)
-		card.setup(card_data)
-		card.clicked.connect(_on_pool_card_clicked)
+		# Show the level 2 or 3 version once the card has leveled up...
+		card.setup(GameState.leveled(card_data))
+		# ...but always add the level 1 card to the deck (the battle swaps in
+		# the leveled one). A lambda lets us pass card_data instead of what
+		# the card shows.
+		card.clicked.connect(func(_shown: CardData) -> void: _on_pool_card_clicked(card_data))
+		card.mouse_entered.connect(_on_pool_card_hovered.bind(card, true))
+		card.mouse_exited.connect(_on_pool_card_hovered.bind(card, false))
 
-		var badge := make_pill("", Color(0, 0, 0, 0.35))
-		badge.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-		cell.add_child(badge)
+		# Copy dots, e.g. ●●○. A RichTextLabel can colour parts of its text
+		# with BBCode tags like [color=gold]...[/color].
+		var pips := RichTextLabel.new()
+		pips.bbcode_enabled = true
+		pips.fit_content = true
+		pips.scroll_active = false
+		pips.autowrap_mode = TextServer.AUTOWRAP_OFF
+		pips.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		pips.add_theme_font_size_override("normal_font_size", 18)
+		pips.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		cell.add_child(pips)
+
+		# A small note: the card's level and Exp, or why you can't add it.
+		var note := Label.new()
+		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		note.add_theme_font_size_override("font_size", 12)
+		cell.add_child(note)
+
+		cells[card_data] = {"cell": cell, "card": card, "pips": pips, "note": note}
+
+
+# Put the pool in the order picked in the "Sort by" menu.
+func sort_pool() -> void:
+	card_pool.sort_custom(func(a: CardData, b: CardData) -> bool:
+		match SORT_OPTIONS[sort_mode]:
+			"Cost":
+				if a.cost != b.cost:
+					return a.cost < b.cost
+			"Rarity":
+				if a.rarity != b.rarity:
+					return a.rarity > b.rarity  # Rare first.
+			"School":
+				if a.schools != b.schools:
+					return a.schools < b.schools
+		return a.card_name < b.card_name)
+	# move_child() changes a node's place among its siblings, which is
+	# also its place in the grid.
+	for i in card_pool.size():
+		pool_grid.move_child(cells[card_pool[i]].cell, i)
 
 
 # ---------------------------------------------------------------------------
@@ -131,6 +199,7 @@ func refresh() -> void:
 	refresh_pool(deck)
 	refresh_stats(deck)
 	refresh_deck_list(deck)
+	empty_label.visible = deck.is_empty()
 
 	# Only allow starting once the deck is big enough, and say why if it isn't.
 	var missing := rules.min_deck_size - deck.size()
@@ -141,27 +210,57 @@ func refresh() -> void:
 		rules_label.text = "Ready to fight!"
 
 
-# The pool: badges ("1 / 2", "Locked"), greyed-out cards, and the school filter.
+# The pool: copy dots, notes, darker cards you can't add, and the school filter.
 func refresh_pool(deck: Array[CardData]) -> void:
-	# The cells were created in the same order as card_pool, so index i matches.
-	for i in card_pool.size():
-		var card_data := card_pool[i]
-		var cell := pool_grid.get_child(i)
-		var card: Card = cell.get_child(0)
-		var badge: PanelContainer = cell.get_child(1)
-		var badge_label: Label = badge.get_child(0)
-
+	var shown := 0
+	for card_data in card_pool:
+		var parts: Dictionary = cells[card_data]
+		var card: Card = parts.card
 		var count := deck.count(card_data)  # How many times this card is in the list.
-		# The most you can use: what the class allows, but never more than you own.
-		var max_count := mini(rules.max_copies_of(card_data), GameState.owned(card_data))
-		badge_label.text = "In deck  %d / %d" % [count, max_count]
-		# Gold text once you have at least one, so your picks stand out.
-		badge_label.add_theme_color_override("font_color", GOLD if count > 0 else Color(1, 1, 1, 0.6))
+		var owned := GameState.owned(card_data)
+		# The most this class can put in: 3, or 1 for the Adventurer's school cards.
+		var limit := rules.max_copies_of(card_data)
+		if rules.max_cards_per_school > 0 and not card_data.is_neutral():
+			limit = mini(limit, rules.max_cards_per_school)
+		parts.pips.text = "[center]%s[/center]" % make_pips(count, mini(owned, limit), limit)
 
-		card.disabled = not can_add(card_data)
-		# Fade out cards you can't add (maxed out or deck full).
-		card.modulate.a = 0.5 if card.disabled else 1.0
-		cell.visible = matches_filter(card_data)
+		var reason := rules.why_not(deck, card_data)
+		card.disabled = not reason.is_empty()
+		var note: Label = parts.note
+		if count > 0 and count >= mini(owned, limit):
+			# Every copy you can use is already in. That's good news, so the
+			# card only dims a little and the note is gold.
+			card.modulate = ALL_IN_TINT
+			note.text = "✓ All in deck"
+			note.add_theme_color_override("font_color", GOLD)
+		elif card.disabled:
+			# Blocked by a rule: darken it and say why ("Deck is full"...).
+			card.modulate = BLOCKED_TINT
+			note.text = reason
+			note.add_theme_color_override("font_color", REASON_COLOR)
+		else:
+			card.modulate = Color.WHITE
+			note.text = "Lv %d  ·  %s" % [GameState.card_level(card_data), GameState.card_exp_text(card_data)]
+			note.add_theme_color_override("font_color", DIM_TEXT)
+
+		parts.cell.visible = matches_filter(card_data)
+		if parts.cell.visible:
+			shown += 1
+	pool_count_label.text = "%d card%s" % [shown, "" if shown == 1 else "s"]
+
+
+# The copy dots as BBCode: `in_deck` gold dots, then grey ones up to
+# `usable` (owned and allowed), then hollow ones up to `limit`.
+func make_pips(in_deck: int, usable: int, limit: int) -> String:
+	var text := ""
+	for i in limit:
+		if i < in_deck:
+			text += "[color=#ffd94d]●[/color]"
+		elif i < usable:
+			text += "[color=#ffffff66]●[/color]"
+		else:
+			text += "[color=#ffffff40]○[/color]"
+	return text
 
 
 # The stats at the top of the deck panel.
@@ -208,6 +307,11 @@ func refresh_stats(deck: Array[CardData]) -> void:
 		var type: int = CardData.CardType[type_name]
 		var count := deck.filter(func(card: CardData) -> bool: return card.has_type(type)).size()
 		lines.append("%d %s" % [count, type_name.capitalize()])
+	# Average cost, e.g. "Avg cost 1.3". %.1f means "one digit after the point".
+	var total_cost := 0
+	for card in deck:
+		total_cost += card.cost
+	lines.append("Avg cost %.1f" % (float(total_cost) / maxi(deck.size(), 1)))
 	type_count_label.text = "\n".join(lines)
 
 
@@ -306,15 +410,31 @@ func make_deck_row(card_data: CardData, count: int) -> Button:
 
 	var name_label := Label.new()
 	name_label.text = card_data.card_name
+	var level := GameState.card_level(card_data)
+	if level > 1:
+		name_label.text += "  (Lv %d)" % level
+	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	content.add_child(name_label)
 
+	# A small dot in the card's rarity colour.
+	var rarity_dot := Label.new()
+	rarity_dot.text = "◆"
+	rarity_dot.tooltip_text = card_data.get_rarity_text()
+	rarity_dot.add_theme_font_size_override("font_size", 12)
+	rarity_dot.add_theme_color_override("font_color", CardData.RARITY_COLORS[card_data.rarity])
+	rarity_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	content.add_child(rarity_dot)
+
 	var count_label := Label.new()
 	count_label.text = "×%d" % count
+	count_label.custom_minimum_size = Vector2(24, 0)
+	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	count_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	content.add_child(count_label)
+	row.set_meta("card", card_data)  # So we can find this row again to flash it.
 	return row
 
 
@@ -351,11 +471,16 @@ func can_add(card_data: CardData) -> bool:
 
 
 func matches_filter(card_data: CardData) -> bool:
-	if school_filter == ALL_SCHOOLS:
+	return matches(card_data, school_filter)
+
+
+# Does this card belong in the tab for `school` (or ALL_SCHOOLS / NEUTRAL)?
+func matches(card_data: CardData, school: int) -> bool:
+	if school == ALL_SCHOOLS:
 		return true
-	if school_filter == NEUTRAL:
+	if school == NEUTRAL:
 		return card_data.is_neutral()
-	return card_data.has_school(school_filter)
+	return card_data.has_school(school)
 
 
 # ---------------------------------------------------------------------------
@@ -372,7 +497,31 @@ func _on_pool_card_clicked(card_data: CardData) -> void:
 		return
 	GameState.deck.append(card_data)
 	refresh()
-	pop(pool_grid.get_child(card_pool.find(card_data)).get_child(0))
+	pop(cells[card_data].card)
+	flash_deck_row(card_data)
+
+
+func _on_sort_selected(index: int) -> void:
+	sort_mode = index
+	sort_pool()
+
+
+# Lift a pool card a little while the mouse is over it.
+func _on_pool_card_hovered(card: Card, hovered: bool) -> void:
+	if card.disabled and hovered:
+		return
+	card.pivot_offset = card.size / 2
+	create_tween().tween_property(card, "scale", Vector2(1.04, 1.04) if hovered else Vector2.ONE, 0.08)
+
+
+# Flash the deck list row of the card you just added, so you can see where it went.
+func flash_deck_row(card_data: CardData) -> void:
+	for row in deck_list.get_children():
+		if row.get_meta("card") == card_data:
+			row.modulate = Color(1.6, 1.4, 0.8)  # Above 1 = brighter than normal.
+			create_tween().tween_property(row, "modulate", Color.WHITE, 0.4)
+			# Scroll the list so the row is on screen.
+			(deck_list.get_parent() as ScrollContainer).ensure_control_visible(row)
 
 
 # A quick "bounce" so you can see which card you just added.

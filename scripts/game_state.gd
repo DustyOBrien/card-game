@@ -48,13 +48,31 @@ var booster_packs := {}
 # builder only shows cards you own, and a deck can't hold more copies than you
 # own. Cards marked Unlocked in the spreadsheet start in your collection (as
 # many as their Copies column, so you own your starter deck), and you find the
-# rest in booster packs. You can own MORE than 3 of a card; the extras will be
-# used for something later, but a deck still uses at most MAX_COPIES.
-const MAX_COPIES := 3  # The most copies of one card a deck can use.
+# rest in booster packs.
+const MAX_COPIES := 3  # The most copies of one card you can own (and put in a deck).
 # The chance of each rarity for every card in a pack. They add up to 100.
 const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10}
 const CARDS_PER_PACK := 3
 var collection := {}
+
+# --- Card Exp ------------------------------------------------------------------
+# Opening a copy of a card you already own 3 of gives that card 1 Exp instead.
+# Enough Exp levels it up, and the level counts for EVERY copy of it.
+# CARD_LEVEL_EXP[n] is the total Exp needed for level n + 1:
+#   Level 1 at 0, Level 2 at 3, Level 3 at 3 + 5 = 8.
+const CARD_LEVEL_EXP: Array[int] = [0, 3, 8]
+var card_exp := {}  # {"Strike": 4}
+
+# --- Class Exp -----------------------------------------------------------------
+# Each class levels up on its own. Leveling up is how a class gets its class
+# cards (see CharacterClass.level_cards and data/class_cards.csv).
+const CLASS_MAX_LEVEL := 25
+const EXP_PER_FIGHT := 10  # For every Slime you beat...
+const EXP_PER_RUN := 25  # ...plus this for beating all of them.
+const FIRST_LEVEL_EXP := 100  # Exp from level 1 to level 2...
+const LEVEL_EXP_STEP := 50  # ...and each level after needs this much more.
+var class_exp := {}  # Total Exp per class name: {"Knight": 140}
+
 # Cards that Vanished this run, by their position in `deck` (so with two
 # Bandages, we know WHICH one is gone). The battle leaves these out.
 var vanished: Array[int] = []
@@ -63,7 +81,10 @@ var vanished: Array[int] = []
 func _ready() -> void:
 	for card in load_all_cards():
 		if card.unlocked:
-			collection[card.card_name] = maxi(card.copies, 1)
+			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
+	# Every class starts at level 1, so it gets its level 1 class cards now.
+	for character_class in load_classes():
+		_give_level_cards(character_class, 1)
 
 
 # How many copies of this card do you own? (0 = you haven't found it yet.)
@@ -71,26 +92,41 @@ func owned(card: CardData) -> int:
 	return collection.get(card.card_name, 0)
 
 
+# Add one copy of a card to your collection. Once you own 3, it gives the
+# card 1 Exp instead. Returns what happened, for the screen to show:
+#   {"card": CardData, "new": true/false, "owned": 2, "exp": false, "level_up": false}
+func add_card(card: CardData) -> Dictionary:
+	var result := {"card": card, "new": owned(card) == 0, "exp": false, "level_up": false}
+	if owned(card) < MAX_COPIES:
+		collection[card.card_name] = owned(card) + 1
+	else:
+		var level_before := card_level(card)
+		card_exp[card.card_name] = card_exp.get(card.card_name, 0) + 1
+		result.exp = true
+		result.level_up = card_level(card) > level_before
+	result.owned = owned(card)
+	return result
+
+
 # Open one booster pack: CARDS_PER_PACK cards, each one added to your
-# collection. Returns what you got, for the shop to show:
-#   [{"card": CardData, "new": true/false, "owned": 2}, ...]
-# Any card can come out, even one you already own 3 (or more) of.
+# collection with add_card(). Returns what you got, for the shop to show.
+# Any card can come out, even one you already own 3 of (that's how cards get Exp).
 func open_pack() -> Array[Dictionary]:
 	var opened: Array[Dictionary] = []
 	for i in CARDS_PER_PACK:
-		var card := _pick_pack_card()
-		var is_new := owned(card) == 0
-		collection[card.card_name] = owned(card) + 1
-		opened.append({"card": card, "new": is_new, "owned": owned(card)})
+		opened.append(add_card(_pick_pack_card()))
 	return opened
 
 
 # One random card for a pack. First roll its rarity (60 / 30 / 10), then pick
 # any card of that rarity. If the spreadsheet has no cards of some rarity, its
 # odds are shared out among the rarities that do have cards.
+# Class cards never come from packs: classes get them by leveling up.
 func _pick_pack_card() -> CardData:
 	var by_rarity := {}  # Rarity -> the cards of that rarity.
 	for card in load_all_cards():
+		if card.is_class_card():
+			continue
 		if not by_rarity.has(card.rarity):
 			by_rarity[card.rarity] = []
 		by_rarity[card.rarity].append(card)
@@ -103,6 +139,92 @@ func _pick_pack_card() -> CardData:
 		roll -= PACK_ODDS[rarity]
 		if roll <= 0:
 			return by_rarity[rarity].pick_random()
+	return null
+
+
+# A card's level (1 to 3), from its Exp.
+func card_level(card: CardData) -> int:
+	var exp_total: int = card_exp.get(card.card_name, 0)
+	var level := 1
+	for i in CARD_LEVEL_EXP.size():
+		if exp_total >= CARD_LEVEL_EXP[i]:
+			level = i + 1
+	return level
+
+
+# e.g. "Exp 1 / 3" (towards the next level), or "Max level".
+func card_exp_text(card: CardData) -> String:
+	var level := card_level(card)
+	if level >= CARD_LEVEL_EXP.size():
+		return "Max level"
+	return "Exp %d / %d" % [card_exp.get(card.card_name, 0), CARD_LEVEL_EXP[level]]
+
+
+# The version of a card you actually play with: its level 2 or 3 file from
+# cards/levels/ once it's leveled up. If that level isn't in the level sheet
+# yet, it falls back to the highest level that is (or the level 1 card).
+func leveled(card: CardData) -> CardData:
+	var base_name := card.resource_path.get_file().get_basename()  # "strike"
+	for level in range(card_level(card), 1, -1):  # e.g. 3, then 2
+		var path := CardImporter.LEVELS_FOLDER + "%s_lv%d.tres" % [base_name, level]
+		if ResourceLoader.exists(path):
+			return load(path)
+	return card
+
+
+# How much Exp it takes to go from `level` to the next one: 100, 150, 200...
+func exp_for_next_level(level: int) -> int:
+	return FIRST_LEVEL_EXP + LEVEL_EXP_STEP * (level - 1)
+
+
+# A class's level, worked out from its total Exp.
+func class_level(character_class: CharacterClass) -> int:
+	var exp_left: int = class_exp.get(character_class.display_name, 0)
+	var level := 1
+	while level < CLASS_MAX_LEVEL and exp_left >= exp_for_next_level(level):
+		exp_left -= exp_for_next_level(level)
+		level += 1
+	return level
+
+
+# Progress towards the next level, for the Exp bar: Vector2i(40, 150) means
+# "40 of the 150 Exp needed". At the max level it's Vector2i(0, 0).
+func class_exp_progress(character_class: CharacterClass) -> Vector2i:
+	var level := class_level(character_class)
+	if level >= CLASS_MAX_LEVEL:
+		return Vector2i.ZERO
+	var exp_left: int = class_exp.get(character_class.display_name, 0)
+	for i in range(1, level):
+		exp_left -= exp_for_next_level(i)
+	return Vector2i(exp_left, exp_for_next_level(level))
+
+
+# Give the chosen class some Exp. Returns one entry per level gained, with the
+# class cards it unlocked: [{"level": 2, "cards": [add_card() results]}]
+func add_class_exp(amount: int) -> Array[Dictionary]:
+	var level_ups: Array[Dictionary] = []
+	var level_before := class_level(character_class)
+	class_exp[character_class.display_name] = class_exp.get(character_class.display_name, 0) + amount
+	for level in range(level_before + 1, class_level(character_class) + 1):
+		level_ups.append({"level": level, "cards": _give_level_cards(character_class, level)})
+	return level_ups
+
+
+# Add the class cards a class gets at `level` to your collection.
+func _give_level_cards(character_class: CharacterClass, level: int) -> Array[Dictionary]:
+	var given: Array[Dictionary] = []
+	for card_name in character_class.level_cards.get(level, PackedStringArray()):
+		var card := find_card(card_name)
+		if card:
+			given.append(add_card(card))
+	return given
+
+
+# The level 1 card with this name, or null.
+func find_card(card_name: String) -> CardData:
+	for card in load_all_cards():
+		if card.card_name == card_name:
+			return card
 	return null
 
 

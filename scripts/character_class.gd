@@ -30,6 +30,12 @@ extends Resource
 @export_enum("Strength:1", "Agility:2", "Intellect:4", "Wisdom:8") var unlock_school: int = 1
 @export var unlock_card_count: int = 12
 
+@export_group("Levels")
+# The cards this class gets when it reaches each level, e.g.
+#   {2: ["Shield Bash"], 5: ["Shield Wall", "Shield Wall"]}  (twice = 2 copies)
+# Filled in from data/class_cards.csv by the card importer.
+@export var level_cards: Dictionary[int, PackedStringArray] = {}
+
 @export_group("Deck rules")
 # Which schools' cards this class may put in its deck. Same checkboxes as on cards.
 @export_flags("Strength", "Agility", "Intellect", "Wisdom") var allowed_schools: int = 15  # 15 = all four.
@@ -63,18 +69,27 @@ func can_use(card: CardData) -> bool:
 # Could this card go into `deck` right now? Checks every rule in one place,
 # so the deck builder and the starter deck follow exactly the same rules.
 func can_add_to(deck: Array[CardData], card: CardData) -> bool:
-	if deck.count(card) >= GameState.owned(card):
-		return false  # You can't put in more copies than you own (none, if you haven't found it).
+	return why_not(deck, card).is_empty()
+
+
+# Why can't this card go into `deck`? A short reason for the deck builder to
+# show, or "" if it can.
+func why_not(deck: Array[CardData], card: CardData) -> String:
+	var count := deck.count(card)
+	if count >= max_copies_of(card):
+		return "All copies in deck" if count > 0 else "Not for this class"
+	if count >= GameState.owned(card):
+		# You can't put in more copies than you own.
+		return "You own %d" % GameState.owned(card)
 	if deck.size() >= max_deck_size:
-		return false
-	if deck.count(card) >= max_copies_of(card):
-		return false
+		return "Deck is full"
 	if max_cards_per_school > 0:
 		# Every school on the card must still have room.
 		for school in CardData.School.values():
 			if card.has_school(school) and count_school(deck, school) >= max_cards_per_school:
-				return false
-	return true
+				var school_name: String = CardData.School.find_key(school).capitalize()
+				return "%d %s card max" % [max_cards_per_school, school_name]
+	return ""
 
 
 # How many cards in `deck` belong to `school`? (A STR + WIS card counts for both.)

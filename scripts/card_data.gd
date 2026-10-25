@@ -47,6 +47,9 @@ const RARITY_COLORS := {
 
 # @export makes a variable show up in the Inspector so you can edit it there.
 @export var card_name: String = "New Card"
+# 1, 2 or 3. Level 2 and 3 versions come from the level sheets (cards/levels/).
+# See GameState.leveled() for how a card's Exp picks which one you play with.
+@export var level: int = 1
 @export var cost: int = 1  # Energy needed to play the card.
 
 # @export_flags shows one checkbox per name in the Inspector.

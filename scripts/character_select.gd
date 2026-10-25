@@ -75,6 +75,12 @@ func make_class_panel(character_class: CharacterClass, all_cards: Array[CardData
 	rules_label.size_flags_vertical = Control.SIZE_EXPAND_FILL  # Push the bottom part down.
 	box.add_child(rules_label)
 
+	# The class's level and Exp.
+	var exp_bar := ExpBar.new()
+	exp_bar.custom_minimum_size = Vector2(0, 22)
+	box.add_child(exp_bar)
+	exp_bar.show_class(character_class)
+
 	if not unlocked:
 		# Say how to unlock it, with progress: "Unlock 12 Strength cards (6 / 12)".
 		var unlock_label := Label.new()

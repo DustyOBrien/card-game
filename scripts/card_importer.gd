@@ -1,32 +1,71 @@
 # card_importer.gd
 #
-# Turns the card spreadsheet (data/cards.csv) into card files (cards/*.tres).
+# Turns the card spreadsheets (data/*.csv) into Godot files.
 #
 # You don't run this file directly. Run tools/import_cards.gd from the Godot
 # editor instead (see the instructions at the top of that file).
 #
-# How it works:
+# There are up to four sheets. Only the first one is required:
+#   data/cards.csv         Level 1 of every card -> cards/<name>.tres
+#   data/cards_level2.csv  Level 2 versions      -> cards/levels/<name>_lv2.tres
+#   data/cards_level3.csv  Level 3 versions      -> cards/levels/<name>_lv3.tres
+#   data/class_cards.csv   Which card each class gets at each class level
+#                          -> saved into classes/*.tres (level_cards)
+#
+# The level sheets have exactly the same columns as cards.csv (copy the whole
+# sheet and change the numbers). A row's Name says which card it levels up.
+# Leave a card out and its level 2 just plays like level 1.
+#
+# How a card sheet is read:
 #   1. Read the CSV one row at a time. Row 1 holds the column names.
 #   2. For every other row, make a new CardData and copy each column into it.
-#   3. Save it as cards/<card_name>.tres (e.g. "Quick Strike" -> quick_strike.tres).
-#   4. Delete any old .tres in cards/ that isn't in the sheet any more,
+#   3. Save it as a .tres file (e.g. "Quick Strike" -> quick_strike.tres).
+#   4. Delete any old .tres in that folder that isn't in the sheet any more,
 #      so the spreadsheet is always the one true list of cards.
 class_name CardImporter
 extends RefCounted
 
 const CSV_PATH := "res://data/cards.csv"
 const CARDS_FOLDER := "res://cards/"
+const LEVELS_FOLDER := "res://cards/levels/"
+const LEVEL_SHEETS := {2: "res://data/cards_level2.csv", 3: "res://data/cards_level3.csv"}
+const CLASS_CARDS_PATH := "res://data/class_cards.csv"
+const CLASSES_FOLDER := "res://classes/"
 
 
-
-# Reads the CSV and writes the card files. Returns how many cards were made.
+# Reads every sheet and writes the files. Returns how many level 1 cards were made.
 static func import_cards() -> int:
-	var file := FileAccess.open(CSV_PATH, FileAccess.READ)
-	if file == null:
-		push_error("Couldn't open %s" % CSV_PATH)
+	var names := _import_sheet(CSV_PATH, CARDS_FOLDER, 1, [])
+	if names.is_empty():
 		return 0
+	# Level sheets: same columns, saved next to each other in cards/levels/.
+	var level_files: Array[String] = []
+	for level in LEVEL_SHEETS:
+		if FileAccess.file_exists(LEVEL_SHEETS[level]):
+			for card_name in _import_sheet(LEVEL_SHEETS[level], LEVELS_FOLDER, level, names):
+				level_files.append(level_file_name(card_name, level))
+	_remove_old_cards(LEVELS_FOLDER, level_files)
+	_import_class_cards(names)
+	print("Done! Imported %d cards." % names.size())
+	return names.size()
 
-	DirAccess.make_dir_recursive_absolute(CARDS_FOLDER)  # Make cards/ if it's missing.
+
+# The file name of a card's level 2 or 3 version: "Quick Strike", 2 -> "quick_strike_lv2.tres".
+static func level_file_name(card_name: String, level: int) -> String:
+	return _file_name_for(card_name).get_basename() + "_lv%d.tres" % level
+
+
+# Read one card sheet and save a .tres for every row. `known_names` is the
+# list of level 1 cards: a level sheet's rows must match one of them.
+# Returns the names of the cards it made.
+static func _import_sheet(csv_path: String, folder: String, level: int, known_names: Array[String]) -> Array[String]:
+	var made_names: Array[String] = []
+	var file := FileAccess.open(csv_path, FileAccess.READ)
+	if file == null:
+		push_error("Couldn't open %s" % csv_path)
+		return made_names
+
+	DirAccess.make_dir_recursive_absolute(folder)  # Make the folder if it's missing.
 
 	# --- Row 1: the column names ---------------------------------------------
 	# We remember which position each column is in, e.g. {"cost": 3, ...}.
@@ -43,9 +82,13 @@ static func import_cards() -> int:
 		var card_name := _cell(row, columns, "name")
 		if card_name.is_empty():
 			continue  # Skip blank rows.
+		if level > 1 and not known_names.has(card_name):
+			push_warning("%s: there's no card called \"%s\" in cards.csv, skipped" % [csv_path.get_file(), card_name])
+			continue
 
 		var card := CardData.new()
 		card.card_name = card_name
+		card.level = level
 		card.copies = _to_int(_cell(row, columns, "copies"), 1)
 		card.cost = _to_int(_cell(row, columns, "cost"))
 		card.schools = _parse_flags(_cell(row, columns, "school"), CardData.School)
@@ -88,17 +131,65 @@ static func import_cards() -> int:
 		if card.effect.is_empty():
 			card.effect = card.make_description()
 
-		var path := CARDS_FOLDER + _file_name_for(card_name)
+		var path := folder + (_file_name_for(card_name) if level == 1 else level_file_name(card_name, level))
 		var error := ResourceSaver.save(card, path)
 		if error != OK:
 			push_error("Couldn't save %s (error %d)" % [path, error])
 			continue
 		made_files.append(path.get_file())
+		made_names.append(card_name)
 		print("Imported ", card_name, " -> ", path)
 
-	_remove_old_cards(made_files)
-	print("Done! Imported %d cards." % made_files.size())
-	return made_files.size()
+	if level == 1:
+		_remove_old_cards(folder, made_files)
+	return made_names
+
+
+# The class cards sheet: one row per card a class gets when it levels up.
+#   Class   | Level | Card         | Copies
+#   Knight  | 2     | Shield Bash  | 1
+# Copies is optional (1 if blank). Each class's list is saved into its .tres
+# file (CharacterClass.level_cards), so you can also see it in the Inspector.
+static func _import_class_cards(known_names: Array[String]) -> void:
+	var file := FileAccess.open(CLASS_CARDS_PATH, FileAccess.READ)
+	if file == null:
+		return  # The sheet is optional.
+	var columns := {}
+	var header := file.get_csv_line()
+	for i in header.size():
+		columns[_clean_column_name(header[i])] = i
+
+	# Class name -> {level: ["Shield Bash", ...]}
+	var by_class := {}
+	while not file.eof_reached():
+		var row := file.get_csv_line()
+		var class_text := _cell(row, columns, "class")
+		var card_name := _cell(row, columns, "card")
+		if class_text.is_empty() or card_name.is_empty():
+			continue
+		if not known_names.has(card_name):
+			push_warning("class_cards.csv: there's no card called \"%s\" in cards.csv, skipped" % card_name)
+			continue
+		var level := _to_int(_cell(row, columns, "level"), 1)
+		if not by_class.has(class_text):
+			by_class[class_text] = {}
+		if not by_class[class_text].has(level):
+			by_class[class_text][level] = PackedStringArray()
+		# Two copies = the name twice in the list.
+		for i in maxi(_to_int(_cell(row, columns, "copies"), 1), 1):
+			by_class[class_text][level].append(card_name)
+
+	# Write each class's list into its file. A class missing from the sheet
+	# gets an empty list.
+	for file_name in DirAccess.get_files_at(CLASSES_FOLDER):
+		if not file_name.ends_with(".tres"):
+			continue
+		var character_class: CharacterClass = load(CLASSES_FOLDER + file_name)
+		character_class.level_cards.clear()
+		for level in by_class.get(character_class.display_name, {}):
+			character_class.level_cards[level] = by_class[character_class.display_name][level]
+		ResourceSaver.save(character_class)
+		print("Class cards for ", character_class.display_name, ": ", character_class.level_cards)
 
 
 # Get one cell from a row by its column name, e.g. _cell(row, columns, "cost").
@@ -264,12 +355,12 @@ static func _file_name_for(card_name: String) -> String:
 	return card_name.to_lower().replace(" ", "_").validate_filename() + ".tres"
 
 
-# Delete card files that are no longer in the spreadsheet.
-static func _remove_old_cards(keep: Array[String]) -> void:
-	for file_name in DirAccess.get_files_at(CARDS_FOLDER):
+# Delete card files in `folder` that are no longer in the spreadsheet.
+static func _remove_old_cards(folder: String, keep: Array[String]) -> void:
+	for file_name in DirAccess.get_files_at(folder):
 		if file_name.ends_with(".tres") and not keep.has(file_name):
-			DirAccess.remove_absolute(CARDS_FOLDER + file_name)
+			DirAccess.remove_absolute(folder + file_name)
 			# Godot also keeps a matching .uid file next to some files.
-			if FileAccess.file_exists(CARDS_FOLDER + file_name + ".uid"):
-				DirAccess.remove_absolute(CARDS_FOLDER + file_name + ".uid")
+			if FileAccess.file_exists(folder + file_name + ".uid"):
+				DirAccess.remove_absolute(folder + file_name + ".uid")
 			print("Removed ", file_name, " (not in the spreadsheet)")

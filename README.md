@@ -83,7 +83,9 @@ Class-only cards say so on their type line, e.g. **Attack - Knight**.
 Then you're on the **deck builder**, holding your class's starter deck:
 
 - Click a card on the left to add a copy to your deck. Click a row in **Your Deck** on the right to take one copy out.
-- The buttons at the top right (**All**, **Strength**...) show one school at a time.
+- The dots under each card are its copies: **gold** = in your deck, **grey** = owned but not in it, **hollow** = not owned yet. The line under them shows the card's level and Exp, or why you can't add it ("Deck is full", "1 Strength card max").
+- The tabs at the top right (**All 8**, **Strength 0**...) show one school at a time, with how many of your cards are in each. **Sort by** orders the cards by School, Cost, Name or Rarity.
+- Your class's level and Exp bar are under its name.
 - **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
 - When the deck is big enough, click **To the Map**. **Change Class** goes back to Character Select.
@@ -138,12 +140,25 @@ from one fight to the next (the enemy's name shows `(2 / 5)`). After a win,
 
 **Your card collection.** You start owning every card marked **Unlocked** in
 the spreadsheet, as many copies as its **Copies** column (your starter deck);
-every other card has to come from a booster pack. You can own more than 3 of a
-card (extras will be used for something later), but a deck uses at most **3**.
-The deck builder only shows cards you own, and a deck can't hold more copies
-than you own (or than your class allows).
-The collection lives in `GameState.collection`. It isn't saved when you close
-the game yet.
+every other card has to come from a booster pack. You can own up to **3** of a
+card. The deck builder only shows cards you own, and a deck can't hold more
+copies than you own (or than your class allows). The whole collection is shared
+by every class. It lives in `GameState.collection`, and isn't saved when you
+close the game yet.
+
+**Card Exp.** Opening a card you already own 3 of gives that card **1 Exp**.
+**3 Exp** makes it **Level 2**, and **5 more** (8 in total) makes it **Level 3**.
+The level counts for every copy, and leveled cards say so ("Common · Lv 2").
+What a level does comes from the level sheets (see "Card levels" below).
+The numbers are `CARD_LEVEL_EXP` in `game_state.gd`.
+
+**Class Exp.** Your class gets **10 Exp** for every Slime and **25** more for
+finishing a run. Level 2 needs 100 Exp, and each level after needs 50 more
+(150, 200...), up to **level 25**. Each class levels up on its own, and leveling
+up is how a class gets its **class cards** (see "Class cards" below). The Exp bar
+fills up on the victory screen and shows on Character Select and in the deck
+builder. The numbers are at the top of `game_state.gd` (`EXP_PER_FIGHT`,
+`EXP_PER_RUN`, `FIRST_LEVEL_EXP`, `LEVEL_EXP_STEP`, `CLASS_MAX_LEVEL`).
 
 Gold amounts, the run length and pack prices live at the top of
 `game_state.gd` (`GOLD_MIN`, `GOLD_MAX`, `FIGHTS_PER_RUN`) and in `PACKS` in `shop.gd`.
@@ -489,6 +504,37 @@ warning in Godot's Output panel and skips that part.
 **The spreadsheet is the boss:** any card file in `cards/` that isn't in the
 spreadsheet gets deleted when you import. So make new cards by adding rows,
 not by duplicating `.tres` files in Godot.
+
+### Card levels: `cards_level2.csv` and `cards_level3.csv`
+
+These two sheets have **exactly the same columns** as `cards.csv`. The easiest
+way to make one: copy your card sheet, change the numbers, and save it as
+`data/cards_level2.csv` (or `cards_level3.csv`). The **Name** says which card
+a row levels up, so it must match a card in `cards.csv`. You only need rows for
+cards that change: a card that isn't in the level 2 sheet plays like level 1.
+(A level 3 card that isn't in the level 3 sheet uses its level 2 row.)
+
+The importer saves them in `cards/levels/` (e.g. `strike_lv2.tres`). Battles
+and the deck builder show the version that matches the card's level.
+
+### Class cards: `class_cards.csv`
+
+One row per card a class gets when it reaches a level:
+
+| Class | Level | Card | Copies |
+|---|---|---|---|
+| Knight | 2 | Shield Bash | 1 |
+| Knight | 5 | Shield Wall | 2 |
+
+- **Class** is the class's name, **Card** is a card's Name from `cards.csv`.
+- **Level 1** cards are given right at the start.
+- **Copies** is optional (1 if blank). Copies past 3 turn into card Exp.
+- Give class cards a **Class** in `cards.csv` (e.g. `Knight`) if only that class
+  should use them, and **Unlocked = FALSE** so they don't start in the collection.
+  Class cards never come out of booster packs.
+
+The importer saves each class's list into its file in `classes/` (look for
+**Level Cards** in the Inspector).
 
 ## Dice and Criticals
 

@@ -200,15 +200,17 @@ func _add_reveal(item: Dictionary, row: HBoxContainer) -> void:
 	note.add_theme_font_size_override("font_size", 20)
 	var card: Card = CARD_SCENE.instantiate()
 	box.add_child(card)
-	card.setup(item.card)
+	card.setup(GameState.leveled(item.card))  # Its level 2 or 3 version, if it has one.
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Just for looking at.
-	# e.g. "NEW!  Rare", "Owned 2 / 3  Common" or "Extra! Owned 4  Common",
-	# in the rarity's colour. Extras (past 3) will be used for something later.
+	# e.g. "NEW!  Rare" or "Owned 2 / 3  Common", in the rarity's colour.
+	# A card you already own 3 of gives it Exp instead: "+1 Exp (2 / 3)".
 	var owned_text := "Owned %d / %d" % [item.owned, GameState.MAX_COPIES]
 	if item.new:
 		owned_text = "NEW!"
-	elif item.owned > GameState.MAX_COPIES:
-		owned_text = "Extra! Owned %d" % item.owned
+	elif item.level_up:
+		owned_text = "LEVEL UP! Lv %d" % GameState.card_level(item.card)
+	elif item.exp:
+		owned_text = "+1 Exp  (%s)" % GameState.card_exp_text(item.card).trim_prefix("Exp ")
 	note.text = "%s\n%s" % [owned_text, item.card.get_rarity_text()]
 	note.add_theme_color_override("font_color", CardData.RARITY_COLORS[item.card.rarity])
 	box.add_child(note)

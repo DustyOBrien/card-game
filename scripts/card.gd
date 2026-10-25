@@ -75,6 +75,11 @@ func setup(data: CardData) -> void:
 		type_label.text += " - " + ", ".join(data.class_only)
 	show_effects(data)
 	rarity_label.text = data.get_rarity_text()
+	# Leveled-up cards say so: "Common · Lv 2". (Every copy of a card shares
+	# its level, so we ask GameState by name.)
+	var level := maxi(data.level, GameState.card_level(data))
+	if level > 1:
+		rarity_label.text += "  ·  Lv %d" % level
 	rarity_label.add_theme_color_override("font_color", CardData.RARITY_COLORS[data.rarity])
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color

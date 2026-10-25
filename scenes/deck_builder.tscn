@@ -1,6 +1,36 @@
 [gd_scene format=3]
 
 [ext_resource type="Script" path="res://scripts/deck_builder.gd" id="1_deck_builder"]
+[ext_resource type="Script" path="res://scripts/exp_bar.gd" id="2_exp_bar"]
+
+[sub_resource type="Gradient" id="Gradient_bg"]
+offsets = PackedFloat32Array(0, 1)
+colors = PackedColorArray(0.17, 0.14, 0.23, 1, 0.07, 0.06, 0.09, 1)
+
+[sub_resource type="GradientTexture2D" id="GradientTexture_bg"]
+gradient = SubResource("Gradient_bg")
+fill = 1
+fill_from = Vector2(0.5, 0)
+fill_to = Vector2(0.5, 1.3)
+
+[sub_resource type="StyleBoxFlat" id="StyleBox_panel"]
+content_margin_left = 14.0
+content_margin_top = 12.0
+content_margin_right = 14.0
+content_margin_bottom = 12.0
+bg_color = Color(0.12, 0.11, 0.16, 0.92)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(1, 1, 1, 0.08)
+corner_radius_top_left = 12
+corner_radius_top_right = 12
+corner_radius_bottom_right = 12
+corner_radius_bottom_left = 12
+shadow_color = Color(0, 0, 0, 0.35)
+shadow_size = 8
+shadow_offset = Vector2(0, 3)
 
 [node name="DeckBuilder" type="Control"]
 layout_mode = 3
@@ -11,14 +41,15 @@ grow_horizontal = 2
 grow_vertical = 2
 script = ExtResource("1_deck_builder")
 
-[node name="Background" type="ColorRect" parent="."]
+[node name="Background" type="TextureRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.09, 0.13, 1)
+texture = SubResource("GradientTexture_bg")
+expand_mode = 1
 
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 1
@@ -50,7 +81,7 @@ stretch_mode = 5
 [node name="Titles" type="VBoxContainer" parent="Margin/Layout/Header"]
 layout_mode = 2
 size_flags_vertical = 4
-theme_override_constants/separation = 0
+theme_override_constants/separation = 2
 
 [node name="TitleLabel" type="Label" parent="Margin/Layout/Header/Titles"]
 unique_name_in_owner = true
@@ -64,6 +95,13 @@ layout_mode = 2
 theme_override_colors/font_color = Color(1, 1, 1, 0.6)
 theme_override_font_sizes/font_size = 15
 text = "Build your deck"
+
+[node name="ExpBar" type="Control" parent="Margin/Layout/Header/Titles"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(280, 18)
+layout_mode = 2
+size_flags_horizontal = 0
+script = ExtResource("2_exp_bar")
 
 [node name="HeaderSpacer" type="Control" parent="Margin/Layout/Header"]
 layout_mode = 2
@@ -83,12 +121,47 @@ theme_override_constants/separation = 16
 [node name="PoolPanel" type="PanelContainer" parent="Margin/Layout/Columns"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_styles/panel = SubResource("StyleBox_panel")
 
-[node name="PoolScroll" type="ScrollContainer" parent="Margin/Layout/Columns/PoolPanel"]
+[node name="PoolBox" type="VBoxContainer" parent="Margin/Layout/Columns/PoolPanel"]
 layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PoolHeader" type="HBoxContainer" parent="Margin/Layout/Columns/PoolPanel/PoolBox"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="PoolTitle" type="Label" parent="Margin/Layout/Columns/PoolPanel/PoolBox/PoolHeader"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 22
+text = "Your Cards"
+
+[node name="PoolCountLabel" type="Label" parent="Margin/Layout/Columns/PoolPanel/PoolBox/PoolHeader"]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 8
+theme_override_colors/font_color = Color(1, 1, 1, 0.5)
+theme_override_font_sizes/font_size = 14
+text = "0 cards"
+
+[node name="SortLabel" type="Label" parent="Margin/Layout/Columns/PoolPanel/PoolBox/PoolHeader"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 1, 1, 0.5)
+theme_override_font_sizes/font_size = 14
+text = "Sort by"
+
+[node name="SortButton" type="OptionButton" parent="Margin/Layout/Columns/PoolPanel/PoolBox/PoolHeader"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(120, 0)
+layout_mode = 2
+
+[node name="PoolScroll" type="ScrollContainer" parent="Margin/Layout/Columns/PoolPanel/PoolBox"]
+layout_mode = 2
+size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="PoolGrid" type="GridContainer" parent="Margin/Layout/Columns/PoolPanel/PoolScroll"]
+[node name="PoolGrid" type="GridContainer" parent="Margin/Layout/Columns/PoolPanel/PoolBox/PoolScroll"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 6
@@ -99,6 +172,7 @@ columns = 5
 [node name="DeckPanel" type="PanelContainer" parent="Margin/Layout/Columns"]
 custom_minimum_size = Vector2(340, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBox_panel")
 
 [node name="DeckBox" type="VBoxContainer" parent="Margin/Layout/Columns/DeckPanel"]
 layout_mode = 2
@@ -166,6 +240,18 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_constants/separation = 4
+
+[node name="EmptyLabel" type="Label" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(1, 1, 1, 0.45)
+theme_override_font_sizes/font_size = 15
+text = "Your deck is empty.
+Click a card on the left to add it."
+horizontal_alignment = 1
+vertical_alignment = 1
 
 [node name="DeckButtons" type="HBoxContainer" parent="Margin/Layout/Columns/DeckPanel/DeckBox"]
 layout_mode = 2
