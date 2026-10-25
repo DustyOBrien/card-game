@@ -13,5 +13,4 @@ sort_order = 0
 max_hp = 25
 armor = 3
 starts_unlocked = true
-max_copies = 1
 max_cards_per_school = 1

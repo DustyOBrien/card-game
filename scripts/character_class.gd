@@ -34,8 +34,8 @@ extends Resource
 # Which schools' cards this class may put in its deck. Same checkboxes as on cards.
 @export_flags("Strength", "Agility", "Intellect", "Wisdom") var allowed_schools: int = 15  # 15 = all four.
 @export var allow_neutral: bool = true  # Can it use cards with no school?
-@export var max_copies: int = 2  # Most copies of each card that HAS a school.
-@export var max_copies_neutral: int = 2  # Most copies of each neutral card.
+# Every class can use up to 3 copies of a card (GameState.MAX_COPIES), so
+# that isn't a class setting. Classes differ in WHICH cards they may use.
 # Most cards from any ONE school in the deck (all its cards added up). 0 = no limit.
 @export var max_cards_per_school: int = 0
 @export var min_deck_size: int = 12  # Can't start a battle with fewer cards.
@@ -48,12 +48,12 @@ func max_copies_of(card: CardData) -> int:
 	if card.is_class_card() and not card.class_only.has(display_name):
 		return 0
 	if card.is_neutral():
-		return max_copies_neutral if allow_neutral else 0
+		return GameState.MAX_COPIES if allow_neutral else 0
 	# A card with several schools is allowed if ANY of them is allowed.
 	# `&` keeps the schools the card and the class have in common.
 	if (card.schools & allowed_schools) == 0:
 		return 0
-	return max_copies
+	return GameState.MAX_COPIES
 
 
 func can_use(card: CardData) -> bool:
@@ -122,11 +122,12 @@ func get_rules_text() -> String:
 	if school_names.is_empty():
 		lines.append("No school cards")
 	else:
-		lines.append("%s cards: up to %d each" % [", ".join(school_names), max_copies])
+		lines.append("%s cards" % ", ".join(school_names))
 	if max_cards_per_school > 0:
 		lines.append("At most %d card(s) from each school" % max_cards_per_school)
 	if allow_neutral:
-		lines.append("Neutral cards: up to %d each" % max_copies_neutral)
+		lines.append("Neutral cards")
+	lines.append("Up to %d copies of each card" % GameState.MAX_COPIES)
 	lines.append("Deck size: %d to %d cards" % [min_deck_size, max_deck_size])
 	lines.append("HP: %d" % max_hp)
 	if armor > 0:

@@ -62,13 +62,16 @@ That's a cache that Godot can always rebuild, so it isn't saved to GitHub
 
 The game starts on **Character Select**. Your class decides which cards you can use:
 
-| Class | HP | Can use | Copies per card | Unlocks when |
+Every class can use **up to 3 copies of any card**. What changes is the class's
+deck rule:
+
+| Class | HP | Can use | Extra rule | Unlocks when |
 |---|---|---|---|---|
-| Adventurer | 25 | Every school, Neutral, Adventurer cards | **Only 1 card from each school** in the whole deck (Neutral: 2 copies each) | Unlocked from the start |
-| Knight | 30 | Strength, Neutral, Knight cards | 3 (Neutral: 2) | 12 Strength cards are unlocked |
-| Rogue | 22 | Agility, Neutral, Rogue cards | 3 (Neutral: 2) | 12 Agility cards are unlocked |
-| Mage | 20 | Intellect, Neutral, Mage cards | 3 (Neutral: 2) | 12 Intellect cards are unlocked |
-| Priest | 28 | Wisdom, Neutral, Priest cards | 3 (Neutral: 2) | 12 Wisdom cards are unlocked |
+| Adventurer | 25 | Every school, Neutral, Adventurer cards | **Only 1 card from each school** in the whole deck (Neutral cards don't count) | Unlocked from the start |
+| Knight | 30 | Strength, Neutral, Knight cards | - | You own 12 different Strength cards |
+| Rogue | 22 | Agility, Neutral, Rogue cards | - | You own 12 different Agility cards |
+| Mage | 20 | Intellect, Neutral, Mage cards | - | You own 12 different Intellect cards |
+| Priest | 28 | Wisdom, Neutral, Priest cards | - | You own 12 different Wisdom cards |
 
 Every deck needs 12 to 20 cards. A class's unlock counts the different cards
 of that school you **own** (see "Your card collection" below). A locked class shows its progress, e.g.
