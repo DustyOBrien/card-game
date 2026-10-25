@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_5rqwk"]
+
+[resource]
+script = ExtResource("1_5rqwk")
+card_name = "Sweep"
+types = 1
+attack = PackedStringArray("d3")
+target = 1
+critical = "+1 Damage"
+class_only = PackedStringArray()
+effect = "AoE. Deal d3 damage to ALL enemies. Critical: +1 Damage."
+color = Color(0.4, 0.4, 0.42, 1)

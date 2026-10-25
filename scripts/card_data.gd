@@ -37,6 +37,12 @@ const SCHOOL_COLORS := {
 }
 const NEUTRAL_COLOR := Color(0.4, 0.4, 0.42)
 
+# Who an attack hits when there are several enemies:
+#   SINGLE: the enemy you drop the card on.
+#   ALL:    every enemy (AoE, "area of effect"). Each hit hits all of them.
+#   RANDOM: each hit picks a random enemy.
+enum Target { SINGLE, ALL, RANDOM }
+
 # Rarity is just one value per card, so it's a normal enum (0, 1, 2), not flags.
 enum Rarity { COMMON, UNCOMMON, RARE }
 const RARITY_COLORS := {
@@ -62,6 +68,7 @@ const RARITY_COLORS := {
 # `attack` is a LIST: one entry per hit. Multi Strike is ["d3", "d3"]: two
 # separate hits, each rolled on its own (and each can crit on its own).
 @export var attack: PackedStringArray = []
+@export var target: Target = Target.SINGLE  # Who the attack hits (see the Target enum above).
 @export var attack_modifier: int = 0  # Added to every attack die: d3 with modifier 1 = d3 + 1.
 @export var block: String = ""  # Block gained by the player when played.
 @export var block_modifier: int = 0  # Added to the block roll.
@@ -224,6 +231,10 @@ func make_description() -> String:
 			text += " %d times" % attack.size() if attack.size() > 2 else " twice"
 		elif attack.size() > 1:
 			text = "Deal %s damage" % get_attack_text()
+		if target == Target.ALL:
+			text += " to ALL enemies"
+		elif target == Target.RANDOM:
+			text += " to a random enemy" if attack.size() == 1 else ", each hit to a random enemy"
 		parts.append(text)
 	if not block.is_empty():
 		parts.append("Gain %s Block" % get_block_text())
@@ -273,6 +284,10 @@ func get_keyword_text() -> String:
 	var words: Array[String] = []
 	if wild and has_dice():
 		words.append("Wild")  # Wild only means something on a card with dice.
+	if deals_damage() and target == Target.ALL:
+		words.append("AoE")
+	if deals_damage() and target == Target.RANDOM:
+		words.append("Random")
 	if advantage and not disadvantage:
 		words.append("Adv")
 	if disadvantage and not advantage:

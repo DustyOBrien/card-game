@@ -94,6 +94,7 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 		card.schools = _parse_flags(_cell(row, columns, "school"), CardData.School)
 		card.types = _parse_flags(_cell(row, columns, "type"), CardData.CardType)
 		card.attack = _read_attacks(row, columns, card_name)
+		card.target = _parse_target(_cell(row, columns, "target"))
 		card.attack_modifier = _to_int(_cell(row, columns, "attack modifier"))
 		card.block = _read_formula_list(_cell(row, columns, "block"), card_name)
 		card.block_modifier = _to_int(_cell(row, columns, "block modifier"))
@@ -333,6 +334,16 @@ static func _parse_rarity(text: String) -> CardData.Rarity:
 
 # "Yes" / "Y" / "True" / "1" -> true, "No" / "N" / "False" / "0" -> false.
 # A blank cell gives `default` instead.
+# "All" / "AoE" -> ALL, "Random" -> RANDOM, anything else (or blank) -> SINGLE.
+static func _parse_target(text: String) -> CardData.Target:
+	match text.strip_edges().to_lower():
+		"all", "aoe", "all enemies":
+			return CardData.Target.ALL
+		"random":
+			return CardData.Target.RANDOM
+	return CardData.Target.SINGLE
+
+
 static func _parse_yes_no(text: String, default: bool) -> bool:
 	var value := text.strip_edges().to_lower()
 	if value in ["yes", "y", "true", "1"]:

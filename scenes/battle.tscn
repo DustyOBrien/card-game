@@ -5,7 +5,6 @@
 [ext_resource type="Script" path="res://scripts/play_zone.gd" id="3_play_zone"]
 [ext_resource type="Script" path="res://scripts/dice_tray.gd" id="4_dice_tray"]
 [ext_resource type="Script" path="res://scripts/battle_log.gd" id="5_battle_log"]
-[ext_resource type="Texture2D" path="res://art/enemies/slime.svg" id="6_slime"]
 [ext_resource type="Script" path="res://scripts/health_bar.gd" id="7_health_bar"]
 
 [node name="Battle" type="Control"]
@@ -21,11 +20,6 @@ script = ExtResource("1_battle")
 script = ExtResource("2_combatant")
 display_name = "You"
 max_hp = 25
-
-[node name="Enemy" type="Node" parent="."]
-script = ExtResource("2_combatant")
-display_name = "Slime"
-max_hp = 20
 
 [node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
@@ -69,42 +63,22 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 
-[node name="EnemySprite" type="TextureRect" parent="Margin/Layout/EnemyBox"]
-unique_name_in_owner = true
-custom_minimum_size = Vector2(160, 120)
-layout_mode = 2
-size_flags_horizontal = 4
-texture = ExtResource("6_slime")
-expand_mode = 1
-stretch_mode = 5
-
-[node name="EnemyNameLabel" type="Label" parent="Margin/Layout/EnemyBox"]
+[node name="FightLabel" type="Label" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
 layout_mode = 2
 theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
-theme_override_constants/outline_size = 7
-theme_override_colors/font_color = Color(0.55, 0.95, 0.55, 1)
-theme_override_font_sizes/font_size = 40
-text = "Enemy"
+theme_override_constants/outline_size = 6
+theme_override_colors/font_color = Color(1, 1, 1, 0.85)
+theme_override_font_sizes/font_size = 18
+text = "Fight 1 / 5"
 horizontal_alignment = 1
 
-[node name="EnemyHealthBar" type="Control" parent="Margin/Layout/EnemyBox"]
+[node name="EnemyRow" type="HBoxContainer" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(280, 28)
 layout_mode = 2
-size_flags_horizontal = 4
 mouse_filter = 2
-script = ExtResource("7_health_bar")
-
-[node name="EnemyIntentLabel" type="Label" parent="Margin/Layout/EnemyBox"]
-unique_name_in_owner = true
-layout_mode = 2
-theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
-theme_override_constants/outline_size = 7
-theme_override_colors/font_color = Color(1, 0.6, 0.5, 1)
-theme_override_font_sizes/font_size = 20
-text = "Intends to attack"
-horizontal_alignment = 1
+theme_override_constants/separation = 24
+alignment = 1
 
 [node name="Spacer" type="Control" parent="Margin/Layout"]
 layout_mode = 2

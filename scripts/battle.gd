@@ -6,8 +6,11 @@
 #   1. Player turn: reset energy, Armor saves some leftover Block, draw 5 cards
 #      (their dice roll as they're drawn), play cards.
 #   2. Player clicks "End Turn": the hand goes to the discard pile.
-#   3. Enemy turn: the enemy attacks.
-#   4. Back to step 1, until someone's HP hits 0.
+#   3. Enemy turn: every enemy still standing attacks, left to right.
+#   4. Back to step 1, until you or all the enemies are defeated.
+#
+# A fight can have several enemies (an "encounter", see encounter.gd). Each one
+# is an EnemyView (enemy_view.gd) in the row at the top of the screen.
 extends Control
 
 # preload() loads a file once, when the script loads. These are the
@@ -17,11 +20,9 @@ const SHOP_SCENE := "res://scenes/shop.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
-const ENEMY_MIN_ATTACK := 2
-const ENEMY_MAX_ATTACK := 5
 const DEAL_TIME := 0.2  # Seconds between cards as they're dealt into your hand.
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
-const TARGET_COLOR := Color(1.4, 1.2, 0.8)  # Enemy tint while you aim an attack at it. Above 1 = brighter.
+const DEFAULT_ENEMY := preload("res://enemies/slime.tres")  # If an area has no encounters yet.
 
 # The three card piles. `Array[CardData]` means "a list that only holds CardData".
 var draw_pile: Array[CardData] = []
@@ -38,20 +39,20 @@ var choosing_reroll := false  # true while Gamble waits for you to click a card 
 
 # Sent when you click a card to re-roll (see choose_rerolls()).
 signal reroll_picked(card: CardData)
-var enemy_next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
+var enemy_views: Array[EnemyView] = []  # Every enemy in this fight, left to right (dead ones too).
+var fight_gold := 0  # Gold dropped by the enemies beaten in this fight.
 var game_over := false
 var turn := 0  # Turn number, for the battle log.
 var dragged_card: CardData = null  # The card being dragged right now, if any.
+var dragged_damage := Vector2i.ZERO  # Its damage per enemy, smallest and biggest (worked out once per drag).
 var busy := false  # true while cards are dealt or dice roll, so you can't play two cards at once.
 
 # References to nodes in the scene. $Name finds a direct child by name;
 # %Name finds any node marked as a "unique name" anywhere in this scene.
 @onready var player: Combatant = $Player
-@onready var enemy: Combatant = $Enemy
 
-@onready var enemy_name_label: Label = %EnemyNameLabel
-@onready var enemy_health_bar: HealthBar = %EnemyHealthBar  # health_bar.gd
-@onready var enemy_intent_label: Label = %EnemyIntentLabel
+@onready var fight_label: Label = %FightLabel  # "Plains · Fight 2 / 5"
+@onready var enemy_row: HBoxContainer = %EnemyRow  # The EnemyViews go in here.
 @onready var message_label: Label = %MessageLabel
 @onready var player_hp_label: Label = %PlayerHpLabel
 @onready var player_block_label: Label = %PlayerBlockLabel
@@ -67,28 +68,20 @@ var busy := false  # true while cards are dealt or dice roll, so you can't play 
 @onready var play_zone: PlayZone = %PlayZone
 @onready var play_zone_hint: Control = %PlayZoneHint
 @onready var hint_label: Label = %HintLabel
-@onready var enemy_box: Control = %EnemyBox
 @onready var dice_tray: DiceTray = %DiceTray  # Where the dice tumble (dice_tray.gd).
 @onready var battle_log: BattleLog = %BattleLog  # The list of what happened (battle_log.gd).
 @onready var area_background: TextureRect = %AreaBackground  # The picture of the area you're in.
-@onready var enemy_sprite: TextureRect = %EnemySprite
 
-var idle_tween: Tween  # The enemy's endless "breathing" wobble.
 var exp_bar: ExpBar  # Your class's Exp bar on the victory panel (made in _ready).
 
 
 func _ready() -> void:
 	# Hook up signals: "when X happens, call this function".
 	player.stats_changed.connect(update_ui)
-	enemy.stats_changed.connect(update_ui)
 	player.died.connect(_on_player_died)
-	enemy.died.connect(_on_enemy_died)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	continue_button.pressed.connect(_on_continue_pressed)
 	play_zone.card_dropped.connect(_on_card_played)  # Dropping a card plays it.
-	play_zone.enemy_target = enemy_box  # Attacks have to be dropped on this.
-	# Squash and stretch from the enemy's feet, not its top-left corner.
-	enemy_sprite.pivot_offset = Vector2(enemy_sprite.custom_minimum_size.x / 2, enemy_sprite.custom_minimum_size.y)
 	# The Exp bar on the victory panel, just above the Continue button.
 	exp_bar = ExpBar.new()
 	exp_bar.custom_minimum_size = Vector2(320, 22)
@@ -112,7 +105,7 @@ func start_battle() -> void:
 	player.reset()
 	if GameState.run_hp > 0:
 		player.hp = GameState.run_hp  # Later fights in a run keep the HP you had left.
-	enemy.reset()
+	make_enemies()
 
 	next_attack_bonus = 0
 	next_defense_bonus = 0
@@ -143,13 +136,15 @@ func start_battle() -> void:
 	dice_tray.hide()
 	# The fight happens in the area you picked on the map.
 	area_background.texture = GameState.current_area.background
-	start_enemy_idle()
 
 	turn = 0
 	battle_log.clear()
-	message_label.text = "A %s appears!" % enemy.display_name
-	battle_log.add("%s, fight %d of %d: a %s appears! (%d HP)" % [GameState.current_area.display_name,
-		GameState.current_fight(), GameState.FIGHTS_PER_RUN, enemy.display_name, enemy.max_hp], BattleLog.ENEMY_COLOR)
+	message_label.text = "%s appear%s!" % [enemy_names(), "s" if enemy_views.size() == 1 else ""]
+	var enemy_list: Array[String] = []
+	for view in enemy_views:
+		enemy_list.append("%s (%d HP)" % [view.data.display_name, view.data.max_hp])
+	battle_log.add("%s, fight %d of %d: %s" % [GameState.current_area.display_name,
+		GameState.current_fight(), GameState.FIGHTS_PER_RUN, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
 	battle_log.add("You are the %s (HP %d/%d, %d gold)" % [GameState.character_class.display_name,
 		player.hp, player.max_hp, GameState.gold], BattleLog.PLAYER_COLOR)
 	if not GameState.vanished.is_empty():
@@ -157,15 +152,55 @@ func start_battle() -> void:
 	start_player_turn()
 
 
+# Make the enemies for this fight: the area's encounter for this fight number,
+# one EnemyView each, side by side.
+func make_enemies() -> void:
+	for view in enemy_views:
+		enemy_row.remove_child(view)
+		view.queue_free()
+	enemy_views.clear()
+	fight_gold = 0
+	var encounter: Array[EnemyData] = GameState.current_encounter()
+	if encounter.is_empty():
+		encounter = [DEFAULT_ENEMY]
+	for enemy_data in encounter:
+		var view := EnemyView.new()
+		enemy_row.add_child(view)
+		view.setup(enemy_data)
+		# bind() adds `view` to the call, so we know WHICH enemy died.
+		view.combatant.died.connect(_on_enemy_died.bind(view))
+		view.combatant.stats_changed.connect(update_ui)
+		view.start_idle()
+		enemy_views.append(view)
+	play_zone.enemy_views = enemy_views
+
+
+func living_enemies() -> Array[EnemyView]:
+	return enemy_views.filter(func(view: EnemyView) -> bool: return view.is_alive())
+
+
+# "Slime", "2 Slimelings" or "Slimeling and Slime", for messages.
+func enemy_names() -> String:
+	var names: Array[String] = []
+	for view in enemy_views:
+		names.append(view.data.display_name)
+	if names.size() > 1 and names.count(names[0]) == names.size():
+		return "%d %ss" % [names.size(), names[0]]
+	if names.size() == 1:
+		return "A " + names[0]
+	return ", ".join(names.slice(0, -1)) + " and " + names[-1]
+
+
 func start_player_turn() -> void:
 	var leftover := player.block
 	player.clear_block()  # Your Armor saves up to that much of it (0 if you have none).
 	energy = MAX_ENERGY
-	# Decide now what the enemy will do, so the player can plan around it.
-	enemy_next_attack = randi_range(ENEMY_MIN_ATTACK, ENEMY_MAX_ATTACK)
 	turn += 1
 	battle_log.add_turn(turn)
-	battle_log.add("%s intends to attack for %d" % [enemy.display_name, enemy_next_attack], BattleLog.ENEMY_COLOR)
+	# Decide now what each enemy will do, so the player can plan around it.
+	for view in living_enemies():
+		view.choose_attack()
+		battle_log.add("%s intends to attack for %d" % [view.data.display_name, view.next_attack], BattleLog.ENEMY_COLOR)
 	if player.armor > 0 and leftover > 0:
 		battle_log.add("Your Armor saves %d of your %d leftover Block" % [player.block, leftover])
 	busy = true
@@ -195,26 +230,30 @@ func _on_end_turn_pressed() -> void:
 		start_player_turn()
 
 
+# Every enemy still standing takes its turn, left to right.
 func enemy_turn() -> void:
-	message_label.text = "%s's turn..." % enemy.display_name
+	message_label.text = "Enemy turn..."
 	# Pause for a moment so the player can see what's happening.
 	# create_timer() makes a one-shot timer; we wait for its `timeout` signal.
-	await get_tree().create_timer(0.6).timeout
+	await get_tree().create_timer(0.5).timeout
 
-	var enemy_leftover := enemy.block
-	enemy.clear_block()  # Enemies with Armor keep some of their Block too.
-	if enemy.armor > 0 and enemy_leftover > 0:
-		battle_log.add("%s's Armor saves %d Block" % [enemy.display_name, enemy.block], BattleLog.ENEMY_COLOR)
-	var blocked := mini(player.block, enemy_next_attack)  # Worked out before Block is used up.
-	player.take_damage(enemy_next_attack)
-	var log_line := "%s attacks for %d" % [enemy.display_name, enemy_next_attack]
-	if blocked > 0:
-		log_line += ": %d blocked, you take %d" % [blocked, enemy_next_attack - blocked]
-	battle_log.add(log_line + " (HP %d/%d)" % [player.hp, player.max_hp], BattleLog.ENEMY_COLOR)
-	if game_over:
-		return  # The attack defeated the player.
-	message_label.text = "%s attacks for %d!" % [enemy.display_name, enemy_next_attack]
-	await get_tree().create_timer(0.4).timeout
+	for view in living_enemies():
+		var enemy := view.combatant
+		var leftover := enemy.block
+		enemy.clear_block()  # Enemies with Armor keep some of their Block too.
+		if enemy.armor > 0 and leftover > 0:
+			battle_log.add("%s's Armor saves %d Block" % [enemy.display_name, enemy.block], BattleLog.ENEMY_COLOR)
+		view.show_attack()
+		var blocked := mini(player.block, view.next_attack)  # Worked out before Block is used up.
+		player.take_damage(view.next_attack)
+		var log_line := "%s attacks for %d" % [enemy.display_name, view.next_attack]
+		if blocked > 0:
+			log_line += ": %d blocked, you take %d" % [blocked, view.next_attack - blocked]
+		battle_log.add(log_line + " (HP %d/%d)" % [player.hp, player.max_hp], BattleLog.ENEMY_COLOR)
+		if game_over:
+			return  # The attack defeated the player.
+		message_label.text = "%s attacks for %d!" % [enemy.display_name, view.next_attack]
+		await get_tree().create_timer(0.45).timeout
 
 
 # ---------------------------------------------------------------------------
@@ -268,7 +307,8 @@ func roll_text(card: CardData) -> String:
 
 
 # Called when a card is dropped on the play zone (see play_zone.gd).
-func _on_card_played(card: CardData) -> void:
+# `target` is the enemy it was dropped on, or null.
+func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 	if busy or game_over or card.cost > energy:
 		return
 	if not hand.has(card):
@@ -322,9 +362,11 @@ func _on_card_played(card: CardData) -> void:
 	for hit: int in result.hits:  # Each hit goes through the enemy's Block on its own.
 		if game_over:
 			break  # An earlier hit already won the fight.
-		enemy.take_damage(hit)
-		show_enemy_hurt()
-		battle_log.add("%s takes %d damage (HP %d/%d)" % [enemy.display_name, hit, enemy.hp, enemy.max_hp])
+		for view in pick_targets(card, target):
+			view.combatant.take_damage(hit)
+			view.show_hurt()
+			battle_log.add("%s takes %d damage (HP %d/%d)" % [view.data.display_name, hit,
+				view.combatant.hp, view.combatant.max_hp])
 	if game_over:
 		# The fight is over, so the rest of the card (draws, heals...) doesn't matter.
 		put_away(card, result.keep > 0)  # But a Vanish card still Vanishes.
@@ -384,6 +426,25 @@ func _on_card_played(card: CardData) -> void:
 	put_away(card, result.keep > 0)
 	busy = false
 	refresh_hand()
+
+
+# Who does one hit of this card land on?
+#   AoE (Target ALL): every enemy still standing.
+#   Random: one random enemy still standing.
+#   Single: the enemy you dropped it on. If that one is already defeated (say
+#           by Multi Strike's first hit), the next hit moves on to another one.
+func pick_targets(card: CardData, target: EnemyView) -> Array[EnemyView]:
+	var living := living_enemies()
+	if living.is_empty():
+		return []
+	match card.target:
+		CardData.Target.ALL:
+			return living
+		CardData.Target.RANDOM:
+			return [living.pick_random()]
+	if target == null or not target.is_alive():
+		return [living[0]]
+	return [target]
 
 
 # A played card is done: into the discard pile, or gone for the run if it Vanishes.
@@ -462,17 +523,10 @@ func outcome_range(outcomes: Array[Dictionary], what: String) -> Vector2i:
 	return Vector2i(outcomes[0][what], outcomes[1][what])
 
 
-# The enemy's HP after taking `amount` damage. Enemy Block soaks up damage
-# first, just like in Combatant.take_damage().
-func enemy_hp_after(amount: int) -> int:
-	return maxi(enemy.hp - maxi(amount - enemy.block, 0), 0)
-
-
-# The enemy's HP after this card, as text: "18", or "14–17" before the dice roll.
-func enemy_hp_after_text(card: CardData) -> String:
-	var damage := outcome_range(get_outcomes(card), "damage")
-	# Most damage leaves the LEAST HP, so the order flips.
-	return range_text(Vector2i(enemy_hp_after(damage.y), enemy_hp_after(damage.x)))
+# An enemy's HP after this much damage, as text: "18", or "14–17" before the
+# dice roll. Most damage leaves the LEAST HP, so the order flips.
+func hp_after_text(view: EnemyView, damage: Vector2i) -> String:
+	return range_text(Vector2i(view.hp_after(damage.y), view.hp_after(damage.x)))
 
 
 # Vector2i(5, 5) -> "5",  Vector2i(4, 8) -> "4–8"
@@ -490,8 +544,17 @@ func describe_card(card: CardData) -> String:
 		var damage_text := "Deal %s damage" % range_text(outcome_range(outcomes, "damage"))
 		if card.attack.size() > 1:
 			damage_text += " (%d hits)" % card.attack.size()
+		var living := living_enemies()
+		var damage := outcome_range(outcomes, "damage")
+		if card.target == CardData.Target.ALL:
+			damage_text += " to ALL enemies"
+		elif card.target == CardData.Target.RANDOM and living.size() > 1:
+			damage_text += " to random enemies"
 		lines.append(damage_text)
-		lines.append("%s: %d → %s HP" % [enemy.display_name, enemy.hp, enemy_hp_after_text(card)])
+		if living.size() == 1:
+			lines.append("%s: %d → %s HP" % [living[0].data.display_name, living[0].combatant.hp, hp_after_text(living[0], damage)])
+		elif card.target == CardData.Target.SINGLE and living.size() > 1:
+			lines.append("Drop it on the enemy to hit")
 	if outcomes[1].block > 0:
 		lines.append("Gain %s Block" % range_text(outcome_range(outcomes, "block")))
 	if outcomes[1].heal > 0:
@@ -542,29 +605,61 @@ func _notification(what: int) -> void:
 		var data = get_viewport().gui_get_drag_data()  # What's being dragged.
 		if data is CardData:
 			dragged_card = data
+			# Work out the damage once, not every frame.
+			dragged_damage = outcome_range(get_outcomes(data), "damage")
 			play_zone_hint.visible = true
 			if play_zone.needs_target(data):
-				hint_label.text = "Drop on the %s to attack" % enemy.display_name
+				hint_label.text = "Drop on an enemy to attack it"
+			elif data.deals_damage() and data.target == CardData.Target.ALL:
+				hint_label.text = "Drop here to hit ALL enemies"
+			elif data.deals_damage() and data.target == CardData.Target.RANDOM and living_enemies().size() > 1:
+				hint_label.text = "Drop here to hit random enemies"
 			elif data.deals_damage():
-				hint_label.text = "Drop here to attack the %s" % enemy.display_name
+				hint_label.text = "Drop here to attack the %s" % living_enemies()[0].data.display_name
 			else:
 				hint_label.text = "Drop here to play"
 			update_ui()
 	elif what == NOTIFICATION_DRAG_END:
 		dragged_card = null
 		play_zone_hint.visible = false
-		enemy_box.modulate = Color.WHITE
 		update_ui()
 
 
-# _process() runs every frame. While you drag an attack, light up the enemy
-# when letting go would hit it.
+# _process() runs every frame. While you drag an attack, light up the enemies
+# that letting go right here would hit, and preview the damage on their bars.
 func _process(_delta: float) -> void:
 	if dragged_card != null and dragged_card.deals_damage():
-		var mouse := get_global_mouse_position()
-		var on_target := play_zone.is_over_enemy(mouse) if play_zone.needs_target(dragged_card) \
-				else play_zone.is_over_zone(mouse)
-		enemy_box.modulate = TARGET_COLOR if on_target else Color.WHITE
+		show_enemy_previews(get_global_mouse_position())
+
+
+# Which enemies would this drag hit if you let go at `mouse`? Lights them up
+# and shows the damage on their health bars:
+#   blinking = HP the attack will surely take, striped = HP it might take.
+func show_enemy_previews(mouse: Vector2) -> void:
+	var card := dragged_card
+	var living := living_enemies()
+	var hovered := play_zone.enemy_at(mouse)
+	var in_zone := play_zone.is_over_zone(mouse)
+	for view in enemy_views:
+		var hit := false
+		var maybe := false  # A Random attack MIGHT hit this one.
+		if view.is_alive():
+			match card.target:
+				CardData.Target.ALL:
+					hit = in_zone
+				CardData.Target.RANDOM:
+					hit = in_zone
+					maybe = living.size() > 1
+				_:
+					hit = view == hovered or (living.size() == 1 and in_zone)
+		view.set_targeted(hit)
+		if hit:
+			var low := view.hp_after(dragged_damage.y)
+			var high := view.combatant.hp if maybe else view.hp_after(dragged_damage.x)
+			view.health_bar.set_preview(low, high, "%d → %s" % [view.combatant.hp,
+				range_text(Vector2i(low, high))])
+		else:
+			view.health_bar.clear_preview()
 
 
 # Throw `amount` random cards from the hand into the discard pile.
@@ -606,60 +701,17 @@ func add_card_view(card_data: CardData) -> Card:
 
 
 # ---------------------------------------------------------------------------
-# Enemy animations
-# ---------------------------------------------------------------------------
-# All made with Tweens: "change this value to that, over this many seconds".
-
-# A slow squash and stretch, forever, so the Slime looks alive.
-func start_enemy_idle() -> void:
-	if idle_tween:
-		idle_tween.kill()
-	enemy_sprite.scale = Vector2.ONE
-	enemy_sprite.modulate = Color.WHITE
-	enemy_sprite.rotation = 0.0
-	idle_tween = create_tween().set_loops()  # set_loops() with no number = repeat forever.
-	idle_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)  # Smooth, like breathing.
-	idle_tween.tween_property(enemy_sprite, "scale", Vector2(1.05, 0.94), 0.7)
-	idle_tween.tween_property(enemy_sprite, "scale", Vector2.ONE, 0.7)
-
-
-# Hit! Flash red and wobble.
-func show_enemy_hurt() -> void:
-	if enemy.hp == 0:
-		return  # show_enemy_defeated() is already playing.
-	enemy_sprite.modulate = Color(1, 0.35, 0.35)
-	var tween := create_tween()
-	tween.tween_property(enemy_sprite, "modulate", Color.WHITE, 0.3)
-	# A second tween runs at the same time as the first.
-	var wobble := create_tween()
-	wobble.tween_property(enemy_sprite, "rotation", -0.12, 0.05)
-	wobble.tween_property(enemy_sprite, "rotation", 0.12, 0.08)
-	wobble.tween_property(enemy_sprite, "rotation", 0.0, 0.05)
-
-
-# Defeated: squish flat and fade away.
-func show_enemy_defeated() -> void:
-	if idle_tween:
-		idle_tween.kill()
-	var tween := create_tween().set_parallel()  # set_parallel(): both changes at once.
-	tween.tween_property(enemy_sprite, "scale", Vector2(1.4, 0.1), 0.35).set_ease(Tween.EASE_IN)
-	tween.tween_property(enemy_sprite, "modulate:a", 0.0, 0.35)
-
-
-# ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
-	enemy_name_label.text = "%s  (%d / %d)" % [enemy.display_name, GameState.current_fight(), GameState.FIGHTS_PER_RUN]
-	if game_over and not GameState.run_died:
-		enemy_name_label.text = enemy.display_name  # The count moved on; don't show "6 / 5".
+	if not game_over or GameState.run_died:  # After a win the count has already moved on.
+		fight_label.text = "%s  ·  Fight %d / %d" % [GameState.current_area.display_name,
+			GameState.current_fight(), GameState.FIGHTS_PER_RUN]
 	gold_label.text = "Gold %d" % GameState.gold
-	enemy_health_bar.set_values(enemy.hp, enemy.max_hp, enemy.block)
-	enemy_intent_label.text = "Intends to attack for %d" % enemy_next_attack
-	if enemy.armor > 0:
-		enemy_intent_label.text += "   (Armor %d)" % enemy.armor
+	for view in enemy_views:
+		view.refresh()
 
 	player_hp_label.text = "HP %d / %d" % [player.hp, player.max_hp]
 	player_block_label.text = "Block %d" % player.block
@@ -701,17 +753,15 @@ func show_drag_preview() -> void:
 		label.modulate = Color.WHITE  # Back to normal colours.
 	var card := dragged_card
 	if card == null or not card.deals_damage():
-		enemy_health_bar.clear_preview()
+		for view in enemy_views:
+			view.set_targeted(false)
+			view.health_bar.clear_preview()
 	if card == null:
 		return
 
+	# (The enemies' health bars are previewed in show_enemy_previews(), every
+	# frame, because they depend on where the mouse is.)
 	var outcomes := get_outcomes(card)
-	if card.deals_damage():
-		# The health bar shows the HP this attack would take: for sure (blinking)
-		# and maybe, depending on the dice (striped).
-		var damage := outcome_range(outcomes, "damage")
-		enemy_health_bar.set_preview(enemy_hp_after(damage.y), enemy_hp_after(damage.x),
-			"%d → %s" % [enemy.hp, enemy_hp_after_text(card)])
 	if outcomes[1].heal > 0 or card.lose_hp > 0:
 		var heal := outcome_range(outcomes, "heal")
 		var low := maxi(mini(player.hp + heal.x, player.max_hp) - card.lose_hp, 0)
@@ -728,19 +778,25 @@ func show_drag_preview() -> void:
 		energy_label.modulate = PREVIEW_COLOR
 
 
-func _on_enemy_died() -> void:
-	show_enemy_defeated()
-	# Loot! The Slime drops some gold.
+# One enemy is defeated. It drops some gold; once they're ALL down, you win.
+func _on_enemy_died(view: EnemyView) -> void:
+	view.show_defeated()
 	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX)
 	GameState.gold += loot
 	GameState.run_gold += loot
+	fight_gold += loot
+	battle_log.add("The %s is defeated and drops %d gold (you have %d)" % [view.data.display_name, loot, GameState.gold],
+		BattleLog.TURN_COLOR)
+	if not living_enemies().is_empty():
+		update_ui()
+		return  # Still more to beat.
+
 	GameState.fights_won += 1
 	GameState.run_hp = player.hp  # Carry your HP into the next fight.
-	battle_log.add("The %s drops %d gold (you have %d)" % [enemy.display_name, loot, GameState.gold], BattleLog.TURN_COLOR)
-	var reward := "The %s dropped %d gold!" % [enemy.display_name, loot]
+	var reward := "You found %d gold!" % fight_gold
 
-	# Class Exp: some for every Slime, and a bonus for finishing the run.
-	var exp_gain := GameState.EXP_PER_FIGHT
+	# Class Exp: some for every enemy beaten, and a bonus for finishing the run.
+	var exp_gain := GameState.EXP_PER_ENEMY * enemy_views.size()
 	if GameState.is_run_over():
 		exp_gain += GameState.EXP_PER_RUN
 	# Remember where the bar was, so it can fill up from there.
@@ -750,9 +806,9 @@ func _on_enemy_died() -> void:
 	battle_log.add("You gain %d Exp" % exp_gain, BattleLog.TURN_COLOR)
 
 	if GameState.is_run_over():
-		end_battle("Run complete!", reward + "\nYou beat all %d Slimes." % GameState.FIGHTS_PER_RUN, "Go to the Shop →")
+		end_battle("Run complete!", reward + "\nYou won all %d fights." % GameState.FIGHTS_PER_RUN, "Go to the Shop →")
 	else:
-		end_battle("Victory!", reward, "Next Slime →  (%d / %d)" % [GameState.current_fight(), GameState.FIGHTS_PER_RUN])
+		end_battle("Victory!", reward, "Next Fight →  (%d / %d)" % [GameState.current_fight(), GameState.FIGHTS_PER_RUN])
 	show_exp_gain(before_level, before_progress, exp_gain, level_ups)
 
 
@@ -776,8 +832,8 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 
 func _on_player_died() -> void:
 	GameState.run_died = true
-	exp_bar.hide()  # No Exp for losing (you kept the Exp from the Slimes you beat).
-	end_battle("Defeat...", "You beat %d Slime(s) and earned %d gold this run." % [GameState.fights_won, GameState.run_gold], "Go to the Shop →")
+	exp_bar.hide()  # No Exp for losing (you kept the Exp from the fights you won).
+	end_battle("Defeat...", "You won %d fight(s) and earned %d gold this run." % [GameState.fights_won, GameState.run_gold], "Go to the Shop →")
 
 
 # The button on the end-of-fight panel: the next fight, or the shop once the run is over.

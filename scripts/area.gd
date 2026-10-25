@@ -19,3 +19,6 @@ extends Resource
 # Where the area's button sits on the map, in pixels from the top-left of the
 # 1280 x 720 screen. Its centre goes here.
 @export var map_position: Vector2 = Vector2(640, 360)
+# The fights in this area, in order: fight 1 uses the first encounter, fight 2
+# the second... If there are fewer encounters than fights, the list starts over.
+@export var encounters: Array[Encounter] = []

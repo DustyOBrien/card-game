@@ -113,7 +113,7 @@ func show_effects(data: CardData) -> void:
 	if data.discard > 0:
 		add_icon("discard", str(data.discard))
 	if not data.heal.is_empty():
-		add_icon("heal", data.heal)
+		add_icon("heal", data.get_heal_text())  # e.g. "d3-1" with a Heal Modifier.
 	# Anything without a symbol (Rage, Energy...) still gets a few words,
 	# and so does what a Critical does.
 	var lines := data.get_extra_text()

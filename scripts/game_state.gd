@@ -32,11 +32,11 @@ var current_area: Area
 # fight to the next. Win them all, or die, and you go to the shop. From the
 # shop you start a new run with full HP.
 const FIGHTS_PER_RUN := 5
-const GOLD_MIN := 1  # Gold a Slime drops (a random amount between these).
+const GOLD_MIN := 1  # Gold each enemy drops (a random amount between these).
 const GOLD_MAX := 5
 
 var gold := 0  # Kept between runs (for now: it resets when you close the game).
-var fights_won := 0  # Slimes beaten in this run.
+var fights_won := 0  # Fights won in this run.
 var run_gold := 0  # Gold earned in this run, for the shop's summary.
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
 var run_died := false  # Did the last run end in a defeat?
@@ -67,7 +67,7 @@ var card_exp := {}  # {"Strike": 4}
 # Each class levels up on its own. Leveling up is how a class gets its class
 # cards (see CharacterClass.level_cards and data/class_cards.csv).
 const CLASS_MAX_LEVEL := 25
-const EXP_PER_FIGHT := 10  # For every Slime you beat...
+const EXP_PER_ENEMY := 10  # For every enemy you beat...
 const EXP_PER_RUN := 25  # ...plus this for beating all of them.
 const FIRST_LEVEL_EXP := 100  # Exp from level 1 to level 2...
 const LEVEL_EXP_STEP := 50  # ...and each level after needs this much more.
@@ -226,6 +226,17 @@ func find_card(card_name: String) -> CardData:
 		if card.card_name == card_name:
 			return card
 	return null
+
+
+# The enemies for the current fight: the area's encounters in order (fight 1
+# = the first encounter...), starting over if there are fewer than 5.
+# An empty list means the area has no encounters yet.
+func current_encounter() -> Array[EnemyData]:
+	var enemies: Array[EnemyData] = []
+	var encounters := current_area.encounters
+	if not encounters.is_empty():
+		enemies.assign(encounters[(current_fight() - 1) % encounters.size()].enemies)
+	return enemies
 
 
 # Called when you pick an area on the map: a fresh run there.

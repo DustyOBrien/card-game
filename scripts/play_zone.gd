@@ -4,23 +4,28 @@
 # It's the "drop" half of Godot's drag and drop (card.gd is the "drag" half).
 # It doesn't play the card itself: it just tells the battle with a signal.
 #
-# Every card can be dropped anywhere in the zone. With only one enemy, an
-# attack always knows who to hit. When there are several enemies, turn on
-# ATTACKS_NEED_TARGET so attacks have to be dropped ON the enemy they hit.
+# Most cards can be dropped anywhere in the zone. A single-target attack has
+# to be dropped ON the enemy it should hit, when there's more than one enemy
+# left to choose from. AoE and Random attacks can go anywhere.
 class_name PlayZone
 extends Control
 
-signal card_dropped(card_data: CardData)
+# `target` is the enemy the card was dropped on (null if it wasn't on one).
+signal card_dropped(card_data: CardData, target: EnemyView)
 
-const ATTACKS_NEED_TARGET := false  # true = attacks must be dropped on the enemy.
-const TARGET_MARGIN := 24.0  # Extra pixels around the enemy that still count as "on" it.
+const TARGET_MARGIN := 24.0  # Extra pixels around an enemy that still count as "on" it.
 
-var enemy_target: Control  # The battle sets this to the enemy's box.
+var enemy_views: Array[EnemyView] = []  # The battle fills this in at the start of each fight.
 
 
-# Does this card have to be dropped on the enemy?
+func living_enemies() -> Array[EnemyView]:
+	return enemy_views.filter(func(view: EnemyView) -> bool: return view.is_alive())
+
+
+# Does this card have to be dropped on an enemy? Only single-target attacks,
+# and only when there's a choice to make.
 func needs_target(card: CardData) -> bool:
-	return ATTACKS_NEED_TARGET and card.deals_damage()
+	return card.deals_damage() and card.target == CardData.Target.SINGLE and living_enemies().size() > 1
 
 
 # Is this point on the screen inside the drop zone?
@@ -28,12 +33,12 @@ func is_over_zone(screen_point: Vector2) -> bool:
 	return get_global_rect().has_point(screen_point)
 
 
-# Is this point on the screen over the enemy?
-func is_over_enemy(screen_point: Vector2) -> bool:
-	# get_global_rect() is the box's rectangle on screen. grow() makes it a
-	# bit bigger so you don't have to be pixel-perfect.
-	var target_rect := enemy_target.get_global_rect().grow(TARGET_MARGIN)
-	return target_rect.has_point(screen_point)
+# The living enemy at this point on the screen, or null.
+func enemy_at(screen_point: Vector2) -> EnemyView:
+	for view in living_enemies():
+		if view.has_point(screen_point, TARGET_MARGIN):
+			return view
+	return null
 
 
 # Godot asks this over and over while you drag over the zone:
@@ -44,10 +49,10 @@ func _can_drop_data(at_position: Vector2, data: Variant) -> bool:
 	if needs_target(data):
 		# at_position is measured from this zone's corner; adding our
 		# global_position turns it into a point on the screen.
-		return is_over_enemy(global_position + at_position)
+		return enemy_at(global_position + at_position) != null
 	return true
 
 
 # The card was let go over the zone (and _can_drop_data said yes).
-func _drop_data(_at_position: Vector2, data: Variant) -> void:
-	card_dropped.emit(data)
+func _drop_data(at_position: Vector2, data: Variant) -> void:
+	card_dropped.emit(data, enemy_at(global_position + at_position))

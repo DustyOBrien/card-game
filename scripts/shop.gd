@@ -39,10 +39,10 @@ func _ready() -> void:
 
 	# How the run went.
 	if GameState.run_died:
-		summary_label.text = "You fell after beating %d Slime(s), and earned %d gold." % [
+		summary_label.text = "You fell after winning %d fight(s), and earned %d gold." % [
 			GameState.fights_won, GameState.run_gold]
 	else:
-		summary_label.text = "You beat all %d Slimes and earned %d gold!" % [
+		summary_label.text = "You won all %d fights and earned %d gold!" % [
 			GameState.fights_won, GameState.run_gold]
 
 	for pack in PACKS:

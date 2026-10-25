@@ -1,17 +1,18 @@
-Card,Copies,Name,Cost,School · Card School,Type,Class,Rarity,Unlocked,Description,Attack · Dice · Dice,Attack Modifier,Block · Dice · Dice,Block Modifier,Heal · Dice · Dice,Heal Modifier,Draw,Discard,Draw If Full HP,Next Die Roll Bonus,Next Attack Bonus,Next Defense Bonus,Energy,Lose HP,Critical Effect,Wild,Vanish,Advantage,Disadvantage,Gain Advantage,Reroll
-Strike,2,Strike,1,Neutral,Attack,,Common,TRUE,Deal d3 Damage,d3,0,,0,,0,0,0,FALSE,0,0,0,0,0,+1 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0
-Guard,2,Guard,1,Neutral,Defense,,Common,TRUE,Gain d3 Block,,0,d3,0,,0,0,0,FALSE,0,0,0,0,0,+1 Block,FALSE,FALSE,FALSE,FALSE,FALSE,0
-Multi Strike,1,Multi Strike,1,Neutral,Attack,,Common,TRUE,Deal d3x2 Damage,"d3, d3",0,,0,,0,0,1,FALSE,0,0,0,0,0,Draw 1,FALSE,FALSE,FALSE,FALSE,FALSE,0
-Bandage,2,Bandage,1,Neutral,Ability,,Common,TRUE,Heal d3,,0,,0,d3,0,0,0,FALSE,0,0,0,0,0,+1 Heal,FALSE,TRUE,FALSE,FALSE,FALSE,0
-Master of None,1,Master of None,0,Neutral,Ability,Adventurer,Common,TRUE,add +1 to your next die roll,,0,,0,,0,0,0,FALSE,1,0,0,0,0,-,FALSE,FALSE,FALSE,FALSE,FALSE,0
-Heavy Strike,2,Heavy Strike,2,Neutral,Attack,,Common,TRUE,,d6,0,,0,,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE,FALSE,FALSE,FALSE,0
-Full Guard,2,Full Guard,2,Neutral,Defense,,Common,TRUE,,,0,d6,0,,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE,FALSE,FALSE,FALSE,0
-First Aid,1,First Aid,1,Neutral,Ability,,Uncommon,FALSE,,,0,,0,d6,0,0,0,FALSE,0,0,0,0,0,Dont Vanish,TRUE,TRUE,FALSE,FALSE,FALSE,0
-Energize,1,Energize,1,Neutral,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,0,0,0,1,0,,FALSE,TRUE,FALSE,FALSE,FALSE,0
-Punch,1,Punch,1,Strength,Attack,,Uncommon,FALSE,,d6,0,,0,,0,0,0,FALSE,0,0,0,0,0,+2 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0
-Kick,1,Kick,1,Agility,Attack,,Uncommon,FALSE,,d4,0,,0,,0,0,0,FALSE,0,0,0,0,0,+2 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0
-Pump Up,1,Pump Up,0,Strength,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,d3,0,0,0,0,Draw a Card,TRUE,FALSE,FALSE,FALSE,FALSE,0
-Gamble,1,Gamble,0,Agility,Ability,,Rare,FALSE,"Choose a Non-wild Card in your hand, Re-roll it",,0,,0,,0,0,0,FALSE,0,0,0,0,0,,FALSE,FALSE,FALSE,FALSE,FALSE,1
-Insight,1,Insight,0,Intellect,Ability,,Uncommon,FALSE,Gain ADVANTAGE,,0,,0,,0,0,0,FALSE,0,0,0,0,0,,FALSE,TRUE,FALSE,FALSE,TRUE,0
-Wild Swing,1,Wild Swing,2,Strength,Attack,,Rare,FALSE,This Attack Gains DISADVANTAGE,d12,0,,0,,0,0,1,FALSE,0,0,0,0,0,Gain Advantage,TRUE,FALSE,FALSE,TRUE,FALSE,0
-Tentacles,1,Tentacles,2,Agility,Ability,,Uncommon,TRUE,,d3,-1,d3,-1,d3,-1,0,0,FALSE,0,0,0,0,0,,TRUE,FALSE,FALSE,FALSE,FALSE,0
+Card,Copies,Name,Cost,School · Card School,Type,Class,Rarity,Unlocked,Description,Attack · Dice · Dice,Attack Modifier,Block · Dice · Dice,Block Modifier,Heal · Dice · Dice,Heal Modifier,Draw,Discard,Draw If Full HP,Next Die Roll Bonus,Next Attack Bonus,Next Defense Bonus,Energy,Lose HP,Critical Effect,Wild,Vanish,Advantage,Disadvantage,Gain Advantage,Reroll,Target
+Strike,2,Strike,1,Neutral,Attack,,Common,TRUE,Deal d3 Damage,d3,0,,0,,0,0,0,FALSE,0,0,0,0,0,+1 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Guard,2,Guard,1,Neutral,Defense,,Common,TRUE,Gain d3 Block,,0,d3,0,,0,0,0,FALSE,0,0,0,0,0,+1 Block,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Multi Strike,1,Multi Strike,1,Neutral,Attack,,Common,TRUE,Deal d3x2 Damage,"d3, d3",0,,0,,0,0,1,FALSE,0,0,0,0,0,Draw 1,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Bandage,2,Bandage,1,Neutral,Ability,,Common,TRUE,Heal d3,,0,,0,d3,0,0,0,FALSE,0,0,0,0,0,+1 Heal,FALSE,TRUE,FALSE,FALSE,FALSE,0,Single
+Master of None,1,Master of None,0,Neutral,Ability,Adventurer,Common,TRUE,add +1 to your next die roll,,0,,0,,0,0,0,FALSE,1,0,0,0,0,-,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Heavy Strike,2,Heavy Strike,2,Neutral,Attack,,Common,TRUE,,d6,0,,0,,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
+Full Guard,2,Full Guard,2,Neutral,Defense,,Common,TRUE,,,0,d6,0,,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
+First Aid,1,First Aid,1,Neutral,Ability,,Uncommon,FALSE,,,0,,0,d6,0,0,0,FALSE,0,0,0,0,0,Dont Vanish,TRUE,TRUE,FALSE,FALSE,FALSE,0,Single
+Energize,1,Energize,1,Neutral,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,0,0,0,1,0,,FALSE,TRUE,FALSE,FALSE,FALSE,0,Single
+Punch,1,Punch,1,Strength,Attack,,Uncommon,FALSE,,d6,0,,0,,0,0,0,FALSE,0,0,0,0,0,+2 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Kick,1,Kick,1,Agility,Attack,,Uncommon,FALSE,,d4,0,,0,,0,0,0,FALSE,0,0,0,0,0,+2 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Pump Up,1,Pump Up,0,Strength,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,d3,0,0,0,0,Draw a Card,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
+Gamble,1,Gamble,0,Agility,Ability,,Rare,FALSE,"Choose a Non-wild Card in your hand, Re-roll it",,0,,0,,0,0,0,FALSE,0,0,0,0,0,,FALSE,FALSE,FALSE,FALSE,FALSE,1,Single
+Insight,1,Insight,0,Intellect,Ability,,Uncommon,FALSE,Gain ADVANTAGE,,0,,0,,0,0,0,FALSE,0,0,0,0,0,,FALSE,TRUE,FALSE,FALSE,TRUE,0,Single
+Wild Swing,1,Wild Swing,2,Strength,Attack,,Rare,FALSE,This Attack Gains DISADVANTAGE,d12,0,,0,,0,0,1,FALSE,0,0,0,0,0,Gain Advantage,TRUE,FALSE,FALSE,TRUE,FALSE,0,Single
+Tentacles,1,Tentacles,2,Agility,Ability,,Uncommon,TRUE,,d3,-1,d3,-1,d3,-1,0,0,FALSE,0,0,0,0,0,,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
+Sweep,1,Sweep,1,Neutral,Attack,,Common,TRUE,,d3,0,,0,,0,0,0,FALSE,0,0,0,0,0,+1 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,All

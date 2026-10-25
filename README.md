@@ -17,7 +17,7 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
   spreadsheet: `data/cards.csv` (see [Making cards from the spreadsheet](#making-cards-from-the-spreadsheet))
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
 - 3 **energy** per turn; cards you can't afford are greyed out
-- One enemy (a Slime) with HP that shows what it **intends** to do next turn
+- Fights against one or several enemies (Slimes and Slimelings), each showing what it **intends** to do next turn
 - Block that soaks up damage and disappears at the start of your next turn
 - A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen with Play Again and Change Deck buttons
 
@@ -112,7 +112,7 @@ still used for the tooltip on rows in **Your Deck**.
 In the battle:
 
 - Point at a card in your hand to zoom in on it.
-- **Drag** a card up out of your hand and let go above it to play it. Attacks can be dropped anywhere above your hand too: the enemy lights up to show it will be hit. (With several enemies later, set `ATTACKS_NEED_TARGET` in `play_zone.gd` to make attacks aim at one.) It costs energy (the yellow number in its corner).
+- **Drag** a card up out of your hand and let go above it to play it. With one enemy, attacks can be dropped anywhere above your hand too: the enemy lights up to show it will be hit. With several, drop an attack on the enemy you want to hit (see below). It costs energy (the yellow number in its corner).
 - While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold. Let go over your hand to change your mind.
 - The enemy has a **health bar** (its Block shows as a blue shield on the left). While you drag an attack, the bar shows the damage: the **bright, blinking** part is HP it will surely take, and the **striped** part is HP it might take, depending on the dice (`20 → 14–19`). When a hit lands, the lost part flashes yellow and shrinks away.
 - **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...), and they roll **when you draw them**: cards are dealt one at a time and their little dice tumble right on the card, then stay there so you can plan your turn. A d3 is a triangle and a d6 a square, and a gold die is a Critical (a bonus like Master of None's +1 lights up the dice it turns into crits). When you play the card, the **dice tray** on the left shows the roll with its bonus and total. The dice stay up until your next card or End Turn.
@@ -121,16 +121,20 @@ In the battle:
 - **Advantage / Disadvantage:** roll each die twice and keep the higher (Advantage) or the lower (Disadvantage). The dice tray shows the die that was thrown away, small and faded. Having both cancels out. Insight gives your next roll Advantage; if that card already rolled when you drew it, it rolls a second set when you play it and keeps the higher dice.
 - **Gamble** asks you to click a card in your hand (one that already rolled, not a Wild one) and rolls its dice again.
 - **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
-- **Armor** saves leftover Block, and it's part of your class (the Adventurer has 3). Normally your Block drops to 0 at the start of your turn. With Armor 3, up to 3 of it stays: gain 10 Block, take a 5 hit, and the 5 left over becomes 3 next turn (2 left over would stay 2). Armor never gives you Block on its own. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`. Enemies can have Armor too: click the **Enemy** node in `battle.tscn` and set **Armor** in the Inspector (the Slime has 0).
+- **Armor** saves leftover Block, and it's part of your class (the Adventurer has 3). Normally your Block drops to 0 at the start of your turn. With Armor 3, up to 3 of it stays: gain 10 Block, take a 5 hit, and the 5 left over becomes 3 next turn (2 left over would stay 2). Armor never gives you Block on its own. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`. Enemies can have Armor too: click an enemy in `enemies/` and set **Armor** in the Inspector (the Slime has 0).
 - **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
 - When you're out of energy or cards, click **End Turn**.
-- The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
-- Bring the Slime to 0 HP to win. It drops **1 to 5 gold**.
+- **Several enemies:** a fight can have up to three enemies side by side, each with its own health bar and attack. To hit one with an attack, **drop the card on that enemy** (it lights up). With only one enemy left, you can drop attacks anywhere.
+- **AoE and Random attacks:** a card's **Target** decides who it hits. **AoE** cards (marked *AoE*, like Sweep) hit **every** enemy, and **Random** cards send each hit to a random enemy. Drop them anywhere. While you drag, the health bars of the enemies it would hit show the damage.
+- If a single-target card's first hit defeats its enemy (say Multi Strike), the next hits move on to another enemy.
+- The enemies then attack, left to right, for the numbers shown under their names. Your Block absorbs damage first.
+- Defeat every enemy to win. Each one drops **1 to 5 gold**.
 
-**Runs and the shop.** A run is **5 Slimes in a row**, and your HP carries over
-from one fight to the next (the enemy's name shows `(2 / 5)`). After a win,
-**Next Slime** starts the next fight. Beat all 5, or die, and you go to the
-**Shop**:
+**Runs and the shop.** A run is **5 fights in a row**, and your HP carries over
+from one fight to the next (the top of the screen shows `Plains · Fight 2 / 5`).
+In the Plains, the fights are: a Slime, 2 Slimelings, a Slime, a Slimeling and
+a Slime, then 3 Slimelings. After a win, **Next Fight** starts the next one.
+Win all 5, or die, and you go to the **Shop**:
 
 - It shows how the run went and your gold.
 - Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
@@ -152,12 +156,12 @@ The level counts for every copy, and leveled cards say so ("Common · Lv 2").
 What a level does comes from the level sheets (see "Card levels" below).
 The numbers are `CARD_LEVEL_EXP` in `game_state.gd`.
 
-**Class Exp.** Your class gets **10 Exp** for every Slime and **25** more for
+**Class Exp.** Your class gets **10 Exp** for every enemy you beat and **25** more for
 finishing a run. Level 2 needs 100 Exp, and each level after needs 50 more
 (150, 200...), up to **level 25**. Each class levels up on its own, and leveling
 up is how a class gets its **class cards** (see "Class cards" below). The Exp bar
 fills up on the victory screen and shows on Character Select and in the deck
-builder. The numbers are at the top of `game_state.gd` (`EXP_PER_FIGHT`,
+builder. The numbers are at the top of `game_state.gd` (`EXP_PER_ENEMY`,
 `EXP_PER_RUN`, `FIRST_LEVEL_EXP`, `LEVEL_EXP_STEP`, `CLASS_MAX_LEVEL`).
 
 Gold amounts, the run length and pack prices live at the top of
@@ -203,8 +207,9 @@ card-game/
 │   └── cards.csv        The card spreadsheet (the master list of cards)
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
-├── areas/               One .tres file per area on the map (plains, forest, cave)
-├── art/                 Pictures (SVG): backgrounds/, enemies/ (the Slime), areas/ (map icons), map/
+├── areas/               One .tres file per area on the map (plains, forest, cave), with its fights
+├── enemies/             One .tres file per kind of enemy (slime, slimeling)
+├── art/                 Pictures (SVG): backgrounds/, enemies/ (Slime, Slimeling), areas/ (map icons), map/
 ├── emblems/             The class emblems (SVG pictures)
 ├── icons/               Card symbols: attack, block, draw, discard, heal (SVG)
 ├── themes/              main_theme.tres: how buttons and panels look everywhere
@@ -228,12 +233,12 @@ Nodes are arranged in a **tree**: each node can have children. Open
 ```
 Battle (Control)                 ← battle.gd is attached here
 ├── Player (Node)                ← combatant.gd: your HP and Block
-├── Enemy (Node)                 ← combatant.gd: the Slime's HP and Block
 ├── Background (ColorRect)        ← plain colour, in case an area has no picture
 ├── AreaBackground (TextureRect)  ← the area's picture (the Plains)
 ├── Margin (MarginContainer)
 │   └── Layout (VBoxContainer)   ← stacks everything top to bottom
-│       ├── EnemyBox             ← enemy picture, name, HP, intent
+│       ├── EnemyBox             ← "Plains · Fight 2 / 5", then EnemyRow: one
+│       │                          EnemyView (enemy_view.gd) per enemy, made in code
 │       ├── Spacer
 │       ├── MessageLabel
 │       ├── PlayerBar            ← HP, Block, Energy, piles, End Turn
@@ -380,6 +385,7 @@ Every card has these fields:
 | Energy | Energy you gain when you play it (Adrenaline) |
 | Lose HP | HP you lose when you play it. Block doesn't stop it (Reckless Swing) |
 | Wild | On = its dice roll when you play it, not when you draw it |
+| AoE / Random | Its attack hits every enemy / a random enemy (the Target column) |
 | Vanish | On = gone for the rest of the run once played |
 | Effect | The rules text printed on the card (typed by hand) |
 | Color | The card's background colour |
@@ -440,9 +446,9 @@ catch mistakes and autocomplete for you.
 
 Small changes, roughly easiest first:
 
-1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's `max_hp` by clicking the **Enemy** node in `battle.tscn`.
+1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's HP by clicking `enemies/slime.tres`.
 2. **Change a class's deck rules.** Click `classes/knight.tres` in the FileSystem panel and change the numbers in the Inspector. Or make a new class (see [Adding a class](#adding-a-class)).
-3. **Change the enemy's attacks.** Edit `ENEMY_MIN_ATTACK` / `ENEMY_MAX_ATTACK` at the top of `battle.gd`.
+3. **Change an enemy's attacks.** Click it in `enemies/` and change **Attack Min** / **Attack Max**.
 4. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
 5. **Show HP as a bar** using a `ProgressBar` node instead of a label.
 6. **Give the enemy a second move**, like sometimes gaining Block instead of attacking.
@@ -494,6 +500,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Vanish | TRUE | TRUE = gone for the rest of the run once played. Blank = FALSE |
 | Advantage | TRUE | This card's dice roll with **Advantage**: each die is rolled twice and the higher one is kept |
 | Disadvantage | TRUE | This card's dice roll with **Disadvantage**: each die is rolled twice and the lower one is kept (Wild Swing) |
+| Target | All | Who an attack hits: **Single** (the enemy you drop it on), **All** (or **AoE**: every enemy) or **Random** (each hit picks a random enemy). Blank = Single |
 | Gain Advantage | TRUE | The next card you play that rolls dice gets Advantage (Insight) |
 | Reroll | 1 | After playing it, click this many cards in your hand to roll their dice again. Wild cards can't be picked (Gamble) |
 
@@ -602,10 +609,22 @@ Areas work like classes: one `.tres` file per area in `areas/`, made from
 
 To add a new area, duplicate `areas/forest.tres`. The map draws a button for every area file it finds.
 
-The Slime's picture is `art/enemies/slime.svg`. In battle it "breathes" with a
-looping Tween (`set_loops()`), flashes red when hit, and squishes flat when
-defeated. See `start_enemy_idle()`, `show_enemy_hurt()` and
-`show_enemy_defeated()` in `battle.gd`.
+### Enemies and fights
+
+Each kind of enemy is a `.tres` file in `enemies/` (made from `enemy_data.gd`):
+its **Display Name**, **Max HP**, **Armor**, **Attack Min / Max**, picture
+(**Texture**), **Sprite Size** and name colour. To add one, duplicate
+`enemies/slime.tres` and change it in the Inspector.
+
+Which enemies you meet is set on the **area**. Click `areas/plains.tres` and
+open **Encounters** in the Inspector: it's a list with one entry per fight
+(fight 1 = the first). Each entry has a list of **Enemies**, left to right.
+Drag an enemy file from `enemies/` into a slot to use it. If an area has fewer
+encounters than fights, the list starts over.
+
+The pictures are in `art/enemies/`. In battle each enemy "breathes" with a
+looping Tween (`set_loops()`), hops when it attacks, flashes red when hit, and
+squishes flat when defeated. See `enemy_view.gd`.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 

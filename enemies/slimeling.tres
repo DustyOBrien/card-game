@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="1_enemy"]
+[ext_resource type="Texture2D" path="res://art/enemies/slimeling.svg" id="2_texture"]
+
+[resource]
+script = ExtResource("1_enemy")
+display_name = "Slimeling"
+max_hp = 8
+attack_min = 1
+attack_max = 3
+texture = ExtResource("2_texture")
+sprite_size = Vector2(110, 82)
+name_color = Color(0.6, 0.82, 1, 1)
