@@ -15,12 +15,15 @@ signal clicked(card_data: CardData)
 
 const PREVIEW_LINE_HEIGHT := 26  # Height of one line in the drag preview banner.
 const PREVIEW_SCALE := 0.8  # The dragged card is a bit smaller, so it hides less of the screen.
+const HOVER_SCALE := 1.35  # How big a card in your hand gets when you point at it.
+const HOVER_TIME := 0.1  # Seconds the zoom takes.
 
 var card_data: CardData
 var draggable := false  # true in battle: drag to play instead of clicking.
 # What playing this card would do right now, e.g. "Deal 9 damage".
 # The battle fills this in, because only it knows about bonuses like Rage.
 var preview_text := ""
+var zoom_tween: Tween  # The running hover zoom animation, if any.
 
 # @onready means "fill this in when the node is ready", because child nodes
 # don't exist yet when the script is first created.
@@ -36,6 +39,8 @@ var preview_text := ""
 func _ready() -> void:
 	# `pressed` is a signal every Button has. Connect it to our function.
 	pressed.connect(_on_pressed)
+	mouse_entered.connect(_on_mouse_entered)
+	mouse_exited.connect(_on_mouse_exited)
 
 
 # Called by the battle script right after the card is added to the hand.
@@ -61,6 +66,36 @@ func _on_pressed() -> void:
 
 
 # ---------------------------------------------------------------------------
+# Hover zoom (battle only)
+# ---------------------------------------------------------------------------
+
+func _on_mouse_entered() -> void:
+	# Don't zoom in the deck builder, or while another card is being dragged.
+	if draggable and not get_viewport().gui_is_dragging():
+		set_zoom(HOVER_SCALE, true)
+
+
+func _on_mouse_exited() -> void:
+	set_zoom(1.0, true)
+
+
+func set_zoom(amount: float, animate: bool) -> void:
+	# pivot_offset is the point the card grows from: its bottom middle, so it
+	# grows UP out of your hand instead of off the bottom of the screen.
+	pivot_offset = Vector2(size.x / 2, size.y)
+	# z_index draws the zoomed card on top of its neighbours.
+	z_index = 1 if amount > 1.0 else 0
+	if zoom_tween:
+		zoom_tween.kill()  # Stop a zoom that's still running, so they don't fight.
+	if animate:
+		# A Tween changes a value smoothly over time: here, scale over 0.1 s.
+		zoom_tween = create_tween()
+		zoom_tween.tween_property(self, "scale", Vector2(amount, amount), HOVER_TIME)
+	else:
+		scale = Vector2(amount, amount)
+
+
+# ---------------------------------------------------------------------------
 # Drag and drop
 # ---------------------------------------------------------------------------
 # Godot has drag and drop built in. It takes three functions:
@@ -76,6 +111,7 @@ func _get_drag_data(at_position: Vector2) -> Variant:
 		return null  # Not in battle, or we can't afford it.
 	# The drag preview is what follows the mouse. We build one that looks
 	# like this card, with a banner on top saying what will happen.
+	set_zoom(1.0, false)  # Un-zoom first, so the preview copy isn't zoomed too.
 	set_drag_preview(make_drag_preview(at_position))
 	modulate.a = 0.35  # Fade the card left behind in the hand.
 	return card_data
@@ -100,8 +136,10 @@ func make_drag_preview(at_position: Vector2) -> Control:
 	style.border_color = Color(1, 0.85, 0.3)
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
+	style.content_margin_left = 12
+	style.content_margin_right = 12
 	banner.add_theme_stylebox_override("panel", style)
-	banner.custom_minimum_size = Vector2(size.x * PREVIEW_SCALE + 40, banner_height)
+	banner.custom_minimum_size = Vector2(0, banner_height)  # As wide as its text.
 	var banner_label := Label.new()
 	banner_label.text = preview_text
 	banner_label.add_theme_font_size_override("font_size", 18)
@@ -117,7 +155,8 @@ func make_drag_preview(at_position: Vector2) -> Control:
 	copy.scale = Vector2(PREVIEW_SCALE, PREVIEW_SCALE)
 	holder.add_child(copy)
 
-	# Keep the card under the mouse where you grabbed it, banner just above.
+	# Keep the card under the mouse where you grabbed it, with the banner to
+	# its right (above would go off the screen when you aim at the enemy).
 	copy.position = -at_position * PREVIEW_SCALE
-	banner.position = copy.position - Vector2(20, banner_height + 6)
+	banner.position = copy.position + Vector2(size.x * PREVIEW_SCALE + 8, 0)
 	return holder

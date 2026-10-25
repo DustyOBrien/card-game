@@ -77,7 +77,8 @@ Then you're on the **deck builder**, holding your class's starter deck:
 
 In the battle:
 
-- **Drag** a card up out of your hand and let go above it to play it. It costs energy (the yellow number in its corner).
+- Point at a card in your hand to zoom in on it.
+- **Drag** a card up out of your hand and let go above it to play it. Cards that deal damage have to be dropped **on the enemy** (it lights up when you're on target). It costs energy (the yellow number in its corner).
 - While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 45 → 36`. Let go over your hand to change your mind.
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
@@ -202,7 +203,7 @@ Godot has drag and drop built into every Control. It's three functions:
 | Function | Lives on | Godot asks |
 |---|---|---|
 | `_get_drag_data()` | the thing you drag (`card.gd`) | "What are you carrying?" Return `null` to refuse (e.g. you can't afford the card). |
-| `_can_drop_data()` | the place you drop (`play_zone.gd`) | "Would you take this, if it were dropped right here?" |
+| `_can_drop_data()` | the place you drop (`play_zone.gd`) | "Would you take this, if it were dropped right here?" Cards that deal damage only say yes over the enemy. |
 | `_drop_data()` | the place you drop (`play_zone.gd`) | "Here it is!" |
 
 `set_drag_preview()` picks what follows the mouse. Ours is a copy of the card

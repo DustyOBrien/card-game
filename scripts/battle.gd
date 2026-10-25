@@ -19,6 +19,7 @@ const MAX_ENERGY := 3  # Energy you get each turn.
 const ENEMY_MIN_ATTACK := 6
 const ENEMY_MAX_ATTACK := 11
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
+const TARGET_COLOR := Color(1.4, 1.2, 0.8)  # Enemy tint while you aim an attack at it. Above 1 = brighter.
 
 # The three card piles. `Array[CardData]` means "a list that only holds CardData".
 var draw_pile: Array[CardData] = []
@@ -53,6 +54,8 @@ var dragged_card: CardData = null  # The card being dragged right now, if any.
 @onready var restart_button: Button = %RestartButton
 @onready var play_zone: PlayZone = %PlayZone
 @onready var play_zone_hint: Control = %PlayZoneHint
+@onready var hint_label: Label = %HintLabel
+@onready var enemy_box: Control = %EnemyBox
 @onready var change_deck_button: Button = %ChangeDeckButton
 
 
@@ -66,6 +69,7 @@ func _ready() -> void:
 	restart_button.pressed.connect(start_battle)
 	change_deck_button.pressed.connect(_on_change_deck_pressed)
 	play_zone.card_dropped.connect(_on_card_played)  # Dropping a card plays it.
+	play_zone.enemy_target = enemy_box  # Attacks have to be dropped on this.
 
 	start_battle()
 
@@ -260,11 +264,23 @@ func _notification(what: int) -> void:
 		if data is CardData:
 			dragged_card = data
 			play_zone_hint.visible = true
+			if play_zone.needs_target(data):
+				hint_label.text = "Drop on the %s to attack" % enemy.display_name
+			else:
+				hint_label.text = "Drop here to play"
 			update_ui()
 	elif what == NOTIFICATION_DRAG_END:
 		dragged_card = null
 		play_zone_hint.visible = false
+		enemy_box.modulate = Color.WHITE
 		update_ui()
+
+
+# _process() runs every frame. While you aim an attack, light up the enemy
+# when the mouse is over it, so you know letting go will hit.
+func _process(_delta: float) -> void:
+	if dragged_card != null and play_zone.needs_target(dragged_card):
+		enemy_box.modulate = TARGET_COLOR if play_zone.is_over_enemy(get_global_mouse_position()) else Color.WHITE
 
 
 # Throw `amount` random cards from the hand into the discard pile.
