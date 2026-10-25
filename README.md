@@ -538,7 +538,7 @@ One row per card a class gets when it reaches a level:
 - **Copies** is optional (1 if blank). Copies past 3 turn into card Exp.
 - Give class cards a **Class** in `cards.csv` (e.g. `Knight`) if only that class
   should use them, and **Unlocked = FALSE** so they don't start in the collection.
-  Cards in this sheet never come out of booster packs (other class-only cards, like Master of None, can).
+  Class cards never come out of booster packs.
 
 The importer saves each class's list into its file in `classes/` (look for
 **Level Cards** in the Inspector).
