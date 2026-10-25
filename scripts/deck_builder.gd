@@ -7,15 +7,15 @@
 #     Click one to add it to your deck.
 #   - Right: your DECK, with some stats (size, schools, costs, types).
 #     Click a row to take one copy back out.
-#   - "Start Battle" goes to the battle, which reads the deck from GameState
-#     (see game_state.gd).
+#   - "To the Map" goes to the map, where you pick an area to fight in. The
+#     battle then reads the deck from GameState (see game_state.gd).
 #
 # Most of the screen is built in code, from small helper functions further
 # down, because it changes every time you add or remove a card.
 extends Control
 
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const BATTLE_SCENE := "res://scenes/battle.tscn"
+const MAP_SCENE := "res://scenes/map.tscn"
 const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
 
 const ALL_SCHOOLS := -1  # Filter value meaning "show every card".
@@ -399,10 +399,9 @@ func _on_default_pressed() -> void:
 
 
 func _on_start_pressed() -> void:
-	# change_scene_to_file() throws away this whole scene and loads the battle.
+	# change_scene_to_file() throws away this whole scene and loads the map.
 	# The deck survives because it lives in GameState, not in this scene.
-	GameState.start_run()  # Fight 1 of a new run, at full HP.
-	get_tree().change_scene_to_file(BATTLE_SCENE)
+	get_tree().change_scene_to_file(MAP_SCENE)
 
 
 # Back to Character Select to pick a different class.

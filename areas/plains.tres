@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Area" format=3]
+
+[ext_resource type="Script" path="res://scripts/area.gd" id="1_area"]
+[ext_resource type="Texture2D" path="res://art/areas/plains.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://art/backgrounds/plains.svg" id="3_background"]
+
+[resource]
+script = ExtResource("1_area")
+display_name = "Plains"
+description = "Rolling grassland. Slimes bounce around in the sun."
+unlocked = true
+sort_order = 0
+icon = ExtResource("2_icon")
+background = ExtResource("3_background")
+map_position = Vector2(260, 520)

@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- The world map: an old parchment with the three areas and the road between them.
+       The area buttons are placed on top by map.gd, at each area's map_position. -->
+  <defs>
+    <radialGradient id="paper" cx="0.5" cy="0.5" r="0.75">
+      <stop offset="0" stop-color="#ecdcb2"/>
+      <stop offset="0.75" stop-color="#d9c08a"/>
+      <stop offset="1" stop-color="#9c7f4e"/>
+    </radialGradient>
+  </defs>
+  <rect width="1280" height="720" fill="#2a2018"/>
+  <rect x="16" y="16" width="1248" height="688" rx="18" fill="url(#paper)"/>
+
+  <!-- Plains: open grassland, bottom left -->
+  <path d="M60 470 C120 400 260 380 380 410 C470 432 500 520 460 600 C420 670 230 680 120 650 C60 630 40 540 60 470 Z"
+        fill="#a9c97a" opacity="0.85"/>
+  <g stroke="#6f9447" stroke-width="3" stroke-linecap="round">
+    <path d="M140 470 l-4 -10 M146 470 l0 -12 M152 470 l4 -10"/>
+    <path d="M380 470 l-4 -10 M386 470 l0 -12 M392 470 l4 -10"/>
+    <path d="M200 620 l-4 -10 M206 620 l0 -12 M212 620 l4 -10"/>
+    <path d="M400 580 l-4 -10 M406 580 l0 -12 M412 580 l4 -10"/>
+  </g>
+
+  <!-- Forest: the middle -->
+  <path d="M480 330 C540 260 700 250 790 290 C860 322 860 420 800 470 C730 520 560 515 500 470 C450 430 440 370 480 330 Z"
+        fill="#6f9a5c" opacity="0.85"/>
+  <g fill="#3f6b3a" stroke="#2c4d29" stroke-width="2">
+    <path d="M520 360 l16 -36 l16 36 Z"/>
+    <path d="M560 310 l14 -32 l14 32 Z"/>
+    <path d="M760 330 l16 -36 l16 36 Z"/>
+    <path d="M790 420 l14 -32 l14 32 Z"/>
+    <path d="M540 460 l16 -36 l16 36 Z"/>
+    <path d="M720 480 l14 -32 l14 32 Z"/>
+    <path d="M700 290 l12 -28 l12 28 Z"/>
+  </g>
+
+  <!-- Mountains with the Cave: top right -->
+  <g stroke="#5c5248" stroke-width="3" stroke-linejoin="round">
+    <path d="M860 300 L940 140 L1010 260 L1060 170 L1150 320 Z" fill="#a39684"/>
+    <path d="M1060 330 L1140 190 L1220 330 Z" fill="#8f826f"/>
+    <path d="M900 330 L960 230 L1020 330 Z" fill="#b5a892"/>
+  </g>
+  <g fill="#f4efe4">
+    <path d="M940 140 L922 176 L940 168 L956 178 Z"/>
+    <path d="M1060 170 L1046 196 L1062 190 L1074 198 Z"/>
+    <path d="M1140 190 L1126 214 L1142 208 L1154 216 Z"/>
+  </g>
+
+  <!-- The road: Plains -> Forest -> Cave -->
+  <path d="M260 520 C360 500 420 440 520 420 C580 408 610 395 640 380 C720 340 780 330 860 300 C920 278 960 250 1010 230"
+        fill="none" stroke="#7a5a32" stroke-width="7" stroke-linecap="round" stroke-dasharray="2 18" opacity="0.9"/>
+
+  <!-- Compass -->
+  <g transform="translate(150 150)" opacity="0.75">
+    <circle r="46" fill="none" stroke="#7a5a32" stroke-width="3"/>
+    <path d="M0 -40 L9 0 L0 40 L-9 0 Z" fill="#7a5a32"/>
+    <path d="M-40 0 L0 -9 L40 0 L0 9 Z" fill="#a8885a"/>
+    <text x="0" y="-52" font-family="serif" font-size="22" font-weight="bold" fill="#7a5a32" text-anchor="middle">N</text>
+  </g>
+</svg>

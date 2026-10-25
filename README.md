@@ -83,7 +83,12 @@ Then you're on the **deck builder**, holding your class's starter deck:
 - The buttons at the top right (**All**, **Strength**...) show one school at a time.
 - **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
-- When the deck is big enough, click **Start Battle**. **Change Class** goes back to Character Select.
+- When the deck is big enough, click **To the Map**. **Change Class** goes back to Character Select.
+
+**The map.** Pick where your run happens. The **Plains** are open; the
+**Forest** and **Cave** are locked for now (greyed out with a padlock). Point
+at an area to read about it, and click the Plains to start a run there.
+**Edit Deck** goes back to the deck builder.
 
 Cards show **symbols** instead of rules text, so you can read them at a glance:
 
@@ -121,7 +126,7 @@ from one fight to the next (the enemy's name shows `(2 / 5)`). After a win,
 
 - It shows how the run went and your gold.
 - Buy **booster packs** (Neutral 3 gold, school packs 5 gold). They don't do anything yet: they're counted under "Your packs", ready for a later update.
-- **Start Next Run** begins a new run at full HP. Your unspent gold is kept (until you close the game).
+- **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept (until you close the game).
 - **Edit Deck** goes back to the deck builder first.
 
 Gold amounts, the run length and pack prices live at the top of
@@ -137,6 +142,7 @@ card-game/
 ├── scenes/
 │   ├── character_select.tscn The first screen: pick a class
 │   ├── deck_builder.tscn Pick the cards for your deck
+│   ├── map.tscn         Pick an area (Plains, Forest, Cave) to start a run
 │   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
 │   ├── shop.tscn        Between runs: spend gold on booster packs
 │   └── card.tscn        What ONE card looks like
@@ -144,6 +150,8 @@ card-game/
 │   ├── game_state.gd    Autoload: keeps your class, deck, gold and run while scenes change
 │   ├── character_class.gd Defines what a class is (its deck rules)
 │   ├── character_select.gd Shows one panel per class
+│   ├── area.gd          Defines what an area is (name, picture, background, map spot)
+│   ├── map.gd           Puts a button on the map for every area
 │   ├── deck_builder.gd  Adding and removing cards, filters, deck stats
 │   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data; clicked (deck builder) or dragged (battle)
@@ -163,6 +171,8 @@ card-game/
 │   └── cards.csv        The card spreadsheet (the master list of cards)
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
+├── areas/               One .tres file per area on the map (plains, forest, cave)
+├── art/                 Pictures (SVG): backgrounds/, enemies/ (the Slime), areas/ (map icons), map/
 ├── emblems/             The class emblems (SVG pictures)
 ├── icons/               Card symbols: attack, block, draw, discard, heal (SVG)
 ├── themes/              main_theme.tres: how buttons and panels look everywhere
@@ -187,7 +197,8 @@ Nodes are arranged in a **tree**: each node can have children. Open
 Battle (Control)                 ← battle.gd is attached here
 ├── Player (Node)                ← combatant.gd: your HP and Block
 ├── Enemy (Node)                 ← combatant.gd: the Slime's HP and Block
-├── Background (ColorRect)
+├── Background (ColorRect)        ← plain colour, in case an area has no picture
+├── AreaBackground (TextureRect)  ← the area's picture (the Plains)
 ├── Margin (MarginContainer)
 │   └── Layout (VBoxContainer)   ← stacks everything top to bottom
 │       ├── EnemyBox             ← enemy picture, name, HP, intent
@@ -300,7 +311,7 @@ Double-click it in the FileSystem panel to open the **Theme editor** and try
 changing a colour: every screen updates at once.
 
 A theme can also have **variations**. `PrimaryButton` is a gold version of
-`Button`; the deck builder's **Start Battle** uses it by setting
+`Button`; the deck builder's **To the Map** button uses it by setting
 `theme_type_variation` to `PrimaryButton` in the Inspector.
 
 ### Bonus idea: Resources and card data
@@ -510,6 +521,23 @@ made from `character_class.gd`. To add one, you don't write any code:
 3. Press F5. The new class is on Character Select, and its rules text is written for you from those numbers.
 
 To give the new class its own cards, type its **Display Name** in the **Class** column of the spreadsheet and re-import.
+
+## Adding an area
+
+Areas work like classes: one `.tres` file per area in `areas/`, made from
+`area.gd`. To change one, click it and edit it in the **Inspector**:
+
+- **Unlocked**: tick it to open the Forest or the Cave.
+- **Icon**: the round picture on the map. **Background**: the picture behind the fight (the Forest and Cave don't have one yet, so they'd use the plain dark colour).
+- **Map Position**: where its centre sits on the map, in pixels (the screen is 1280 × 720).
+- **Sort Order**: its place along the road.
+
+To add a new area, duplicate `areas/forest.tres`. The map draws a button for every area file it finds.
+
+The Slime's picture is `art/enemies/slime.svg`. In battle it "breathes" with a
+looping Tween (`set_loops()`), flashes red when hit, and squishes flat when
+defeated. See `start_enemy_idle()`, `show_enemy_hurt()` and
+`show_enemy_defeated()` in `battle.gd`.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 

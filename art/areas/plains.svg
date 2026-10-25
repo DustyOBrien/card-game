@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Plains: a sun over a grassy hill. -->
+  <circle cx="64" cy="64" r="60" fill="#9fd0ef" stroke="#3b2c1a" stroke-width="5"/>
+  <circle cx="84" cy="44" r="14" fill="#fff0a8"/>
+  <path d="M8 84 C30 66 56 70 72 78 C88 86 104 76 120 74 L120 90 C110 114 18 114 8 90 Z" fill="#6aa548"/>
+  <path d="M4 64 a60 60 0 0 0 120 0" fill="none"/>
+  <g stroke="#3d6e2a" stroke-width="3" stroke-linecap="round">
+    <path d="M40 96 l-3 -8 M44 96 l0 -9 M48 96 l3 -8"/>
+    <path d="M80 98 l-3 -8 M84 98 l0 -9 M88 98 l3 -8"/>
+  </g>
+</svg>

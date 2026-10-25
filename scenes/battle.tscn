@@ -5,6 +5,7 @@
 [ext_resource type="Script" path="res://scripts/play_zone.gd" id="3_play_zone"]
 [ext_resource type="Script" path="res://scripts/dice_tray.gd" id="4_dice_tray"]
 [ext_resource type="Script" path="res://scripts/battle_log.gd" id="5_battle_log"]
+[ext_resource type="Texture2D" path="res://art/enemies/slime.svg" id="6_slime"]
 
 [node name="Battle" type="Control"]
 layout_mode = 3
@@ -34,6 +35,18 @@ grow_horizontal = 2
 grow_vertical = 2
 color = Color(0.12, 0.11, 0.16, 1)
 
+[node name="AreaBackground" type="TextureRect" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+expand_mode = 1
+stretch_mode = 6
+
 [node name="Margin" type="MarginContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
@@ -55,15 +68,20 @@ unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 4
 
-[node name="EnemySprite" type="ColorRect" parent="Margin/Layout/EnemyBox"]
-custom_minimum_size = Vector2(160, 110)
+[node name="EnemySprite" type="TextureRect" parent="Margin/Layout/EnemyBox"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(160, 120)
 layout_mode = 2
 size_flags_horizontal = 4
-color = Color(0.35, 0.75, 0.4, 1)
+texture = ExtResource("6_slime")
+expand_mode = 1
+stretch_mode = 5
 
 [node name="EnemyNameLabel" type="Label" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_colors/font_color = Color(0.55, 0.95, 0.55, 1)
 theme_override_font_sizes/font_size = 40
 text = "Enemy"
@@ -72,6 +90,8 @@ horizontal_alignment = 1
 [node name="EnemyHpLabel" type="Label" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_font_sizes/font_size = 24
 text = "HP 0 / 0"
 horizontal_alignment = 1
@@ -79,6 +99,8 @@ horizontal_alignment = 1
 [node name="EnemyIntentLabel" type="Label" parent="Margin/Layout/EnemyBox"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_colors/font_color = Color(1, 0.6, 0.5, 1)
 theme_override_font_sizes/font_size = 20
 text = "Intends to attack"
@@ -91,6 +113,8 @@ size_flags_vertical = 3
 [node name="MessageLabel" type="Label" parent="Margin/Layout"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_font_sizes/font_size = 22
 horizontal_alignment = 1
 
@@ -101,6 +125,8 @@ theme_override_constants/separation = 32
 [node name="PlayerHpLabel" type="Label" parent="Margin/Layout/PlayerBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_colors/font_color = Color(1, 0.5, 0.5, 1)
 theme_override_font_sizes/font_size = 24
 text = "HP 0 / 0"
@@ -108,6 +134,8 @@ text = "HP 0 / 0"
 [node name="PlayerBlockLabel" type="Label" parent="Margin/Layout/PlayerBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_colors/font_color = Color(0.6, 0.75, 1, 1)
 theme_override_font_sizes/font_size = 24
 text = "Block 0"
@@ -115,6 +143,8 @@ text = "Block 0"
 [node name="EnergyLabel" type="Label" parent="Margin/Layout/PlayerBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_colors/font_color = Color(1, 0.85, 0.3, 1)
 theme_override_font_sizes/font_size = 24
 text = "Energy 0 / 0"
@@ -122,6 +152,8 @@ text = "Energy 0 / 0"
 [node name="GoldLabel" type="Label" parent="Margin/Layout/PlayerBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 theme_override_colors/font_color = Color(1, 0.8, 0.3, 1)
 theme_override_font_sizes/font_size = 22
 text = "Gold 0"
@@ -129,6 +161,8 @@ text = "Gold 0"
 [node name="PilesLabel" type="Label" parent="Margin/Layout/PlayerBar"]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_colors/font_outline_color = Color(0.05, 0.05, 0.08, 1)
+theme_override_constants/outline_size = 7
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 18
 text = "Draw pile 0   Discard 0"

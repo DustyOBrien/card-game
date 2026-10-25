@@ -1,13 +1,13 @@
 # shop.gd
 #
 # The shop you visit at the end of every run (scenes/shop.tscn).
-# Spend gold on booster packs, then start the next run.
+# Spend gold on booster packs, then go to the map for the next run.
 #
 # The packs don't do anything yet: buying one just adds it to
 # GameState.booster_packs, so we can open them in a later update.
 extends Control
 
-const BATTLE_SCENE := "res://scenes/battle.tscn"
+const MAP_SCENE := "res://scenes/map.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 
 # Every pack the shop sells. To add a pack or change a price, edit this list.
@@ -137,5 +137,4 @@ func _on_edit_deck_pressed() -> void:
 
 
 func _on_next_run_pressed() -> void:
-	GameState.start_run()  # Full HP, fight 1 of 5. Your gold stays.
-	get_tree().change_scene_to_file(BATTLE_SCENE)
+	get_tree().change_scene_to_file(MAP_SCENE)  # Pick where the next run happens.

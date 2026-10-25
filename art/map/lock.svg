@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A padlock, for locked areas. -->
+  <path d="M20 30 L20 20 C20 12 26 7 32 7 C38 7 44 12 44 20 L44 30" fill="none" stroke="#2a2420" stroke-width="7"/>
+  <path d="M20 30 L20 20 C20 12 26 7 32 7 C38 7 44 12 44 20 L44 30" fill="none" stroke="#b9b3aa" stroke-width="3"/>
+  <rect x="12" y="28" width="40" height="30" rx="5" fill="#d9a83a" stroke="#2a2420" stroke-width="3"/>
+  <circle cx="32" cy="40" r="4" fill="#2a2420"/>
+  <rect x="30" y="41" width="4" height="9" fill="#2a2420"/>
+</svg>

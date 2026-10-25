@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Forest: pine trees. -->
+  <circle cx="64" cy="64" r="60" fill="#b9d8b0" stroke="#3b2c1a" stroke-width="5"/>
+  <path d="M10 92 C40 84 88 84 118 92 C108 114 20 114 10 92 Z" fill="#4f7d40"/>
+  <g stroke="#1f3b1d" stroke-width="3" stroke-linejoin="round">
+    <path d="M44 92 L44 82 M84 92 L84 80" stroke="#5a3d22" stroke-width="6"/>
+    <path d="M44 22 L22 82 L66 82 Z" fill="#2f6b34"/>
+    <path d="M84 30 L62 80 L106 80 Z" fill="#3b7d3f"/>
+  </g>
+</svg>

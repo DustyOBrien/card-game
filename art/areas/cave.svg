@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Cave: a dark opening in a rocky hill. -->
+  <circle cx="64" cy="64" r="60" fill="#c9c2b6" stroke="#3b2c1a" stroke-width="5"/>
+  <path d="M8 96 L30 46 L52 58 L70 30 L98 52 L120 96 C104 116 24 116 8 96 Z"
+        fill="#8a7d6c" stroke="#4a4036" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M42 100 C42 72 52 62 64 62 C76 62 86 72 86 100 Z" fill="#1c1820"/>
+  <circle cx="58" cy="82" r="2.5" fill="#f2d36b"/>
+  <circle cx="70" cy="82" r="2.5" fill="#f2d36b"/>
+</svg>

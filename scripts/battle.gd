@@ -65,6 +65,10 @@ var busy := false  # true while cards are dealt or dice roll, so you can't play 
 @onready var enemy_box: Control = %EnemyBox
 @onready var dice_tray: DiceTray = %DiceTray  # Where the dice tumble (dice_tray.gd).
 @onready var battle_log: BattleLog = %BattleLog  # The list of what happened (battle_log.gd).
+@onready var area_background: TextureRect = %AreaBackground  # The picture of the area you're in.
+@onready var enemy_sprite: TextureRect = %EnemySprite
+
+var idle_tween: Tween  # The enemy's endless "breathing" wobble.
 
 
 func _ready() -> void:
@@ -77,6 +81,8 @@ func _ready() -> void:
 	continue_button.pressed.connect(_on_continue_pressed)
 	play_zone.card_dropped.connect(_on_card_played)  # Dropping a card plays it.
 	play_zone.enemy_target = enemy_box  # Attacks have to be dropped on this.
+	# Squash and stretch from the enemy's feet, not its top-left corner.
+	enemy_sprite.pivot_offset = Vector2(enemy_sprite.custom_minimum_size.x / 2, enemy_sprite.custom_minimum_size.y)
 
 	start_battle()
 
@@ -120,12 +126,15 @@ func start_battle() -> void:
 		draw_pile.append(card)
 	draw_pile.shuffle()
 	dice_tray.hide()
+	# The fight happens in the area you picked on the map.
+	area_background.texture = GameState.current_area.background
+	start_enemy_idle()
 
 	turn = 0
 	battle_log.clear()
 	message_label.text = "A %s appears!" % enemy.display_name
-	battle_log.add("Fight %d of %d: a %s appears! (%d HP)" % [GameState.current_fight(),
-		GameState.FIGHTS_PER_RUN, enemy.display_name, enemy.max_hp], BattleLog.ENEMY_COLOR)
+	battle_log.add("%s, fight %d of %d: a %s appears! (%d HP)" % [GameState.current_area.display_name,
+		GameState.current_fight(), GameState.FIGHTS_PER_RUN, enemy.display_name, enemy.max_hp], BattleLog.ENEMY_COLOR)
 	battle_log.add("You are the %s (HP %d/%d, %d gold)" % [GameState.character_class.display_name,
 		player.hp, player.max_hp, GameState.gold], BattleLog.PLAYER_COLOR)
 	if not GameState.vanished.is_empty():
@@ -279,6 +288,7 @@ func _on_card_played(card: CardData) -> void:
 		if game_over:
 			break  # An earlier hit already won the fight.
 		enemy.take_damage(hit)
+		show_enemy_hurt()
 		battle_log.add("%s takes %d damage (HP %d/%d)" % [enemy.display_name, hit, enemy.hp, enemy.max_hp])
 	if game_over:
 		# The fight is over, so the rest of the card (draws, heals...) doesn't matter.
@@ -507,6 +517,47 @@ func add_card_view(card_data: CardData) -> Card:
 
 
 # ---------------------------------------------------------------------------
+# Enemy animations
+# ---------------------------------------------------------------------------
+# All made with Tweens: "change this value to that, over this many seconds".
+
+# A slow squash and stretch, forever, so the Slime looks alive.
+func start_enemy_idle() -> void:
+	if idle_tween:
+		idle_tween.kill()
+	enemy_sprite.scale = Vector2.ONE
+	enemy_sprite.modulate = Color.WHITE
+	enemy_sprite.rotation = 0.0
+	idle_tween = create_tween().set_loops()  # set_loops() with no number = repeat forever.
+	idle_tween.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_IN_OUT)  # Smooth, like breathing.
+	idle_tween.tween_property(enemy_sprite, "scale", Vector2(1.05, 0.94), 0.7)
+	idle_tween.tween_property(enemy_sprite, "scale", Vector2.ONE, 0.7)
+
+
+# Hit! Flash red and wobble.
+func show_enemy_hurt() -> void:
+	if enemy.hp == 0:
+		return  # show_enemy_defeated() is already playing.
+	enemy_sprite.modulate = Color(1, 0.35, 0.35)
+	var tween := create_tween()
+	tween.tween_property(enemy_sprite, "modulate", Color.WHITE, 0.3)
+	# A second tween runs at the same time as the first.
+	var wobble := create_tween()
+	wobble.tween_property(enemy_sprite, "rotation", -0.12, 0.05)
+	wobble.tween_property(enemy_sprite, "rotation", 0.12, 0.08)
+	wobble.tween_property(enemy_sprite, "rotation", 0.0, 0.05)
+
+
+# Defeated: squish flat and fade away.
+func show_enemy_defeated() -> void:
+	if idle_tween:
+		idle_tween.kill()
+	var tween := create_tween().set_parallel()  # set_parallel(): both changes at once.
+	tween.tween_property(enemy_sprite, "scale", Vector2(1.4, 0.1), 0.35).set_ease(Tween.EASE_IN)
+	tween.tween_property(enemy_sprite, "modulate:a", 0.0, 0.35)
+
+
+# ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
 
@@ -580,6 +631,7 @@ func show_drag_preview() -> void:
 
 
 func _on_enemy_died() -> void:
+	show_enemy_defeated()
 	# Loot! The Slime drops some gold.
 	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX)
 	GameState.gold += loot

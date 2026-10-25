@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Area" format=3]
+
+[ext_resource type="Script" path="res://scripts/area.gd" id="1_area"]
+[ext_resource type="Texture2D" path="res://art/areas/forest.svg" id="2_icon"]
+
+[resource]
+script = ExtResource("1_area")
+display_name = "Forest"
+description = "A dark, tangled wood. Something rustles in the trees."
+sort_order = 1
+icon = ExtResource("2_icon")
+map_position = Vector2(640, 380)

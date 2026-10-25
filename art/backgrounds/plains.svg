@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- The Plains: a sunny afternoon over rolling grassland.
+       The bottom fades to dark so your hand and the numbers stay easy to read. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5f9fd6"/>
+      <stop offset="0.6" stop-color="#a9d2ec"/>
+      <stop offset="1" stop-color="#f4ddb0"/>
+    </linearGradient>
+    <linearGradient id="far" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#7fa98c"/>
+      <stop offset="1" stop-color="#6b9a72"/>
+    </linearGradient>
+    <linearGradient id="mid" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#78b056"/>
+      <stop offset="1" stop-color="#5a9440"/>
+    </linearGradient>
+    <linearGradient id="near" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#6aa548"/>
+      <stop offset="1" stop-color="#3f7a30"/>
+    </linearGradient>
+    <linearGradient id="shade" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#14131c" stop-opacity="0"/>
+      <stop offset="0.35" stop-color="#14131c" stop-opacity="0.55"/>
+      <stop offset="1" stop-color="#14131c" stop-opacity="0.92"/>
+    </linearGradient>
+    <radialGradient id="sunglow" cx="0.5" cy="0.5" r="0.5">
+      <stop offset="0" stop-color="#fff6d0" stop-opacity="0.9"/>
+      <stop offset="1" stop-color="#fff6d0" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+
+  <rect width="1280" height="720" fill="url(#sky)"/>
+
+  <!-- Sun -->
+  <circle cx="1010" cy="120" r="110" fill="url(#sunglow)"/>
+  <circle cx="1010" cy="120" r="42" fill="#fff3c4"/>
+
+  <!-- Clouds -->
+  <g fill="#ffffff" opacity="0.85">
+    <ellipse cx="190" cy="90" rx="70" ry="22"/>
+    <ellipse cx="235" cy="76" rx="48" ry="26"/>
+    <ellipse cx="150" cy="80" rx="36" ry="18"/>
+  </g>
+  <g fill="#ffffff" opacity="0.7">
+    <ellipse cx="760" cy="60" rx="58" ry="16"/>
+    <ellipse cx="795" cy="50" rx="36" ry="18"/>
+  </g>
+  <g fill="#ffffff" opacity="0.6">
+    <ellipse cx="470" cy="140" rx="44" ry="12"/>
+    <ellipse cx="495" cy="132" rx="26" ry="13"/>
+  </g>
+
+  <!-- Far hills -->
+  <path d="M0 230 C120 190 220 200 330 215 C450 232 520 185 650 190 C780 195 840 222 960 210
+           C1080 198 1180 180 1280 200 L1280 720 L0 720 Z" fill="url(#far)"/>
+  <!-- A few far trees -->
+  <g fill="#557f5e">
+    <ellipse cx="300" cy="212" rx="14" ry="16"/>
+    <ellipse cx="318" cy="216" rx="11" ry="12"/>
+    <ellipse cx="1120" cy="196" rx="13" ry="15"/>
+    <ellipse cx="880" cy="214" rx="10" ry="12"/>
+  </g>
+
+  <!-- Middle hills -->
+  <path d="M0 268 C160 240 300 252 440 262 C600 274 700 246 860 250 C1010 254 1120 270 1280 255
+           L1280 720 L0 720 Z" fill="url(#mid)"/>
+
+  <!-- Near meadow, where the Slime sits -->
+  <path d="M0 300 C200 286 420 292 640 296 C860 300 1080 288 1280 296 L1280 720 L0 720 Z" fill="url(#near)"/>
+
+  <!-- Grass tufts -->
+  <g stroke="#3d6e2a" stroke-width="3" stroke-linecap="round" fill="none">
+    <path d="M90 330 l-6 -16 M96 330 l0 -18 M102 330 l6 -15"/>
+    <path d="M330 318 l-5 -13 M335 318 l0 -15 M340 318 l5 -12"/>
+    <path d="M940 324 l-6 -15 M946 324 l0 -17 M952 324 l6 -14"/>
+    <path d="M1180 312 l-5 -13 M1185 312 l0 -15 M1190 312 l5 -12"/>
+    <path d="M560 340 l-6 -14 M566 340 l0 -16 M572 340 l6 -13"/>
+  </g>
+  <!-- Flowers -->
+  <g>
+    <circle cx="150" cy="322" r="4" fill="#f6e27a"/>
+    <circle cx="410" cy="330" r="4" fill="#f4f1ea"/>
+    <circle cx="850" cy="318" r="4" fill="#f6e27a"/>
+    <circle cx="1060" cy="334" r="4" fill="#f09ab0"/>
+    <circle cx="245" cy="345" r="3" fill="#f09ab0"/>
+    <circle cx="1230" cy="338" r="3" fill="#f4f1ea"/>
+  </g>
+
+  <!-- Darken the bottom for the UI -->
+  <rect y="240" width="1280" height="480" fill="url(#shade)"/>
+</svg>

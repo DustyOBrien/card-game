@@ -14,6 +14,7 @@ extends Node
 
 const CARDS_FOLDER := "res://cards/"  # Every card file in here is in the card pool.
 const CLASSES_FOLDER := "res://classes/"  # Every class file in here is on the Character Select screen.
+const AREAS_FOLDER := "res://areas/"  # Every area file in here is on the map.
 
 # The class picked on the Character Select screen. Its rules decide which
 # cards the deck builder lets you use, and how many of each.
@@ -22,6 +23,9 @@ var character_class: CharacterClass
 # The deck the player built. It holds one entry per card, so two Strikes means
 # Strike appears twice in the list. The battle copies this and shuffles the copy.
 var deck: Array[CardData] = []
+
+# The area picked on the map. This run's fights happen here.
+var current_area: Area
 
 # --- The run --------------------------------------------------------------
 # A "run" is FIGHTS_PER_RUN battles in a row. Your HP carries over from one
@@ -43,7 +47,7 @@ var booster_packs := {}
 var vanished: Array[int] = []
 
 
-# Called when you leave the deck builder or the shop to fight: a fresh run.
+# Called when you pick an area on the map: a fresh run there.
 func start_run() -> void:
 	fights_won = 0
 	run_gold = 0
@@ -77,6 +81,16 @@ func load_classes() -> Array[CharacterClass]:
 	classes.sort_custom(func(a: CharacterClass, b: CharacterClass) -> bool:
 		return a.sort_order < b.sort_order)
 	return classes
+
+
+# Every area, loaded from the areas/ folder, in their sort_order (the order along the road).
+func load_areas() -> Array[Area]:
+	var areas: Array[Area] = []
+	for file_name in ResourceLoader.list_directory(AREAS_FOLDER):
+		if file_name.ends_with(".tres"):
+			areas.append(load(AREAS_FOLDER + file_name))
+	areas.sort_custom(func(a: Area, b: Area) -> bool: return a.sort_order < b.sort_order)
+	return areas
 
 
 # Every card in the game (one of each), loaded from the cards/ folder.
@@ -127,3 +141,5 @@ func ensure_ready() -> void:
 		choose_class(load_classes()[0])
 	elif deck.is_empty():
 		deck = make_starter_deck()
+	if current_area == null:
+		current_area = load_areas()[0]  # The first area on the road (the Plains).
