@@ -70,8 +70,8 @@ The game starts on **Character Select**. Your class decides which cards you can 
 | Mage | 20 | Intellect, Neutral, Mage cards | 3 (Neutral: 2) | 12 Intellect cards are unlocked |
 | Priest | 28 | Wisdom, Neutral, Priest cards | 3 (Neutral: 2) | 12 Wisdom cards are unlocked |
 
-Every deck needs 12 to 20 cards. "Unlocked" means the card's **Unlocked**
-column says Yes in the spreadsheet. A locked class shows its progress, e.g.
+Every deck needs 12 to 20 cards. A class's unlock counts the different cards
+of that school you **own** (see "Your card collection" below). A locked class shows its progress, e.g.
 "Unlock 12 Strength cards (6 / 12)". In the deck builder, the line under
 **Your deck** counts your cards per school (`STR 3   AGI 2 ...`).
 
@@ -113,6 +113,8 @@ In the battle:
 - **Cards roll dice** for their Attack, Block and Heal (`d3`, `d6`...), and they roll **when you draw them**: cards are dealt one at a time and their little dice tumble right on the card, then stay there so you can plan your turn. A d3 is a triangle and a d6 a square, and a gold die is a Critical (a bonus like Master of None's +1 lights up the dice it turns into crits). When you play the card, the **dice tray** on the left shows the roll with its bonus and total. The dice stay up until your next card or End Turn.
 - **Wild** cards (marked *Wild* at the bottom) are the gamble: they DON'T roll when drawn. Their dice tumble in the dice tray when you play them, so you don't know what you'll get. The drag banner shows their range (`Deal 1–6 damage`).
 - The **Battle Log** on the right lists everything that happens: each turn, the cards you draw and play, every roll, damage, Block and Heal. **Copy** puts the whole log on your clipboard, handy for pasting a game into a note when you test cards.
+- **Advantage / Disadvantage:** roll each die twice and keep the higher (Advantage) or the lower (Disadvantage). The dice tray shows the die that was thrown away, small and faded. Having both cancels out. Insight gives your next roll Advantage; if that card already rolled when you drew it, it rolls a second set when you play it and keeps the higher dice.
+- **Gamble** asks you to click a card in your hand (one that already rolled, not a Wild one) and rolls its dice again.
 - **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
 - **Armor** saves leftover Block, and it's part of your class (the Adventurer has 3). Normally your Block drops to 0 at the start of your turn. With Armor 3, up to 3 of it stays: gain 10 Block, take a 5 hit, and the 5 left over becomes 3 next turn (2 left over would stay 2). Armor never gives you Block on its own. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`. Enemies can have Armor too: click the **Enemy** node in `battle.tscn` and set **Armor** in the Inspector (the Slime has 0).
 - **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
@@ -126,9 +128,17 @@ from one fight to the next (the enemy's name shows `(2 / 5)`). After a win,
 **Shop**:
 
 - It shows how the run went and your gold.
-- Buy **booster packs** (Neutral 3 gold, school packs 5 gold). They don't do anything yet: they're counted under "Your packs", ready for a later update.
+- Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!** or "Owned 2 / 3".
+- Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), but never one you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
 - **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept (until you close the game).
 - **Edit Deck** goes back to the deck builder first.
+
+**Your card collection.** You own cards, up to **3 copies** of each. You start
+with 3 of every card marked **Unlocked** in the spreadsheet; every other card
+has to come from a booster pack. The deck builder only shows cards you own,
+and a deck can't hold more copies than you own (or than your class allows).
+The collection lives in `GameState.collection`. It isn't saved when you close
+the game yet.
 
 Gold amounts, the run length and pack prices live at the top of
 `game_state.gd` (`GOLD_MIN`, `GOLD_MAX`, `FIGHTS_PER_RUN`) and in `PACKS` in `shop.gd`.
@@ -441,26 +451,31 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
 | Class | Adventurer | Only these classes can use the card. Several allowed, like School. Blank = every class |
 | Rarity | Rare | Common, Uncommon or Rare. Blank = Common |
-| Unlocked | TRUE | TRUE/FALSE or Yes/No. FALSE = shown as Locked in the deck builder and left out of the Starter Deck. Blank = TRUE |
+| Unlocked | TRUE | TRUE/FALSE or Yes/No. TRUE = you own 3 from the start. FALSE = you have to find it in a booster pack first (until then it's hidden in the deck builder). Blank = TRUE |
 | Description | Deal d3x2 Damage | Hover text in the deck list. **Leave it blank** and it's written for you from the numbers |
-| Attack | d3 | A number (`6`) or dice: `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1 |
+| Attack | d3, d3 | A number (`6`) or dice: `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1. Several hits separated by commas: `d3, d3` = two hits, each rolled on its own (Multi Strike) |
 | Attack (2) | d3 | A second hit, rolled separately. Attack (3), (4)... work too |
 | Hits | 2 | Optional, instead of Attack (2): repeats the Attack this many times |
 | Attack Modifier | 1 | Added to every attack die, and counts towards a crit (d3 + 1 crits on a 2 or a 3) |
 | Block | d3 | A number or dice, like Attack |
 | Block Modifier | 1 | Added to the block roll |
 | Heal | d3 | A number or dice, like Attack |
+| Heal Modifier | 1 | Added to the heal roll |
 | Draw | 2 | Cards drawn |
 | Discard | 1 | Random cards discarded from your hand |
 | Draw If Full HP | 1 | Cards drawn if you were at full HP. TRUE counts as 1 |
-| Next Die Roll Bonus | 1 | Added to every die of the next card you play that rolls |
+| Next Die Roll Bonus | d3 | Added to every die of the next card you play that rolls. A number, or dice that roll when the card is played (Pump Up) |
 | Next Attack Bonus | 3 | Added to every hit of your next Attack card (counts towards crits) |
 | Next Defense Bonus | 3 | Added to your next Defense card's Block |
 | Energy | 1 | Energy gained |
 | Lose HP | 2 | HP lost (Block doesn't stop it) |
-| Critical | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1`, `Gain 1 Energy`. Blank or `-` = none |
+| Critical Effect | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1` (or `Draw a Card`), `Gain 1 Energy`, `Gain Advantage`, `Dont Vanish`. Blank or `-` = none. (A column called just **Critical** works too) |
 | Wild | TRUE | TRUE = the dice roll when played, not when drawn. (Or a **Roll** column with `Play` / `Draw`.) Blank = FALSE |
 | Vanish | TRUE | TRUE = gone for the rest of the run once played. Blank = FALSE |
+| Advantage | TRUE | This card's dice roll with **Advantage**: each die is rolled twice and the higher one is kept |
+| Disadvantage | TRUE | This card's dice roll with **Disadvantage**: each die is rolled twice and the lower one is kept (Wild Swing) |
+| Gain Advantage | TRUE | The next card you play that rolls dice gets Advantage (Insight) |
+| Reroll | 1 | After playing it, click this many cards in your hand to roll their dice again. Wild cards can't be picked (Gamble) |
 
 Blank cells count as 0 (and FALSE). The "Card" column is ignored (Name is used instead).
 If the importer can't read a cell (like a Critical it doesn't know), it prints a

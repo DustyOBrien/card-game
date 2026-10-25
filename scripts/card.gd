@@ -6,6 +6,7 @@
 # A card works in one of two ways:
 #   - In the deck builder you CLICK it: it emits `clicked` with its CardData.
 #   - In battle you DRAG it (draggable = true): see _get_drag_data() below.
+#     (A click in battle only matters when Gamble asks you to pick a card.)
 # Either way, the card doesn't know the rules of the game; the screen that
 # owns it decides what clicking or playing it actually does.
 class_name Card
@@ -50,7 +51,7 @@ var zoom_tween: Tween  # The running hover zoom animation, if any.
 @onready var icon_row: HFlowContainer = %IconRow  # Symbol + number for each effect.
 @onready var effect_label: Label = %EffectLabel  # Text for effects with no symbol.
 @onready var rarity_label: Label = %RarityLabel
-@onready var keyword_label: Label = %KeywordLabel  # "Wild", "Vanish"... next to the rarity.
+@onready var keyword_label: Label = %KeywordLabel  # "Wild", "Vanish"...
 @onready var dice_row: HBoxContainer = %DiceRow  # The card's dice, once it has rolled.
 
 
@@ -79,8 +80,6 @@ func setup(data: CardData) -> void:
 	self_modulate = data.color
 	keyword_label.text = data.get_keyword_text()
 	keyword_label.visible = not keyword_label.text.is_empty()
-	# Keyword on the left and rarity on the right, or just the rarity in the middle.
-	rarity_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT if keyword_label.visible else HORIZONTAL_ALIGNMENT_CENTER
 	show_roll()
 
 
@@ -204,9 +203,10 @@ func roll_dice() -> void:
 		create_tween().tween_property(die, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 
 
+# A click (pressing and letting go without dragging). The deck builder adds
+# the card; in battle it's only used to pick a card for Gamble.
 func _on_pressed() -> void:
-	if not draggable:
-		clicked.emit(card_data)
+	clicked.emit(card_data)
 
 
 # ---------------------------------------------------------------------------

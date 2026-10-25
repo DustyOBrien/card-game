@@ -3,7 +3,8 @@
 # The screen before the battle (scenes/deck_builder.tscn).
 #
 #   - Top: your class, and filter buttons to show one school at a time.
-#   - Left: the card POOL, one of every card your class can use.
+#   - Left: the card POOL, one of every card you own that your class can use.
+#     (Cards you haven't found in booster packs yet don't show up.)
 #     Click one to add it to your deck.
 #   - Right: your DECK, with some stats (size, schools, costs, types).
 #     Click a row to take one copy back out.
@@ -151,16 +152,14 @@ func refresh_pool(deck: Array[CardData]) -> void:
 		var badge_label: Label = badge.get_child(0)
 
 		var count := deck.count(card_data)  # How many times this card is in the list.
-		var max_count := rules.max_copies_of(card_data)
-		if not card_data.unlocked:
-			badge_label.text = "Locked"
-		else:
-			badge_label.text = "In deck  %d / %d" % [count, max_count]
+		# The most you can use: what the class allows, but never more than you own.
+		var max_count := mini(rules.max_copies_of(card_data), GameState.owned(card_data))
+		badge_label.text = "In deck  %d / %d" % [count, max_count]
 		# Gold text once you have at least one, so your picks stand out.
 		badge_label.add_theme_color_override("font_color", GOLD if count > 0 else Color(1, 1, 1, 0.6))
 
 		card.disabled = not can_add(card_data)
-		# Fade out cards you can't add (maxed out, deck full, or locked).
+		# Fade out cards you can't add (maxed out or deck full).
 		card.modulate.a = 0.5 if card.disabled else 1.0
 		cell.visible = matches_filter(card_data)
 

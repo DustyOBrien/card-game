@@ -40,11 +40,75 @@ var fights_won := 0  # Slimes beaten in this run.
 var run_gold := 0  # Gold earned in this run, for the shop's summary.
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
 var run_died := false  # Did the last run end in a defeat?
-# Booster packs bought in the shop, by name: {"Strength Pack": 2}. They do nothing yet.
+# Booster packs bought in the shop and not opened yet, by name: {"Basic Booster": 2}.
 var booster_packs := {}
+
+# --- Your card collection ----------------------------------------------------
+# Which cards you own, and how many: {"Strike": 3, "Punch": 1}. The deck
+# builder only shows cards you own, and a deck can't hold more copies than you
+# own. You start with 3 of every card marked Unlocked in the spreadsheet, and
+# find the rest in booster packs.
+const MAX_OWNED := 3  # The most copies of one card you can own.
+# The chance of each rarity for every card in a pack. They add up to 100.
+const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10}
+const CARDS_PER_PACK := 3
+var collection := {}
 # Cards that Vanished this run, by their position in `deck` (so with two
 # Bandages, we know WHICH one is gone). The battle leaves these out.
 var vanished: Array[int] = []
+
+
+func _ready() -> void:
+	for card in load_all_cards():
+		if card.unlocked:
+			collection[card.card_name] = MAX_OWNED
+
+
+# How many copies of this card do you own? (0 = you haven't found it yet.)
+func owned(card: CardData) -> int:
+	return collection.get(card.card_name, 0)
+
+
+# Open one booster pack: CARDS_PER_PACK cards, each one added to your
+# collection. Returns what you got, for the shop to show:
+#   [{"card": CardData, "new": true/false, "owned": 2}, ...]
+# A card you already own 3 of is never picked, so packs always give you
+# something useful. If you own 3 of EVERYTHING, "card" is null.
+func open_pack() -> Array[Dictionary]:
+	var opened: Array[Dictionary] = []
+	for i in CARDS_PER_PACK:
+		var card := _pick_pack_card()
+		if card == null:
+			opened.append({"card": null, "new": false, "owned": 0})
+			continue
+		var is_new := owned(card) == 0
+		collection[card.card_name] = owned(card) + 1
+		opened.append({"card": card, "new": is_new, "owned": owned(card)})
+	return opened
+
+
+# One random card for a pack. First roll its rarity (60 / 30 / 10), then pick
+# any card of that rarity you don't have 3 of yet. If there's none left of that
+# rarity, roll again among the rarities that still have some.
+func _pick_pack_card() -> CardData:
+	var by_rarity := {}  # Rarity -> the cards you could still get.
+	for card in load_all_cards():
+		if owned(card) < MAX_OWNED:
+			if not by_rarity.has(card.rarity):
+				by_rarity[card.rarity] = []
+			by_rarity[card.rarity].append(card)
+	if by_rarity.is_empty():
+		return null  # You own 3 of every card!
+	# Add up the odds of the rarities that are still possible, and pick one.
+	var total := 0
+	for rarity in by_rarity:
+		total += PACK_ODDS[rarity]
+	var roll := randi_range(1, total)
+	for rarity in by_rarity:
+		roll -= PACK_ODDS[rarity]
+		if roll <= 0:
+			return by_rarity[rarity].pick_random()
+	return null
 
 
 # Called when you pick an area on the map: a fresh run there.
@@ -94,7 +158,7 @@ func load_areas() -> Array[Area]:
 
 
 # Every card in the game (one of each), loaded from the cards/ folder.
-# Character Select uses this to count unlocked cards for class unlocks.
+# Character Select uses this to count owned cards for class unlocks.
 func load_all_cards() -> Array[CardData]:
 	var cards: Array[CardData] = []
 	for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
@@ -103,12 +167,12 @@ func load_all_cards() -> Array[CardData]:
 	return cards
 
 
-# Every card the chosen class is allowed to build with (one of each).
+# Every card you OWN that the chosen class is allowed to build with (one of each).
 # Sorted by school, then name, so schools sit together.
 func load_card_pool() -> Array[CardData]:
 	var pool: Array[CardData] = []
 	for card in load_all_cards():
-		if character_class == null or character_class.can_use(card):
+		if owned(card) > 0 and (character_class == null or character_class.can_use(card)):
 			pool.append(card)
 	# sort_custom() takes a function that answers "should a come before b?".
 	# `func(a, b): ...` is a lambda: a small function with no name (like Python's lambda).

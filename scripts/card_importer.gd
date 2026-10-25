@@ -52,14 +52,17 @@ static func import_cards() -> int:
 		card.types = _parse_flags(_cell(row, columns, "type"), CardData.CardType)
 		card.attack = _read_attacks(row, columns, card_name)
 		card.attack_modifier = _to_int(_cell(row, columns, "attack modifier"))
-		card.block = _read_formula(_cell(row, columns, "block"), card_name)
+		card.block = _read_formula_list(_cell(row, columns, "block"), card_name)
 		card.block_modifier = _to_int(_cell(row, columns, "block modifier"))
-		card.heal = _read_formula(_cell(row, columns, "heal"), card_name)
+		card.heal = _read_formula_list(_cell(row, columns, "heal"), card_name)
+		card.heal_modifier = _to_int(_cell(row, columns, "heal modifier"))
 		card.draw = _to_int(_cell(row, columns, "draw"))
 		card.discard = _to_int(_cell(row, columns, "discard"))
 		card.draw_if_full_hp = _to_int(_yes_no_as_number(_cell(row, columns, "draw if full hp")))
-		card.next_roll_bonus = _to_int(_cell(row, columns, "next die roll bonus"),
-				_to_int(_cell(row, columns, "next roll bonus")))  # Either name works.
+		var roll_bonus := _cell(row, columns, "next die roll bonus")
+		if roll_bonus.is_empty():
+			roll_bonus = _cell(row, columns, "next roll bonus")  # Either name works.
+		card.next_roll_bonus = _read_formula(roll_bonus, card_name)  # "1" or dice like "d3".
 		card.next_attack_bonus = _to_int(_cell(row, columns, "next attack bonus"))
 		card.next_defense_bonus = _to_int(_cell(row, columns, "next defense bonus"))
 		card.energy = _to_int(_cell(row, columns, "energy"))
@@ -68,11 +71,18 @@ static func import_cards() -> int:
 		card.wild = _parse_yes_no(_cell(row, columns, "wild"), false) \
 				or _cell(row, columns, "roll").to_lower() == "play"
 		card.vanish = _parse_yes_no(_cell(row, columns, "vanish"), false)
+		card.advantage = _parse_yes_no(_cell(row, columns, "advantage"), false)
+		card.disadvantage = _parse_yes_no(_cell(row, columns, "disadvantage"), false)
+		card.gain_advantage = _parse_yes_no(_cell(row, columns, "gain advantage"), false)
+		card.reroll = _to_int(_cell(row, columns, "reroll"), _to_int(_cell(row, columns, "re-roll")))
 		card.class_only = _parse_list(_cell(row, columns, "class"))
 		card.rarity = _parse_rarity(_cell(row, columns, "rarity"))
 		card.unlocked = _parse_yes_no(_cell(row, columns, "unlocked"), true)
 		card.color = _pick_color(card.schools)
-		card.critical = _read_critical(_cell(row, columns, "critical"), card_name)
+		var critical := _cell(row, columns, "critical effect")
+		if critical.is_empty():
+			critical = _cell(row, columns, "critical")  # The older name works too.
+		card.critical = _read_critical(critical, card_name)
 		# The Description is optional: a blank one is written for you from the numbers.
 		card.effect = _cell(row, columns, "description")
 		if card.effect.is_empty():
@@ -107,13 +117,16 @@ static func _clean_column_name(column_name: String) -> String:
 
 # The Attack column, plus Attack (2), Attack (3)... for extra hits, plus an
 # optional Hits column that repeats the attack. Each entry is one hit.
+#   Attack "d3, d3"               -> ["d3", "d3"]   (a comma between hits)
 #   Attack "d3", Attack (2) "d3"  -> ["d3", "d3"]
 #   Attack "d3", Hits 3           -> ["d3", "d3", "d3"]
 static func _read_attacks(row: PackedStringArray, columns: Dictionary, card_name: String) -> PackedStringArray:
 	var hits := PackedStringArray()
-	var first := _read_formula(_cell(row, columns, "attack"), card_name)
-	if not first.is_empty():
-		hits.append(first)
+	for part in _cell(row, columns, "attack").split(",", false):
+		var hit := _read_formula(part, card_name)
+		if not hit.is_empty():
+			hits.append(hit)
+	var first: String = hits[0] if not hits.is_empty() else ""
 	for number in range(2, 10):
 		var extra := _read_formula(_cell(row, columns, "attack (%d)" % number), card_name)
 		if not extra.is_empty():
@@ -137,6 +150,27 @@ static func _read_formula(text: String, card_name: String) -> String:
 	return text
 
 
+# Block and Heal are ONE roll, so a list like "d3, d3" is added up into "2d3".
+# (Different dice, like "d3, d6", can't be one roll yet: we keep the first.)
+static func _read_formula_list(text: String, card_name: String) -> String:
+	var parts := PackedStringArray()
+	for part in text.split(",", false):
+		var formula := _read_formula(part, card_name)
+		if not formula.is_empty():
+			parts.append(formula)
+	if parts.size() <= 1:
+		return parts[0] if not parts.is_empty() else ""
+	var first := Dice.parse(parts[0])
+	var count := 0
+	for part in parts:
+		var dice := Dice.parse(part)
+		if dice.sides != first.sides or dice.bonus != 0 or first.sides == 0:
+			push_warning("%s: can't add '%s' together, using %s" % [card_name, text, parts[0]])
+			return parts[0]
+		count += dice.count
+	return "%dd%d" % [count, first.sides]
+
+
 # Keeps the Critical text, but warns about parts the game can't understand.
 # "-" or blank means no critical.
 static func _read_critical(text: String, card_name: String) -> String:
@@ -146,7 +180,7 @@ static func _read_critical(text: String, card_name: String) -> String:
 	for part in text.split(",", false):
 		card.critical = part
 		if card.get_critical_effects().is_empty():
-			push_warning("%s: Critical '%s' isn't understood. Try +1 Damage, +1 Block, +1 Heal, Draw 1 or Gain 1 Energy" % [card_name, part.strip_edges()])
+			push_warning("%s: Critical '%s' isn't understood. Try +1 Damage, +1 Block, +1 Heal, Draw 1, Gain 1 Energy, Gain Advantage or Dont Vanish" % [card_name, part.strip_edges()])
 	return text
 
 

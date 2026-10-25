@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_lpyua"]
+
+[resource]
+script = ExtResource("1_lpyua")
+card_name = "First Aid"
+types = 4
+attack = PackedStringArray()
+heal = "d6"
+wild = true
+vanish = true
+critical = "Dont Vanish"
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Wild · Vanish. Heal d6 HP. Critical: Dont Vanish."
+color = Color(0.4, 0.4, 0.42, 1)

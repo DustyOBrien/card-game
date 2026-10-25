@@ -29,7 +29,7 @@ corner_radius_bottom_right = 10
 corner_radius_bottom_left = 10
 
 [node name="Card" type="Button"]
-custom_minimum_size = Vector2(140, 210)
+custom_minimum_size = Vector2(140, 226)
 focus_mode = 0
 theme_override_styles/normal = SubResource("StyleBox_normal")
 theme_override_styles/hover = SubResource("StyleBox_hover")
@@ -113,6 +113,19 @@ text = "Next Attack +3"
 horizontal_alignment = 1
 autowrap_mode = 3
 
+[node name="KeywordLabel" type="Label" parent="Margin/VBox"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 2
+theme_override_colors/font_color = Color(0.85, 0.72, 1, 1)
+theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
+theme_override_constants/outline_size = 4
+theme_override_font_sizes/font_size = 12
+text = "Wild"
+horizontal_alignment = 1
+clip_text = true
+text_overrun_behavior = 3
+
 [node name="DiceRow" type="HBoxContainer" parent="Margin/VBox"]
 unique_name_in_owner = true
 visible = false
@@ -125,21 +138,10 @@ alignment = 1
 layout_mode = 2
 mouse_filter = 2
 
-[node name="KeywordLabel" type="Label" parent="Margin/VBox/BottomRow"]
-unique_name_in_owner = true
-visible = false
-layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.85, 0.72, 1, 1)
-theme_override_colors/font_outline_color = Color(0, 0, 0, 1)
-theme_override_constants/outline_size = 4
-theme_override_font_sizes/font_size = 13
-text = "Wild"
-
 [node name="RarityLabel" type="Label" parent="Margin/VBox/BottomRow"]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
 theme_override_font_sizes/font_size = 12
 text = "Common"
-horizontal_alignment = 2
+horizontal_alignment = 1

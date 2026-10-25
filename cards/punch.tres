@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_f4fxs"]
+
+[resource]
+script = ExtResource("1_f4fxs")
+card_name = "Punch"
+types = 1
+schools = 1
+attack = PackedStringArray("d6")
+critical = "+2 Damage"
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Deal d6 damage. Critical: +2 Damage."
+color = Color(0.6, 0.22, 0.22, 1)

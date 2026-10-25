@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_66fe4"]
+
+[resource]
+script = ExtResource("1_66fe4")
+card_name = "Pump Up"
+cost = 0
+types = 4
+schools = 1
+attack = PackedStringArray()
+next_roll_bonus = "d3"
+wild = true
+critical = "Draw a Card"
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Wild. Next roll +d3. Critical: Draw a Card."
+color = Color(0.6, 0.22, 0.22, 1)

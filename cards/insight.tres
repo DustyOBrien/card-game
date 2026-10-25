@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_uh6g8"]
+
+[resource]
+script = ExtResource("1_uh6g8")
+card_name = "Insight"
+cost = 0
+types = 4
+schools = 4
+attack = PackedStringArray()
+gain_advantage = true
+vanish = true
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Gain ADVANTAGE"
+color = Color(0.22, 0.35, 0.65, 1)

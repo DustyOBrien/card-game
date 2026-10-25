@@ -19,7 +19,9 @@ const KIND_COLORS := {
 	"attack": Color(1.0, 0.55, 0.45),
 	"block": Color(0.55, 0.75, 1.0),
 	"heal": Color(0.5, 0.9, 0.55),
+	"roll": Color(0.8, 0.65, 1.0),
 }
+const DROPPED_SIZE := 34.0  # A die thrown away by Advantage / Disadvantage: small and faded.
 const CRIT_COLOR := Color(1.0, 0.6, 0.2)
 
 var title_label: Label
@@ -103,6 +105,14 @@ func _make_group(roll: Dictionary, dice: Array[DieView], results: Array) -> VBox
 		row.add_child(die)
 		dice.append(die)
 		results.append([roll.dice[i], roll.crit_dice[i]])
+		if i < roll.dropped.size():
+			# Advantage / Disadvantage: the other die, small and faded, crossed out by being dim.
+			var other := DieView.new(DROPPED_SIZE)
+			other.sides = roll.sides
+			other.modulate.a = 0.4
+			row.add_child(other)
+			dice.append(other)
+			results.append([roll.dropped[i], false])
 	if roll.modifier != 0:
 		row.add_child(_make_label("%+d" % roll.modifier, 22, Color.WHITE))  # e.g. "+1"
 	if roll.crit_bonus > 0:

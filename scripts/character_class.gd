@@ -25,8 +25,8 @@ extends Resource
 
 @export_group("Unlocking")
 @export var starts_unlocked: bool = false  # true = playable from the start (the Adventurer).
-# Otherwise the class unlocks once this many cards of this school are unlocked
-# (the Unlocked column in the card spreadsheet).
+# Otherwise the class unlocks once you own this many different cards of this
+# school (cards marked Unlocked in the spreadsheet, plus ones from packs).
 @export_enum("Strength:1", "Agility:2", "Intellect:4", "Wisdom:8") var unlock_school: int = 1
 @export var unlock_card_count: int = 12
 
@@ -63,8 +63,8 @@ func can_use(card: CardData) -> bool:
 # Could this card go into `deck` right now? Checks every rule in one place,
 # so the deck builder and the starter deck follow exactly the same rules.
 func can_add_to(deck: Array[CardData], card: CardData) -> bool:
-	if not card.unlocked:
-		return false
+	if deck.count(card) >= GameState.owned(card):
+		return false  # You can't put in more copies than you own (none, if you haven't found it).
 	if deck.size() >= max_deck_size:
 		return false
 	if deck.count(card) >= max_copies_of(card):
@@ -90,11 +90,11 @@ static func count_school(deck: Array[CardData], school: int) -> int:
 # Unlocking
 # ---------------------------------------------------------------------------
 
-# How many unlocked cards of our unlock school are in this list of cards?
+# How many different cards of our unlock school do you own?
 func unlock_progress(all_cards: Array[CardData]) -> int:
 	var total := 0
 	for card in all_cards:
-		if card.unlocked and card.has_school(unlock_school):
+		if GameState.owned(card) > 0 and card.has_school(unlock_school):
 			total += 1
 	return total
 

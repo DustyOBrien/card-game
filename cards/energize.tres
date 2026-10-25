@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_36v6f"]
+
+[resource]
+script = ExtResource("1_36v6f")
+card_name = "Energize"
+types = 4
+attack = PackedStringArray()
+energy = 1
+vanish = true
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Vanish. +1 Energy."
+color = Color(0.4, 0.4, 0.42, 1)

@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_84frc"]
+
+[resource]
+script = ExtResource("1_84frc")
+card_name = "Wild Swing"
+cost = 2
+types = 1
+schools = 1
+attack = PackedStringArray("d12")
+discard = 1
+disadvantage = true
+wild = true
+critical = "Gain Advantage"
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "This Attack Gains DISADVANTAGE"
+color = Color(0.6, 0.22, 0.22, 1)

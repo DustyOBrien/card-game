@@ -33,6 +33,11 @@ var energy := 0
 var next_attack_bonus := 0
 var next_defense_bonus := 0
 var next_roll_bonus := 0  # Added to every die of the next card that rolls (Master of None).
+var next_roll_advantage := false  # The next card that rolls gets Advantage (Insight).
+var choosing_reroll := false  # true while Gamble waits for you to click a card in your hand.
+
+# Sent when you click a card to re-roll (see choose_rerolls()).
+signal reroll_picked(card: CardData)
 var enemy_next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
 var game_over := false
 var turn := 0  # Turn number, for the battle log.
@@ -106,6 +111,8 @@ func start_battle() -> void:
 	next_attack_bonus = 0
 	next_defense_bonus = 0
 	next_roll_bonus = 0
+	next_roll_advantage = false
+	choosing_reroll = false
 
 	# The deck you built in the deck builder is waiting in GameState (an autoload,
 	# see game_state.gd). ensure_ready() above gives you a starter deck if there
@@ -224,7 +231,8 @@ func draw_cards(amount: int) -> void:
 		var card: CardData = draw_pile.pop_back()
 		card.roll_result = {}  # Forget any old roll.
 		if card.rolls_on_draw():
-			card.roll_result = CardRoller.roll(card)
+			# A card with its own Advantage / Disadvantage uses it right away.
+			card.roll_result = CardRoller.roll(card, CardRoller.mode_for(card, false))
 		hand.append(card)
 		var view := add_card_view(card)
 		update_ui()
@@ -273,7 +281,19 @@ func _on_card_played(card: CardData) -> void:
 	# rolled when drawn just show their dice there, already landed.
 	var animate := not card.is_rolled()
 	if card.has_dice() and not card.is_rolled():
-		card.roll_result = CardRoller.roll(card)
+		card.roll_result = CardRoller.roll(card, CardRoller.mode_for(card, next_roll_advantage))
+	elif card.has_dice() and next_roll_advantage and CardRoller.mode_for(card, true) == CardRoller.ADVANTAGE \
+			and not card.advantage:
+		# It already rolled when drawn, and now has Advantage: roll a second set
+		# and keep the higher dice. Show the new dice tumbling.
+		CardRoller.add_advantage(card)
+		animate = true
+	if card.has_dice():
+		var mode := CardRoller.mode_for(card, next_roll_advantage)
+		if mode == CardRoller.ADVANTAGE:
+			battle_log.add("    Advantage: 2 dice each, keep the higher", BattleLog.DIM_COLOR)
+		elif mode == CardRoller.DISADVANTAGE:
+			battle_log.add("    Disadvantage: 2 dice each, keep the lower", BattleLog.DIM_COLOR)
 	# Add the modifiers and check for crits (see card_roller.gd).
 	var result := CardRoller.resolve(card, card.roll_result, get_bonuses())
 
@@ -285,7 +305,8 @@ func _on_card_played(card: CardData) -> void:
 		if game_over:
 			busy = false
 			return
-		next_roll_bonus = 0  # Used up by this roll.
+		next_roll_bonus = 0  # Used up by this roll...
+		next_roll_advantage = false  # ...and so is Advantage.
 
 	# Apply each effect the card has. A card can have several.
 	for hit: int in result.hits:  # Each hit goes through the enemy's Block on its own.
@@ -296,7 +317,7 @@ func _on_card_played(card: CardData) -> void:
 		battle_log.add("%s takes %d damage (HP %d/%d)" % [enemy.display_name, hit, enemy.hp, enemy.max_hp])
 	if game_over:
 		# The fight is over, so the rest of the card (draws, heals...) doesn't matter.
-		put_away(card)  # But a Vanish card still Vanishes.
+		put_away(card, result.keep > 0)  # But a Vanish card still Vanishes.
 		busy = false
 		return
 	if card.has_type(CardData.CardType.ATTACK):
@@ -316,7 +337,7 @@ func _on_card_played(card: CardData) -> void:
 		player.lose_hp(card.lose_hp)
 		battle_log.add("You lose %d HP (HP %d/%d)" % [card.lose_hp, player.hp, player.max_hp])
 		if game_over:
-			put_away(card)
+			put_away(card, result.keep > 0)
 			busy = false
 			return  # That was the last of your HP.
 	if card.draw_if_full_hp > 0 and was_at_full_hp:
@@ -324,9 +345,12 @@ func _on_card_played(card: CardData) -> void:
 	# Save bonuses for later cards.
 	next_attack_bonus += card.next_attack_bonus
 	next_defense_bonus += card.next_defense_bonus
-	next_roll_bonus += card.next_roll_bonus
-	if card.next_roll_bonus > 0:
+	next_roll_bonus += result.roll_bonus  # Master of None's +1, or Pump Up's rolled d3.
+	if result.roll_bonus > 0:
 		battle_log.add("Your next roll gets +%d" % next_roll_bonus)
+	if card.gain_advantage or result.advantage > 0:
+		next_roll_advantage = true
+		battle_log.add("Your next roll has Advantage")
 	if card.next_attack_bonus > 0:
 		battle_log.add("Your next Attack gets +%d" % next_attack_bonus)
 	if card.next_defense_bonus > 0:
@@ -335,6 +359,8 @@ func _on_card_played(card: CardData) -> void:
 		discard_random_cards(card.discard)
 	if card.draw + result.draw > 0:
 		await draw_cards(card.draw + result.draw)
+	if card.reroll > 0:
+		await choose_rerolls(card.reroll)
 	if result.crits > 0:
 		# e.g. "Critical! Draw 1 (x2)   Discarded Guard"
 		var crit_text := "Critical! %s" % card.critical
@@ -345,15 +371,19 @@ func _on_card_played(card: CardData) -> void:
 		message_label.text = crit_text
 		battle_log.add("Critical! %s" % card.critical + (" (x%d)" % result.crits if result.crits > 1 else ""), BattleLog.CRIT_COLOR)
 
-	put_away(card)
+	put_away(card, result.keep > 0)
 	busy = false
 	refresh_hand()
 
 
 # A played card is done: into the discard pile, or gone for the run if it Vanishes.
-func put_away(card: CardData) -> void:
+# `keep` = a Critical said "Dont Vanish" (First Aid), so this time it stays.
+func put_away(card: CardData, keep: bool = false) -> void:
 	card.roll_result = {}  # It rolls again next time.
-	if card.vanish:
+	card.dropped_dice = {}
+	if card.vanish and keep:
+		battle_log.add("Critical! %s doesn't Vanish this time" % card.card_name, BattleLog.CRIT_COLOR)
+	if card.vanish and not keep:
 		# Gone for the rest of the run: it doesn't go to the discard pile, and
 		# GameState leaves it out of the next fights' decks too.
 		if card.has_meta("deck_index"):
@@ -363,6 +393,40 @@ func put_away(card: CardData) -> void:
 			message_label.text = "%s Vanished" % card.card_name
 	else:
 		discard_pile.append(card)  # The played card goes to the discard pile like everything else.
+
+
+# Gamble: you click a card in your hand, and its dice roll again. Only cards
+# that already rolled (not Wild ones) can be picked. `await` waits for the
+# reroll_picked signal, which _on_hand_card_clicked() sends.
+func choose_rerolls(count: int) -> void:
+	for i in count:
+		if not hand.any(can_reroll):
+			battle_log.add("No rolled cards in your hand to re-roll", BattleLog.DIM_COLOR)
+			message_label.text = "Nothing to re-roll"
+			return
+		choosing_reroll = true
+		message_label.text = "Click a card in your hand to re-roll its dice"
+		update_ui()
+		var picked: CardData = await reroll_picked
+		choosing_reroll = false
+		var before := roll_text(picked)
+		picked.roll_result = CardRoller.roll(picked, CardRoller.mode_for(picked, false))
+		battle_log.add("You re-roll %s: %s → %s" % [picked.card_name, before, roll_text(picked)])
+		message_label.text = ""
+		for view: Card in hand_box.get_children():
+			if view.card_data == picked:
+				await view.roll_dice()  # Watch the new dice tumble on the card.
+		update_ui()
+
+
+# Can Gamble re-roll this card? Only cards that rolled when drawn.
+func can_reroll(card: CardData) -> bool:
+	return card.is_rolled() and not card.wild
+
+
+func _on_hand_card_clicked(card: CardData) -> void:
+	if choosing_reroll and can_reroll(card):
+		reroll_picked.emit(card)
 
 
 # The bonuses waiting right now, in the form CardRoller.resolve() wants.
@@ -436,8 +500,18 @@ func describe_card(card: CardData) -> String:
 		lines.append("Next Attack +%d" % card.next_attack_bonus)
 	if card.next_defense_bonus > 0:
 		lines.append("Next Defense +%d" % card.next_defense_bonus)
-	if card.next_roll_bonus > 0:
-		lines.append("Next roll +%d" % card.next_roll_bonus)
+	if not card.next_roll_bonus.is_empty():
+		lines.append("Next roll +%s" % range_text(outcome_range(outcomes, "roll_bonus")))
+	if card.gain_advantage:
+		lines.append("Next roll: Advantage")
+	if card.reroll > 0:
+		lines.append("Re-roll %d card(s) in your hand" % card.reroll)
+	if card.has_dice():
+		var mode := CardRoller.mode_for(card, next_roll_advantage)
+		if mode == CardRoller.ADVANTAGE:
+			lines.append("Advantage: roll 2, keep the higher")
+		elif mode == CardRoller.DISADVANTAGE:
+			lines.append("Disadvantage: roll 2, keep the lower")
 	if not card.critical.is_empty():
 		if card.is_rolled() and outcomes[0].crits > 0:
 			var times := " (x%d)" % outcomes[0].crits if outcomes[0].crits > 1 else ""
@@ -516,7 +590,8 @@ func add_card_view(card_data: CardData) -> Card:
 	var card: Card = CARD_SCENE.instantiate()
 	hand_box.add_child(card)
 	card.setup(card_data)
-	card.draggable = true  # In battle you drag cards up to play them.
+	card.draggable = true  # In battle you drag cards up to play them...
+	card.clicked.connect(_on_hand_card_clicked)  # ...and click them only to pick one (Gamble).
 	return card
 
 
@@ -587,6 +662,8 @@ func update_ui() -> void:
 		player_block_label.text += "   Next Defense +%d" % next_defense_bonus
 	if next_roll_bonus > 0:
 		player_block_label.text += "   Next roll +%d" % next_roll_bonus
+	if next_roll_advantage:
+		player_block_label.text += "   Advantage"
 	energy_label.text = "Energy %d / %d" % [energy, MAX_ENERGY]
 	piles_label.text = "Draw pile %d   Discard %d" % [draw_pile.size(), discard_pile.size()]
 
@@ -596,6 +673,8 @@ func update_ui() -> void:
 		if card.is_queued_for_deletion():
 			continue
 		card.disabled = game_over or card.card_data.cost > energy
+		if choosing_reroll:
+			card.disabled = not can_reroll(card.card_data)  # Only the ones you can pick.
 		card.preview_text = describe_card(card.card_data)
 		if card.card_data.is_rolled():
 			# Light up dice that a bonus (like Master of None's +1) turns into crits.

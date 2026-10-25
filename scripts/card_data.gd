@@ -63,6 +63,7 @@ const RARITY_COLORS := {
 @export var block: String = ""  # Block gained by the player when played.
 @export var block_modifier: int = 0  # Added to the block roll.
 @export var heal: String = ""  # HP the player gets back (never above max HP).
+@export var heal_modifier: int = 0  # Added to the heal roll.
 @export var draw: int = 0  # Cards drawn from the draw pile.
 @export var discard: int = 0  # Random cards from your hand thrown into the discard pile.
 @export var draw_if_full_hp: int = 0  # Extra cards drawn if you were at full HP when you played it.
@@ -70,7 +71,15 @@ const RARITY_COLORS := {
 @export var next_defense_bonus: int = 0  # Your next Defense card gives this much extra Block.
 @export var energy: int = 0  # Energy the player gains when played.
 @export var lose_hp: int = 0  # HP the player loses when played (Block doesn't stop it).
-@export var next_roll_bonus: int = 0  # Added to every die of the next card you play that rolls dice.
+# Added to every die of the next card you play that rolls dice. A number ("1")
+# or dice ("d3": Pump Up rolls how big the bonus is).
+@export var next_roll_bonus: String = ""
+# Advantage: roll each die twice and keep the HIGHER one. Disadvantage: keep
+# the LOWER one. Having both cancels out (like in Dungeons & Dragons).
+@export var advantage: bool = false  # This card's own dice roll with Advantage.
+@export var disadvantage: bool = false  # This card's own dice roll with Disadvantage (Wild Swing).
+@export var gain_advantage: bool = false  # The NEXT card you play that rolls gets Advantage (Insight).
+@export var reroll: int = 0  # Pick this many non-Wild cards in your hand and roll their dice again (Gamble).
 # Keywords:
 #   Wild:   the dice roll when you PLAY the card, not when you draw it. A gamble!
 #   Vanish: once played, the card is gone for the rest of the run.
@@ -81,7 +90,9 @@ const RARITY_COLORS := {
 @export var critical: String = ""
 @export var copies: int = 1  # How many go in the Starter Deck (a class may allow fewer).
 @export var rarity: Rarity = Rarity.COMMON  # Shown as a dropdown in the Inspector.
-@export var unlocked: bool = true  # Locked cards show in the deck builder but can't be added.
+# true = you own 3 of it from the start. false = you have to find it in
+# booster packs before it shows up in the deck builder (see GameState.collection).
+@export var unlocked: bool = true
 # Classes allowed to use this card, e.g. ["Knight"]. Empty means every class.
 @export var class_only: PackedStringArray = []
 @export_multiline var effect: String = ""  # Rules text shown on the card.
@@ -110,10 +121,16 @@ func has_school(school: School) -> bool:
 # get after drawing it still counts.
 var roll_result: Dictionary = {}
 
+# The dice the card threw away because of Advantage or Disadvantage, in the
+# same shape as roll_result, e.g. {"attack 0": [1]}. Only for showing them.
+var dropped_dice: Dictionary = {}
+
 # The words a Critical can use, and the effect each one adds.
-# "+1 Damage" -> {"damage": 1}, "Draw 1" -> {"draw": 1}, "Gain 2 Energy" -> {"energy": 2}
+# "+1 Damage" -> {"damage": 1}, "Draw 1" -> {"draw": 1}, "Gain 2 Energy" -> {"energy": 2},
+# "Draw a Card" -> {"draw": 1}, "Gain Advantage" -> {"advantage": 1}, "Dont Vanish" -> {"keep": 1}
 const CRITICAL_WORDS := {"damage": "damage", "block": "block", "heal": "heal", "hp": "heal",
-	"draw": "draw", "card": "draw", "cards": "draw", "energy": "energy"}
+	"draw": "draw", "card": "draw", "cards": "draw", "energy": "energy", "advantage": "advantage",
+	"vanish": "keep"}
 
 
 # Does this card roll any dice?
@@ -134,6 +151,8 @@ func get_formulas() -> Dictionary:
 		formulas["block"] = block
 	if not heal.is_empty():
 		formulas["heal"] = heal
+	if not next_roll_bonus.is_empty():
+		formulas["roll bonus"] = next_roll_bonus  # Pump Up's d3 rolls along with the card.
 	return formulas
 
 
@@ -151,12 +170,12 @@ func deals_damage() -> bool:
 func get_critical_effects() -> Dictionary:
 	var effects := {}
 	for part in critical.split(",", false):
-		var amount := 0
+		var amount := 1  # No number ("Gain Advantage", "Draw a Card") means 1.
 		var effect := ""
 		for word in part.strip_edges().to_lower().split(" ", false):
 			if word.replace("+", "").is_valid_int():
 				amount = word.replace("+", "").to_int()
-			elif CRITICAL_WORDS.has(word):
+			elif CRITICAL_WORDS.has(word) and effect.is_empty():
 				effect = CRITICAL_WORDS[word]
 		if amount > 0 and not effect.is_empty():
 			effects[effect] = effects.get(effect, 0) + amount
@@ -177,6 +196,10 @@ func get_attack_text() -> String:
 
 func get_block_text() -> String:
 	return _with_modifier(block, block_modifier)
+
+
+func get_heal_text() -> String:
+	return _with_modifier(heal, heal_modifier)
 
 
 # "d3" with modifier 1 -> "d3+1". A plain number just gets added: "6" + 1 -> "7".
@@ -202,7 +225,7 @@ func make_description() -> String:
 	if not block.is_empty():
 		parts.append("Gain %s Block" % get_block_text())
 	if not heal.is_empty():
-		parts.append("Heal %s HP" % heal)
+		parts.append("Heal %s HP" % get_heal_text())
 	if draw > 0:
 		parts.append("Draw %d" % draw)
 	if discard > 0:
@@ -233,8 +256,12 @@ func get_extra_text() -> String:
 		lines.append("Full HP: Draw %d" % draw_if_full_hp)
 	if lose_hp > 0:
 		lines.append("Lose %d HP" % lose_hp)
-	if next_roll_bonus > 0:
-		lines.append("Next roll +%d" % next_roll_bonus)
+	if not next_roll_bonus.is_empty():
+		lines.append("Next roll +%s" % next_roll_bonus)
+	if gain_advantage:
+		lines.append("Gain Advantage")
+	if reroll > 0:
+		lines.append("Re-roll %d card%s" % [reroll, "" if reroll == 1 else "s"])
 	return "\n".join(lines)
 
 
@@ -243,6 +270,10 @@ func get_keyword_text() -> String:
 	var words: Array[String] = []
 	if wild and has_dice():
 		words.append("Wild")  # Wild only means something on a card with dice.
+	if advantage and not disadvantage:
+		words.append("Adv")
+	if disadvantage and not advantage:
+		words.append("Disadv")
 	if vanish:
 		words.append("Vanish")
 	return " · ".join(words)
