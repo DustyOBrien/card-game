@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_cdak7"]
+
+[resource]
+script = ExtResource("1_cdak7")
+card_name = "Tentacles"
+cost = 2
+types = 4
+schools = 2
+attack = PackedStringArray("d3")
+attack_modifier = -1
+block = "d3"
+block_modifier = -1
+heal = "d3"
+heal_modifier = -1
+wild = true
+rarity = 1
+class_only = PackedStringArray("Rogue")
+effect = "Wild. Deal d3-1 damage. Gain d3-1 Block. Heal d3-1 HP."
+color = Color(0.25, 0.5, 0.3, 1)

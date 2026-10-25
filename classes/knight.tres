@@ -12,5 +12,4 @@ color = Color(0.6, 0.22, 0.22, 1)
 sort_order = 1
 max_hp = 30
 armor = 4
-unlock_school = 1
 allowed_schools = 1
