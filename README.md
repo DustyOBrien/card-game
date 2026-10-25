@@ -77,7 +77,8 @@ Then you're on the **deck builder**, holding your class's starter deck:
 
 In the battle:
 
-- Click a card to play it. It costs energy (the yellow number in its corner).
+- **Drag** a card up out of your hand and let go above it to play it. It costs energy (the yellow number in its corner).
+- While you drag, a banner over the card says what it will do (with bonuses like Rage counted), and the numbers it would change turn gold, e.g. `HP 45 → 36`. Let go over your hand to change your mind.
 - When you're out of energy or cards, click **End Turn**.
 - The enemy then attacks for the number shown under its name. Your Block absorbs damage first.
 - Bring the Slime to 0 HP to win.
@@ -100,7 +101,8 @@ card-game/
 │   ├── character_select.gd Shows one panel per class
 │   ├── deck_builder.gd  Adding and removing cards, following your class's rules
 │   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
-│   ├── card.gd          Makes a card show its data and report when it's clicked
+│   ├── card.gd          Makes a card show its data; clicked (deck builder) or dragged (battle)
+│   ├── play_zone.gd     The area above your hand where you drop cards to play them
 │   ├── card_data.gd     Defines what information a card has (name, cost, damage...)
 │   ├── combatant.gd     HP and Block for the player and the enemy
 │   └── card_importer.gd Turns the spreadsheet into card files
@@ -175,11 +177,11 @@ A **signal** is an announcement: "something just happened". Other nodes
 is **emitted**. The node making the announcement doesn't need to know who's
 listening.
 
-This project uses signals in a chain when you click a card:
+This project uses signals in a chain when you play a card:
 
-1. Godot's `Button` emits `pressed` when clicked.
-2. `card.gd` hears that and emits its own `played` signal, passing along which card it is.
-3. `battle.gd` hears `played`, spends energy, and calls `enemy.take_damage(6)`.
+1. You drag a card and drop it on the play zone (see "Drag and drop" below).
+2. `play_zone.gd` emits its `card_dropped` signal, passing along which card it is.
+3. `battle.gd` hears `card_dropped`, spends energy, and calls `enemy.take_damage(6)`.
 4. `combatant.gd` lowers HP and emits `stats_changed`.
 5. `battle.gd` hears `stats_changed` and updates the labels on screen.
 
@@ -192,6 +194,24 @@ player.died.connect(_on_player_died)   # "when the player dies, run _on_player_d
 You can also connect signals without code, in the editor's **Node** tab (next
 to the Inspector). This project connects them in code so you can see them all
 in one place.
+
+### Drag and drop
+
+Godot has drag and drop built into every Control. It's three functions:
+
+| Function | Lives on | Godot asks |
+|---|---|---|
+| `_get_drag_data()` | the thing you drag (`card.gd`) | "What are you carrying?" Return `null` to refuse (e.g. you can't afford the card). |
+| `_can_drop_data()` | the place you drop (`play_zone.gd`) | "Would you take this, if it were dropped right here?" |
+| `_drop_data()` | the place you drop (`play_zone.gd`) | "Here it is!" |
+
+`set_drag_preview()` picks what follows the mouse. Ours is a copy of the card
+(`duplicate()`) with a banner on top. Every node also gets
+`NOTIFICATION_DRAG_BEGIN` and `NOTIFICATION_DRAG_END`, which `battle.gd` uses
+to show "Drop here to play" and the gold preview numbers.
+
+The preview and the real thing use the same functions (`get_damage()`,
+`get_block()`), so the preview can't disagree with what actually happens.
 
 ### Switching scenes, and autoloads
 
@@ -269,7 +289,7 @@ start_player_turn()
   ├─ choose the enemy's next attack (shown as its "intent")
   └─ draw_cards(5)
 
-You click cards  →  _on_card_played()
+You drag a card onto the play zone  →  _on_card_played()
   └─ pay energy, deal damage / gain block, move the card to the discard pile
 
 You click End Turn  →  _on_end_turn_pressed()

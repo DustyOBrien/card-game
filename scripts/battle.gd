@@ -18,6 +18,7 @@ const HAND_SIZE := 5  # Cards drawn at the start of each turn.
 const MAX_ENERGY := 3  # Energy you get each turn.
 const ENEMY_MIN_ATTACK := 6
 const ENEMY_MAX_ATTACK := 11
+const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
 
 # The three card piles. `Array[CardData]` means "a list that only holds CardData".
 var draw_pile: Array[CardData] = []
@@ -30,6 +31,7 @@ var next_attack_bonus := 0
 var next_defense_bonus := 0
 var enemy_next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
 var game_over := false
+var dragged_card: CardData = null  # The card being dragged right now, if any.
 
 # References to nodes in the scene. $Name finds a direct child by name;
 # %Name finds any node marked as a "unique name" anywhere in this scene.
@@ -49,6 +51,8 @@ var game_over := false
 @onready var game_over_screen: ColorRect = %GameOverScreen
 @onready var result_label: Label = %ResultLabel
 @onready var restart_button: Button = %RestartButton
+@onready var play_zone: PlayZone = %PlayZone
+@onready var play_zone_hint: Control = %PlayZoneHint
 @onready var change_deck_button: Button = %ChangeDeckButton
 
 
@@ -61,6 +65,7 @@ func _ready() -> void:
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	restart_button.pressed.connect(start_battle)
 	change_deck_button.pressed.connect(_on_change_deck_pressed)
+	play_zone.card_dropped.connect(_on_card_played)  # Dropping a card plays it.
 
 	start_battle()
 
@@ -149,7 +154,7 @@ func draw_cards(amount: int) -> void:
 	refresh_hand()
 
 
-# Called when a card in the hand emits its `played` signal.
+# Called when a card is dropped on the play zone (see play_zone.gd).
 func _on_card_played(card: CardData) -> void:
 	if game_over or card.cost > energy:
 		return
@@ -165,19 +170,15 @@ func _on_card_played(card: CardData) -> void:
 	# Apply each effect the card has. A card can have several (Guarded Blow
 	# deals damage AND gives Block).
 	if card.damage > 0:
-		var damage := card.damage
+		enemy.take_damage(get_damage(card))
 		# Rage: an Attack card uses up the waiting attack bonus.
 		if card.has_type(CardData.CardType.ATTACK):
-			damage += next_attack_bonus
 			next_attack_bonus = 0
-		enemy.take_damage(damage)
 	if card.block > 0:
-		var block := card.block
+		player.gain_block(get_block(card))
 		# Brace: a Defense card uses up the waiting block bonus.
 		if card.has_type(CardData.CardType.DEFENSE):
-			block += next_defense_bonus
 			next_defense_bonus = 0
-		player.gain_block(block)
 	if card.heal > 0:
 		player.heal(card.heal)
 	if card.energy > 0:
@@ -197,6 +198,73 @@ func _on_card_played(card: CardData) -> void:
 	# The played card goes to the discard pile like everything else.
 	discard_pile.append(card)
 	refresh_hand()
+
+
+# How much damage this card would deal right now, including a Rage bonus.
+# Used both to play the card and to preview it, so the two always agree.
+func get_damage(card: CardData) -> int:
+	if card.damage == 0:
+		return 0
+	if card.has_type(CardData.CardType.ATTACK):
+		return card.damage + next_attack_bonus
+	return card.damage
+
+
+# The enemy's HP after this card hits. Enemy Block soaks up damage first,
+# just like in Combatant.take_damage().
+func enemy_hp_after(card: CardData) -> int:
+	return maxi(enemy.hp - maxi(get_damage(card) - enemy.block, 0), 0)
+
+
+# How much Block this card would give right now, including a Brace bonus.
+func get_block(card: CardData) -> int:
+	if card.block == 0:
+		return 0
+	if card.has_type(CardData.CardType.DEFENSE):
+		return card.block + next_defense_bonus
+	return card.block
+
+
+# The text in the banner above a dragged card, one effect per line.
+func describe_card(card: CardData) -> String:
+	var lines: Array[String] = []
+	if card.damage > 0:
+		lines.append("Deal %d damage" % get_damage(card))
+		lines.append("%s: %d → %d HP" % [enemy.display_name, enemy.hp, enemy_hp_after(card)])
+	if card.block > 0:
+		lines.append("Gain %d Block" % get_block(card))
+	if card.heal > 0:
+		lines.append("Heal %d HP" % card.heal)
+	if card.energy > 0:
+		lines.append("Gain %d Energy" % card.energy)
+	if card.lose_hp > 0:
+		lines.append("Lose %d HP" % card.lose_hp)
+	if card.draw_if_full_hp > 0 and player.hp == player.max_hp:
+		lines.append("Draw %d (full HP)" % card.draw_if_full_hp)
+	if card.draw > 0:
+		lines.append("Draw %d" % card.draw)
+	if card.discard > 0:
+		lines.append("Discard %d at random" % card.discard)
+	if card.next_attack_bonus > 0:
+		lines.append("Next Attack +%d" % card.next_attack_bonus)
+	if card.next_defense_bonus > 0:
+		lines.append("Next Defense +%d" % card.next_defense_bonus)
+	return "\n".join(lines)
+
+
+# Godot tells every node when a drag starts and ends. We use that to show
+# the drop zone and to preview the card's effect on the HP and Block numbers.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_DRAG_BEGIN:
+		var data = get_viewport().gui_get_drag_data()  # What's being dragged.
+		if data is CardData:
+			dragged_card = data
+			play_zone_hint.visible = true
+			update_ui()
+	elif what == NOTIFICATION_DRAG_END:
+		dragged_card = null
+		play_zone_hint.visible = false
+		update_ui()
 
 
 # Throw `amount` random cards from the hand into the discard pile.
@@ -224,7 +292,7 @@ func refresh_hand() -> void:
 		var card: Card = CARD_SCENE.instantiate()
 		hand_box.add_child(card)
 		card.setup(card_data)
-		card.played.connect(_on_card_played)
+		card.draggable = true  # In battle you drag cards up to play them.
 	update_ui()
 
 
@@ -250,9 +318,38 @@ func update_ui() -> void:
 	energy_label.text = "Energy %d / %d" % [energy, MAX_ENERGY]
 	piles_label.text = "Draw pile %d   Discard %d" % [draw_pile.size(), discard_pile.size()]
 
-	# Grey out cards you can't afford.
+	# Grey out cards you can't afford, and tell each card what it would do.
 	for card: Card in hand_box.get_children():
 		card.disabled = game_over or card.card_data.cost > energy
+		card.preview_text = describe_card(card.card_data)
+
+	show_drag_preview()
+
+
+# While a card is being dragged, show "before -> after" on the numbers it
+# would change, in gold, so you can see what will happen before you drop it.
+func show_drag_preview() -> void:
+	var labels: Array[Label] = [enemy_hp_label, player_hp_label, player_block_label, energy_label]
+	for label in labels:
+		label.modulate = Color.WHITE  # Back to normal colours.
+	var card := dragged_card
+	if card == null:
+		return
+
+	if card.damage > 0:
+		enemy_hp_label.text = "HP %d → %d / %d" % [enemy.hp, enemy_hp_after(card), enemy.max_hp]
+		enemy_hp_label.modulate = PREVIEW_COLOR
+	if card.heal > 0 or card.lose_hp > 0:
+		var hp_after := mini(player.hp + card.heal, player.max_hp) - card.lose_hp
+		player_hp_label.text = "HP %d → %d / %d" % [player.hp, maxi(hp_after, 0), player.max_hp]
+		player_hp_label.modulate = PREVIEW_COLOR
+	if card.block > 0:
+		player_block_label.text = "Block %d → %d" % [player.block, player.block + get_block(card)]
+		player_block_label.modulate = PREVIEW_COLOR
+	var energy_after := energy - card.cost + card.energy
+	if energy_after != energy:
+		energy_label.text = "Energy %d → %d / %d" % [energy, energy_after, MAX_ENERGY]
+		energy_label.modulate = PREVIEW_COLOR
 
 
 func _on_enemy_died() -> void:

@@ -2,6 +2,7 @@
 
 [ext_resource type="Script" path="res://scripts/battle.gd" id="1_battle"]
 [ext_resource type="Script" path="res://scripts/combatant.gd" id="2_combatant"]
+[ext_resource type="Script" path="res://scripts/play_zone.gd" id="3_play_zone"]
 
 [node name="Battle" type="Control"]
 layout_mode = 3
@@ -135,6 +136,42 @@ custom_minimum_size = Vector2(0, 210)
 layout_mode = 2
 theme_override_constants/separation = 12
 alignment = 1
+
+[node name="PlayZone" type="Control" parent="."]
+unique_name_in_owner = true
+layout_mode = 1
+anchor_right = 1.0
+anchor_bottom = 0.58
+grow_horizontal = 2
+script = ExtResource("3_play_zone")
+
+[node name="PlayZoneHint" type="ColorRect" parent="PlayZone"]
+unique_name_in_owner = true
+visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 24.0
+offset_top = 16.0
+offset_right = -24.0
+offset_bottom = -8.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(1, 0.85, 0.3, 0.08)
+
+[node name="HintLabel" type="Label" parent="PlayZone/PlayZoneHint"]
+layout_mode = 1
+anchors_preset = 10
+anchor_right = 1.0
+offset_top = 8.0
+offset_bottom = 34.0
+grow_horizontal = 2
+theme_override_colors/font_color = Color(1, 0.85, 0.3, 0.8)
+theme_override_font_sizes/font_size = 18
+text = "Drop here to play"
+horizontal_alignment = 1
 
 [node name="GameOverScreen" type="ColorRect" parent="."]
 unique_name_in_owner = true

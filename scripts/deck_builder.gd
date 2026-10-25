@@ -61,7 +61,7 @@ func build_pool() -> void:
 		var card: Card = CARD_SCENE.instantiate()
 		cell.add_child(card)
 		card.setup(card_data)
-		card.played.connect(_on_pool_card_clicked)  # Reusing the card's own "played" signal.
+		card.clicked.connect(_on_pool_card_clicked)
 
 		var count_label := Label.new()
 		count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
