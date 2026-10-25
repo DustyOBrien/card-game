@@ -20,8 +20,9 @@ signal died  # HP reached 0.
 
 var hp: int = 0
 var block: int = 0
-# Armor is Block that doesn't go away: at the start of each turn your Block
-# resets to your Armor instead of to 0. The player's comes from their class.
+# Armor SAVES leftover Block: at the start of each turn, up to this much of
+# your Block stays instead of dropping to 0. It never gives Block by itself.
+# The player's comes from their class.
 var armor: int = 0
 
 
@@ -71,9 +72,10 @@ func heal(amount: int) -> void:
 
 
 # In Slay the Spire, Block goes away at the start of your next turn.
-# Here it drops back to your Armor (0 if you have none).
+# Here your Armor saves some of it: with Armor 3, 5 leftover Block becomes 3,
+# 2 stays 2, and 0 stays 0. mini() picks the smaller number.
 func clear_block() -> void:
-	block = armor
+	block = mini(block, armor)
 	stats_changed.emit()
 
 

@@ -3,7 +3,7 @@
 # The "brain" of the game. It is attached to the root node of
 # scenes/battle.tscn and runs the whole fight:
 #
-#   1. Player turn: reset energy, Block drops to your Armor, draw 5 cards
+#   1. Player turn: reset energy, Armor saves some leftover Block, draw 5 cards
 #      (their dice roll as they're drawn), play cards.
 #   2. Player clicks "End Turn": the hand goes to the discard pile.
 #   3. Enemy turn: the enemy attacks.
@@ -143,15 +143,16 @@ func start_battle() -> void:
 
 
 func start_player_turn() -> void:
-	player.clear_block()  # Back to your Armor (0 if you have none).
+	var leftover := player.block
+	player.clear_block()  # Your Armor saves up to that much of it (0 if you have none).
 	energy = MAX_ENERGY
 	# Decide now what the enemy will do, so the player can plan around it.
 	enemy_next_attack = randi_range(ENEMY_MIN_ATTACK, ENEMY_MAX_ATTACK)
 	turn += 1
 	battle_log.add_turn(turn)
 	battle_log.add("%s intends to attack for %d" % [enemy.display_name, enemy_next_attack], BattleLog.ENEMY_COLOR)
-	if player.armor > 0:
-		battle_log.add("Your Armor keeps %d Block" % player.armor)
+	if player.armor > 0 and leftover > 0:
+		battle_log.add("Your Armor saves %d of your %d leftover Block" % [player.block, leftover])
 	busy = true
 	await draw_cards(HAND_SIZE)  # Wait for the cards to be dealt and their dice to land.
 	busy = false

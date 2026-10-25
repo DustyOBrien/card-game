@@ -19,8 +19,8 @@ extends Resource
 @export var color: Color = Color(0.4, 0.4, 0.42)  # Panel colour on the select screen.
 @export var sort_order: int = 0  # Lower numbers are shown further left.
 @export var max_hp: int = 50  # The player's HP in battle.
-# Armor: Block that carries over. At the start of every turn your Block resets
-# to this number instead of 0 (see combatant.gd).
+# Armor: how much leftover Block carries over to your next turn, instead of
+# dropping to 0 (see combatant.gd).
 @export var armor: int = 0
 
 @export_group("Unlocking")
@@ -130,5 +130,5 @@ func get_rules_text() -> String:
 	lines.append("Deck size: %d to %d cards" % [min_deck_size, max_deck_size])
 	lines.append("HP: %d" % max_hp)
 	if armor > 0:
-		lines.append("Armor: %d (Block never drops below this)" % armor)
+		lines.append("Armor: %d (keeps up to %d leftover Block)" % [armor, armor])
 	return "\n".join(lines)
