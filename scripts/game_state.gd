@@ -121,11 +121,13 @@ func open_pack() -> Array[Dictionary]:
 # One random card for a pack. First roll its rarity (60 / 30 / 10), then pick
 # any card of that rarity. If the spreadsheet has no cards of some rarity, its
 # odds are shared out among the rarities that do have cards.
-# Class cards never come from packs: classes get them by leveling up.
+# Cards in the class cards sheet never come from packs: classes get those by
+# leveling up. (Other class-only cards, like Master of None, can.)
 func _pick_pack_card() -> CardData:
+	var level_rewards := _level_reward_names()
 	var by_rarity := {}  # Rarity -> the cards of that rarity.
 	for card in load_all_cards():
-		if card.is_class_card():
+		if level_rewards.has(card.card_name):
 			continue
 		if not by_rarity.has(card.rarity):
 			by_rarity[card.rarity] = []
@@ -140,6 +142,16 @@ func _pick_pack_card() -> CardData:
 		if roll <= 0:
 			return by_rarity[rarity].pick_random()
 	return null
+
+
+# The names of every card some class gets by leveling up (class_cards.csv).
+func _level_reward_names() -> Array[String]:
+	var names: Array[String] = []
+	for character_class in load_classes():
+		for level in character_class.level_cards:
+			for card_name in character_class.level_cards[level]:
+				names.append(card_name)
+	return names
 
 
 # A card's level (1 to 3), from its Exp.
