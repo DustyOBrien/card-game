@@ -208,9 +208,9 @@ func _add_reveal(item: Dictionary, row: HBoxContainer) -> void:
 	if item.new:
 		owned_text = "NEW!"
 	elif item.level_up:
-		owned_text = "LEVEL UP! Lv %d" % GameState.card_level(item.card)
+		owned_text = "LEVEL UP! Lv %d" % item.level
 	elif item.exp:
-		owned_text = "+1 Exp  (%s)" % GameState.card_exp_text(item.card).trim_prefix("Exp ")
+		owned_text = "+1 Exp  (%s)" % item.exp_text.trim_prefix("Exp ")
 	note.text = "%s\n%s" % [owned_text, item.card.get_rarity_text()]
 	note.add_theme_color_override("font_color", CardData.RARITY_COLORS[item.card.rarity])
 	box.add_child(note)

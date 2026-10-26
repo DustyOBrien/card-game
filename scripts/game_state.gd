@@ -77,6 +77,10 @@ var class_exp := {}  # Total Exp per class name: {"Knight": 140}
 # Bandages, we know WHICH one is gone). The battle leaves these out.
 var vanished: Array[int] = []
 
+# Remembered lists, so the cards/ folder is only read once (see load_all_cards()).
+var _all_cards: Array[CardData] = []
+var _cards_by_name := {}  # "Strike" -> its CardData, for find_card().
+
 
 func _ready() -> void:
 	for card in load_all_cards():
@@ -104,7 +108,12 @@ func add_card(card: CardData) -> Dictionary:
 		card_exp[card.card_name] = card_exp.get(card.card_name, 0) + 1
 		result.exp = true
 		result.level_up = card_level(card) > level_before
+	# Write down the numbers NOW. If the same card comes out twice in one pack,
+	# the shop shows each one with the numbers it had at that moment, not the
+	# final numbers after the whole pack was opened.
 	result.owned = owned(card)
+	result.level = card_level(card)
+	result.exp_text = card_exp_text(card)
 	return result
 
 
@@ -114,7 +123,9 @@ func add_card(card: CardData) -> Dictionary:
 func open_pack() -> Array[Dictionary]:
 	var opened: Array[Dictionary] = []
 	for i in CARDS_PER_PACK:
-		opened.append(add_card(_pick_pack_card()))
+		var card := _pick_pack_card()
+		if card:  # null only if there are no cards that can come from packs at all.
+			opened.append(add_card(card))
 	return opened
 
 
@@ -134,6 +145,8 @@ func _pick_pack_card() -> CardData:
 	var total := 0
 	for rarity in by_rarity:
 		total += PACK_ODDS[rarity]
+	if total == 0:
+		return null  # No pack cards in the spreadsheet (randi_range(1, 0) would go wrong).
 	var roll := randi_range(1, total)
 	for rarity in by_rarity:
 		roll -= PACK_ODDS[rarity]
@@ -222,10 +235,10 @@ func _give_level_cards(character_class: CharacterClass, level: int) -> Array[Dic
 
 # The level 1 card with this name, or null.
 func find_card(card_name: String) -> CardData:
-	for card in load_all_cards():
-		if card.card_name == card_name:
-			return card
-	return null
+	if _cards_by_name.is_empty():
+		for card in load_all_cards():
+			_cards_by_name[card.card_name] = card
+	return _cards_by_name.get(card_name)
 
 
 # The enemies for the current fight: the area's encounters in order (fight 1
@@ -287,12 +300,15 @@ func load_areas() -> Array[Area]:
 
 # Every card in the game (one of each), loaded from the cards/ folder.
 # Character Select uses this to count owned cards for class unlocks.
+# The cards don't change while the game runs, so the folder is only read the
+# first time; after that the same list is handed back. Don't change the list
+# you get (loop over it, or make your own list from it).
 func load_all_cards() -> Array[CardData]:
-	var cards: Array[CardData] = []
-	for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
-		if file_name.ends_with(".tres"):
-			cards.append(load(CARDS_FOLDER + file_name))
-	return cards
+	if _all_cards.is_empty():
+		for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_all_cards.append(load(CARDS_FOLDER + file_name))
+	return _all_cards
 
 
 # Every card you OWN that the chosen class is allowed to build with (one of each).

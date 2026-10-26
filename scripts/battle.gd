@@ -77,7 +77,7 @@ var exp_bar: ExpBar  # Your class's Exp bar on the victory panel (made in _ready
 
 func _ready() -> void:
 	# Hook up signals: "when X happens, call this function".
-	player.stats_changed.connect(update_ui)
+	player.stats_changed.connect(queue_update_ui)
 	player.died.connect(_on_player_died)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	continue_button.pressed.connect(_on_continue_pressed)
@@ -169,7 +169,7 @@ func make_enemies() -> void:
 		view.setup(enemy_data)
 		# bind() adds `view` to the call, so we know WHICH enemy died.
 		view.combatant.died.connect(_on_enemy_died.bind(view))
-		view.combatant.stats_changed.connect(update_ui)
+		view.combatant.stats_changed.connect(queue_update_ui)
 		view.start_idle()
 		enemy_views.append(view)
 	play_zone.enemy_views = enemy_views
@@ -245,11 +245,14 @@ func enemy_turn() -> void:
 			battle_log.add("%s's Armor saves %d Block" % [enemy.display_name, enemy.block], BattleLog.ENEMY_COLOR)
 		view.show_attack()
 		var blocked := mini(player.block, view.next_attack)  # Worked out before Block is used up.
-		player.take_damage(view.next_attack)
 		var log_line := "%s attacks for %d" % [enemy.display_name, view.next_attack]
 		if blocked > 0:
 			log_line += ": %d blocked, you take %d" % [blocked, view.next_attack - blocked]
-		battle_log.add(log_line + " (HP %d/%d)" % [player.hp, player.max_hp], BattleLog.ENEMY_COLOR)
+		# Logged BEFORE take_damage(): if this hit defeats you, `died` fires inside
+		# take_damage() and its "Defeat" line should come after this one.
+		var hp_after := maxi(player.hp - (view.next_attack - blocked), 0)
+		battle_log.add(log_line + " (HP %d/%d)" % [hp_after, player.max_hp], BattleLog.ENEMY_COLOR)
+		player.take_damage(view.next_attack)
 		if game_over:
 			return  # The attack defeated the player.
 		message_label.text = "%s attacks for %d!" % [enemy.display_name, view.next_attack]
@@ -366,10 +369,12 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 		if targets.is_empty():
 			battle_log.add("    Hit wasted: its target is already defeated", BattleLog.DIM_COLOR)
 		for view in targets:
+			# Log first, for the same reason as in enemy_turn(): a killing hit's
+			# "defeated" line is added inside take_damage().
+			battle_log.add("%s takes %d damage (HP %d/%d)" % [view.data.display_name, hit,
+				view.hp_after(hit), view.combatant.max_hp])
 			view.combatant.take_damage(hit)
 			view.show_hurt()
-			battle_log.add("%s takes %d damage (HP %d/%d)" % [view.data.display_name, hit,
-				view.combatant.hp, view.combatant.max_hp])
 	if game_over:
 		# The fight is over, so the rest of the card (draws, heals...) doesn't matter.
 		put_away(card, result.keep > 0)  # But a Vanish card still Vanishes.
@@ -708,6 +713,24 @@ func add_card_view(card_data: CardData) -> Card:
 # ---------------------------------------------------------------------------
 # UI
 # ---------------------------------------------------------------------------
+
+# HP and Block change a lot during one card (every hit, every enemy...), and
+# each change sends `stats_changed`. Instead of redrawing everything each time,
+# this asks for ONE update_ui() at the end of the frame. call_deferred() means
+# "run this once the current code has finished".
+var _ui_update_queued := false
+
+func queue_update_ui() -> void:
+	if _ui_update_queued:
+		return  # Already asked for this frame.
+	_ui_update_queued = true
+	_run_queued_update.call_deferred()
+
+
+func _run_queued_update() -> void:
+	_ui_update_queued = false
+	update_ui()
+
 
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
