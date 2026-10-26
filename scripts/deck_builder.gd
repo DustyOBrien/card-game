@@ -552,9 +552,11 @@ func _on_default_pressed() -> void:
 func _on_start_pressed() -> void:
 	# change_scene_to_file() throws away this whole scene and loads the map.
 	# The deck survives because it lives in GameState, not in this scene.
+	GameState.save_game()  # Also remembers this deck for next time.
 	get_tree().change_scene_to_file(MAP_SCENE)
 
 
 # Back to Character Select to pick a different class.
 func _on_back_pressed() -> void:
+	GameState.save_game()
 	get_tree().change_scene_to_file(CHARACTER_SELECT_SCENE)

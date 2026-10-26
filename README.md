@@ -139,7 +139,7 @@ Win all 5, or die, and you go to the **Shop**:
 - It shows how the run went and your gold.
 - Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
 - Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
-- **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept (until you close the game).
+- **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept.
 - **Edit Deck** goes back to the deck builder first.
 
 **Your card collection.** You start owning every card marked **Unlocked** in
@@ -147,8 +147,16 @@ the spreadsheet, as many copies as its **Copies** column (your starter deck);
 every other card has to come from a booster pack. You can own up to **3** of a
 card. The deck builder only shows cards you own, and a deck can't hold more
 copies than you own (or than your class allows). The whole collection is shared
-by every class. It lives in `GameState.collection`, and isn't saved when you
-close the game yet.
+by every class. It lives in `GameState.collection`.
+
+**Saving.** Your gold, collection, card Exp, class Exp, unopened packs and the
+last deck you built for each class are saved to `user://save.json` (on
+Windows: `%APPDATA%\Godot\app_userdata\Card Game\`; in the editor,
+**Project > Open User Data Folder**). It saves when you win a fight, buy or
+open a pack, leave the deck builder, and close the game. A run in progress
+isn't saved: quit mid-run and you start a new run next time. To start over,
+press **Reset Save** in the top corner of Character Select. The code is under
+"Saving" in `game_state.gd`.
 
 **Card Exp.** Opening a card you already own 3 of gives that card **1 Exp**.
 **3 Exp** makes it **Level 2**, and **5 more** (8 in total) makes it **Level 3**.

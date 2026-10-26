@@ -23,6 +23,33 @@ func _ready() -> void:
 	var all_cards := GameState.load_all_cards()
 	for character_class in GameState.load_classes():
 		class_list.add_child(make_class_panel(character_class, all_cards))
+	add_reset_button()
+
+
+# The Reset Save button in the top corner, for testing from the start.
+# It asks first with a ConfirmationDialog: a small pop-up window with OK and
+# Cancel buttons. Its `confirmed` signal only fires if you press OK.
+func add_reset_button() -> void:
+	var reset_button := Button.new()
+	reset_button.text = "Reset Save"
+	reset_button.tooltip_text = "Start over: lose your cards, gold and Exp"
+	# Anchor it to the top-right corner of the screen, 24 pixels in.
+	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
+	reset_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN  # Grow to the left, staying on screen.
+	add_child(reset_button)
+
+	var confirm := ConfirmationDialog.new()
+	confirm.title = "Reset Save?"
+	confirm.dialog_text = "This deletes your save: every card you found, your gold,\nand all card and class Exp. You start again as a new player."
+	confirm.ok_button_text = "Reset"
+	add_child(confirm)
+	reset_button.pressed.connect(confirm.popup_centered)
+	confirm.confirmed.connect(_on_reset_confirmed)
+
+
+func _on_reset_confirmed() -> void:
+	GameState.reset_save()
+	get_tree().reload_current_scene()  # Rebuild this screen: locked classes lock again.
 
 
 # Build one class's panel: name, emblem, description, rules, and a button.

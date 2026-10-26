@@ -35,7 +35,7 @@ const FIGHTS_PER_RUN := 5
 const GOLD_MIN := 1  # Gold each enemy drops (a random amount between these).
 const GOLD_MAX := 5
 
-var gold := 0  # Kept between runs (for now: it resets when you close the game).
+var gold := 0  # Kept between runs, and saved (see "Saving" below).
 var fights_won := 0  # Fights won in this run.
 var run_gold := 0  # Gold earned in this run, for the shop's summary.
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
@@ -77,12 +77,32 @@ var class_exp := {}  # Total Exp per class name: {"Knight": 140}
 # Bandages, we know WHICH one is gone). The battle leaves these out.
 var vanished: Array[int] = []
 
+# The last deck you built for each class, as card names: {"Knight": ["Strike", ...]}.
+# Picking that class again gives you this deck back instead of the starter deck.
+var saved_decks := {}
+
 # Remembered lists, so the cards/ folder is only read once (see load_all_cards()).
 var _all_cards: Array[CardData] = []
 var _cards_by_name := {}  # "Strike" -> its CardData, for find_card().
 
 
 func _ready() -> void:
+	start_fresh()
+	load_game()  # If there's a save file, it replaces the fresh start.
+
+
+# A brand new player: the starter cards, no gold, no Exp.
+# Used when the game starts, and by the Reset Save button (reset_save()).
+func start_fresh() -> void:
+	gold = 0
+	collection.clear()
+	card_exp.clear()
+	class_exp.clear()
+	booster_packs.clear()
+	saved_decks.clear()
+	character_class = null
+	deck.clear()
+	start_run()
 	for card in load_all_cards():
 		if card.unlocked:
 			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
@@ -126,6 +146,7 @@ func open_pack() -> Array[Dictionary]:
 		var card := _pick_pack_card()
 		if card:  # null only if there are no cards that can come from packs at all.
 			opened.append(add_card(card))
+	save_game()
 	return opened
 
 
@@ -220,6 +241,7 @@ func add_class_exp(amount: int) -> Array[Dictionary]:
 	class_exp[character_class.display_name] = class_exp.get(character_class.display_name, 0) + amount
 	for level in range(level_before + 1, class_level(character_class) + 1):
 		level_ups.append({"level": level, "cards": _give_level_cards(character_class, level)})
+	save_game()
 	return level_ups
 
 
@@ -274,7 +296,100 @@ func is_run_over() -> bool:
 # so we throw the old one away and start from that class's starter deck.
 func choose_class(new_class: CharacterClass) -> void:
 	character_class = new_class
-	deck = make_starter_deck()
+	deck = _load_saved_deck(new_class)
+	if deck.is_empty():
+		deck = make_starter_deck()
+
+
+# The deck you last built for this class, from saved_decks. Any card the class
+# can't use any more (or that you don't own enough of) is left out.
+func _load_saved_deck(for_class: CharacterClass) -> Array[CardData]:
+	var loaded: Array[CardData] = []
+	for card_name in saved_decks.get(for_class.display_name, []):
+		var card := find_card(card_name)
+		if card and for_class.can_add_to(loaded, card):
+			loaded.append(card)
+	return loaded
+
+
+# ---------------------------------------------------------------------------
+# Saving
+# ---------------------------------------------------------------------------
+# Everything you keep between runs is written to one small JSON file.
+# "user://" is a folder Godot gives every game for its own files. On Windows
+# it's %APPDATA%\Godot\app_userdata\Card Game\ (Project > Open User Data
+# Folder in the editor takes you there). JSON is the same format Python's
+# json module reads and writes.
+#
+# What's saved: gold, your collection, card Exp, class Exp, unopened packs
+# and the last deck you built for each class. NOT saved: a run in progress.
+# Quit in the middle of a run and you start a new one next time.
+const SAVE_PATH := "user://save.json"
+const SAVE_VERSION := 1  # Bump this if the save format ever changes.
+
+
+func save_game() -> void:
+	if character_class:
+		saved_decks[character_class.display_name] = deck.map(func(card: CardData) -> String: return card.card_name)
+	var data := {
+		"version": SAVE_VERSION,
+		"gold": gold,
+		"collection": collection,
+		"card_exp": card_exp,
+		"class_exp": class_exp,
+		"booster_packs": booster_packs,
+		"decks": saved_decks,
+	}
+	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
+	if file == null:
+		push_error("Couldn't save the game: %s" % error_string(FileAccess.get_open_error()))
+		return
+	# "\t" indents it, so you can open the file and read it yourself.
+	file.store_string(JSON.stringify(data, "\t"))
+
+
+# Read the save file, if there is one. Returns false if there isn't (or it's broken).
+func load_game() -> bool:
+	if not FileAccess.file_exists(SAVE_PATH):
+		return false
+	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
+	if not data is Dictionary:
+		push_warning("The save file couldn't be read, so you start fresh.")
+		return false
+	# JSON stores every number as a float (3.0), so int() turns them back.
+	gold = int(data.get("gold", 0))
+	collection = _whole_numbers(data.get("collection", {}))
+	card_exp = _whole_numbers(data.get("card_exp", {}))
+	class_exp = _whole_numbers(data.get("class_exp", {}))
+	booster_packs = _whole_numbers(data.get("booster_packs", {}))
+	saved_decks = data.get("decks", {})
+	# A card added to the spreadsheet as Unlocked after you saved still
+	# shows up in your collection.
+	for card in load_all_cards():
+		if card.unlocked and owned(card) == 0:
+			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
+	return true
+
+
+# {"Strike": 3.0} -> {"Strike": 3}
+func _whole_numbers(numbers: Dictionary) -> Dictionary:
+	var result := {}
+	for key in numbers:
+		result[key] = int(numbers[key])
+	return result
+
+
+# The Reset Save button: delete the save file and start over as a new player.
+func reset_save() -> void:
+	if FileAccess.file_exists(SAVE_PATH):
+		DirAccess.remove_absolute(ProjectSettings.globalize_path(SAVE_PATH))
+	start_fresh()
+
+
+# Godot sends this when you close the game window: one last save on the way out.
+func _notification(what: int) -> void:
+	if what == NOTIFICATION_WM_CLOSE_REQUEST:
+		save_game()
 
 
 # Every class, loaded from the classes/ folder, in their sort_order.

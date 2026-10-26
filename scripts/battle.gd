@@ -815,6 +815,7 @@ func _on_enemy_died(view: EnemyView) -> void:
 	fight_gold += loot
 	battle_log.add("The %s is defeated and drops %d gold (you have %d)" % [view.data.display_name, loot, GameState.gold],
 		BattleLog.TURN_COLOR)
+	GameState.save_game()  # So the gold is kept even if you close the game mid-fight.
 	if not living_enemies().is_empty():
 		update_ui()
 		return  # Still more to beat.

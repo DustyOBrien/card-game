@@ -77,6 +77,7 @@ func buy(pack: Dictionary, panel: Control) -> void:
 	GameState.gold -= pack.price
 	# Dictionary.get(key, 0) gives 0 if we don't own this pack yet.
 	GameState.booster_packs[pack.name] = GameState.booster_packs.get(pack.name, 0) + 1
+	GameState.save_game()
 	# A little bounce so you can see what you bought.
 	panel.pivot_offset = panel.size / 2
 	panel.scale = Vector2(1.08, 1.08)
