@@ -47,6 +47,12 @@ var turn := 0  # Turn number, for the battle log.
 var dragged_card: CardData = null  # The card being dragged right now, if any.
 var dragged_damage := Vector2i.ZERO  # Its damage per enemy, smallest and biggest (worked out once per drag).
 var busy := false  # true while cards are dealt or dice roll, so you can't play two cards at once.
+# Goes up by 1 every fight. Code that waits (`await`) checks it afterwards: if
+# the fight it started in is over and a new one has begun, it stops instead of
+# dealing cards into the new fight. (A talent can win a fight while your hand
+# is still being dealt, and you can press Next Fight before the dealing ends.)
+var fight_id := 0
+var _ui_update_queued := false  # See queue_update_ui().
 
 # References to nodes in the scene. $Name finds a direct child by name;
 # %Name finds any node marked as a "unique name" anywhere in this scene.
@@ -88,6 +94,7 @@ func _ready() -> void:
 	exp_bar.custom_minimum_size = Vector2(320, 22)
 	continue_button.add_sibling(exp_bar)
 	exp_bar.get_parent().move_child(exp_bar, continue_button.get_index())
+	set_process(false)  # _process() is only needed while dragging an attack.
 
 	start_battle()
 
@@ -97,6 +104,7 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 
 func start_battle() -> void:
+	fight_id += 1
 	game_over = false
 	busy = false
 	game_over_screen.visible = false
@@ -140,6 +148,10 @@ func start_battle() -> void:
 	area_background.texture = GameState.current_area.background
 
 	turn = 0
+	# Set once per fight. (Winning moves the count on straight away, so
+	# working it out again later would show the NEXT fight's number.)
+	fight_label.text = "%s  ·  Fight %d / %d" % [GameState.current_area.display_name,
+		GameState.current_fight(), GameState.FIGHTS_PER_RUN]
 	battle_log.clear()
 	message_label.text = "%s appear%s!" % [enemy_names(), "s" if enemy_views.size() == 1 else ""]
 	var enemy_list: Array[String] = []
@@ -206,7 +218,10 @@ func start_player_turn() -> void:
 	if player.armor > 0 and leftover > 0:
 		battle_log.add("Your Armor saves %d of your %d leftover Block" % [player.block, leftover])
 	busy = true
+	var my_fight := fight_id
 	await draw_cards(HAND_SIZE)  # Wait for the cards to be dealt and their dice to land.
+	if my_fight != fight_id:
+		return  # That fight ended while the cards were dealt; a new one has started.
 	busy = false
 	if not game_over:
 		end_turn_button.disabled = false
@@ -226,7 +241,10 @@ func _on_end_turn_pressed() -> void:
 	refresh_hand()
 
 	busy = true  # Nothing can be played (or End Turn pressed again) during the enemy's turn.
+	var my_fight := fight_id
 	await enemy_turn()  # `await` waits for enemy_turn() to finish.
+	if my_fight != fight_id:
+		return
 	busy = false
 	if not game_over:
 		start_player_turn()
@@ -269,6 +287,7 @@ func enemy_turn() -> void:
 # and you watch their dice tumble on the card (Wild cards wait until you play
 # them). Call it with `await`: it returns once every die has landed.
 func draw_cards(amount: int) -> void:
+	var my_fight := fight_id
 	var drawn: Array[String] = []
 	var rolled_any := false
 	for i in amount:
@@ -296,10 +315,12 @@ func draw_cards(amount: int) -> void:
 		else:
 			drawn.append(card.card_name + (" (Wild)" if card.wild and card.has_dice() else ""))
 		await get_tree().create_timer(DEAL_TIME).timeout
-		if game_over:
-			break  # A talent's damage just won the fight.
+		if game_over or my_fight != fight_id:
+			return  # The fight ended mid-deal (a talent's damage can win it).
 	if rolled_any:
 		await get_tree().create_timer(Card.ROLL_TIME).timeout  # Let the last dice land.
+		if my_fight != fight_id:
+			return
 	if not drawn.is_empty():
 		battle_log.add("You draw " + ", ".join(drawn), BattleLog.DIM_COLOR)
 	update_ui()
@@ -399,6 +420,7 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 		for line: String in result.lines:  # e.g. "Hit 1: [3] + 1 = 4  CRIT!"
 			battle_log.add("    " + line, BattleLog.CRIT_COLOR if line.ends_with("!") else Color.WHITE)
 		if game_over:
+			put_away(card, result.keep > 0)
 			busy = false
 			return
 		next_roll_bonus = 0  # Used up by this roll...
@@ -469,10 +491,10 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 		var crit_text := "Critical! %s" % card.critical
 		if result.crits > 1:
 			crit_text += " (x%d)" % result.crits
+		battle_log.add(crit_text, BattleLog.CRIT_COLOR)
 		if message_label.text.begins_with("Discarded"):
 			crit_text += "   " + message_label.text
 		message_label.text = crit_text
-		battle_log.add("Critical! %s" % card.critical + (" (x%d)" % result.crits if result.crits > 1 else ""), BattleLog.CRIT_COLOR)
 
 	put_away(card, result.keep > 0)
 	busy = false
@@ -594,11 +616,11 @@ func describe_card(card: CardData) -> String:
 	var lines: Array[String] = []
 	var outcomes := get_outcomes(card)
 	if card.deals_damage():
-		var damage_text := "Deal %s damage" % range_text(outcome_range(outcomes, "damage"))
+		var damage := outcome_range(outcomes, "damage")
+		var damage_text := "Deal %s damage" % range_text(damage)
 		if card.attack.size() > 1:
 			damage_text += " (%d hits)" % card.attack.size()
 		var living := living_enemies()
-		var damage := outcome_range(outcomes, "damage")
 		if card.target == CardData.Target.ALL:
 			damage_text += " to ALL enemies"
 		elif card.target == CardData.Target.RANDOM and living.size() > 1:
@@ -660,6 +682,7 @@ func _notification(what: int) -> void:
 			dragged_card = data
 			# Work out the damage once, not every frame.
 			dragged_damage = outcome_range(get_outcomes(data), "damage")
+			set_process(data.deals_damage())  # Only an attack needs the per-frame previews.
 			play_zone_hint.visible = true
 			if play_zone.needs_target(data):
 				hint_label.text = "Drop on an enemy to attack it"
@@ -674,14 +697,16 @@ func _notification(what: int) -> void:
 			update_ui()
 	elif what == NOTIFICATION_DRAG_END:
 		dragged_card = null
+		set_process(false)
 		play_zone_hint.visible = false
 		update_ui()
 
 
-# _process() runs every frame. While you drag an attack, light up the enemies
-# that letting go right here would hit, and preview the damage on their bars.
+# _process() runs every frame, but only while you drag an attack (set_process()
+# turns it on and off above). It lights up the enemies that letting go right
+# here would hit, and previews the damage on their bars.
 func _process(_delta: float) -> void:
-	if dragged_card != null and dragged_card.deals_damage():
+	if dragged_card != null:
 		show_enemy_previews(get_global_mouse_position())
 
 
@@ -761,8 +786,6 @@ func add_card_view(card_data: CardData) -> Card:
 # each change sends `stats_changed`. Instead of redrawing everything each time,
 # this asks for ONE update_ui() at the end of the frame. call_deferred() means
 # "run this once the current code has finished".
-var _ui_update_queued := false
-
 func queue_update_ui() -> void:
 	if _ui_update_queued:
 		return  # Already asked for this frame.
@@ -777,9 +800,6 @@ func _run_queued_update() -> void:
 
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
-	if not game_over or GameState.run_died:  # After a win the count has already moved on.
-		fight_label.text = "%s  ·  Fight %d / %d" % [GameState.current_area.display_name,
-			GameState.current_fight(), GameState.FIGHTS_PER_RUN]
 	gold_label.text = "Gold %d" % GameState.gold
 	for view in enemy_views:
 		view.refresh()
@@ -900,10 +920,9 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 			line += "\n" + card_line
 			battle_log.add(card_line, BattleLog.PLAYER_COLOR)
 		reward_label.text += "\n" + line
-	if not level_ups.is_empty() and not GameState.talents_for(GameState.character_class).is_empty():
-		# Each level gives a talent point: make sure the player notices.
-		var points := GameState.talent_points_left(GameState.character_class)
-		var ready := "★ Talent point ready!" if points == 1 else "★ %d talent points ready!" % points
+	# Each level gives a talent point: make sure the player notices.
+	var ready := GameState.talent_points_text(GameState.character_class)
+	if not level_ups.is_empty() and not ready.is_empty():
 		reward_label.text += "\n" + ready + " Spend it on the Talents screen."
 		battle_log.add(ready, BattleLog.CRIT_COLOR)
 

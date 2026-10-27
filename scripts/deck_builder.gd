@@ -20,6 +20,7 @@ extends Control
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const MAP_SCENE := "res://scenes/map.tscn"
 const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
+const TALENTS_SCENE := "res://scenes/talents.tscn"
 
 const ALL_SCHOOLS := -1  # Filter value meaning "show every card".
 const NEUTRAL := 0  # Filter value meaning "only cards with no school".
@@ -126,6 +127,8 @@ func build_filters() -> void:
 		var count := card_pool.filter(func(card: CardData) -> bool: return matches(card, option[1])).size()
 		button.text = "%s  %d" % [option[0], count]
 		button.toggle_mode = true  # Stays pressed in, like a tab.
+		# Small enough that all six tabs (every school) fit in the header.
+		button.add_theme_font_size_override("font_size", 15)
 		button.button_group = group
 		button.button_pressed = option[1] == school_filter
 		button.pressed.connect(_on_filter_pressed.bind(option[1]))
@@ -141,6 +144,10 @@ func build_pool() -> void:
 		pool_grid.add_child(cell)
 
 		var card: Card = CARD_SCENE.instantiate()
+		# Every card stays at its own size. Without SHRINK_CENTER a card
+		# stretches to fill its grid column, and a column is as wide as its
+		# widest note, so cards in different columns ended up different sizes.
+		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		cell.add_child(card)
 		# Show the level 2 or 3 version once the card has leveled up...
 		card.setup(GameState.leveled(card_data))
@@ -167,6 +174,10 @@ func build_pool() -> void:
 		var note := Label.new()
 		note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 		note.add_theme_font_size_override("font_size", 12)
+		# As wide as the card, wrapping onto a second line if it's long
+		# ("Needs talent: Jack of All Trades"), so it can't widen the column.
+		note.custom_minimum_size.x = card.custom_minimum_size.x
+		note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		cell.add_child(note)
 
 		cells[card_data] = {"cell": cell, "card": card, "pips": pips, "note": note}
@@ -570,7 +581,7 @@ func add_talents_button() -> void:
 	button.pressed.connect(func() -> void:
 		GameState.save_game()
 		GameState.talents_return_scene = scene_file_path
-		get_tree().change_scene_to_file("res://scenes/talents.tscn"))
+		get_tree().change_scene_to_file(TALENTS_SCENE))
 	back_button.add_sibling(button)
 
 
