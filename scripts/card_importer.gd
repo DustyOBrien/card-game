@@ -11,6 +11,8 @@
 #   data/cards_level3.csv  Level 3 versions      -> cards/levels/<name>_lv3.tres
 #   data/class_cards.csv   Which card each class gets at each class level
 #                          -> saved into classes/*.tres (level_cards)
+#   data/talents/<class>.csv  Each class's talent tree, one sheet per class
+#                          (adventurer.csv) -> talents/<class>/<name>.tres
 #
 # The level sheets have exactly the same columns as cards.csv (copy the whole
 # sheet and change the numbers). A row's Name says which card it levels up.
@@ -31,6 +33,8 @@ const LEVELS_FOLDER := "res://cards/levels/"
 const LEVEL_SHEETS := {2: "res://data/cards_level2.csv", 3: "res://data/cards_level3.csv"}
 const CLASS_CARDS_PATH := "res://data/class_cards.csv"
 const CLASSES_FOLDER := "res://classes/"
+const TALENT_SHEETS_FOLDER := "res://data/talents/"
+const TALENTS_FOLDER := "res://talents/"
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -46,6 +50,7 @@ static func import_cards() -> int:
 				level_files.append(level_file_name(card_name, level))
 	_remove_old_cards(LEVELS_FOLDER, level_files)
 	_import_class_cards(names)
+	_import_talents()
 	print("Done! Imported %d cards." % names.size())
 	return names.size()
 
@@ -191,6 +196,74 @@ static func _import_class_cards(known_names: Array[String]) -> void:
 			character_class.level_cards[level] = by_class[character_class.display_name][level]
 		ResourceSaver.save(character_class)
 		print("Class cards for ", character_class.display_name, ": ", character_class.level_cards)
+
+
+# Every data/talents/<class>.csv becomes talents/<class>/<talent>.tres.
+# (data/talents/ has an empty .gdignore file in it. Without it, Godot would
+# think each new sheet is a translation file and make lots of extra files.)
+# The sheet's file name says whose tree it is: adventurer.csv -> the Adventurer.
+#   Talent | Tier | Column | Cost | Max Ranks | Needs | Needs Any or All |
+#   Points in Tree | Tier Unlock | Choice Group | Locks Out |
+#   Effect | School | Amount | Rules | Rank 1 | Rank 2 | Rank 3
+static func _import_talents() -> void:
+	if not DirAccess.dir_exists_absolute(TALENT_SHEETS_FOLDER):
+		return  # No talent sheets yet.
+	# Class file name -> display name: "adventurer" -> "Adventurer".
+	var class_names := {}
+	for file_name in DirAccess.get_files_at(CLASSES_FOLDER):
+		if file_name.ends_with(".tres"):
+			class_names[file_name.get_basename()] = (load(CLASSES_FOLDER + file_name) as CharacterClass).display_name
+
+	for sheet_name in DirAccess.get_files_at(TALENT_SHEETS_FOLDER):
+		if not sheet_name.ends_with(".csv"):
+			continue
+		var class_key := sheet_name.get_basename().to_lower()
+		if not class_names.has(class_key):
+			push_warning("talents/%s: there's no class file classes/%s.tres, skipped" % [sheet_name, class_key])
+			continue
+		var folder := TALENTS_FOLDER + class_key + "/"
+		DirAccess.make_dir_recursive_absolute(folder)
+		var file := FileAccess.open(TALENT_SHEETS_FOLDER + sheet_name, FileAccess.READ)
+		var columns := {}
+		var header := file.get_csv_line()
+		for i in header.size():
+			columns[_clean_column_name(header[i])] = i
+
+		var made_files: Array[String] = []
+		while not file.eof_reached():
+			var row := file.get_csv_line()
+			var talent_name := _cell(row, columns, "talent")
+			if talent_name.is_empty():
+				continue
+			var talent := Talent.new()
+			talent.talent_name = talent_name
+			talent.class_display_name = class_names[class_key]
+			talent.tier = _to_int(_cell(row, columns, "tier"), 1)
+			talent.column = _cell(row, columns, "column").to_float() if _cell(row, columns, "column").is_valid_float() else 1.0
+			talent.cost = maxi(_to_int(_cell(row, columns, "cost"), 1), 1)
+			talent.max_ranks = maxi(_to_int(_cell(row, columns, "max ranks"), 1), 1)
+			talent.needs = _parse_list(_cell(row, columns, "needs"))
+			talent.needs_any = _cell(row, columns, "needs any or all").to_lower() == "any"
+			talent.points_in_tree = _to_int(_cell(row, columns, "points in tree"))
+			# "1" or "1 in Tier 1" both mean 1: we only need the first number.
+			talent.tier_unlock = _to_int(_cell(row, columns, "tier unlock").get_slice(" ", 0))
+			talent.choice_group = _cell(row, columns, "choice group")
+			talent.locks_out = _parse_list(_cell(row, columns, "locks out"))
+			talent.effect = _cell(row, columns, "effect").to_lower()
+			if not talent.effect.is_empty() and not Talent.EFFECTS.has(talent.effect):
+				push_warning("%s: unknown Effect \"%s\" (it won't do anything)" % [talent_name, talent.effect])
+			talent.school = _cell(row, columns, "school").to_lower()
+			for amount in _parse_list(_cell(row, columns, "amount")):
+				talent.amounts.append(_to_int(amount.trim_suffix("%")))
+			talent.rules = _cell(row, columns, "rules")
+			for rank in range(1, talent.max_ranks + 1):
+				talent.rank_texts.append(_cell(row, columns, "rank %d" % rank))
+
+			var file_name := _file_name_for(talent_name)
+			ResourceSaver.save(talent, folder + file_name)
+			made_files.append(file_name)
+		_remove_old_cards(folder, made_files)
+		print("Talents for %s: %d" % [class_names[class_key], made_files.size()])
 
 
 # Get one cell from a row by its column name, e.g. _cell(row, columns, "cost").

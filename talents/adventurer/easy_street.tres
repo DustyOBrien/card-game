@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_eau8c"]
+
+[resource]
+script = ExtResource("1_eau8c")
+talent_name = "Easy Street"
+class_display_name = "Adventurer"
+column = 5.5
+needs = PackedStringArray()
+choice_group = "Tier 1 Pick"
+locks_out = PackedStringArray("Jack of All Trades", "Master of None")
+rank_texts = PackedStringArray("")

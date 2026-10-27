@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_yd2s2"]
+
+[resource]
+script = ExtResource("1_yd2s2")
+talent_name = "Master of None"
+class_display_name = "Adventurer"
+column = 3.5
+needs = PackedStringArray()
+choice_group = "Tier 1 Pick"
+locks_out = PackedStringArray("Jack of All Trades", "Easy Street")
+effect = "energy if only neutral"
+amounts = Array[int]([1])
+rules = "If your deck contains only Neutral cards, gain +1 Energy."
+rank_texts = PackedStringArray("If your deck contains only Neutral cards, gain +1 Energy.")

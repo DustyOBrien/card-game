@@ -66,6 +66,9 @@ func _ready() -> void:
 func setup(data: CardData) -> void:
 	card_data = data
 	cost_label.text = str(data.cost)
+	# Green while a talent has made it cheaper this turn (see battle.gd).
+	if data.has_meta("base_cost"):
+		cost_label.add_theme_color_override("font_color", Color(0.5, 1, 0.5))
 	school_label.text = data.get_school_text()
 	name_label.text = data.card_name
 	fit_name()

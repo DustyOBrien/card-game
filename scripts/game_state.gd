@@ -15,6 +15,7 @@ extends Node
 const CARDS_FOLDER := "res://cards/"  # Every card file in here is in the card pool.
 const CLASSES_FOLDER := "res://classes/"  # Every class file in here is on the Character Select screen.
 const AREAS_FOLDER := "res://areas/"  # Every area file in here is on the map.
+const TALENTS_FOLDER := "res://talents/"  # talents/<class>/*.tres: each class's talent tree.
 
 # The class picked on the Character Select screen. Its rules decide which
 # cards the deck builder lets you use, and how many of each.
@@ -77,6 +78,14 @@ var class_exp := {}  # Total Exp per class name: {"Knight": 140}
 # Bandages, we know WHICH one is gone). The battle leaves these out.
 var vanished: Array[int] = []
 
+# --- Talents -------------------------------------------------------------------
+# Each class has its own talent tree (talent.gd, from data/talents/<class>.csv).
+# You get 1 talent point per class level after level 1, plus any bonus points
+# (later: clearing areas, quests, bosses), and spend them on talents.
+var talent_ranks := {}  # Class name -> {talent name -> rank}: {"Adventurer": {"Jack of All Trades": 1}}
+var bonus_talent_points := 0  # Extra points every class gets (none yet).
+var talents_return_scene := "res://scenes/character_select.tscn"  # Where the Talents screen's Back goes.
+
 # The last deck you built for each class, as card names: {"Knight": ["Strike", ...]}.
 # Picking that class again gives you this deck back instead of the starter deck.
 var saved_decks := {}
@@ -84,6 +93,8 @@ var saved_decks := {}
 # Remembered lists, so the cards/ folder is only read once (see load_all_cards()).
 var _all_cards: Array[CardData] = []
 var _cards_by_name := {}  # "Strike" -> its CardData, for find_card().
+var _classes: Array[CharacterClass] = []  # For load_classes().
+var _talents := {}  # Class name -> its Array[Talent], for talents_for().
 
 
 func _ready() -> void:
@@ -100,6 +111,8 @@ func start_fresh() -> void:
 	class_exp.clear()
 	booster_packs.clear()
 	saved_decks.clear()
+	talent_ranks.clear()
+	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
 	start_run()
@@ -313,6 +326,162 @@ func _load_saved_deck(for_class: CharacterClass) -> Array[CardData]:
 
 
 # ---------------------------------------------------------------------------
+# Talents
+# ---------------------------------------------------------------------------
+
+# Every talent in this class's tree, from talents/<class>/. Read once, then remembered.
+func talents_for(for_class: CharacterClass) -> Array[Talent]:
+	if for_class == null:
+		var none: Array[Talent] = []
+		return none
+	if not _talents.has(for_class.display_name):
+		var list: Array[Talent] = []
+		var folder := TALENTS_FOLDER + for_class.resource_path.get_file().get_basename() + "/"
+		for file_name in ResourceLoader.list_directory(folder):
+			if file_name.ends_with(".tres"):
+				list.append(load(folder + file_name))
+		# Top row first, then left to right.
+		list.sort_custom(func(a: Talent, b: Talent) -> bool:
+			return a.tier < b.tier if a.tier != b.tier else a.column < b.column)
+		_talents[for_class.display_name] = list
+	return _talents[for_class.display_name]
+
+
+func find_talent(for_class: CharacterClass, talent_name: String) -> Talent:
+	for talent in talents_for(for_class):
+		if talent.talent_name == talent_name:
+			return talent
+	return null
+
+
+# How many ranks of this talent the class has learned (0 = none).
+func talent_rank(talent: Talent) -> int:
+	return talent_ranks.get(talent.class_display_name, {}).get(talent.talent_name, 0)
+
+
+# Points: 1 per level after level 1, plus bonus points, minus what's spent.
+func talent_points_earned(for_class: CharacterClass) -> int:
+	return class_level(for_class) - 1 + bonus_talent_points
+
+
+func talent_points_spent(for_class: CharacterClass, only_tier: int = 0) -> int:
+	var spent := 0
+	for talent in talents_for(for_class):
+		if only_tier == 0 or talent.tier == only_tier:
+			spent += talent_rank(talent) * talent.cost
+	return spent
+
+
+func talent_points_left(for_class: CharacterClass) -> int:
+	return talent_points_earned(for_class) - talent_points_spent(for_class)
+
+
+# Why can't you learn the next rank of this talent? A short reason for the
+# talent screen, or "" if you can. Checks every rule from the sheet.
+func why_cant_learn(talent: Talent) -> String:
+	var for_class := _class_named(talent.class_display_name)
+	var rank := talent_rank(talent)
+	if rank >= talent.max_ranks:
+		return "Max rank"
+	# Choice Group and Locks Out: has another talent shut this one out?
+	for other in talents_for(for_class):
+		if other == talent or talent_rank(other) == 0:
+			continue
+		var same_group := not talent.choice_group.is_empty() and other.choice_group == talent.choice_group
+		if same_group or other.locks_out.has(talent.talent_name) or talent.locks_out.has(other.talent_name):
+			return "You picked %s" % other.talent_name
+	if talent.tier_unlock > 0 and talent.tier > 1:
+		var in_tier_above := talent_points_spent(for_class, talent.tier - 1)
+		if in_tier_above < talent.tier_unlock:
+			return "Spend %d point(s) in Tier %d first" % [talent.tier_unlock, talent.tier - 1]
+	if talent.points_in_tree > 0 and talent_points_spent(for_class) < talent.points_in_tree:
+		return "Spend %d point(s) in this tree first" % talent.points_in_tree
+	if not talent.needs.is_empty():
+		var have: Array[String] = []
+		for needed in talent.needs:
+			var needed_talent := find_talent(for_class, needed)
+			if needed_talent and talent_rank(needed_talent) > 0:
+				have.append(needed)
+		var enough := not have.is_empty() if talent.needs_any else have.size() == talent.needs.size()
+		if not enough:
+			return "Needs %s" % (" or " if talent.needs_any else " and ").join(talent.needs)
+	if talent_points_left(for_class) < talent.cost:
+		return "No talent points left"
+	return ""
+
+
+# Spend points on the next rank. Returns false if a rule says no.
+func learn_talent(talent: Talent) -> bool:
+	if not why_cant_learn(talent).is_empty():
+		return false
+	if not talent_ranks.has(talent.class_display_name):
+		talent_ranks[talent.class_display_name] = {}
+	talent_ranks[talent.class_display_name][talent.talent_name] = talent_rank(talent) + 1
+	save_game()
+	return true
+
+
+# Take back every point in this class's tree (free, for now).
+func reset_talents(for_class: CharacterClass) -> void:
+	talent_ranks.erase(for_class.display_name)
+	if for_class == character_class:
+		# Cards a talent let into the deck might not be allowed any more.
+		deck = _keep_allowed(deck)
+	save_game()
+
+
+# The total of one effect from every talent the class has learned, e.g.
+# talent_bonus(knight, Talent.ENERGY). Pass a card to only count talents whose
+# School matches it, or a school to only count talents for that school
+# ("All" talents always count).
+func talent_bonus(for_class: CharacterClass, effect: String, card: CardData = null, school: int = -1) -> int:
+	var total := 0
+	for talent in talents_for(for_class):
+		if talent.effect != effect:
+			continue
+		if card and not talent.matches_card(card):
+			continue
+		if school >= 0 and not (talent.school in ["all", "any", ""]) and talent.school_flag() != school:
+			continue
+		total += talent.amount_at(talent_rank(talent))
+	return total
+
+
+# The first talent in this class's tree that opens up a school, for the deck
+# builder to say "Needs talent: Jack of All Trades". null if there isn't one.
+func talent_that_opens(for_class: CharacterClass, school: int) -> Talent:
+	for talent in talents_for(for_class):
+		if talent.effect == Talent.SCHOOL_LIMIT and (talent.school in ["all", "any", ""] or talent.school_flag() == school):
+			return talent
+	return null
+
+
+func _talent_could_open(card: CardData) -> bool:
+	if card.is_class_card() and not card.class_only.has(character_class.display_name):
+		return false
+	for school in CardData.School.values():
+		if card.has_school(school) and talent_that_opens(character_class, school):
+			return true
+	return false
+
+
+func _class_named(display_name: String) -> CharacterClass:
+	for each_class in load_classes():
+		if each_class.display_name == display_name:
+			return each_class
+	return null
+
+
+# The cards of `cards` that still follow every deck rule, in the same order.
+func _keep_allowed(cards: Array[CardData]) -> Array[CardData]:
+	var kept: Array[CardData] = []
+	for card in cards:
+		if character_class.can_add_to(kept, card):
+			kept.append(card)
+	return kept
+
+
+# ---------------------------------------------------------------------------
 # Saving
 # ---------------------------------------------------------------------------
 # Everything you keep between runs is written to one small JSON file.
@@ -321,8 +490,8 @@ func _load_saved_deck(for_class: CharacterClass) -> Array[CardData]:
 # Folder in the editor takes you there). JSON is the same format Python's
 # json module reads and writes.
 #
-# What's saved: gold, your collection, card Exp, class Exp, unopened packs
-# and the last deck you built for each class. NOT saved: a run in progress.
+# What's saved: gold, your collection, card Exp, class Exp, unopened packs,
+# talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
 const SAVE_VERSION := 1  # Bump this if the save format ever changes.
@@ -339,6 +508,8 @@ func save_game() -> void:
 		"class_exp": class_exp,
 		"booster_packs": booster_packs,
 		"decks": saved_decks,
+		"talents": talent_ranks,
+		"bonus_talent_points": bonus_talent_points,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -363,6 +534,11 @@ func load_game() -> bool:
 	class_exp = _whole_numbers(data.get("class_exp", {}))
 	booster_packs = _whole_numbers(data.get("booster_packs", {}))
 	saved_decks = data.get("decks", {})
+	talent_ranks.clear()
+	var saved_talents: Dictionary = data.get("talents", {})
+	for class_name_key in saved_talents:
+		talent_ranks[class_name_key] = _whole_numbers(saved_talents[class_name_key])
+	bonus_talent_points = int(data.get("bonus_talent_points", 0))
 	# A card added to the spreadsheet as Unlocked after you saved still
 	# shows up in your collection.
 	for card in load_all_cards():
@@ -393,14 +569,15 @@ func _notification(what: int) -> void:
 
 
 # Every class, loaded from the classes/ folder, in their sort_order.
+# Read once and remembered, like load_all_cards().
 func load_classes() -> Array[CharacterClass]:
-	var classes: Array[CharacterClass] = []
-	for file_name in ResourceLoader.list_directory(CLASSES_FOLDER):
-		if file_name.ends_with(".tres"):
-			classes.append(load(CLASSES_FOLDER + file_name))
-	classes.sort_custom(func(a: CharacterClass, b: CharacterClass) -> bool:
-		return a.sort_order < b.sort_order)
-	return classes
+	if _classes.is_empty():
+		for file_name in ResourceLoader.list_directory(CLASSES_FOLDER):
+			if file_name.ends_with(".tres"):
+				_classes.append(load(CLASSES_FOLDER + file_name))
+		_classes.sort_custom(func(a: CharacterClass, b: CharacterClass) -> bool:
+			return a.sort_order < b.sort_order)
+	return _classes
 
 
 # Every area, loaded from the areas/ folder, in their sort_order (the order along the road).
@@ -426,12 +603,13 @@ func load_all_cards() -> Array[CardData]:
 	return _all_cards
 
 
-# Every card you OWN that the chosen class is allowed to build with (one of each).
+# Every card you OWN that the chosen class is allowed to build with (one of each),
+# plus ones a talent could open up (the deck builder shows them as "Needs talent").
 # Sorted by school, then name, so schools sit together.
 func load_card_pool() -> Array[CardData]:
 	var pool: Array[CardData] = []
 	for card in load_all_cards():
-		if owned(card) > 0 and (character_class == null or character_class.can_use(card)):
+		if owned(card) > 0 and (character_class == null or character_class.can_use(card) or _talent_could_open(card)):
 			pool.append(card)
 	# sort_custom() takes a function that answers "should a come before b?".
 	# `func(a, b): ...` is a lambda: a small function with no name (like Python's lambda).

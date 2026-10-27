@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_5ahss"]
+
+[resource]
+script = ExtResource("1_5ahss")
+talent_name = "Agility"
+class_display_name = "Adventurer"
+tier = 2
+column = 2.0
+needs = PackedStringArray()
+tier_unlock = 1
+locks_out = PackedStringArray()
+effect = "school limit"
+school = "agility"
+amounts = Array[int]([1])
+rules = "You may include 1 more Agility card while deck building."
+rank_texts = PackedStringArray("You may include 1 more Agility card while deck building.")

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_1baqq"]
+
+[resource]
+script = ExtResource("1_1baqq")
+talent_name = "Wisdom Affinity"
+class_display_name = "Adventurer"
+tier = 3
+column = 6.0
+max_ranks = 3
+needs = PackedStringArray()
+tier_unlock = 3
+locks_out = PackedStringArray()
+effect = "cost discount chance"
+school = "wisdom"
+amounts = Array[int]([10, 20, 30])
+rules = "Whenever you draw a Wisdom card, it has a 10% / 20% / 30% chance to cost 1 less this turn."
+rank_texts = PackedStringArray("Whenever you draw a Wisdom card, it has a 10% chance to cost 1 less this turn.", "Whenever you draw a Wisdom card, it has a 20% chance to cost 1 less this turn.", "Whenever you draw a Wisdom card, it has a 30% chance to cost 1 less this turn.")

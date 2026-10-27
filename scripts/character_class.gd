@@ -55,11 +55,22 @@ func max_copies_of(card: CardData) -> int:
 		return 0
 	if card.is_neutral():
 		return GameState.MAX_COPIES if allow_neutral else 0
-	# A card with several schools is allowed if ANY of them is allowed.
-	# `&` keeps the schools the card and the class have in common.
-	if (card.schools & allowed_schools) == 0:
-		return 0
-	return GameState.MAX_COPIES
+	# A card with several schools is allowed if ANY of its schools is allowed.
+	for school in CardData.School.values():
+		if card.has_school(school) and school_limit(school) != 0:
+			return GameState.MAX_COPIES
+	return 0
+
+
+# How many cards of this school may the deck hold? -1 = no limit, 0 = none.
+# A school the class allows uses max_cards_per_school (0 there = no limit).
+# Talents with the School Limit effect add to it, and can open up a school
+# the class doesn't allow (that's how the Adventurer gets school cards).
+func school_limit(school: int) -> int:
+	var bonus := GameState.talent_bonus(self, Talent.SCHOOL_LIMIT, null, school)
+	if allowed_schools & school:
+		return -1 if max_cards_per_school == 0 else max_cards_per_school + bonus
+	return bonus
 
 
 func can_use(card: CardData) -> bool:
@@ -77,18 +88,26 @@ func can_add_to(deck: Array[CardData], card: CardData) -> bool:
 func why_not(deck: Array[CardData], card: CardData) -> String:
 	var count := deck.count(card)
 	if count >= max_copies_of(card):
-		return "All copies in deck" if count > 0 else "Not for this class"
+		if count > 0:
+			return "All copies in deck"
+		# Could a talent open this card's school? Then say which one.
+		for school in CardData.School.values():
+			if card.has_school(school):
+				var talent := GameState.talent_that_opens(self, school)
+				if talent:
+					return "Needs talent: %s" % talent.talent_name
+		return "Not for this class"
 	if count >= GameState.owned(card):
 		# You can't put in more copies than you own.
 		return "You own %d" % GameState.owned(card)
 	if deck.size() >= max_deck_size:
 		return "Deck is full"
-	if max_cards_per_school > 0:
-		# Every school on the card must still have room.
-		for school in CardData.School.values():
-			if card.has_school(school) and count_school(deck, school) >= max_cards_per_school:
-				var school_name: String = CardData.School.find_key(school).capitalize()
-				return "%d %s card max" % [max_cards_per_school, school_name]
+	# Every school on the card that has a limit must still have room.
+	for school in CardData.School.values():
+		var limit := school_limit(school)
+		if card.has_school(school) and limit > 0 and count_school(deck, school) >= limit:
+			var school_name: String = CardData.School.find_key(school).capitalize()
+			return "%d %s card max" % [limit, school_name]
 	return ""
 
 
@@ -135,7 +154,10 @@ func get_rules_text() -> String:
 
 	var lines: Array[String] = []
 	if school_names.is_empty():
-		lines.append("No school cards")
+		var opened := 0
+		for school in CardData.School.values():
+			opened += maxi(school_limit(school), 0)
+		lines.append("School cards: open them with talents" if opened == 0 else "School cards from talents")
 	else:
 		lines.append("%s cards" % ", ".join(school_names))
 	if max_cards_per_school > 0:

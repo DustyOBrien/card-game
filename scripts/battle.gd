@@ -19,7 +19,7 @@ const CARD_SCENE := preload("res://scenes/card.tscn")
 const SHOP_SCENE := "res://scenes/shop.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn.
-const MAX_ENERGY := 3  # Energy you get each turn.
+const MAX_ENERGY := 3  # Energy you get each turn (before talents).
 const DEAL_TIME := 0.2  # Seconds between cards as they're dealt into your hand.
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
 const DEFAULT_ENEMY := preload("res://enemies/slime.tres")  # If an area has no encounters yet.
@@ -30,6 +30,7 @@ var hand: Array[CardData] = []
 var discard_pile: Array[CardData] = []
 
 var energy := 0
+var max_energy := MAX_ENERGY  # MAX_ENERGY plus Energy talents (set in start_battle()).
 # Bonuses waiting for your next Attack / Defense card (from Rage and Brace).
 var next_attack_bonus := 0
 var next_defense_bonus := 0
@@ -106,6 +107,7 @@ func start_battle() -> void:
 	if GameState.run_hp > 0:
 		player.hp = GameState.run_hp  # Later fights in a run keep the HP you had left.
 	make_enemies()
+	max_energy = MAX_ENERGY + talent_energy()
 
 	next_attack_bonus = 0
 	next_defense_bonus = 0
@@ -194,7 +196,7 @@ func enemy_names() -> String:
 func start_player_turn() -> void:
 	var leftover := player.block
 	player.clear_block()  # Your Armor saves up to that much of it (0 if you have none).
-	energy = MAX_ENERGY
+	energy = max_energy
 	turn += 1
 	battle_log.add_turn(turn)
 	# Decide now what each enemy will do, so the player can plan around it.
@@ -280,6 +282,7 @@ func draw_cards(amount: int) -> void:
 			battle_log.add("Discard pile shuffled into the draw pile", BattleLog.DIM_COLOR)
 		var card: CardData = draw_pile.pop_back()
 		card.roll_result = {}  # Forget any old roll.
+		apply_draw_talents(card)
 		if card.rolls_on_draw():
 			# A card with its own Advantage / Disadvantage uses it right away.
 			card.roll_result = CardRoller.roll(card, CardRoller.mode_for(card, false))
@@ -293,11 +296,51 @@ func draw_cards(amount: int) -> void:
 		else:
 			drawn.append(card.card_name + (" (Wild)" if card.wild and card.has_dice() else ""))
 		await get_tree().create_timer(DEAL_TIME).timeout
+		if game_over:
+			break  # A talent's damage just won the fight.
 	if rolled_any:
 		await get_tree().create_timer(Card.ROLL_TIME).timeout  # Let the last dice land.
 	if not drawn.is_empty():
 		battle_log.add("You draw " + ", ".join(drawn), BattleLog.DIM_COLOR)
 	update_ui()
+
+
+# ---------------------------------------------------------------------------
+# Talents (see talent.gd and the Talents screen)
+# ---------------------------------------------------------------------------
+
+# Extra Energy each turn from talents: Energy, and Energy If Only Neutral
+# when every card in your deck is Neutral.
+func talent_energy() -> int:
+	var cls := GameState.character_class
+	var bonus := GameState.talent_bonus(cls, Talent.ENERGY)
+	if GameState.deck.all(func(card: CardData) -> bool: return card.is_neutral()):
+		bonus += GameState.talent_bonus(cls, Talent.ENERGY_IF_ONLY_NEUTRAL)
+	return bonus
+
+
+# Talents that trigger when a card is drawn.
+func apply_draw_talents(card: CardData) -> void:
+	var cls := GameState.character_class
+	# A discount only lasts the turn: put the real cost back first.
+	if card.has_meta("base_cost"):
+		card.cost = card.get_meta("base_cost")
+		card.remove_meta("base_cost")
+	# Cost Discount Chance: e.g. 20 = a 20% chance it costs 1 less this turn.
+	# randi_range(1, 100) <= 20 is true 20 times out of 100.
+	var discount_chance := GameState.talent_bonus(cls, Talent.COST_DISCOUNT_CHANCE, card)
+	if card.cost > 0 and discount_chance > 0 and randi_range(1, 100) <= discount_chance:
+		card.set_meta("base_cost", card.cost)
+		card.cost -= 1
+		battle_log.add("Talent: %s costs 1 less this turn" % card.card_name, BattleLog.PLAYER_COLOR)
+	# Draw Damage Chance: 1 damage to every enemy.
+	var damage_chance := GameState.talent_bonus(cls, Talent.DRAW_DAMAGE_CHANCE, card)
+	if damage_chance > 0 and randi_range(1, 100) <= damage_chance:
+		battle_log.add("Talent: drawing %s deals 1 damage to all enemies" % card.card_name, BattleLog.PLAYER_COLOR)
+		for view in living_enemies():
+			battle_log.add("%s takes 1 damage (HP %d/%d)" % [view.data.display_name, view.hp_after(1), view.combatant.max_hp])
+			view.combatant.take_damage(1)
+			view.show_hurt()
 
 
 # A card's rolled dice as text for the log: {"attack 0": [3], "attack 1": [1]} -> "[3] [1]"
@@ -754,7 +797,7 @@ func update_ui() -> void:
 		player_block_label.text += "   Next roll +%d" % next_roll_bonus
 	if next_roll_advantage:
 		player_block_label.text += "   Advantage"
-	energy_label.text = "Energy %d / %d" % [energy, MAX_ENERGY]
+	energy_label.text = "Energy %d / %d" % [energy, max_energy]
 	piles_label.text = "Draw pile %d   Discard %d" % [draw_pile.size(), discard_pile.size()]
 
 	# Grey out cards you can't afford, and tell each card what it would do.
@@ -802,7 +845,7 @@ func show_drag_preview() -> void:
 		player_block_label.modulate = PREVIEW_COLOR
 	var energy_after := energy - card.cost + card.energy
 	if energy_after != energy:
-		energy_label.text = "Energy %d → %d / %d" % [energy, energy_after, MAX_ENERGY]
+		energy_label.text = "Energy %d → %d / %d" % [energy, energy_after, max_energy]
 		energy_label.modulate = PREVIEW_COLOR
 
 
@@ -857,6 +900,12 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 			line += "\n" + card_line
 			battle_log.add(card_line, BattleLog.PLAYER_COLOR)
 		reward_label.text += "\n" + line
+	if not level_ups.is_empty() and not GameState.talents_for(GameState.character_class).is_empty():
+		# Each level gives a talent point: make sure the player notices.
+		var points := GameState.talent_points_left(GameState.character_class)
+		var ready := "★ Talent point ready!" if points == 1 else "★ %d talent points ready!" % points
+		reward_label.text += "\n" + ready + " Spend it on the Talents screen."
+		battle_log.add(ready, BattleLog.CRIT_COLOR)
 
 
 func _on_player_died() -> void:

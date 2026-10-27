@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_4yck0"]
+
+[resource]
+script = ExtResource("1_4yck0")
+talent_name = "Jack of All Trades"
+class_display_name = "Adventurer"
+column = 1.5
+needs = PackedStringArray()
+choice_group = "Tier 1 Pick"
+locks_out = PackedStringArray("Master of None", "Easy Street")
+effect = "school limit"
+school = "all"
+amounts = Array[int]([1])
+rules = "Your deck can include 1 Strength, 1 Agility, 1 Intellect and 1 Wisdom card."
+rank_texts = PackedStringArray("Your deck can include 1 Strength, 1 Agility, 1 Intellect and 1 Wisdom card.")

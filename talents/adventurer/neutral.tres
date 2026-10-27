@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_5rmkm"]
+
+[resource]
+script = ExtResource("1_5rmkm")
+talent_name = "Neutral"
+class_display_name = "Adventurer"
+tier = 2
+column = 3.5
+max_ranks = 3
+needs = PackedStringArray()
+tier_unlock = 1
+locks_out = PackedStringArray()
+effect = "draw damage chance"
+school = "neutral"
+amounts = Array[int]([2, 4, 6])
+rules = "Each time you draw a Neutral card, there is a 2% / 4% / 6% chance to deal 1 damage to all enemies."
+rank_texts = PackedStringArray("Each time you draw a Neutral card, there is a 2% chance to deal 1 damage to all enemies.", "Each time you draw a Neutral card, there is a 4% chance to deal 1 damage to all enemies.", "Each time you draw a Neutral card, there is a 6% chance to deal 1 damage to all enemies.")

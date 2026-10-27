@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_f5hvh"]
+
+[resource]
+script = ExtResource("1_f5hvh")
+talent_name = "Energy +"
+class_display_name = "Adventurer"
+tier = 3
+column = 3.5
+needs = PackedStringArray()
+tier_unlock = 3
+locks_out = PackedStringArray()
+effect = "energy"
+amounts = Array[int]([1])
+rules = "You have +1 Energy."
+rank_texts = PackedStringArray("You have +1 Energy.")

@@ -8,6 +8,8 @@
 extends Control
 
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
+const TALENTS_SCENE := "res://scenes/talents.tscn"
+const POINT_READY_COLOR := Color(1, 0.82, 0.3)
 
 @onready var class_list: HBoxContainer = %ClassList
 
@@ -125,6 +127,7 @@ func make_class_panel(character_class: CharacterClass, all_cards: Array[CardData
 		choose_button.text = "Choose"
 		# bind() remembers which class this button is for (see deck_builder.gd).
 		choose_button.pressed.connect(_on_class_chosen.bind(character_class))
+		box.add_child(make_talents_button(character_class))
 	else:
 		choose_button.text = "Locked"
 		choose_button.disabled = true
@@ -135,6 +138,29 @@ func make_class_panel(character_class: CharacterClass, all_cards: Array[CardData
 	box.add_child(choose_button)
 
 	return panel
+
+
+# The Talents button. When there are points to spend it turns gold and says
+# so, like "Talent point ready!", so a level up is hard to miss.
+func make_talents_button(character_class: CharacterClass) -> Button:
+	var button := Button.new()
+	button.custom_minimum_size = Vector2(0, 32)
+	button.add_theme_font_size_override("font_size", 15)
+	var points := GameState.talent_points_left(character_class)
+	if points > 0:
+		button.text = "★ Talent point ready!" if points == 1 else "★ %d talent points ready!" % points
+		button.add_theme_color_override("font_color", POINT_READY_COLOR)
+		button.add_theme_color_override("font_hover_color", POINT_READY_COLOR)
+	else:
+		button.text = "Talents"
+	button.pressed.connect(_on_talents_pressed.bind(character_class))
+	return button
+
+
+func _on_talents_pressed(character_class: CharacterClass) -> void:
+	GameState.choose_class(character_class)
+	GameState.talents_return_scene = scene_file_path  # Come back here.
+	get_tree().change_scene_to_file(TALENTS_SCENE)
 
 
 func _on_class_chosen(character_class: CharacterClass) -> void:

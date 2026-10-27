@@ -73,6 +73,7 @@ func _ready() -> void:
 	default_button.pressed.connect(_on_default_pressed)
 	start_button.pressed.connect(_on_start_pressed)
 	back_button.pressed.connect(_on_back_pressed)
+	add_talents_button()
 
 	# Picking a class already gave you its starter deck, and coming back from a
 	# battle keeps your last deck. ensure_ready() only matters when you press F6
@@ -105,7 +106,7 @@ func _ready() -> void:
 # Building the screen (once)
 # ---------------------------------------------------------------------------
 
-# One toggle button per school the class can use, plus "All" and "Neutral".
+# One toggle button per school the class can use (or has cards for), plus "All" and "Neutral".
 func build_filters() -> void:
 	# A ButtonGroup makes toggle buttons work like radio buttons:
 	# pressing one un-presses the others.
@@ -113,7 +114,8 @@ func build_filters() -> void:
 	var options := [["All", ALL_SCHOOLS]]
 	for school_name in CardData.School.keys():
 		var school: int = CardData.School[school_name]
-		if (rules.allowed_schools & school) != 0:
+		# Also a tab for a school only a talent opens (the Adventurer's).
+		if (rules.allowed_schools & school) != 0 or card_pool.any(func(card: CardData) -> bool: return card.has_school(school)):
 			options.append([school_name.capitalize(), school])
 	if rules.allow_neutral:
 		options.append(["Neutral", NEUTRAL])
@@ -554,6 +556,22 @@ func _on_start_pressed() -> void:
 	# The deck survives because it lives in GameState, not in this scene.
 	GameState.save_game()  # Also remembers this deck for next time.
 	get_tree().change_scene_to_file(MAP_SCENE)
+
+
+# A Talents button next to Back. Talents can change which cards you may use,
+# so it's handy to hop over and come straight back.
+func add_talents_button() -> void:
+	var button := Button.new()
+	var points := GameState.talent_points_left(GameState.character_class)
+	button.text = "Talents"
+	if points > 0:
+		button.text = "★ Talents (%d point%s)" % [points, "" if points == 1 else "s"]
+		button.add_theme_color_override("font_color", GOLD)
+	button.pressed.connect(func() -> void:
+		GameState.save_game()
+		GameState.talents_return_scene = scene_file_path
+		get_tree().change_scene_to_file("res://scenes/talents.tscn"))
+	back_button.add_sibling(button)
 
 
 # Back to Character Select to pick a different class.

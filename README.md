@@ -67,7 +67,7 @@ deck rule:
 
 | Class | HP | Can use | Extra rule | Unlocks when |
 |---|---|---|---|---|
-| Adventurer | 25 | Every school, Neutral, Adventurer cards | **Only 1 card from each school** in the whole deck (Neutral cards don't count) | Unlocked from the start |
+| Adventurer | 25 | Neutral and Adventurer cards. **Talents** open up the schools (Jack of All Trades: 1 card from each school) | School cards only through talents | Unlocked from the start |
 | Knight | 30 | Strength, Neutral, Knight cards | - | You own 12 different Strength cards |
 | Rogue | 22 | Agility, Neutral, Rogue cards | - | You own 12 different Agility cards |
 | Mage | 20 | Intellect, Neutral, Mage cards | - | You own 12 different Intellect cards |
@@ -83,7 +83,7 @@ Class-only cards say so on their type line, e.g. **Attack - Knight**.
 Then you're on the **deck builder**, holding your class's starter deck:
 
 - Click a card on the left to add a copy to your deck. Click a row in **Your Deck** on the right to take one copy out.
-- The dots under each card are its copies: **gold** = in your deck, **grey** = owned but not in it, **hollow** = not owned yet. They always show every copy you own, even when your class can only use fewer (the Adventurer's school cards say "In deck (max 1)"). The line under them shows the card's level and Exp, or why you can't add it ("Deck is full", "1 Strength card max").
+- The dots under each card are its copies: **gold** = in your deck, **grey** = owned but not in it, **hollow** = not owned yet. They always show every copy you own, even when your class can only use fewer (the Adventurer's school cards say "In deck (max 1)"). The line under them shows the card's level and Exp, or why you can't add it ("Deck is full", "1 Strength card max", "Needs talent: Jack of All Trades").
 - The tabs at the top right (**All 8**, **Strength 0**...) show one school at a time, with how many of your cards are in each. **Sort by** orders the cards by School, Cost, Name or Rarity.
 - Your class's level and Exp bar are under its name.
 - **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
@@ -479,7 +479,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Column | Example | Notes |
 |---|---|---|
 | Name | Multi Strike | Also used for the file name (`multi_strike.tres`) |
-| Copies | 2 | How many go in the Starter Deck. A class can allow fewer: the Adventurer only ever gets 1 of a school card |
+| Copies | 2 | How many go in the Starter Deck. A class can allow fewer: the Adventurer's starter deck has no school cards |
 | Cost | 1 | |
 | School | Neutral | Strength, Agility, Intellect, Wisdom or Neutral. Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
@@ -550,6 +550,46 @@ One row per card a class gets when it reaches a level:
 
 The importer saves each class's list into its file in `classes/` (look for
 **Level Cards** in the Inspector).
+
+### Talent trees: `data/talents/<class>.csv`
+
+Each class can have a talent tree: one sheet per class, named after the
+class's file in `classes/` (`adventurer.csv` is the Adventurer's). Every class
+level after level 1 gives 1 talent point. Spend them on the **Talents** screen
+(the Talents button on Character Select and in the deck builder). When you have
+points to spend, the button turns gold, and the victory screen says
+"★ Talent point ready!".
+
+| Column | Example | What it does |
+|---|---|---|
+| Talent | Strength Affinity | The name |
+| Tier | 3 | The row, 1 = top |
+| Column | 1.5 | Left to right. 1.5 sits between 1 and 2 |
+| Cost | 1 | Points per rank |
+| Max Ranks | 3 | How many times you can spend on it |
+| Needs | Jack of All Trades | Talents you need first (comma-separated). A line connects them |
+| Needs Any or All | Any | `Any` = one of Needs is enough. Blank = all of them |
+| Points in Tree | 5 | Points you must have spent in the whole tree first |
+| Tier Unlock | 3 | Points you must have spent in the tier above (`3 in Tier 2` works too) |
+| Choice Group | Tier 1 Pick | Only one talent per group can be learned |
+| Locks Out | Master of None | Learning this stops you learning these |
+| Effect | Cost Discount Chance | What it does (the list below). Blank = nothing yet |
+| School | Strength | Which cards it works on: a school, `Neutral`, or `All` |
+| Amount | 10, 20, 30 | The number at each rank. One number = that much per rank |
+| Rules, Rank 1-3 | ... | The text you see when you hover it |
+
+The effects the game understands so far (talent.gd):
+
+| Effect | Amount means |
+|---|---|
+| School Limit | +that many cards of School in the deck. A school the class can't use starts at 0, so this opens it up |
+| Energy | +that much Energy every turn |
+| Energy If Only Neutral | +that much Energy if every card in your deck is Neutral |
+| Cost Discount Chance | % chance a drawn School card costs 1 less this turn (its cost turns green) |
+| Draw Damage Chance | % chance a drawn School card deals 1 damage to all enemies |
+
+**Reset Talents** on the Talents screen gives every point back (free for now).
+Talents are saved with the rest of your progress.
 
 ## Dice and Criticals
 
