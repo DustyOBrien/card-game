@@ -317,12 +317,12 @@ func choose_class(new_class: CharacterClass) -> void:
 # The deck you last built for this class, from saved_decks. Any card the class
 # can't use any more (or that you don't own enough of) is left out.
 func _load_saved_deck(for_class: CharacterClass) -> Array[CardData]:
-	var loaded: Array[CardData] = []
+	var cards: Array[CardData] = []
 	for card_name in saved_decks.get(for_class.display_name, []):
 		var card := find_card(card_name)
-		if card and for_class.can_add_to(loaded, card):
-			loaded.append(card)
-	return loaded
+		if card:
+			cards.append(card)
+	return _keep_allowed(cards, for_class)
 
 
 # ---------------------------------------------------------------------------
@@ -426,7 +426,7 @@ func reset_talents(for_class: CharacterClass) -> void:
 	talent_ranks.erase(for_class.display_name)
 	if for_class == character_class:
 		# Cards a talent let into the deck might not be allowed any more.
-		deck = _keep_allowed(deck)
+		deck = _keep_allowed(deck, for_class)
 	save_game()
 
 
@@ -473,12 +473,20 @@ func _class_named(display_name: String) -> CharacterClass:
 
 
 # The cards of `cards` that still follow every deck rule, in the same order.
-func _keep_allowed(cards: Array[CardData]) -> Array[CardData]:
+func _keep_allowed(cards: Array[CardData], for_class: CharacterClass) -> Array[CardData]:
 	var kept: Array[CardData] = []
 	for card in cards:
-		if character_class.can_add_to(kept, card):
+		if for_class.can_add_to(kept, card):
 			kept.append(card)
 	return kept
+
+
+# "★ Talent point ready!" (or "★ 2 talent points ready!"), or "" with none to spend.
+func talent_points_text(for_class: CharacterClass) -> String:
+	var points := talent_points_left(for_class)
+	if points <= 0 or talents_for(for_class).is_empty():
+		return ""
+	return "★ Talent point ready!" if points == 1 else "★ %d talent points ready!" % points
 
 
 # ---------------------------------------------------------------------------

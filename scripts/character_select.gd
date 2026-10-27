@@ -146,9 +146,9 @@ func make_talents_button(character_class: CharacterClass) -> Button:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, 32)
 	button.add_theme_font_size_override("font_size", 15)
-	var points := GameState.talent_points_left(character_class)
-	if points > 0:
-		button.text = "★ Talent point ready!" if points == 1 else "★ %d talent points ready!" % points
+	var ready := GameState.talent_points_text(character_class)
+	if not ready.is_empty():
+		button.text = ready
 		button.add_theme_color_override("font_color", POINT_READY_COLOR)
 		button.add_theme_color_override("font_hover_color", POINT_READY_COLOR)
 	else:

@@ -79,6 +79,3 @@ func clear_block() -> void:
 	block = mini(block, armor)
 	stats_changed.emit()
 
-
-func is_dead() -> bool:
-	return hp <= 0
