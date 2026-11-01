@@ -202,7 +202,7 @@ static func _import_class_cards(known_names: Array[String]) -> void:
 # (data/talents/ has an empty .gdignore file in it. Without it, Godot would
 # think each new sheet is a translation file and make lots of extra files.)
 # The sheet's file name says whose tree it is: adventurer.csv -> the Adventurer.
-#   Talent | Tier | Column | Cost | Max Ranks | Needs | Needs Any or All |
+#   Tree | Talent | Tier | Column | Cost | Max Ranks | Needs | Needs Any or All |
 #   Points in Tree | Tier Unlock | Choice Group | Locks Out |
 #   Effect | School | Amount | Rules | Rank 1 | Rank 2 | Rank 3
 static func _import_talents() -> void:
@@ -230,6 +230,7 @@ static func _import_talents() -> void:
 			columns[_clean_column_name(header[i])] = i
 
 		var made_files: Array[String] = []
+		var trees: Array[String] = []  # In the order they first appear: that's the tab order.
 		while not file.eof_reached():
 			var row := file.get_csv_line()
 			var talent_name := _cell(row, columns, "talent")
@@ -238,6 +239,12 @@ static func _import_talents() -> void:
 			var talent := Talent.new()
 			talent.talent_name = talent_name
 			talent.class_display_name = class_names[class_key]
+			# A blank Tree (or no Tree column) puts it in one tree called "Talents".
+			var tree_name := _cell(row, columns, "tree")
+			talent.tree = tree_name if not tree_name.is_empty() else "Talents"
+			if not trees.has(talent.tree):
+				trees.append(talent.tree)
+			talent.tree_index = trees.find(talent.tree)
 			talent.tier = _to_int(_cell(row, columns, "tier"), 1)
 			talent.column = _cell(row, columns, "column").to_float() if _cell(row, columns, "column").is_valid_float() else 1.0
 			talent.cost = maxi(_to_int(_cell(row, columns, "cost"), 1), 1)
@@ -263,7 +270,7 @@ static func _import_talents() -> void:
 			ResourceSaver.save(talent, folder + file_name)
 			made_files.append(file_name)
 		_remove_old_cards(folder, made_files)
-		print("Talents for %s: %d" % [class_names[class_key], made_files.size()])
+		print("Talents for %s: %d in %d tree(s)" % [class_names[class_key], made_files.size(), trees.size()])
 
 
 # Get one cell from a row by its column name, e.g. _cell(row, columns, "cost").

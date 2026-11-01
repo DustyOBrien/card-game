@@ -18,7 +18,7 @@ extends Control
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const SHOP_SCENE := "res://scenes/shop.tscn"
 
-const HAND_SIZE := 5  # Cards drawn at the start of each turn.
+const HAND_SIZE := 5  # Cards drawn at the start of each turn (before talents).
 const MAX_ENERGY := 3  # Energy you get each turn (before talents).
 const DEAL_TIME := 0.2  # Seconds between cards as they're dealt into your hand.
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
@@ -219,7 +219,8 @@ func start_player_turn() -> void:
 		battle_log.add("Your Armor saves %d of your %d leftover Block" % [player.block, leftover])
 	busy = true
 	var my_fight := fight_id
-	await draw_cards(HAND_SIZE)  # Wait for the cards to be dealt and their dice to land.
+	# Wait for the cards to be dealt and their dice to land. Hand Size talents draw more.
+	await draw_cards(HAND_SIZE + GameState.talent_bonus(GameState.character_class, Talent.HAND_SIZE))
 	if my_fight != fight_id:
 		return  # That fight ended while the cards were dealt; a new one has started.
 	busy = false

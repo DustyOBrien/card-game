@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_kcsf0"]
+
+[resource]
+script = ExtResource("1_kcsf0")
+talent_name = "Hoarder"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+tier = 3
+column = 2.0
+needs = PackedStringArray("Saddlebags")
+points_in_tree = 6
+locks_out = PackedStringArray()
+effect = "max deck size"
+amounts = Array[int]([20])
+rules = "Your deck can hold 20 more cards."
+rank_texts = PackedStringArray("Your deck can hold 20 more cards.")

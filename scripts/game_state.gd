@@ -340,11 +340,22 @@ func talents_for(for_class: CharacterClass) -> Array[Talent]:
 		for file_name in ResourceLoader.list_directory(folder):
 			if file_name.ends_with(".tres"):
 				list.append(load(folder + file_name))
-		# Top row first, then left to right.
+		# Tree by tree, then top row first, then left to right.
 		list.sort_custom(func(a: Talent, b: Talent) -> bool:
+			if a.tree_index != b.tree_index:
+				return a.tree_index < b.tree_index
 			return a.tier < b.tier if a.tier != b.tier else a.column < b.column)
 		_talents[for_class.display_name] = list
 	return _talents[for_class.display_name]
+
+
+# The names of this class's trees, in tab order: ["Jack of All Trades", "Master of None", "Pack Rat"].
+func trees_for(for_class: CharacterClass) -> Array[String]:
+	var trees: Array[String] = []
+	for talent in talents_for(for_class):
+		if not trees.has(talent.tree):
+			trees.append(talent.tree)
+	return trees
 
 
 func find_talent(for_class: CharacterClass, talent_name: String) -> Talent:
@@ -364,10 +375,11 @@ func talent_points_earned(for_class: CharacterClass) -> int:
 	return class_level(for_class) - 1 + bonus_talent_points
 
 
-func talent_points_spent(for_class: CharacterClass, only_tier: int = 0) -> int:
+# Points spent in this class's talents. Pass a tree (and a tier) to count only those.
+func talent_points_spent(for_class: CharacterClass, only_tree: String = "", only_tier: int = 0) -> int:
 	var spent := 0
 	for talent in talents_for(for_class):
-		if only_tier == 0 or talent.tier == only_tier:
+		if (only_tree.is_empty() or talent.tree == only_tree) and (only_tier == 0 or talent.tier == only_tier):
 			spent += talent_rank(talent) * talent.cost
 	return spent
 
@@ -391,11 +403,11 @@ func why_cant_learn(talent: Talent) -> String:
 		if same_group or other.locks_out.has(talent.talent_name) or talent.locks_out.has(other.talent_name):
 			return "You picked %s" % other.talent_name
 	if talent.tier_unlock > 0 and talent.tier > 1:
-		var in_tier_above := talent_points_spent(for_class, talent.tier - 1)
+		var in_tier_above := talent_points_spent(for_class, talent.tree, talent.tier - 1)
 		if in_tier_above < talent.tier_unlock:
 			return "Spend %d point(s) in Tier %d first" % [talent.tier_unlock, talent.tier - 1]
-	if talent.points_in_tree > 0 and talent_points_spent(for_class) < talent.points_in_tree:
-		return "Spend %d point(s) in this tree first" % talent.points_in_tree
+	if talent.points_in_tree > 0 and talent_points_spent(for_class, talent.tree) < talent.points_in_tree:
+		return "Spend %d point(s) in %s first" % [talent.points_in_tree, talent.tree]
 	if not talent.needs.is_empty():
 		var have: Array[String] = []
 		for needed in talent.needs:

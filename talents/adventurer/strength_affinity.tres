@@ -6,10 +6,11 @@
 script = ExtResource("1_xs3tk")
 talent_name = "Strength Affinity"
 class_display_name = "Adventurer"
+tree = "Jack of All Trades"
 tier = 3
 max_ranks = 3
-needs = PackedStringArray()
-tier_unlock = 3
+needs = PackedStringArray("Strength Training")
+points_in_tree = 3
 locks_out = PackedStringArray()
 effect = "cost discount chance"
 school = "strength"

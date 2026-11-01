@@ -6,10 +6,11 @@
 script = ExtResource("1_yd2s2")
 talent_name = "Master of None"
 class_display_name = "Adventurer"
-column = 3.5
+tree = "Master of None"
+tree_index = 1
+column = 2.0
 needs = PackedStringArray()
-choice_group = "Tier 1 Pick"
-locks_out = PackedStringArray("Jack of All Trades", "Easy Street")
+locks_out = PackedStringArray()
 effect = "energy if only neutral"
 amounts = Array[int]([1])
 rules = "If your deck contains only Neutral cards, gain +1 Energy."

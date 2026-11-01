@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_lqawc"]
+
+[resource]
+script = ExtResource("1_lqawc")
+talent_name = "Deep Pockets"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+tier = 2
+column = 1.5
+needs = PackedStringArray()
+points_in_tree = 3
+locks_out = PackedStringArray()
+effect = "hand size"
+amounts = Array[int]([1])
+rules = "Draw 1 more card at the start of each turn."
+rank_texts = PackedStringArray("Draw 1 more card at the start of each turn.")

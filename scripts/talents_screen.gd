@@ -1,7 +1,9 @@
 # talents_screen.gd
 #
-# The Talents screen (scenes/talents.tscn): the chosen class's talent tree.
-# Click a talent to spend a point on it. Hover one to read what it does.
+# The Talents screen (scenes/talents.tscn): the chosen class's talent trees.
+# Like World of Warcraft, a class can have several trees, one tab each, and
+# your points are shared between them. Click a talent to spend a point on it.
+# Hover one to read what it does.
 #
 # Like Character Select, the tree is built here in code from the talent
 # files, so a new talent in the spreadsheet shows up on its own. Each talent's
@@ -19,6 +21,7 @@ const REASON_COLOR := Color(1, 0.55, 0.45)
 
 @onready var title_label: Label = %TitleLabel
 @onready var points_label: Label = %PointsLabel
+@onready var tree_tabs: HBoxContainer = %TreeTabs
 @onready var tree_area: Control = %TreeArea
 @onready var detail_name: Label = %DetailName
 @onready var detail_text: Label = %DetailText
@@ -27,7 +30,9 @@ const REASON_COLOR := Color(1, 0.55, 0.45)
 @onready var reset_button: Button = %ResetButton
 
 var character_class: CharacterClass
-var boxes := {}  # Talent -> its Button.
+var boxes := {}  # Talent -> its Button (only the tree on show).
+var current_tree := ""  # The tree whose tab is open.
+var tab_buttons := {}  # Tree name -> its tab Button.
 var hovered: Talent = null  # Shown in the details panel.
 
 
@@ -40,6 +45,7 @@ func _ready() -> void:
 	# The lines between talents are drawn by the tree area itself. draw.connect()
 	# lets this script do the drawing, whenever Godot redraws that node.
 	tree_area.draw.connect(_draw_lines)
+	build_tabs()
 	build_tree()
 	refresh()
 
@@ -48,8 +54,34 @@ func _ready() -> void:
 # Building the tree (once)
 # ---------------------------------------------------------------------------
 
+# One tab per tree. A ButtonGroup makes them work like radio buttons.
+func build_tabs() -> void:
+	var trees := GameState.trees_for(character_class)
+	if trees.is_empty():
+		return
+	current_tree = trees[0]
+	var group := ButtonGroup.new()
+	for tree_name in trees:
+		var tab := Button.new()
+		tab.toggle_mode = true
+		tab.button_group = group
+		tab.button_pressed = tree_name == current_tree
+		tab.custom_minimum_size = Vector2(220, 40)
+		tab.add_theme_font_size_override("font_size", 18)
+		tab.pressed.connect(_on_tab_pressed.bind(tree_name))
+		tree_tabs.add_child(tab)
+		tab_buttons[tree_name] = tab
+	tree_tabs.visible = trees.size() > 1  # One tree doesn't need tabs.
+
+
+# Build the boxes for the tree on show (again, when you switch tabs).
 func build_tree() -> void:
-	var talents := GameState.talents_for(character_class)
+	for child in tree_area.get_children():
+		tree_area.remove_child(child)
+		child.queue_free()
+	boxes.clear()
+	var talents := GameState.talents_for(character_class).filter(
+		func(talent: Talent) -> bool: return talent.tree == current_tree)
 	if talents.is_empty():
 		var empty := Label.new()
 		empty.text = "No talents for the %s yet.\nAdd a sheet: data/talents/%s.csv" % [
@@ -57,15 +89,19 @@ func build_tree() -> void:
 		tree_area.add_child(empty)
 		return
 
-	# One label per tier, on the left.
-	var tiers := {}
+	# One label per tier, on the left, with what it takes to open it
+	# (the smallest requirement of any talent in that tier).
+	var tiers := {}  # Tier -> [points in this tree, points in the tier above]
 	for talent in talents:
-		tiers[talent.tier] = talent.tier_unlock
+		var needs: Array = tiers.get(talent.tier, [9999, 9999])  # 9999 = "no talent seen yet"
+		tiers[talent.tier] = [mini(needs[0], talent.points_in_tree), mini(needs[1], talent.tier_unlock)]
 	for tier: int in tiers:
 		var label := Label.new()
 		label.text = "Tier %d" % tier
-		if tier > 1 and tiers[tier] > 0:
-			label.text += "\n%d point(s) in Tier %d" % [tiers[tier], tier - 1]
+		if tiers[tier][0] > 0:
+			label.text += "\n%d point(s) in tree" % tiers[tier][0]
+		if tier > 1 and tiers[tier][1] > 0:
+			label.text += "\n%d point(s) in Tier %d" % [tiers[tier][1], tier - 1]
 		label.add_theme_font_size_override("font_size", 15)
 		label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 		label.position = Vector2(0, row_y(tier) + 16)
@@ -102,6 +138,10 @@ func row_y(tier: int) -> float:
 func refresh() -> void:
 	var points := GameState.talent_points_left(character_class)
 	points_label.text = "Talent points: %d" % points
+	# Each tab shows the points spent in it, e.g. "Pack Rat  (3)".
+	for tree_name: String in tab_buttons:
+		tab_buttons[tree_name].text = "%s  (%d)" % [tree_name,
+			GameState.talent_points_spent(character_class, tree_name)]
 	points_label.add_theme_color_override("font_color", LEARNED_COLOR if points > 0 else Color(1, 1, 1, 0.6))
 	for talent: Talent in boxes:
 		var box: Button = boxes[talent]
@@ -186,6 +226,14 @@ func _on_talent_pressed(talent: Talent) -> void:
 		box.pivot_offset = BOX_SIZE / 2
 		box.scale = Vector2(1.1, 1.1)
 		create_tween().tween_property(box, "scale", Vector2.ONE, 0.15)
+	refresh()
+
+
+func _on_tab_pressed(tree_name: String) -> void:
+	current_tree = tree_name
+	tab_buttons[tree_name].button_pressed = true
+	hovered = null
+	build_tree()
 	refresh()
 
 

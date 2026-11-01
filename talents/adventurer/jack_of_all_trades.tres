@@ -6,10 +6,10 @@
 script = ExtResource("1_4yck0")
 talent_name = "Jack of All Trades"
 class_display_name = "Adventurer"
-column = 1.5
+tree = "Jack of All Trades"
+column = 2.5
 needs = PackedStringArray()
-choice_group = "Tier 1 Pick"
-locks_out = PackedStringArray("Master of None", "Easy Street")
+locks_out = PackedStringArray()
 effect = "school limit"
 school = "all"
 amounts = Array[int]([1])

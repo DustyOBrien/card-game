@@ -553,8 +553,12 @@ The importer saves each class's list into its file in `classes/` (look for
 
 ### Talent trees: `data/talents/<class>.csv`
 
-Each class can have a talent tree: one sheet per class, named after the
-class's file in `classes/` (`adventurer.csv` is the Adventurer's). Every class
+Each class can have talent trees, like World of Warcraft: one sheet per class,
+named after the class's file in `classes/` (`adventurer.csv` is the
+Adventurer's). The **Tree** column splits a sheet into trees, each with its own
+tab on the Talents screen. The Adventurer has three (placeholder talents for
+now): **Jack of All Trades** (school cards), **Master of None** (Neutral only)
+and **Pack Rat** (huge decks). Points are shared, so spend them in any tree. Every class
 level after level 1 gives 1 talent point. Spend them on the **Talents** screen
 (the Talents button on Character Select and in the deck builder). When you have
 points to spend, the button turns gold, and the victory screen says
@@ -562,6 +566,7 @@ points to spend, the button turns gold, and the victory screen says
 
 | Column | Example | What it does |
 |---|---|---|
+| Tree | Pack Rat | Which tree (and tab) it's in. Trees appear in the order they first show up. Blank = one tree called "Talents" |
 | Talent | Strength Affinity | The name |
 | Tier | 3 | The row, 1 = top |
 | Column | 1.5 | Left to right. 1.5 sits between 1 and 2 |
@@ -569,14 +574,14 @@ points to spend, the button turns gold, and the victory screen says
 | Max Ranks | 3 | How many times you can spend on it |
 | Needs | Jack of All Trades | Talents you need first (comma-separated). A line connects them |
 | Needs Any or All | Any | `Any` = one of Needs is enough. Blank = all of them |
-| Points in Tree | 5 | Points you must have spent in the whole tree first |
-| Tier Unlock | 3 | Points you must have spent in the tier above (`3 in Tier 2` works too) |
+| Points in Tree | 5 | Points you must have spent in **this tree** first (WoW's "5 points per row") |
+| Tier Unlock | 3 | Points you must have spent in the tier above, in this tree (`3 in Tier 2` works too) |
 | Choice Group | Tier 1 Pick | Only one talent per group can be learned |
 | Locks Out | Master of None | Learning this stops you learning these |
 | Effect | Cost Discount Chance | What it does (the list below). Blank = nothing yet |
 | School | Strength | Which cards it works on: a school, `Neutral`, or `All` |
 | Amount | 10, 20, 30 | The number at each rank. One number = that much per rank |
-| Rules, Rank 1-3 | ... | The text you see when you hover it |
+| Rules, Rank 1-5 | ... | The text you see when you hover it (add more Rank columns for more ranks) |
 
 The effects the game understands so far (talent.gd):
 
@@ -587,6 +592,8 @@ The effects the game understands so far (talent.gd):
 | Energy If Only Neutral | +that much Energy if every card in your deck is Neutral |
 | Cost Discount Chance | % chance a drawn School card costs 1 less this turn (its cost turns green) |
 | Draw Damage Chance | % chance a drawn School card deals 1 damage to all enemies |
+| Max Deck Size | +that many cards your deck can hold (Pack Rat) |
+| Hand Size | +that many cards drawn at the start of each turn |
 
 **Reset Talents** on the Talents screen gives every point back (free for now).
 Talents are saved with the rest of your progress.

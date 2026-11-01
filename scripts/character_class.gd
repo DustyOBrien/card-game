@@ -62,6 +62,11 @@ func max_copies_of(card: CardData) -> int:
 	return 0
 
 
+# The most cards the deck can hold: max_deck_size, plus Max Deck Size talents (Pack Rat).
+func deck_size_limit() -> int:
+	return max_deck_size + GameState.talent_bonus(self, Talent.MAX_DECK_SIZE)
+
+
 # How many cards of this school may the deck hold? -1 = no limit, 0 = none.
 # A school the class allows uses max_cards_per_school (0 there = no limit).
 # Talents with the School Limit effect add to it, and can open up a school
@@ -100,7 +105,7 @@ func why_not(deck: Array[CardData], card: CardData) -> String:
 	if count >= GameState.owned(card):
 		# You can't put in more copies than you own.
 		return "You own %d" % GameState.owned(card)
-	if deck.size() >= max_deck_size:
+	if deck.size() >= deck_size_limit():
 		return "Deck is full"
 	# Every school on the card that has a limit must still have room.
 	for school in CardData.School.values():
@@ -165,7 +170,7 @@ func get_rules_text() -> String:
 	if allow_neutral:
 		lines.append("Neutral cards")
 	lines.append("Up to %d copies of each card" % GameState.MAX_COPIES)
-	lines.append("Deck size: %d to %d cards" % [min_deck_size, max_deck_size])
+	lines.append("Deck size: %d to %d cards" % [min_deck_size, deck_size_limit()])
 	lines.append("HP: %d" % max_hp)
 	if armor > 0:
 		lines.append("Armor: %d (keeps up to %d leftover Block)" % [armor, armor])

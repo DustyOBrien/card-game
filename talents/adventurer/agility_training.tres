@@ -1,15 +1,16 @@
 [gd_resource type="Resource" script_class="Talent" format=3]
 
-[ext_resource type="Script" path="res://scripts/talent.gd" id="1_5ahss"]
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_vvhlj"]
 
 [resource]
-script = ExtResource("1_5ahss")
-talent_name = "Agility"
+script = ExtResource("1_vvhlj")
+talent_name = "Agility Training"
 class_display_name = "Adventurer"
+tree = "Jack of All Trades"
 tier = 2
 column = 2.0
-needs = PackedStringArray()
-tier_unlock = 1
+needs = PackedStringArray("Jack of All Trades")
+points_in_tree = 1
 locks_out = PackedStringArray()
 effect = "school limit"
 school = "agility"

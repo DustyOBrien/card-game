@@ -85,10 +85,10 @@ func _ready() -> void:
 	emblem.texture = rules.emblem
 	title_label.text = rules.display_name
 	subtitle_label.text = "Build your deck  ·  %d HP  ·  %d to %d cards" % [
-		rules.max_hp, rules.min_deck_size, rules.max_deck_size]
+		rules.max_hp, rules.min_deck_size, rules.deck_size_limit()]
 	if rules.armor > 0:
 		subtitle_label.text = subtitle_label.text.replace(" HP ", " HP  ·  %d Armor " % rules.armor)
-	deck_size_bar.max_value = rules.max_deck_size
+	deck_size_bar.max_value = rules.deck_size_limit()
 	exp_bar.show_class(rules)
 
 	# The "Sort by" menu. An OptionButton is a drop-down list.
@@ -281,7 +281,7 @@ func make_pips(in_deck: int, owned: int, limit: int) -> String:
 
 # The stats at the top of the deck panel.
 func refresh_stats(deck: Array[CardData]) -> void:
-	deck_count_label.text = "%d / %d" % [deck.size(), rules.max_deck_size]
+	deck_count_label.text = "%d / %d" % [deck.size(), rules.deck_size_limit()]
 
 	# Size bar: red until you reach the minimum, then green.
 	deck_size_bar.value = deck.size()

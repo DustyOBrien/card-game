@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_gj7s3"]
+
+[resource]
+script = ExtResource("1_gj7s3")
+talent_name = "Big Backpack"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+column = 2.0
+max_ranks = 5
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "max deck size"
+amounts = Array[int]([4])
+rules = "Your deck can hold 4 / 8 / 12 / 16 / 20 more cards."
+rank_texts = PackedStringArray("Your deck can hold 4 more cards.", "Your deck can hold 8 more cards.", "Your deck can hold 12 more cards.", "Your deck can hold 16 more cards.", "Your deck can hold 20 more cards.")

@@ -4,7 +4,11 @@
 # spreadsheet: data/talents/<class>.csv (one sheet per class), which the card
 # importer turns into talents/<class>/<name>.tres files.
 #
-# A talent has a spot in the tree (Tier = row, Column = left to right), some
+# Like World of Warcraft, a class can have several trees (the Tree column),
+# e.g. the Adventurer's Jack of All Trades, Master of None and Pack Rat.
+# Your talent points are shared: spend them in any tree.
+#
+# A talent has a spot in its tree (Tier = row, Column = left to right), some
 # rules about when you can learn it, and ONE effect the game knows how to do.
 # Spend talent points on it to raise its rank (up to max_ranks).
 class_name Talent
@@ -17,12 +21,17 @@ const ENERGY := "energy"  # +Amount Energy every turn.
 const ENERGY_IF_ONLY_NEUTRAL := "energy if only neutral"  # +Amount Energy if every card in the deck is Neutral.
 const COST_DISCOUNT_CHANCE := "cost discount chance"  # Amount% chance a drawn School card costs 1 less this turn.
 const DRAW_DAMAGE_CHANCE := "draw damage chance"  # Amount% chance a drawn School card deals 1 damage to all enemies.
-const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, COST_DISCOUNT_CHANCE, DRAW_DAMAGE_CHANCE]
+const MAX_DECK_SIZE := "max deck size"  # +Amount to the most cards your deck can hold.
+const HAND_SIZE := "hand size"  # +Amount cards drawn at the start of each turn.
+const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, COST_DISCOUNT_CHANCE,
+	DRAW_DAMAGE_CHANCE, MAX_DECK_SIZE, HAND_SIZE]
 
 @export var talent_name: String = "New Talent"
 @export var class_display_name: String = ""  # Whose tree it's in ("Adventurer").
 
 @export_group("Place in the tree")
+@export var tree: String = "Talents"  # Which of the class's trees it's in.
+@export var tree_index: int = 0  # The tree's place in the sheet: 0 = first tree (the first tab).
 @export var tier: int = 1  # The row, 1 = the top.
 @export var column: float = 1.0  # Left to right. 1.5 sits halfway between columns 1 and 2.
 
@@ -31,8 +40,8 @@ const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, CO
 @export var max_ranks: int = 1
 @export var needs: PackedStringArray = []  # Talents you must have first (at least 1 rank).
 @export var needs_any: bool = false  # true = any ONE of `needs` is enough. false = all of them.
-@export var points_in_tree: int = 0  # Points you must have spent in this class's whole tree.
-@export var tier_unlock: int = 0  # Points you must have spent in the tier above.
+@export var points_in_tree: int = 0  # Points you must have spent in THIS tree (like WoW's "5 points per row").
+@export var tier_unlock: int = 0  # Points you must have spent in the tier above, in this tree.
 @export var choice_group: String = ""  # Only one talent per group can be learned.
 @export var locks_out: PackedStringArray = []  # Learning this one stops you learning these.
 

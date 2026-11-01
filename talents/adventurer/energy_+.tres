@@ -6,10 +6,12 @@
 script = ExtResource("1_f5hvh")
 talent_name = "Energy +"
 class_display_name = "Adventurer"
+tree = "Master of None"
+tree_index = 1
 tier = 3
-column = 3.5
-needs = PackedStringArray()
-tier_unlock = 3
+column = 2.0
+needs = PackedStringArray("Master of None")
+points_in_tree = 4
 locks_out = PackedStringArray()
 effect = "energy"
 amounts = Array[int]([1])
