@@ -74,3 +74,29 @@ static func roll_dice(text: String) -> Array[int]:
 	for i in dice.count:
 		results.append(randi_range(1, dice.sides))
 	return results
+
+
+# The dice ladder for Empowered: each die moves up one size, and d20 is the top.
+# A size between steps goes to the next one up (d4 -> d6).
+const LADDER: Array[int] = [3, 6, 8, 10, 12, 20]
+
+# One size bigger: 6 -> 8, 20 -> 20 (the cap).
+static func bigger_die(sides: int) -> int:
+	for size in LADDER:
+		if size > sides:
+			return size
+	return LADDER[-1]
+
+
+# The same formula with every die one size bigger: "2d3+1" -> "2d6+1".
+# A plain number ("6") has no dice, so it stays the same.
+static func upgraded(text: String) -> String:
+	var dice := parse(text)
+	if dice.is_empty() or dice.count == 0:
+		return text
+	var result := "%dd%d" % [dice.count, bigger_die(dice.sides)] if dice.count > 1 else "d%d" % bigger_die(dice.sides)
+	if dice.bonus > 0:
+		result += "+%d" % dice.bonus
+	elif dice.bonus < 0:
+		result += "%d" % dice.bonus  # "-1" already has its minus sign.
+	return result

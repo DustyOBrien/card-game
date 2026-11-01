@@ -122,6 +122,7 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 				or _cell(row, columns, "roll").to_lower() == "play"
 		card.vanish = _parse_yes_no(_cell(row, columns, "vanish"), false)
 		card.flawless = _parse_yes_no(_cell(row, columns, "flawless"), false)
+		card.empowered = _parse_yes_no(_cell(row, columns, "empowered"), false)
 		card.advantage = _parse_yes_no(_cell(row, columns, "advantage"), false)
 		card.disadvantage = _parse_yes_no(_cell(row, columns, "disadvantage"), false)
 		card.gain_advantage = _parse_yes_no(_cell(row, columns, "gain advantage"), false)

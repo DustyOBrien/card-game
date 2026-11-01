@@ -67,13 +67,18 @@ func _draw() -> void:
 
 # The corners of the die's shape, going round the centre.
 func _shape_points(center: Vector2, radius: float) -> PackedVector2Array:
-	var corners := 6  # Hexagon for d8, d10, d12, d20...
+	# A different shape per die size, so you can tell an Empowered die apart.
+	var corners := 6  # Hexagon for d12 (and any other size).
 	var start_angle := -PI / 2  # First corner straight up.
 	match sides:
 		3:
 			corners = 3
-		4:
-			corners = 4
+		4, 8:
+			corners = 4  # Diamond.
+		10:
+			corners = 5  # Pentagon.
+		20:
+			corners = 8  # Octagon: the biggest die gets the roundest shape.
 		6:
 			corners = 4
 			start_angle = -PI / 4  # Turn the diamond 45° so it's a square.

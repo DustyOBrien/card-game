@@ -124,6 +124,7 @@ In the battle:
 - **Armor** saves leftover Block, and it's part of your class (the Adventurer has 3). Normally your Block drops to 0 at the start of your turn. With Armor 3, up to 3 of it stays: gain 10 Block, take a 5 hit, and the 5 left over becomes 3 next turn (2 left over would stay 2). Armor never gives you Block on its own. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`. Enemies can have Armor too: click an enemy in `enemies/` and set **Armor** in the Inspector (the Slime has 0).
 - **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
 - **Flawless** cards (marked *Flawless*) crit on every die, whatever they roll. The Pack Rat spec makes the FIRST play of each card in a fight Flawless too.
+- **Empowered** cards roll every die one size bigger: d3 → d6 → d8 → d10 → d12 → d20 (the top). Bigger dice hit harder, but a crit still needs the top number, so they crit less often.
 - When you're out of energy or cards, click **End Turn**.
 - **Several enemies:** a fight can have up to three enemies side by side, each with its own health bar and attack. To hit one with an attack, **drop the card on that enemy** (it lights up). With only one enemy left, you can drop attacks anywhere.
 - **AoE and Random attacks:** a card's **Target** decides who it hits. **AoE** cards (marked *AoE*, like Sweep) hit **every** enemy, and **Random** cards send each hit to a random enemy. Drop them anywhere. While you drag, the health bars of the enemies it would hit show the damage.
@@ -508,6 +509,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Wild | TRUE | TRUE = the dice roll when played, not when drawn. (Or a **Roll** column with `Play` / `Draw`.) Blank = FALSE |
 | Vanish | TRUE | TRUE = gone for the rest of the run once played. Blank = FALSE |
 | Flawless | TRUE | TRUE = every die on the card is a Critical, whatever it rolls. Blank = FALSE |
+| Empowered | TRUE | TRUE = every die on the card is one size bigger (d3 → d6 → d8 → d10 → d12 → d20). Blank = FALSE |
 | Advantage | TRUE | This card's dice roll with **Advantage**: each die is rolled twice and the higher one is kept |
 | Disadvantage | TRUE | This card's dice roll with **Disadvantage**: each die is rolled twice and the lower one is kept (Wild Swing) |
 | Target | All | Who an attack hits: **Single** (the enemy you drop it on), **All** (or **AoE**: every enemy) or **Random** (each hit picks a random enemy). Blank = Single |

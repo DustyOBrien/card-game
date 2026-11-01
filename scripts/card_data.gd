@@ -95,9 +95,12 @@ const RARITY_COLORS := {
 #   Vanish: once played, the card is gone for the rest of the run.
 #   Flawless: every die on the card is a Critical, whatever it rolls.
 #             (Pack Rat makes the first play of each card Flawless too.)
+#   Empowered: every die on the card is one size bigger: d3 -> d6 -> d8 ->
+#             d10 -> d12 -> d20 (the top). See Dice.upgraded().
 @export var wild: bool = false
 @export var vanish: bool = false
 @export var flawless: bool = false
+@export var empowered: bool = false
 # What happens on a Critical: each die that reaches its top number (modifiers
 # count!). Written like the spreadsheet, e.g. "+1 Damage" or "Draw 1, Gain 1 Energy".
 @export var critical: String = ""
@@ -166,7 +169,17 @@ func get_formulas() -> Dictionary:
 		formulas["heal"] = heal
 	if not next_roll_bonus.is_empty():
 		formulas["roll bonus"] = next_roll_bonus  # Pump Up's d3 rolls along with the card.
+	if empowered:
+		# Empowered: every die one size bigger. Everything that rolls or shows
+		# the dice asks this function, so they all see the bigger dice.
+		for key in formulas:
+			formulas[key] = Dice.upgraded(formulas[key])
 	return formulas
+
+
+# One formula as this card really rolls it (bigger if the card is Empowered).
+func _dice(formula: String) -> String:
+	return Dice.upgraded(formula) if empowered else formula
 
 
 func is_rolled() -> bool:
@@ -201,18 +214,18 @@ func get_attack_text() -> String:
 		return ""
 	var hits: Array[String] = []
 	for formula in attack:
-		hits.append(_with_modifier(formula, attack_modifier))
+		hits.append(_with_modifier(_dice(formula), attack_modifier))
 	if hits.count(hits[0]) == hits.size() and hits.size() > 1:
 		return "%s x%d" % [hits[0], hits.size()]  # All hits the same.
 	return " + ".join(hits)
 
 
 func get_block_text() -> String:
-	return _with_modifier(block, block_modifier)
+	return _with_modifier(_dice(block), block_modifier)
 
 
 func get_heal_text() -> String:
-	return _with_modifier(heal, heal_modifier)
+	return _with_modifier(_dice(heal), heal_modifier)
 
 
 # "d3" with modifier 1 -> "d3+1". A plain number just gets added: "6" + 1 -> "7".
@@ -229,7 +242,7 @@ static func _with_modifier(formula: String, modifier: int) -> String:
 func make_description() -> String:
 	var parts: Array[String] = []
 	if not attack.is_empty():
-		var text := "Deal %s damage" % _with_modifier(attack[0], attack_modifier)
+		var text := "Deal %s damage" % _with_modifier(_dice(attack[0]), attack_modifier)
 		if attack.size() > 1 and get_attack_text().contains(" x"):
 			text += " %d times" % attack.size() if attack.size() > 2 else " twice"
 		elif attack.size() > 1:
@@ -299,6 +312,8 @@ func get_keyword_text() -> String:
 		words.append("Vanish")
 	if flawless and has_dice():
 		words.append("Flawless")  # Only dice can crit.
+	if empowered and has_dice():
+		words.append("Empowered")
 	return " · ".join(words)
 
 
