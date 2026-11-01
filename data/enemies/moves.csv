@@ -1,0 +1,19 @@
+Enemy,Move,Weight,Max In A Row,Attack,Hits,Block,Strength,Heal,Ally Block,Ally Strength,Summon,Summon Count,Notes
+Slime,Tackle,3,,2-5,,,,,,,,,A plain hit
+Slime,Harden,1,1,,,6,,,,,,,Never twice in a row
+Slimeling,Nibble,3,,1-3,,,,,,,,,
+Slimeling,Jiggle,1,1,,,,,,,1,,,Every enemy gets +1 Strength
+Big Slime,Body Slam,2,,4-7,,,,,,,,,Splits into 2 Slimes at half HP
+Big Slime,Ooze,1,1,3,,3,,,,,,,Attack and Block in one move
+Slime King,Royal Slam,1,,6-8,,,,,,,,,Boss: moves go in this order
+Slime King,Call the Court,1,,,,,,,,,Slimeling,1,
+Slime King,Royal Jelly,1,,,,6,1,,,,,,
+Wolf,Bite,2,,2-3,2,,,,,,,,Two hits
+Wolf,Howl,1,1,,,,,,,1,,,Every enemy gets +1 Strength
+Mushroom,Spore Shield,2,1,,,3,,,3,,,,Block for itself and its friends
+Mushroom,Bonk,2,,3-4,,,,,,,,,
+Mushroom,Regrow,1,1,,,,,4,,,,,
+Old Oak,Root Slam,1,,8-10,,,,,,,,,Boss: moves go in this order
+Old Oak,Bark Skin,1,,,,8,,,,,,,Armor 3 keeps some Block
+Old Oak,Sprout,1,,,,,1,,,,Mushroom,1,
+Old Oak,Whirling Branches,1,,3,3,,,,,,,,Three hits

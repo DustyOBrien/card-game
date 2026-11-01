@@ -1,0 +1,44 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_0kvr1"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_1rhgd"]
+[ext_resource type="Texture2D" path="res://art/enemies/old_oak.svg" id="3_bg7ij"]
+
+[sub_resource type="Resource" id="Resource_kmgmc"]
+script = ExtResource("1_0kvr1")
+move_name = "Root Slam"
+attack_min = 8
+attack_max = 10
+
+[sub_resource type="Resource" id="Resource_atkhu"]
+script = ExtResource("1_0kvr1")
+move_name = "Bark Skin"
+block = 8
+
+[sub_resource type="Resource" id="Resource_8ohtv"]
+script = ExtResource("1_0kvr1")
+move_name = "Sprout"
+strength = 1
+summon = "Mushroom"
+summon_count = 1
+
+[sub_resource type="Resource" id="Resource_rjo5y"]
+script = ExtResource("1_0kvr1")
+move_name = "Whirling Branches"
+attack_min = 3
+attack_max = 3
+hits = 3
+
+[resource]
+script = ExtResource("2_1rhgd")
+display_name = "Old Oak"
+max_hp = 50
+armor = 2
+texture = ExtResource("3_bg7ij")
+sprite_size = Vector2(175, 185)
+name_color = Color(0.8509804, 0.7176471, 0.47843137, 1)
+moves = Array[ExtResource("1_0kvr1")]([SubResource("Resource_kmgmc"), SubResource("Resource_atkhu"), SubResource("Resource_8ohtv"), SubResource("Resource_rjo5y")])
+move_order = 1
+is_boss = true
+exp = 50
+bonus_gold = 15

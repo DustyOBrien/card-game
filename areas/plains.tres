@@ -7,26 +7,28 @@
 [ext_resource type="Texture2D" path="res://art/backgrounds/plains.svg" id="3_background"]
 [ext_resource type="Resource" path="res://enemies/slime.tres" id="4_3fkat"]
 [ext_resource type="Resource" path="res://enemies/slimeling.tres" id="5_eb6mb"]
+[ext_resource type="Resource" path="res://enemies/big_slime.tres" id="6_3fkat"]
+[ext_resource type="Resource" path="res://enemies/slime_king.tres" id="7_eb6mb"]
 
-[sub_resource type="Resource" id="Resource_btjbn"]
+[sub_resource type="Resource" id="Resource_3fkat"]
 script = ExtResource("2_a63hy")
 enemies = Array[ExtResource("3_4usos")]([ExtResource("4_3fkat")])
 
-[sub_resource type="Resource" id="Resource_bati8"]
+[sub_resource type="Resource" id="Resource_eb6mb"]
 script = ExtResource("2_a63hy")
 enemies = Array[ExtResource("3_4usos")]([ExtResource("5_eb6mb"), ExtResource("5_eb6mb")])
 
-[sub_resource type="Resource" id="Resource_qb4vo"]
+[sub_resource type="Resource" id="Resource_btjbn"]
 script = ExtResource("2_a63hy")
-enemies = Array[ExtResource("3_4usos")]([ExtResource("4_3fkat")])
+enemies = Array[ExtResource("3_4usos")]([ExtResource("6_3fkat")])
 
-[sub_resource type="Resource" id="Resource_8ubeu"]
+[sub_resource type="Resource" id="Resource_bati8"]
 script = ExtResource("2_a63hy")
 enemies = Array[ExtResource("3_4usos")]([ExtResource("5_eb6mb"), ExtResource("4_3fkat")])
 
-[sub_resource type="Resource" id="Resource_bcxex"]
+[sub_resource type="Resource" id="Resource_qb4vo"]
 script = ExtResource("2_a63hy")
-enemies = Array[ExtResource("3_4usos")]([ExtResource("5_eb6mb"), ExtResource("5_eb6mb"), ExtResource("5_eb6mb")])
+enemies = Array[ExtResource("3_4usos")]([ExtResource("7_eb6mb")])
 
 [resource]
 script = ExtResource("1_area")
@@ -36,4 +38,4 @@ unlocked = true
 icon = ExtResource("2_icon")
 background = ExtResource("3_background")
 map_position = Vector2(260, 520)
-encounters = Array[ExtResource("2_a63hy")]([SubResource("Resource_btjbn"), SubResource("Resource_bati8"), SubResource("Resource_qb4vo"), SubResource("Resource_8ubeu"), SubResource("Resource_bcxex")])
+encounters = Array[ExtResource("2_a63hy")]([SubResource("Resource_3fkat"), SubResource("Resource_eb6mb"), SubResource("Resource_btjbn"), SubResource("Resource_bati8"), SubResource("Resource_qb4vo")])

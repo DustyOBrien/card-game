@@ -51,10 +51,16 @@ func make_area_marker(area: Area) -> Control:
 	marker.add_child(button)
 
 	marker.add_child(make_label(area.display_name, 26))
-	var status := make_label("Open: 5 fights" if area.unlocked else "Locked", 15)
+	var open := GameState.is_area_unlocked(area)
+	var status_text := "Open: %d fights" % GameState.FIGHTS_PER_RUN
+	if GameState.cleared_areas.has(area.display_name):
+		status_text = "Cleared ✓"  # You've beaten its boss (you can still go back).
+	elif not open:
+		status_text = "Beat the %s boss" % area.unlock_after if not area.unlock_after.is_empty() else "Locked"
+	var status := make_label(status_text, 15)
 	marker.add_child(status)
 
-	if area.unlocked:
+	if open:
 		button.pressed.connect(_on_area_chosen.bind(area))
 		button.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 	else:
@@ -94,8 +100,9 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 	create_tween().tween_property(button, "scale", Vector2.ONE * target, 0.1)
 	if hovered:
 		info_label.text = "%s: %s" % [area.display_name, area.description]
-		if not area.unlocked:
-			info_label.text += "  (Locked)"
+		if not GameState.is_area_unlocked(area):
+			info_label.text += "  (Locked: beat the %s boss to open it)" % area.unlock_after \
+				if not area.unlock_after.is_empty() else "  (Locked)"
 	else:
 		info_label.text = "Choose where to adventure."
 

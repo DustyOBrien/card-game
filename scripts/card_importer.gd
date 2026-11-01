@@ -13,6 +13,9 @@
 #                          -> saved into classes/*.tres (level_cards)
 #   data/talents/<class>.csv  Each class's talent tree, one sheet per class
 #                          (adventurer.csv) -> talents/<class>/<name>.tres
+#   data/enemies/enemies.csv     Every enemy          -> enemies/<name>.tres
+#   data/enemies/moves.csv       Every enemy's moves  -> saved inside those files
+#   data/enemies/encounters.csv  The fights in each area -> saved into areas/*.tres
 #
 # The level sheets have exactly the same columns as cards.csv (copy the whole
 # sheet and change the numbers). A row's Name says which card it levels up.
@@ -36,6 +39,10 @@ const CLASSES_FOLDER := "res://classes/"
 const TALENT_SHEETS_FOLDER := "res://data/talents/"
 const TALENTS_FOLDER := "res://talents/"
 const SPECS_SHEET := "specs.csv"  # In TALENT_SHEETS_FOLDER.
+const ENEMY_SHEETS_FOLDER := "res://data/enemies/"
+const ENEMIES_FOLDER := "res://enemies/"
+const ENEMY_ART_FOLDER := "res://art/enemies/"
+const AREAS_FOLDER := "res://areas/"
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -52,6 +59,7 @@ static func import_cards() -> int:
 	_remove_old_cards(LEVELS_FOLDER, level_files)
 	_import_class_cards(names)
 	_import_talents()
+	_import_enemies()
 	print("Done! Imported %d cards." % names.size())
 	return names.size()
 
@@ -359,6 +367,144 @@ static func _read_amounts(text: String) -> Array[int]:
 	for amount in _parse_list(text):
 		numbers.append(_to_int(amount.trim_suffix("%")))
 	return numbers
+
+
+# ---------------------------------------------------------------------------
+# Enemies
+# ---------------------------------------------------------------------------
+
+# Reads a whole sheet into a list of rows. Each row is a Dictionary of
+# column name (lower case) -> cell: {"name": "Slime", "hp": "20", ...}.
+# Rows with an empty first cell are skipped (blank lines, notes).
+static func _read_sheet(path: String) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	var file := FileAccess.open(path, FileAccess.READ)
+	if file == null:
+		return rows
+	var header := file.get_csv_line()
+	while not file.eof_reached():
+		var line := file.get_csv_line()
+		if line.is_empty() or line[0].strip_edges().is_empty():
+			continue
+		var row := {}
+		for i in mini(header.size(), line.size()):
+			row[_clean_column_name(header[i])] = line[i].strip_edges()
+		rows.append(row)
+	return rows
+
+
+static func _import_enemies() -> void:
+	var enemy_rows := _read_sheet(ENEMY_SHEETS_FOLDER + "enemies.csv")
+	if enemy_rows.is_empty():
+		return  # No enemy sheet: keep the enemy files as they are.
+	# Moves first, grouped by enemy name: {"slime": [EnemyMove, ...]}
+	var moves_by_enemy := {}
+	for row in _read_sheet(ENEMY_SHEETS_FOLDER + "moves.csv"):
+		var move := EnemyMove.new()
+		move.move_name = row.get("move", "Attack")
+		move.weight = _to_int(row.get("weight", ""), 1)
+		move.max_in_a_row = _to_int(row.get("max in a row", ""))
+		# Attack: "4" or a range "2-5".
+		var attack: String = row.get("attack", "").replace(" ", "")
+		if not attack.is_empty() and attack != "0":
+			move.attack_min = _to_int(attack.get_slice("-", 0))
+			move.attack_max = _to_int(attack.get_slice("-", 1)) if attack.contains("-") else move.attack_min
+		move.hits = _to_int(row.get("hits", ""), 1)
+		move.block = _to_int(row.get("block", ""))
+		move.strength = _to_int(row.get("strength", ""))
+		move.heal = _to_int(row.get("heal", ""))
+		move.ally_block = _to_int(row.get("ally block", ""))
+		move.ally_strength = _to_int(row.get("ally strength", ""))
+		move.summon = row.get("summon", "")
+		move.summon_count = _to_int(row.get("summon count", ""), 1 if not move.summon.is_empty() else 0)
+		var key: String = row.get("enemy", "").to_lower()
+		if not moves_by_enemy.has(key):
+			moves_by_enemy[key] = []
+		moves_by_enemy[key].append(move)
+
+	var files: Array[String] = []
+	# Lower-case names, to check splits, summons and encounters
+	# (true for now, then the finished EnemyData).
+	var known := {}
+	for row in enemy_rows:
+		known[row.get("name", "").to_lower()] = true
+	for row in enemy_rows:
+		var enemy := EnemyData.new()
+		enemy.display_name = row.get("name", "")
+		enemy.max_hp = _to_int(row.get("hp", ""), 10)
+		enemy.armor = _to_int(row.get("armor", ""))
+		var art: String = row.get("art", "")
+		if not art.is_empty():
+			if ResourceLoader.exists(ENEMY_ART_FOLDER + art):
+				enemy.texture = load(ENEMY_ART_FOLDER + art)
+			else:
+				push_warning("%s: no picture art/enemies/%s" % [enemy.display_name, art])
+		enemy.sprite_size = Vector2(_to_int(row.get("width", ""), 160), _to_int(row.get("height", ""), 120))
+		if Color.html_is_valid(row.get("name color", "")):
+			enemy.name_color = Color.html(row.get("name color", ""))
+		var order: String = row.get("move order", "").to_lower()
+		enemy.move_order = EnemyData.MoveOrder.IN_ORDER if order.begins_with("in order") or order == "order" else EnemyData.MoveOrder.RANDOM
+		enemy.split_into = row.get("split into", "")
+		enemy.split_count = _to_int(row.get("split count", ""), 2)
+		enemy.is_boss = _parse_yes_no(row.get("boss", ""), false)
+		enemy.exp = _to_int(row.get("exp", ""), 10)
+		enemy.bonus_gold = _to_int(row.get("bonus gold", ""))
+		enemy.moves.assign(moves_by_enemy.get(enemy.display_name.to_lower(), []))
+		if enemy.moves.is_empty():
+			push_warning("%s has no moves in moves.csv, so it just attacks for 2-5" % enemy.display_name)
+		for move in enemy.moves:
+			if not move.summon.is_empty() and not known.has(move.summon.to_lower()):
+				push_warning("%s: '%s' summons '%s', which isn't in enemies.csv" % [enemy.display_name, move.move_name, move.summon])
+		if not enemy.split_into.is_empty() and not known.has(enemy.split_into.to_lower()):
+			push_warning("%s splits into '%s', which isn't in enemies.csv" % [enemy.display_name, enemy.split_into])
+		var file_name := _file_name_for(enemy.display_name)
+		# take_over_path(): this new enemy now IS enemies/slime.tres, even if
+		# Godot still had the old one loaded. Areas then link to the new one.
+		enemy.take_over_path(ENEMIES_FOLDER + file_name)
+		ResourceSaver.save(enemy)
+		files.append(file_name)
+		known[enemy.display_name.to_lower()] = enemy
+		print("Enemy: %s (%d HP, %d moves)" % [enemy.display_name, enemy.max_hp, enemy.moves.size()])
+	_remove_old_cards(ENEMIES_FOLDER, files)
+	_import_encounters(known)
+
+
+# encounters.csv: Area, Fight, Enemies ("Slimeling, Slime"). Fight 1 is the
+# first fight of a run there. Saved into that area's file (areas/*.tres).
+static func _import_encounters(known: Dictionary) -> void:
+	var rows := _read_sheet(ENEMY_SHEETS_FOLDER + "encounters.csv")
+	if rows.is_empty():
+		return
+	var by_area := {}  # "plains" -> {fight number: [EnemyData, ...]}
+	for row in rows:
+		var area_key: String = row.get("area", "").to_lower()
+		var fight := _to_int(row.get("fight", ""), 1)
+		var enemies: Array[EnemyData] = []
+		for enemy_name in _parse_list(row.get("enemies", "")):
+			if not known.has(enemy_name.to_lower()):
+				push_warning("encounters.csv: %s fight %d has '%s', which isn't in enemies.csv" % [row.get("area", ""), fight, enemy_name])
+				continue
+			enemies.append(known[enemy_name.to_lower()])
+		if not by_area.has(area_key):
+			by_area[area_key] = {}
+		by_area[area_key][fight] = enemies
+	for file_name in DirAccess.get_files_at(AREAS_FOLDER):
+		if not file_name.ends_with(".tres"):
+			continue
+		var area: Area = load(AREAS_FOLDER + file_name)
+		var fights: Dictionary = by_area.get(area.display_name.to_lower(), {})
+		if fights.is_empty():
+			continue
+		var numbers := fights.keys()
+		numbers.sort()
+		var encounters: Array[Encounter] = []
+		for number in numbers:
+			var encounter := Encounter.new()
+			encounter.enemies.assign(fights[number])
+			encounters.append(encounter)
+		area.encounters = encounters
+		ResourceSaver.save(area, AREAS_FOLDER + file_name)
+		print("Area %s: %d fights" % [area.display_name, encounters.size()])
 
 
 # Get one cell from a row by its column name, e.g. _cell(row, columns, "cost").

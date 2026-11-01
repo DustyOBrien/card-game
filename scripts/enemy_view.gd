@@ -14,7 +14,13 @@ const OUTLINE := Color(0.05, 0.05, 0.08)
 
 var data: EnemyData
 var combatant: Combatant  # HP and Block. Its `died` signal tells the battle.
-var next_attack := 0  # Chosen at the start of your turn, shown as the "intent".
+# Its INTENT: the move it picked at the start of your turn, so you can plan.
+var move: EnemyMove
+var hit_rolls: Array[int] = []  # The damage of each hit, rolled with the move (before Strength).
+var splitting := false  # true = its intent is to Split (it's at half HP or less).
+var move_index := -1  # For IN_ORDER enemies: which move it's on.
+var last_move: EnemyMove  # So a move can't be picked too many times in a row...
+var in_a_row := 0  # ...this many times so far.
 
 var sprite: TextureRect
 var name_label: Label
@@ -24,7 +30,8 @@ var idle_tween: Tween  # The endless "breathing" wobble.
 
 
 # Build everything for this enemy. Call it right after EnemyView.new().
-func setup(enemy_data: EnemyData) -> void:
+# `hp` is for enemies that come from a split: they keep the HP that was left.
+func setup(enemy_data: EnemyData, hp: int = 0) -> void:
 	data = enemy_data
 	alignment = BoxContainer.ALIGNMENT_END  # Line enemies up by their feet.
 	add_theme_constant_override("separation", 2)
@@ -34,6 +41,8 @@ func setup(enemy_data: EnemyData) -> void:
 	combatant.display_name = data.display_name
 	combatant.max_hp = data.max_hp
 	combatant.armor = data.armor
+	if hp > 0:
+		combatant.max_hp = hp
 	add_child(combatant)  # A plain Node child: containers ignore it for layout.
 
 	sprite = TextureRect.new()
@@ -60,6 +69,24 @@ func setup(enemy_data: EnemyData) -> void:
 	refresh()
 
 
+# Smaller everything, so 4 enemies fit next to the Battle Log.
+func set_compact(compact: bool) -> void:
+	var scale_by := 0.75 if compact else 1.0
+	sprite.custom_minimum_size = data.sprite_size * scale_by
+	sprite.pivot_offset = Vector2(sprite.custom_minimum_size.x / 2, sprite.custom_minimum_size.y)
+	health_bar.custom_minimum_size.x = 130 if compact else 180
+	name_label.add_theme_font_size_override("font_size", 20 if compact else 26)
+	intent_label.add_theme_font_size_override("font_size", 14 if compact else 17)
+	# Long intents ("Block 3 + Shield allies 3") wrap instead of widening the enemy.
+	intent_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART if compact else TextServer.AUTOWRAP_OFF
+	intent_label.custom_minimum_size.x = 130 if compact else 0
+
+
+# How wide it is at full size, for the battle to check if the row fits.
+func full_width() -> float:
+	return maxf(data.sprite_size.x, 180)
+
+
 func _make_label(text: String, font_size: int, color: Color) -> Label:
 	var label := Label.new()
 	label.text = text
@@ -75,10 +102,92 @@ func is_alive() -> bool:
 	return combatant.hp > 0
 
 
-# Pick this turn's attack, so the player can plan around it.
-func choose_attack() -> void:
-	next_attack = randi_range(data.attack_min, data.attack_max)
+# Pick this turn's move, so the player can plan around it.
+func choose_move() -> void:
+	if should_split():
+		splitting = true
+		move = null
+		refresh()
+		return
+	var moves := data.moves if not data.moves.is_empty() else [data.default_move()]
+	if data.move_order == EnemyData.MoveOrder.IN_ORDER:
+		move_index = (move_index + 1) % moves.size()
+		move = moves[move_index]
+	else:
+		move = _pick_by_weight(moves)
+	in_a_row = in_a_row + 1 if move == last_move else 1
+	last_move = move
+	# Roll each hit's damage now, so the intent shows the real number.
+	hit_rolls.clear()
+	if move.attacks():
+		for i in maxi(move.hits, 1):
+			hit_rolls.append(randi_range(move.attack_min, move.attack_max))
 	refresh()
+
+
+# A random move: a move with weight 2 is twice as likely as one with weight 1.
+# Moves that hit their Max In A Row are left out this time.
+func _pick_by_weight(moves: Array) -> EnemyMove:
+	var allowed := moves.filter(func(m: EnemyMove) -> bool:
+		return not (m == last_move and m.max_in_a_row > 0 and in_a_row >= m.max_in_a_row))
+	if allowed.is_empty():
+		allowed = moves
+	var total := 0
+	for m: EnemyMove in allowed:
+		total += maxi(m.weight, 1)
+	var roll := randi_range(1, total)
+	for m: EnemyMove in allowed:
+		roll -= maxi(m.weight, 1)
+		if roll <= 0:
+			return m
+	return allowed[-1]
+
+
+# Splitting enemies (the Big Slime) split once they're down to half HP.
+func should_split() -> bool:
+	return not data.split_into.is_empty() and is_alive() and combatant.hp * 2 <= combatant.max_hp
+
+
+# The damage of each hit right now: the roll plus its Strength.
+func hit_damages() -> Array[int]:
+	var damages: Array[int] = []
+	for roll in hit_rolls:
+		damages.append(maxi(roll + combatant.strength, 0))
+	return damages
+
+
+# The intent as text, e.g. "Attack 3 x2", "Attack 4 + Block 3", "Strength +1".
+func intent_text() -> String:
+	if splitting:
+		return "Split!"
+	if move == null:
+		return ""
+	var parts: Array[String] = []
+	if move.attacks():
+		var damages := hit_damages()
+		parts.append("Attack %d" % damages[0] + (" x%d" % damages.size() if damages.size() > 1 else ""))
+	if move.block > 0:
+		parts.append("Block %d" % move.block)
+	if move.ally_block > 0:
+		parts.append("Shield allies %d" % move.ally_block)
+	if move.strength > 0:
+		parts.append("Strength +%d" % move.strength)
+	if move.ally_strength > 0:
+		parts.append("All Strength +%d" % move.ally_strength)
+	if move.heal > 0:
+		parts.append("Heal %d" % move.heal)
+	if not move.summon.is_empty():
+		parts.append("Summon %s" % move.summon)
+	return " + ".join(parts) if not parts.is_empty() else move.move_name
+
+
+const INTENT_COLORS := {
+	"attack": Color(1, 0.6, 0.5),
+	"block": Color(0.6, 0.8, 1),
+	"buff": Color(1, 0.85, 0.4),
+	"summon": Color(0.85, 0.65, 1),
+	"split": Color(0.6, 1, 0.6),
+}
 
 
 # Copy the numbers onto the screen.
@@ -87,9 +196,19 @@ func refresh() -> void:
 	if not is_alive():
 		intent_label.text = "Defeated"
 		return
-	intent_label.text = "Attacks for %d" % next_attack
+	if not splitting and should_split():
+		splitting = true  # Hit down to half: it will split on its turn instead.
+	intent_label.text = intent_text()
+	var kind := "split" if splitting else (move.kind() if move else "attack")
+	intent_label.add_theme_color_override("font_color", INTENT_COLORS[kind])
+	# Lasting stats on a second line: "Strength 2 · Armor 3".
+	var stats: Array[String] = []
+	if combatant.strength != 0:
+		stats.append("Strength %d" % combatant.strength)
 	if combatant.armor > 0:
-		intent_label.text += "  (Armor %d)" % combatant.armor
+		stats.append("Armor %d" % combatant.armor)
+	if not stats.is_empty():
+		intent_label.text += "\n" + "  ·  ".join(stats)
 
 
 # Its HP after taking `amount` damage. Block soaks up damage first, just like
@@ -138,6 +257,12 @@ func show_hurt() -> void:
 	wobble.tween_property(sprite, "rotation", -0.12, 0.05)
 	wobble.tween_property(sprite, "rotation", 0.12, 0.08)
 	wobble.tween_property(sprite, "rotation", 0.0, 0.05)
+
+
+# A move that isn't an attack (Block, a buff...): a quick glow in that colour.
+func show_glow(color: Color) -> void:
+	sprite.modulate = color
+	create_tween().tween_property(sprite, "modulate", Color.WHITE, 0.4)
 
 
 # Its turn: a little hop towards you.

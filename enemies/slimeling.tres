@@ -1,14 +1,27 @@
 [gd_resource type="Resource" script_class="EnemyData" format=3]
 
-[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="1_enemy"]
-[ext_resource type="Texture2D" path="res://art/enemies/slimeling.svg" id="2_texture"]
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_7ddlm"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_c828m"]
+[ext_resource type="Texture2D" path="res://art/enemies/slimeling.svg" id="3_ilel1"]
 
-[resource]
-script = ExtResource("1_enemy")
-display_name = "Slimeling"
-max_hp = 8
+[sub_resource type="Resource" id="Resource_3qq35"]
+script = ExtResource("1_7ddlm")
+move_name = "Nibble"
+weight = 3
 attack_min = 1
 attack_max = 3
-texture = ExtResource("2_texture")
+
+[sub_resource type="Resource" id="Resource_lwuca"]
+script = ExtResource("1_7ddlm")
+move_name = "Jiggle"
+max_in_a_row = 1
+ally_strength = 1
+
+[resource]
+script = ExtResource("2_c828m")
+display_name = "Slimeling"
+max_hp = 8
+texture = ExtResource("3_ilel1")
 sprite_size = Vector2(110, 82)
-name_color = Color(0.6, 0.82, 1, 1)
+name_color = Color(0.6, 0.81960785, 1, 1)
+moves = Array[ExtResource("1_7ddlm")]([SubResource("Resource_3qq35"), SubResource("Resource_lwuca")])

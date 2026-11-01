@@ -68,7 +68,7 @@ var card_exp := {}  # {"Strike": 4}
 # Each class levels up on its own. Leveling up is how a class gets its class
 # cards (see CharacterClass.level_cards and data/class_cards.csv).
 const CLASS_MAX_LEVEL := 25
-const EXP_PER_ENEMY := 10  # For every enemy you beat...
+# Every enemy gives its own Exp (EnemyData.exp: 10 for most, more for bosses)...
 const EXP_PER_RUN := 25  # ...plus this for beating all of them.
 const FIRST_LEVEL_EXP := 100  # Exp from level 1 to level 2...
 const LEVEL_EXP_STEP := 50  # ...and each level after needs this much more.
@@ -101,6 +101,12 @@ var _all_cards: Array[CardData] = []
 var _cards_by_name := {}  # "Strike" -> its CardData, for find_card().
 var _classes: Array[CharacterClass] = []  # For load_classes().
 var _talents := {}  # Class name -> its Array[Talent], for talents_for().
+var _enemies_by_name := {}  # "Slime" -> its EnemyData, for find_enemy().
+
+const ENEMIES_FOLDER := "res://enemies/"
+# Areas whose boss you've beaten (finished a run there): ["Plains"].
+# An area with Unlock After = "Plains" opens once the Plains is in here.
+var cleared_areas: Array[String] = []
 
 
 func _ready() -> void:
@@ -120,6 +126,7 @@ func start_fresh() -> void:
 	talent_ranks.clear()
 	class_specs.clear()
 	_talents_changed()
+	cleared_areas.clear()
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -591,6 +598,7 @@ func save_game() -> void:
 		"talents": talent_ranks,
 		"specs": class_specs,
 		"bonus_talent_points": bonus_talent_points,
+		"cleared_areas": cleared_areas,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -620,6 +628,7 @@ func load_game() -> bool:
 	for class_name_key in saved_talents:
 		talent_ranks[class_name_key] = _whole_numbers(saved_talents[class_name_key])
 	bonus_talent_points = int(data.get("bonus_talent_points", 0))
+	cleared_areas.assign(data.get("cleared_areas", []))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
@@ -662,6 +671,36 @@ func load_classes() -> Array[CharacterClass]:
 		_classes.sort_custom(func(a: CharacterClass, b: CharacterClass) -> bool:
 			return a.sort_order < b.sort_order)
 	return _classes
+
+
+# Is this area open on the map? Open from the start, or its Unlock After
+# area has been cleared (you beat that area's boss).
+func is_area_unlocked(area: Area) -> bool:
+	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
+
+
+# You beat this area's boss. Returns the areas that just opened because of it.
+func clear_area(area: Area) -> Array[Area]:
+	var opened: Array[Area] = []
+	if area == null or cleared_areas.has(area.display_name):
+		return opened
+	var locked_before := load_areas().filter(func(a: Area) -> bool: return not is_area_unlocked(a))
+	cleared_areas.append(area.display_name)
+	for other: Area in locked_before:
+		if is_area_unlocked(other):
+			opened.append(other)
+	save_game()
+	return opened
+
+
+# An enemy by name ("Slimeling"), for summons and splits. null if there's none.
+func find_enemy(enemy_name: String) -> EnemyData:
+	if _enemies_by_name.is_empty():
+		for file_name in ResourceLoader.list_directory(ENEMIES_FOLDER):
+			if file_name.ends_with(".tres"):
+				var enemy: EnemyData = load(ENEMIES_FOLDER + file_name)
+				_enemies_by_name[enemy.display_name.to_lower()] = enemy
+	return _enemies_by_name.get(enemy_name.to_lower())
 
 
 # Every area, loaded from the areas/ folder, in their sort_order (the order along the road).

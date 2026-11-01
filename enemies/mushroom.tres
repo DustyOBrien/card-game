@@ -1,0 +1,35 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_chpoj"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_na004"]
+[ext_resource type="Texture2D" path="res://art/enemies/mushroom.svg" id="3_ie3oi"]
+
+[sub_resource type="Resource" id="Resource_nhl86"]
+script = ExtResource("1_chpoj")
+move_name = "Spore Shield"
+weight = 2
+max_in_a_row = 1
+block = 3
+ally_block = 3
+
+[sub_resource type="Resource" id="Resource_ak864"]
+script = ExtResource("1_chpoj")
+move_name = "Bonk"
+weight = 2
+attack_min = 3
+attack_max = 4
+
+[sub_resource type="Resource" id="Resource_io2im"]
+script = ExtResource("1_chpoj")
+move_name = "Regrow"
+max_in_a_row = 1
+heal = 4
+
+[resource]
+script = ExtResource("2_na004")
+display_name = "Mushroom"
+max_hp = 14
+texture = ExtResource("3_ie3oi")
+sprite_size = Vector2(120, 130)
+name_color = Color(0.9411765, 0.6039216, 0.6039216, 1)
+moves = Array[ExtResource("1_chpoj")]([SubResource("Resource_nhl86"), SubResource("Resource_ak864"), SubResource("Resource_io2im")])

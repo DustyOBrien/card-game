@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="175" viewBox="0 0 200 175">
+  <!-- The Slime King: the Plains boss. A big golden-green slime with a crown. -->
+  <defs>
+    <radialGradient id="body" cx="0.4" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#d9f59a"/>
+      <stop offset="0.55" stop-color="#8fc84a"/>
+      <stop offset="1" stop-color="#4f8a2a"/>
+    </radialGradient>
+    <linearGradient id="gold" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffe680"/>
+      <stop offset="1" stop-color="#d9a020"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="100" cy="163" rx="82" ry="10" fill="#000000" opacity="0.3"/>
+  <!-- Body -->
+  <path d="M20 157 C12 157 10 142 18 128 C28 84 60 46 100 46 C140 46 172 84 182 128
+           C190 142 188 157 180 157 C162 161 142 153 130 159 C116 165 84 165 70 159
+           C58 153 38 161 20 157 Z"
+        fill="url(#body)" stroke="#33601c" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Crown -->
+  <path d="M62 52 L66 14 L84 34 L100 6 L116 34 L134 14 L138 52 Z"
+        fill="url(#gold)" stroke="#8a5a10" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="100" cy="38" r="6" fill="#e0403a" stroke="#8a1a16" stroke-width="2"/>
+  <circle cx="76" cy="42" r="4" fill="#4a8fe0"/>
+  <circle cx="124" cy="42" r="4" fill="#4a8fe0"/>
+  <!-- Shine -->
+  <ellipse cx="66" cy="84" rx="16" ry="9" fill="#ffffff" opacity="0.5" transform="rotate(-30 66 84)"/>
+  <!-- Eyes: half-closed, smug -->
+  <ellipse cx="78" cy="108" rx="14" ry="15" fill="#ffffff"/>
+  <ellipse cx="122" cy="108" rx="14" ry="15" fill="#ffffff"/>
+  <ellipse cx="80" cy="112" rx="7" ry="9" fill="#1b1b24"/>
+  <ellipse cx="120" cy="112" rx="7" ry="9" fill="#1b1b24"/>
+  <path d="M63 101 L93 101" stroke="#33601c" stroke-width="6" stroke-linecap="round"/>
+  <path d="M107 101 L137 101" stroke="#33601c" stroke-width="6" stroke-linecap="round"/>
+  <!-- Mouth: a little smirk -->
+  <path d="M88 136 Q104 142 116 132" fill="none" stroke="#33601c" stroke-width="4" stroke-linecap="round"/>
+</svg>

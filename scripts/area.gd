@@ -12,7 +12,9 @@ extends Resource
 
 @export var display_name: String = "New Area"
 @export_multiline var description: String = ""  # Shown when you point at it on the map.
-@export var unlocked: bool = false  # Locked areas show on the map but can't be picked.
+@export var unlocked: bool = false  # Open from the start? Locked areas show on the map but can't be picked.
+# The area whose boss opens this one, e.g. "Plains" for the Forest. Blank = only `unlocked` counts.
+@export var unlock_after: String = ""
 @export var sort_order: int = 0  # The order along the road: 0 first.
 @export var icon: Texture2D  # The round picture on the map.
 @export var background: Texture2D  # The picture behind the fight.

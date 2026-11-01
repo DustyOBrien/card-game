@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="220" height="230" viewBox="0 0 220 230">
+  <!-- The Old Oak: the Forest boss. An ancient tree that woke up angry. -->
+  <defs>
+    <linearGradient id="bark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5a3c22"/>
+      <stop offset="0.5" stop-color="#8a6034"/>
+      <stop offset="1" stop-color="#4a3018"/>
+    </linearGradient>
+    <radialGradient id="leaves" cx="0.4" cy="0.35" r="0.7">
+      <stop offset="0" stop-color="#7cc25a"/>
+      <stop offset="1" stop-color="#2f6b2a"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="110" cy="220" rx="96" ry="9" fill="#000000" opacity="0.35"/>
+  <!-- Leafy crown -->
+  <circle cx="60" cy="62" r="44" fill="url(#leaves)" stroke="#1f4a1c" stroke-width="3"/>
+  <circle cx="160" cy="62" r="44" fill="url(#leaves)" stroke="#1f4a1c" stroke-width="3"/>
+  <circle cx="110" cy="40" r="46" fill="url(#leaves)" stroke="#1f4a1c" stroke-width="3"/>
+  <!-- Arms (branches) -->
+  <path d="M70 120 C44 112 24 98 10 78 L22 74 C34 90 52 100 74 104 Z" fill="url(#bark)" stroke="#2e1d0e" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M150 120 C176 112 196 98 210 78 L198 74 C186 90 168 100 146 104 Z" fill="url(#bark)" stroke="#2e1d0e" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Trunk -->
+  <path d="M70 84 C72 120 66 170 50 214 L170 214 C154 170 148 120 150 84 Z" fill="url(#bark)" stroke="#2e1d0e" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Bark lines -->
+  <path d="M86 150 Q90 180 82 206" fill="none" stroke="#2e1d0e" stroke-width="2" opacity="0.6"/>
+  <path d="M136 150 Q132 180 140 206" fill="none" stroke="#2e1d0e" stroke-width="2" opacity="0.6"/>
+  <!-- Roots -->
+  <path d="M50 214 C40 214 30 220 22 222 L70 222 Z" fill="#4a3018"/>
+  <path d="M170 214 C180 214 190 220 198 222 L150 222 Z" fill="#4a3018"/>
+  <!-- Angry glowing eyes in knot holes -->
+  <ellipse cx="90" cy="120" rx="13" ry="10" fill="#1c120a"/>
+  <ellipse cx="130" cy="120" rx="13" ry="10" fill="#1c120a"/>
+  <ellipse cx="91" cy="121" rx="6" ry="5" fill="#ffd23a"/>
+  <ellipse cx="129" cy="121" rx="6" ry="5" fill="#ffd23a"/>
+  <path d="M74 104 L102 114" stroke="#2e1d0e" stroke-width="6" stroke-linecap="round"/>
+  <path d="M146 104 L118 114" stroke="#2e1d0e" stroke-width="6" stroke-linecap="round"/>
+  <!-- Mouth: a jagged hollow -->
+  <path d="M88 152 L96 146 L104 154 L112 146 L120 154 L128 146 L134 152 C126 166 96 166 88 152 Z" fill="#1c120a"/>
+  <!-- A little mushroom friend at its feet -->
+  <path d="M176 214 L176 204 L184 204 L184 214 Z" fill="#f3e6cf"/>
+  <path d="M170 206 C170 196 190 196 190 206 Z" fill="#d9433a"/>
+</svg>

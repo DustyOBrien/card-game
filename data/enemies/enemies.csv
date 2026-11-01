@@ -1,0 +1,8 @@
+Name,HP,Armor,Art,Width,Height,Name Color,Move Order,Split Into,Split Count,Boss,Exp,Bonus Gold
+Slime,20,0,slime.svg,160,120,#8cf28c,Random,,,No,10,0
+Slimeling,8,0,slimeling.svg,110,82,#99d1ff,Random,,,No,10,0
+Big Slime,28,0,big_slime.svg,190,143,#5fd16a,Random,Slime,2,No,15,0
+Slime King,36,0,slime_king.svg,190,165,#ffd34d,In Order,,,Yes,40,10
+Wolf,13,0,wolf.svg,170,120,#d6d0c4,Random,,,No,10,0
+Mushroom,14,0,mushroom.svg,120,130,#f09a9a,Random,,,No,10,0
+Old Oak,50,2,old_oak.svg,175,185,#d9b77a,In Order,,,Yes,50,15

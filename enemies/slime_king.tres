@@ -1,0 +1,36 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_cewxh"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_unc01"]
+[ext_resource type="Texture2D" path="res://art/enemies/slime_king.svg" id="3_1yfmv"]
+
+[sub_resource type="Resource" id="Resource_d20a6"]
+script = ExtResource("1_cewxh")
+move_name = "Royal Slam"
+attack_min = 6
+attack_max = 8
+
+[sub_resource type="Resource" id="Resource_mykew"]
+script = ExtResource("1_cewxh")
+move_name = "Call the Court"
+summon = "Slimeling"
+summon_count = 1
+
+[sub_resource type="Resource" id="Resource_wv8p5"]
+script = ExtResource("1_cewxh")
+move_name = "Royal Jelly"
+block = 6
+strength = 1
+
+[resource]
+script = ExtResource("2_unc01")
+display_name = "Slime King"
+max_hp = 36
+texture = ExtResource("3_1yfmv")
+sprite_size = Vector2(190, 165)
+name_color = Color(1, 0.827451, 0.3019608, 1)
+moves = Array[ExtResource("1_cewxh")]([SubResource("Resource_d20a6"), SubResource("Resource_mykew"), SubResource("Resource_wv8p5")])
+move_order = 1
+is_boss = true
+exp = 40
+bonus_gold = 10

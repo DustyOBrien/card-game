@@ -23,6 +23,10 @@ const MAX_ENERGY := 3  # Energy you get each turn (before talents).
 const DEAL_TIME := 0.2  # Seconds between cards as they're dealt into your hand.
 const PREVIEW_COLOR := Color(1, 0.85, 0.3)  # Tint for numbers a dragged card would change.
 const DEFAULT_ENEMY := preload("res://enemies/slime.tres")  # If an area has no encounters yet.
+const MAX_ENEMIES := 4  # Summons stop once this many enemies are standing.
+# The enemy row is centred on the screen, and the Battle Log sits on the
+# right, so a row wider than this would go under the log. Wider rows shrink.
+const ENEMY_ROW_MAX_WIDTH := 680.0
 
 # The three card piles. `Array[CardData]` means "a list that only holds CardData".
 var draw_pile: Array[CardData] = []
@@ -42,6 +46,7 @@ var choosing_reroll := false  # true while Gamble waits for you to click a card 
 signal reroll_picked(card: CardData)
 var enemy_views: Array[EnemyView] = []  # Every enemy in this fight, left to right (dead ones too).
 var fight_gold := 0  # Gold dropped by the enemies beaten in this fight.
+var fight_exp := 0  # Class Exp from the enemies beaten in this fight (bosses give more).
 # Names of the cards played at least once this fight. Pack Rat's talents
 # (Flawless first play, Fresh Find) only work on a card's FIRST play.
 var played_this_fight := {}
@@ -178,19 +183,43 @@ func make_enemies() -> void:
 		view.queue_free()
 	enemy_views.clear()
 	fight_gold = 0
+	fight_exp = 0
 	var encounter: Array[EnemyData] = GameState.current_encounter()
 	if encounter.is_empty():
 		encounter = [DEFAULT_ENEMY]
 	for enemy_data in encounter:
-		var view := EnemyView.new()
-		enemy_row.add_child(view)
-		view.setup(enemy_data)
-		# bind() adds `view` to the call, so we know WHICH enemy died.
-		view.combatant.died.connect(_on_enemy_died.bind(view))
-		view.combatant.stats_changed.connect(queue_update_ui)
-		view.start_idle()
-		enemy_views.append(view)
+		add_enemy(enemy_data)
 	play_zone.enemy_views = enemy_views
+
+
+# Put one enemy on screen. `hp` > 0 for enemies from a split (they keep the
+# HP that was left). `at` = its place in the row (-1 = on the right).
+func add_enemy(enemy_data: EnemyData, hp: int = 0, at: int = -1) -> EnemyView:
+	var view := EnemyView.new()
+	enemy_row.add_child(view)
+	view.setup(enemy_data, hp)
+	if at >= 0:
+		enemy_row.move_child(view, at)
+	# bind() adds `view` to the call, so we know WHICH enemy died.
+	view.combatant.died.connect(_on_enemy_died.bind(view))
+	view.combatant.stats_changed.connect(queue_update_ui)
+	view.start_idle()
+	enemy_views.append(view)  # The same list play_zone has, so it sees new enemies too.
+	fit_enemy_row()
+	return view
+
+
+# Shrink the enemies if the row would be too wide (a boss and its summons).
+func fit_enemy_row() -> void:
+	var width := 0.0
+	for view in enemy_views:
+		width += view.full_width()
+	var separation := 24
+	width += separation * maxi(enemy_views.size() - 1, 0)
+	var compact := width > ENEMY_ROW_MAX_WIDTH
+	enemy_row.add_theme_constant_override("separation", 10 if compact else separation)
+	for view in enemy_views:
+		view.set_compact(compact)
 
 
 func living_enemies() -> Array[EnemyView]:
@@ -205,7 +234,9 @@ func enemy_names() -> String:
 	if names.size() > 1 and names.count(names[0]) == names.size():
 		return "%d %ss" % [names.size(), names[0]]
 	if names.size() == 1:
-		return "A " + names[0]
+		if enemy_views[0].data.is_boss:
+			return "The boss, the " + names[0] + ","  # "The boss, the Slime King, appears!"
+		return ("An " if names[0][0] in "AEIOU" else "A ") + names[0]
 	return ", ".join(names.slice(0, -1)) + " and " + names[-1]
 
 
@@ -217,8 +248,9 @@ func start_player_turn() -> void:
 	battle_log.add_turn(turn)
 	# Decide now what each enemy will do, so the player can plan around it.
 	for view in living_enemies():
-		view.choose_attack()
-		battle_log.add("%s intends to attack for %d" % [view.data.display_name, view.next_attack], BattleLog.ENEMY_COLOR)
+		view.choose_move()
+		var move_name := "Split" if view.splitting else view.move.move_name
+		battle_log.add("%s intends to %s (%s)" % [view.data.display_name, move_name, view.intent_text()], BattleLog.ENEMY_COLOR)
 	if player.armor > 0 and leftover > 0:
 		battle_log.add("Your Armor saves %d of your %d leftover Block" % [player.block, leftover])
 	if turn == 1:
@@ -260,30 +292,121 @@ func _on_end_turn_pressed() -> void:
 # Every enemy still standing takes its turn, left to right.
 func enemy_turn() -> void:
 	message_label.text = "Enemy turn..."
+	# Enemy Block runs out now, at the start of THEIR turn (Armor saves some).
+	# It's done for all of them first, so Block one enemy gives another
+	# (the Mushroom's Spore Shield) lasts through your next turn.
+	for view in living_enemies():
+		var leftover := view.combatant.block
+		view.combatant.clear_block()
+		if view.combatant.armor > 0 and leftover > 0:
+			battle_log.add("%s's Armor saves %d Block" % [view.data.display_name, view.combatant.block], BattleLog.ENEMY_COLOR)
 	# Pause for a moment so the player can see what's happening.
 	# create_timer() makes a one-shot timer; we wait for its `timeout` signal.
 	await get_tree().create_timer(0.5).timeout
 
+	# living_enemies() makes a new list, so enemies summoned during this turn
+	# wait until next turn to act.
 	for view in living_enemies():
-		var enemy := view.combatant
-		var leftover := enemy.block
-		enemy.clear_block()  # Enemies with Armor keep some of their Block too.
-		if enemy.armor > 0 and leftover > 0:
-			battle_log.add("%s's Armor saves %d Block" % [enemy.display_name, enemy.block], BattleLog.ENEMY_COLOR)
-		view.show_attack()
-		var blocked := mini(player.block, view.next_attack)  # Worked out before Block is used up.
-		var log_line := "%s attacks for %d" % [enemy.display_name, view.next_attack]
-		if blocked > 0:
-			log_line += ": %d blocked, you take %d" % [blocked, view.next_attack - blocked]
-		# Logged BEFORE take_damage(): if this hit defeats you, `died` fires inside
-		# take_damage() and its "Defeat" line should come after this one.
-		var hp_after := maxi(player.hp - (view.next_attack - blocked), 0)
-		battle_log.add(log_line + " (HP %d/%d)" % [hp_after, player.max_hp], BattleLog.ENEMY_COLOR)
-		player.take_damage(view.next_attack)
 		if game_over:
-			return  # The attack defeated the player.
-		message_label.text = "%s attacks for %d!" % [enemy.display_name, view.next_attack]
+			return
+		if not view.is_alive():
+			continue
+		if view.splitting:
+			split_enemy(view)
+		else:
+			do_move(view)
+		if game_over:
+			return  # An attack defeated the player.
 		await get_tree().create_timer(0.45).timeout
+
+
+# One enemy does the move it showed as its intent.
+func do_move(view: EnemyView) -> void:
+	var enemy := view.combatant
+	var move := view.move
+	var who := view.data.display_name
+	if move == null:
+		return
+	if move.attacks():
+		view.show_attack()
+		for damage in view.hit_damages():  # Each hit goes through your Block on its own.
+			var blocked := mini(player.block, damage)  # Worked out before Block is used up.
+			var log_line := "%s: %s attacks for %d" % [move.move_name, who, damage]
+			if blocked > 0:
+				log_line += ": %d blocked, you take %d" % [blocked, damage - blocked]
+			# Logged BEFORE take_damage(): if this hit defeats you, `died` fires inside
+			# take_damage() and its "Defeat" line should come after this one.
+			var hp_after := maxi(player.hp - (damage - blocked), 0)
+			battle_log.add(log_line + " (HP %d/%d)" % [hp_after, player.max_hp], BattleLog.ENEMY_COLOR)
+			player.take_damage(damage)
+			if game_over:
+				return
+		message_label.text = "%s: %s attacks for %s!" % [who, move.move_name,
+			" + ".join(view.hit_damages().map(func(d: int) -> String: return str(d)))]
+	else:
+		view.show_glow(EnemyView.INTENT_COLORS[move.kind()])
+		message_label.text = "%s uses %s" % [who, move.move_name]
+	if move.block > 0:
+		enemy.gain_block(move.block)
+		battle_log.add("%s: %s gains %d Block" % [move.move_name, who, move.block], BattleLog.ENEMY_COLOR)
+	if move.strength > 0:
+		enemy.gain_strength(move.strength)
+		battle_log.add("%s: %s gains %d Strength (Strength %d)" % [move.move_name, who, move.strength, enemy.strength], BattleLog.ENEMY_COLOR)
+	if move.heal > 0:
+		enemy.heal(move.heal)
+		battle_log.add("%s: %s heals %d (HP %d/%d)" % [move.move_name, who, move.heal, enemy.hp, enemy.max_hp], BattleLog.ENEMY_COLOR)
+	if move.ally_block > 0:
+		for other in living_enemies():
+			if other != view:
+				other.combatant.gain_block(move.ally_block)
+				other.show_glow(EnemyView.INTENT_COLORS.block)
+		battle_log.add("%s: %s gives the other enemies %d Block" % [move.move_name, who, move.ally_block], BattleLog.ENEMY_COLOR)
+	if move.ally_strength > 0:
+		for other in living_enemies():
+			other.combatant.gain_strength(move.ally_strength)
+			other.show_glow(EnemyView.INTENT_COLORS.buff)
+		battle_log.add("%s: every enemy gains %d Strength" % [move.move_name, move.ally_strength], BattleLog.ENEMY_COLOR)
+	if not move.summon.is_empty():
+		summon_enemies(view, move.summon, move.summon_count)
+
+
+# Call in more enemies, up to MAX_ENEMIES standing at once.
+func summon_enemies(summoner: EnemyView, enemy_name: String, count: int) -> void:
+	var enemy_data := GameState.find_enemy(enemy_name)
+	if enemy_data == null:
+		push_warning("%s tries to summon '%s', but there's no enemy with that name" % [summoner.data.display_name, enemy_name])
+		return
+	var called := 0
+	for i in count:
+		if living_enemies().size() >= MAX_ENEMIES:
+			break
+		add_enemy(enemy_data)
+		called += 1
+	if called > 0:
+		battle_log.add("%s calls %d %s%s!" % [summoner.data.display_name, called, enemy_name, "s" if called > 1 else ""], BattleLog.ENEMY_COLOR)
+	else:
+		battle_log.add("%s calls for help, but there's no room" % summoner.data.display_name, BattleLog.DIM_COLOR)
+
+
+# A splitting enemy (the Big Slime) turns into smaller ones, in the same
+# spot, each with the HP it had left.
+func split_enemy(view: EnemyView) -> void:
+	var child_data := GameState.find_enemy(view.data.split_into)
+	if child_data == null:
+		push_warning("%s splits into '%s', but there's no enemy with that name" % [view.data.display_name, view.data.split_into])
+		view.splitting = false
+		return
+	var hp := view.combatant.hp
+	var spot := view.get_index()
+	battle_log.add("%s splits into %d %ss with %d HP each!" % [view.data.display_name,
+		view.data.split_count, child_data.display_name, hp], BattleLog.ENEMY_COLOR)
+	message_label.text = "%s splits!" % view.data.display_name
+	enemy_views.erase(view)
+	enemy_row.remove_child(view)
+	view.queue_free()
+	for i in view.data.split_count:
+		add_enemy(child_data, hp, spot + i)
+	fit_enemy_row()
 
 
 # ---------------------------------------------------------------------------
@@ -942,8 +1065,10 @@ func show_drag_preview() -> void:
 func _on_enemy_died(view: EnemyView) -> void:
 	view.show_defeated()
 	# Loot Hound talents add Bonus Gold to every enemy.
-	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX) \
+	# Bosses drop their Bonus Gold on top.
+	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX) + view.data.bonus_gold \
 		+ GameState.talent_bonus(GameState.character_class, Talent.BONUS_GOLD)
+	fight_exp += view.data.exp  # Each enemy's Exp (10 for most, more for bosses).
 	GameState.gold += loot
 	GameState.run_gold += loot
 	fight_gold += loot
@@ -959,9 +1084,13 @@ func _on_enemy_died(view: EnemyView) -> void:
 	var reward := "You found %d gold!" % fight_gold
 
 	# Class Exp: some for every enemy beaten, and a bonus for finishing the run.
-	var exp_gain := GameState.EXP_PER_ENEMY * enemy_views.size()
+	var exp_gain := fight_exp
 	if GameState.is_run_over():
 		exp_gain += GameState.EXP_PER_RUN
+		# Finishing the run means you beat the area's boss: the next area opens.
+		for opened in GameState.clear_area(GameState.current_area):
+			reward += "\nThe %s is now open on the map!" % opened.display_name
+			battle_log.add("The %s is now open!" % opened.display_name, BattleLog.CRIT_COLOR)
 	# Remember where the bar was, so it can fill up from there.
 	var before_level := GameState.class_level(GameState.character_class)
 	var before_progress := GameState.class_exp_progress(GameState.character_class)

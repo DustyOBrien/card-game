@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="150" viewBox="0 0 140 150">
+  <!-- A Mushroom: a sleepy red toadstool that shields its friends with spores. -->
+  <defs>
+    <radialGradient id="cap" cx="0.4" cy="0.3" r="0.8">
+      <stop offset="0" stop-color="#ff8a7a"/>
+      <stop offset="0.6" stop-color="#d9433a"/>
+      <stop offset="1" stop-color="#8f2420"/>
+    </radialGradient>
+  </defs>
+  <ellipse cx="70" cy="142" rx="46" ry="7" fill="#000000" opacity="0.3"/>
+  <!-- Stalk (the body) -->
+  <path d="M40 140 C36 112 40 84 46 70 L94 70 C100 84 104 112 100 140 Z" fill="#f3e6cf" stroke="#6e5a3c" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Cap -->
+  <path d="M8 74 C8 34 36 10 70 10 C104 10 132 34 132 74 C110 82 30 82 8 74 Z" fill="url(#cap)" stroke="#5e1814" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Spots -->
+  <circle cx="42" cy="40" r="9" fill="#fff7ea"/>
+  <circle cx="84" cy="28" r="7" fill="#fff7ea"/>
+  <circle cx="104" cy="54" r="8" fill="#fff7ea"/>
+  <circle cx="64" cy="58" r="5" fill="#fff7ea"/>
+  <!-- Sleepy eyes and mouth on the stalk -->
+  <path d="M54 98 Q60 104 66 98" fill="none" stroke="#3a2d1e" stroke-width="3" stroke-linecap="round"/>
+  <path d="M76 98 Q82 104 88 98" fill="none" stroke="#3a2d1e" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="71" cy="118" rx="5" ry="4" fill="#3a2d1e"/>
+  <!-- Floating spores -->
+  <circle cx="18" cy="100" r="3" fill="#e8f5a0" opacity="0.8"/>
+  <circle cx="122" cy="94" r="4" fill="#e8f5a0" opacity="0.8"/>
+  <circle cx="114" cy="112" r="2.5" fill="#e8f5a0" opacity="0.8"/>
+</svg>

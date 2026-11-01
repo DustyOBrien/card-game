@@ -17,7 +17,8 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
   spreadsheet: `data/cards.csv` (see [Making cards from the spreadsheet](#making-cards-from-the-spreadsheet))
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
 - 3 **energy** per turn; cards you can't afford are greyed out
-- Fights against one or several enemies (Slimes and Slimelings), each showing what it **intends** to do next turn
+- Fights against one or several enemies, each showing what it **intends** to do next turn: attack, block, buff, shield its friends, heal, summon help or split in two
+- A boss at the end of each area: beat the Plains' Slime King to open the Forest
 - Block that soaks up damage and disappears at the start of your next turn
 - A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen with Play Again and Change Deck buttons
 
@@ -90,9 +91,10 @@ Then you're on the **deck builder**, holding your class's starter deck:
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
 - When the deck is big enough, click **To the Map**. **Change Class** goes back to Character Select.
 
-**The map.** Pick where your run happens. The **Plains** are open; the
-**Forest** and **Cave** are locked for now (greyed out with a padlock). Point
-at an area to read about it, and click the Plains to start a run there.
+**The map.** Pick where your run happens. The **Plains** are open from the
+start. The **Forest** opens once you beat the Plains boss (finish a run there),
+and the **Cave** is still locked. Locked areas are greyed out with a padlock
+and say what opens them. Cleared areas say "Cleared ✓", and you can go back.
 **Edit Deck** goes back to the deck builder.
 
 Cards show **symbols** instead of rules text, so you can read them at a glance:
@@ -129,13 +131,21 @@ In the battle:
 - **Several enemies:** a fight can have up to three enemies side by side, each with its own health bar and attack. To hit one with an attack, **drop the card on that enemy** (it lights up). With only one enemy left, you can drop attacks anywhere.
 - **AoE and Random attacks:** a card's **Target** decides who it hits. **AoE** cards (marked *AoE*, like Sweep) hit **every** enemy, and **Random** cards send each hit to a random enemy. Drop them anywhere. While you drag, the health bars of the enemies it would hit show the damage.
 - A single-target card only ever hits the enemy you dropped it on. If Multi Strike's first hit defeats it, the second hit is wasted (like in Slay the Spire). Right between two enemies, the nearer one is the target, and only that one lights up.
-- The enemies then attack, left to right, for the numbers shown under their names. Your Block absorbs damage first.
-- Defeat every enemy to win. Each one drops **1 to 5 gold**.
+- The enemies then take their turns, left to right, doing what their **intent** (the coloured line under their health bar) said:
+  - red **Attack 4** (or **Attack 3 x2** for two hits). Your Block absorbs damage first.
+  - blue **Block 6**, or **Shield allies 3** (Block for the other enemies).
+  - gold **Strength +1** (all its attacks hit 1 harder for the rest of the fight), or **All Strength +1** for every enemy.
+  - purple **Summon Slimeling**: calls in more enemies (never more than 4 standing).
+  - green **Split!**: a splitting enemy (the Big Slime) that's down to half HP turns into 2 smaller ones on its turn, each with the HP it had left.
+- An enemy's **Strength** and **Armor** show on a second line under its intent.
+- Defeat every enemy to win. Each one drops **1 to 5 gold** (bosses drop extra).
 
 **Runs and the shop.** A run is **5 fights in a row**, and your HP carries over
 from one fight to the next (the top of the screen shows `Plains · Fight 2 / 5`).
-In the Plains, the fights are: a Slime, 2 Slimelings, a Slime, a Slimeling and
-a Slime, then 3 Slimelings. After a win, **Next Fight** starts the next one.
+In the Plains, the fights are: a Slime, 2 Slimelings, a Big Slime, a Slimeling
+and a Slime, then the boss, the **Slime King**. In the Forest: a Wolf, a
+Mushroom and a Wolf, 2 Wolves, Wolf + Mushroom + Wolf, then the **Old Oak**.
+After a win, **Next Fight** starts the next one.
 Win all 5, or die, and you go to the **Shop**:
 
 - It shows how the run went and your gold.
@@ -171,7 +181,8 @@ finishing a run. Level 2 needs 100 Exp, and each level after needs 50 more
 (150, 200...), up to **level 25**. Each class levels up on its own, and leveling
 up is how a class gets its **class cards** (see "Class cards" below). The Exp bar
 fills up on the victory screen and shows on Character Select and in the deck
-builder. The numbers are at the top of `game_state.gd` (`EXP_PER_ENEMY`,
+builder. Each enemy gives its own Exp (the **Exp** column in `data/enemies/enemies.csv`:
+10 for most, more for bosses). The other numbers are at the top of `game_state.gd` (
 `EXP_PER_RUN`, `FIRST_LEVEL_EXP`, `LEVEL_EXP_STEP`, `CLASS_MAX_LEVEL`).
 
 Gold amounts, the run length and pack prices live at the top of
@@ -218,8 +229,8 @@ card-game/
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
 ├── areas/               One .tres file per area on the map (plains, forest, cave), with its fights
-├── enemies/             One .tres file per kind of enemy (slime, slimeling)
-├── art/                 Pictures (SVG): backgrounds/, enemies/ (Slime, Slimeling), areas/ (map icons), map/
+├── enemies/             One .tres file per kind of enemy (made from data/enemies/*.csv)
+├── art/                 Pictures (SVG): backgrounds/, enemies/ (Slimes, Wolf, Mushroom, Old Oak), areas/ (map icons), map/
 ├── emblems/             The class emblems (SVG pictures)
 ├── icons/               Card symbols: attack, block, draw, discard, heal (SVG)
 ├── themes/              main_theme.tres: how buttons and panels look everywhere
@@ -456,12 +467,12 @@ catch mistakes and autocomplete for you.
 
 Small changes, roughly easiest first:
 
-1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's HP by clicking `enemies/slime.tres`.
+1. **Tweak numbers.** Change a card's numbers in the spreadsheet and re-import, or the Slime's HP in `data/enemies/enemies.csv`.
 2. **Change a class's deck rules.** Click `classes/knight.tres` in the FileSystem panel and change the numbers in the Inspector. Or make a new class (see [Adding a class](#adding-a-class)).
-3. **Change an enemy's attacks.** Click it in `enemies/` and change **Attack Min** / **Attack Max**.
+3. **Change an enemy's moves.** Edit its rows in `data/enemies/moves.csv` and re-import.
 4. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
 5. **Show HP as a bar** using a `ProgressBar` node instead of a label.
-6. **Give the enemy a second move**, like sometimes gaining Block instead of attacking.
+6. **Make a new enemy.** Add a row to `enemies.csv`, its moves to `moves.csv`, and put it in a fight in `encounters.csv`.
 7. **Add a card reward** after winning, so your deck grows: that's the "deckbuilding" part!
 
 ## Making cards from the spreadsheet
@@ -683,25 +694,66 @@ To give the new class its own cards, type its **Display Name** in the **Class** 
 Areas work like classes: one `.tres` file per area in `areas/`, made from
 `area.gd`. To change one, click it and edit it in the **Inspector**:
 
-- **Unlocked**: tick it to open the Forest or the Cave.
-- **Icon**: the round picture on the map. **Background**: the picture behind the fight (the Forest and Cave don't have one yet, so they'd use the plain dark colour).
+- **Unlocked**: tick it to have the area open from the start (the Plains).
+- **Unlock After**: the name of the area whose boss opens this one (the Forest says `Plains`). Beating a boss = finishing a run in that area. Cleared areas are saved.
+- **Icon**: the round picture on the map. **Background**: the picture behind the fight (the Cave doesn't have one yet, so it would use the plain dark colour).
 - **Map Position**: where its centre sits on the map, in pixels (the screen is 1280 × 720).
 - **Sort Order**: its place along the road.
 
 To add a new area, duplicate `areas/forest.tres`. The map draws a button for every area file it finds.
 
-### Enemies and fights
+### Enemies and fights: `data/enemies/`
 
-Each kind of enemy is a `.tres` file in `enemies/` (made from `enemy_data.gd`):
-its **Display Name**, **Max HP**, **Armor**, **Attack Min / Max**, picture
-(**Texture**), **Sprite Size** and name colour. To add one, duplicate
-`enemies/slime.tres` and change it in the Inspector.
+Enemies come from three spreadsheets, like cards. Run `tools/import_cards.gd`
+after changing them (it does cards, talents and enemies). The folder has a
+`.gdignore` file so Godot doesn't try to import the sheets itself.
 
-Which enemies you meet is set on the **area**. Click `areas/plains.tres` and
-open **Encounters** in the Inspector: it's a list with one entry per fight
-(fight 1 = the first). Each entry has a list of **Enemies**, left to right.
-Drag an enemy file from `enemies/` into a slot to use it. If an area has fewer
-encounters than fights, the list starts over.
+**`enemies.csv`**: one row per enemy. It becomes `enemies/<name>.tres`.
+
+| Column | Example | What it means |
+|---|---|---|
+| Name | Big Slime | The enemy's name |
+| HP | 28 | Max HP |
+| Armor | 0 | Saves this much leftover Block each turn, like the player's Armor |
+| Art | big_slime.svg | Its picture, in `art/enemies/` |
+| Width, Height | 190, 143 | How big the picture is drawn, in pixels |
+| Name Color | #5fd16a | The colour of its name |
+| Move Order | Random | **Random**: picks a move by Weight each turn. **In Order**: move 1, 2, 3, then back to 1 (bosses, so you can learn the pattern) |
+| Split Into | Slime | Blank = never splits. Otherwise, at half HP it splits on its turn into Split Count of these, each with the HP it had left |
+| Split Count | 2 | How many it splits into |
+| Boss | Yes | A boss. Finishing a run in an area (its last fight is the boss) opens the areas that Unlock After it |
+| Exp | 15 | Class Exp for beating it |
+| Bonus Gold | 10 | Gold on top of the usual 1-5 |
+
+**`moves.csv`**: one row per move. An enemy's moves are its rows, in order. A
+move can do several things at once: Attack 3 and Block 3 is one move.
+
+| Column | Example | What it means |
+|---|---|---|
+| Enemy | Slime | Whose move it is (the Name in enemies.csv) |
+| Move | Harden | The move's name, shown in the Battle Log |
+| Weight | 1 | How often it's picked, compared with the enemy's other moves (2 = twice as often as 1). Random enemies only |
+| Max In A Row | 1 | The most times in a row it can be picked. 1 = never twice in a row. Blank = no limit |
+| Attack | 2-5 | Damage per hit: a number, or a range. Blank = no attack |
+| Hits | 2 | Attacks this many times (each hit goes through your Block) |
+| Block | 6 | Block for itself |
+| Strength | 1 | +this to all its attacks for the rest of the fight |
+| Heal | 4 | HP back for itself |
+| Ally Block | 3 | Block for every OTHER enemy |
+| Ally Strength | 1 | Strength for every enemy, itself included |
+| Summon | Slimeling | Calls in this enemy (never more than 4 enemies standing) |
+| Summon Count | 2 | How many it calls in |
+| Notes | | Anything you like; the game ignores it |
+
+**`encounters.csv`**: the fights in each area. It's saved into `areas/*.tres`.
+
+| Area | Fight | Enemies |
+|---|---|---|
+| Plains | 3 | Big Slime |
+| Plains | 4 | Slimeling, Slime |
+
+Enemies are listed left to right. If an area has fewer fights than a run, the
+list starts over.
 
 The pictures are in `art/enemies/`. In battle each enemy "breathes" with a
 looping Tween (`set_loops()`), hops when it attacks, flashes red when hit, and

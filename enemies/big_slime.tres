@@ -1,0 +1,31 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_6wunj"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_n1km3"]
+[ext_resource type="Texture2D" path="res://art/enemies/big_slime.svg" id="3_aufsw"]
+
+[sub_resource type="Resource" id="Resource_p6yv6"]
+script = ExtResource("1_6wunj")
+move_name = "Body Slam"
+weight = 2
+attack_min = 4
+attack_max = 7
+
+[sub_resource type="Resource" id="Resource_h2wp3"]
+script = ExtResource("1_6wunj")
+move_name = "Ooze"
+max_in_a_row = 1
+attack_min = 3
+attack_max = 3
+block = 3
+
+[resource]
+script = ExtResource("2_n1km3")
+display_name = "Big Slime"
+max_hp = 28
+texture = ExtResource("3_aufsw")
+sprite_size = Vector2(190, 143)
+name_color = Color(0.37254903, 0.81960785, 0.41568628, 1)
+moves = Array[ExtResource("1_6wunj")]([SubResource("Resource_p6yv6"), SubResource("Resource_h2wp3")])
+split_into = "Slime"
+exp = 15

@@ -25,6 +25,9 @@ var block: int = 0
 # The player's comes from their class. An enemy's is set on its node in
 # battle.tscn (click Enemy and change Armor in the Inspector).
 @export var armor: int = 0
+# Strength is added to every attack (each hit). Enemies get it from buff
+# moves like the Slimeling's Jiggle. It lasts until the fight ends.
+var strength: int = 0
 
 
 # _ready() runs once, when the node enters the scene. Think of it like __init__.
@@ -36,6 +39,7 @@ func _ready() -> void:
 func reset() -> void:
 	hp = max_hp
 	block = 0
+	strength = 0
 	stats_changed.emit()
 
 
@@ -60,6 +64,11 @@ func lose_hp(amount: int) -> void:
 	stats_changed.emit()
 	if hp == 0:
 		died.emit()
+
+
+func gain_strength(amount: int) -> void:
+	strength += amount
+	stats_changed.emit()
 
 
 func gain_block(amount: int) -> void:

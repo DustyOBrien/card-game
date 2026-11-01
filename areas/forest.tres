@@ -1,12 +1,41 @@
 [gd_resource type="Resource" script_class="Area" format=3]
 
 [ext_resource type="Script" path="res://scripts/area.gd" id="1_area"]
+[ext_resource type="Script" path="res://scripts/encounter.gd" id="2_4k5lq"]
 [ext_resource type="Texture2D" path="res://art/areas/forest.svg" id="2_icon"]
+[ext_resource type="Texture2D" path="res://art/backgrounds/forest.svg" id="3_background"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="3_eca1p"]
+[ext_resource type="Resource" path="res://enemies/wolf.tres" id="4_ioxcy"]
+[ext_resource type="Resource" path="res://enemies/mushroom.tres" id="5_nvgi8"]
+[ext_resource type="Resource" path="res://enemies/old_oak.tres" id="6_mk55n"]
+
+[sub_resource type="Resource" id="Resource_4k5lq"]
+script = ExtResource("2_4k5lq")
+enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy")])
+
+[sub_resource type="Resource" id="Resource_eca1p"]
+script = ExtResource("2_4k5lq")
+enemies = Array[ExtResource("3_eca1p")]([ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
+
+[sub_resource type="Resource" id="Resource_ioxcy"]
+script = ExtResource("2_4k5lq")
+enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("4_ioxcy")])
+
+[sub_resource type="Resource" id="Resource_nvgi8"]
+script = ExtResource("2_4k5lq")
+enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
+
+[sub_resource type="Resource" id="Resource_mk55n"]
+script = ExtResource("2_4k5lq")
+enemies = Array[ExtResource("3_eca1p")]([ExtResource("6_mk55n")])
 
 [resource]
 script = ExtResource("1_area")
 display_name = "Forest"
-description = "A dark, tangled wood. Something rustles in the trees."
+description = "A dark, tangled wood. Wolves hunt here, and the Old Oak is waking up."
+unlock_after = "Plains"
 sort_order = 1
 icon = ExtResource("2_icon")
+background = ExtResource("3_background")
 map_position = Vector2(640, 380)
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_4k5lq"), SubResource("Resource_eca1p"), SubResource("Resource_ioxcy"), SubResource("Resource_nvgi8"), SubResource("Resource_mk55n")])
