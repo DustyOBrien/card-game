@@ -6,9 +6,9 @@
 script = ExtResource("1_wmlwa")
 quest_name = "Make your first Flask"
 giver = "The Innkeeper"
-text = "\"An old alchemist wants to set up shop. Build her a workshop and she'll brew you a Health Flask from that Ooze.\" Flasks refill every time you Rest at a campfire. Blue Slimes now live in the Plains too."
+text = "\"An old alchemist wants to set up shop. Build a workshop and the Alchemist will brew you a Health Flask from that Ooze.\" Flasks refill every time you Rest at a campfire. Blue Slimes now live in the Plains too."
 objective = "brew"
 target = "Health Flask"
-rewards = "Blueprint Shop; Blueprint Guild Hall; Gold 10"
+rewards = "Blueprint Shop; Gold 10"
 next_quest = "Slay the Slime Nest"
-sort_order = 2
+sort_order = 3

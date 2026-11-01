@@ -271,7 +271,9 @@ func _on_skip() -> void:
 	get_tree().change_scene_to_file(after_scene())
 
 
-# Where to go when the tutorial ends: town if there's no Inn yet (so the
-# King's letter shows up and explains buildings), otherwise Character Select.
+# Where to go when the tutorial ends: town if there's a quest story waiting
+# (or no Inn yet), otherwise Character Select.
 static func after_scene() -> String:
-	return TOWN_SCENE if GameState.town_bonus(TownBuilding.INN) == 0 else AFTER_SCENE
+	# Back to town if there's a new quest to read (the Innkeeper's first job).
+	var unread := GameState.current_quest() != null and not GameState.quest_seen
+	return TOWN_SCENE if not GameState.adventurers_here() or unread else AFTER_SCENE

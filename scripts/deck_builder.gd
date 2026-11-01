@@ -590,6 +590,8 @@ func _on_start_pressed() -> void:
 # A Talents button next to Back. Talents can change which cards you may use,
 # so it's handy to hop over and come straight back.
 func add_talents_button() -> void:
+	if not GameState.talents_open():
+		return  # Talents are hidden until a quest unlocks them.
 	var button := Button.new()
 	var points := GameState.talent_points_left(GameState.character_class)
 	button.text = "Talents"

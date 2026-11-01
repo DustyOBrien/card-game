@@ -515,6 +515,8 @@ static func _import_rooms(known: Dictionary) -> void:
 		card.type = types[type_text]
 		var tier_text: String = row.get("tier", "1").to_lower()
 		card.tier = 0 if tier_text == "boss" else _to_int(tier_text, 1)
+		if tier_text == "guide":
+			card.tier = RoomCard.GUIDE_TIER  # The guided first run (before the Inn): see dungeon_run.gd.
 		if card.type == RoomCard.Type.BOSS:
 			card.tier = 0  # The Boss room only goes in after the last Mini Boss.
 		card.copies = _to_int(row.get("copies", ""), 1)

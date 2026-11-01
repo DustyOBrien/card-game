@@ -31,6 +31,9 @@ const TYPE_NAMES := {
 # the start; beating a Mini Boss shuffles in the next tier. 0 = the Boss room,
 # which only goes in after the last tier's Mini Boss.
 @export var tier: int = 1
+# Tier "Guide" in the sheet: the guided first run, before the Inn is built.
+# No enemies; its cards are drawn in the sheet's order (no shuffle).
+const GUIDE_TIER := -1
 @export var copies: int = 1  # How many of this card go in the deck.
 # false = you need to find a Map in a chest before this card goes in the deck.
 @export var unlocked: bool = true

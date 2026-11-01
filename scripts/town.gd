@@ -12,6 +12,7 @@ extends Control
 const SHOP_SCENE := "res://scenes/shop.tscn"
 const MAP_SCENE := "res://scenes/map.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
+const CHARACTER_SCENE := "res://scenes/character_select.tscn"
 const RUINS := preload("res://art/town/ruins.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 const GOLD_COLOR := Color(1, 0.84, 0.35)
@@ -81,9 +82,13 @@ func refresh() -> void:
 	for building in GameState.load_town():
 		if GameState.has_blueprint(building):  # The rest stay hidden until a quest gives their blueprint.
 			building_row.add_child(make_building(building))
-	var inn_open := GameState.town_bonus(TownBuilding.INN) > 0
-	next_run_button.disabled = not inn_open
-	next_run_button.tooltip_text = "" if inn_open else "Build the Inn first: it opens the road to the Plains."
+	# You can head out once any area is open (before the Inn: the guided Stone run).
+	var can_go := GameState.load_areas().any(func(area: Area) -> bool: return GameState.is_area_unlocked(area))
+	next_run_button.disabled = not can_go
+	next_run_button.tooltip_text = "" if can_go else "Follow your quest: the road opens soon."
+	# No adventurer yet: you're running the town, so there's no deck or flask to look at.
+	deck_button.visible = GameState.adventurers_here()
+	flask_button.visible = GameState.adventurers_here()
 	quest_button.text = "Quest: %s%s" % [GameState.active_quest, "  ✓ Ready!" if GameState.quest_ready() else ""] \
 		if GameState.current_quest() else "No quest right now"
 	quest_button.disabled = GameState.current_quest() == null
@@ -229,6 +234,10 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 		message_label.text = "The %s is %s: %s!" % [building.building_name,
 			"built" if stage == 1 and building.needs_blueprint else "restored", building.stage_texts[stage - 1]]
 	refresh()
+	# Building what the quest asked for: straight to the hand-in.
+	var quest := GameState.current_quest()
+	if quest and quest.objective == Quest.BUILD and GameState.quest_ready():
+		show_quest_panel(false)
 
 
 func _buy_enchant() -> void:
@@ -523,14 +532,37 @@ func quest_reward_text(text: String) -> String:
 			"room": parts.append("new room: " + rest.get_slice(":", 1).strip_edges())
 			"pack": parts.append("%s Booster Pack" % rest)
 			"gold": parts.append("%s gold" % rest)
+			"unlock": parts.append("%s unlocked" % rest)
 			_: parts.append(reward)
 	return ", ".join(parts)
 
 
 func _on_hand_in() -> void:
 	var finished := GameState.active_quest
+	var talents_before := GameState.talents_open()
 	var lines := GameState.complete_quest()
+	close_overlay()
 	refresh()
+	# Big moments get the big banner (unlock_banner.gd).
+	# The Inn just opened: the first Adventurer arrives, and Character Select
+	# and the deck builder open up. Off to meet them (and their training, the
+	# tutorial). The new quest's story shows when you're back in town.
+	if GameState.adventurers_here() and not GameState.tutorial_done:
+		var adventurer: CharacterClass = GameState.load_classes()[0]
+		UnlockBanner.show_in(self, "A NEW ADVENTURER!", "The %s has arrived" % adventurer.display_name, adventurer.emblem,
+			"Word of your Inn spread, and the first Adventurer has checked in! You've got a town to run, so leave the fighting to them.\n\nNEW: Character Select and the Deck Builder.  Quest rewards: %s" % ", ".join(lines),
+			"Meet the Adventurer", func() -> void: get_tree().change_scene_to_file(CHARACTER_SCENE))
+		return
+	if GameState.talents_open() and not talents_before:
+		UnlockBanner.show_in(self, "TALENTS UNLOCKED!", "Your adventurers can grow", null,
+			"Every class levels up from the Exp it earns in fights. Each level gives a TALENT POINT: spend it in the class's talent trees for lasting bonuses. You also pick a SPEC: a free starting talent that sets your playstyle (the Adventurer's specs decide which card schools it can use).\n\nFind the Talents button on Character Select and in the Deck Builder.",
+			"Got it!", _show_quest_complete.bind(finished, lines))
+		return
+	_show_quest_complete(finished, lines)
+
+
+# "Quest complete!" with what you got, then the next quest's story.
+func _show_quest_complete(finished: String, lines: Array[String]) -> void:
 	var box := open_overlay()
 	box.add_child(make_label("Quest complete!", 32, GOLD_COLOR))
 	box.add_child(make_label(finished, 20, Color.WHITE))

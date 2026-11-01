@@ -70,6 +70,7 @@ var found_row: HFlowContainer
 var enchant_button: Button
 var potion_row: HBoxContainer
 var picker: ColorRect  # The "put an enchant on a card" screen, while it's open.
+var guide_label: Label  # The guided first run's tip box (null on normal runs).
 
 
 func _ready() -> void:
@@ -87,6 +88,8 @@ func _ready() -> void:
 			squares[square] = button
 	build_legend()
 	build_sack_panel()
+	if dungeon.guided:
+		build_guide()
 	popup.hide()
 	refresh()
 	# Back from beating a Mini Boss: its room is a campfire now. Offer it
@@ -169,13 +172,15 @@ func refresh() -> void:
 	for square: Vector2i in squares:
 		draw_square(square)
 	var hp := GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
-	title_label.text = "%s  ·  Tier %d / %d" % [dungeon.area.display_name, dungeon.tier, dungeon.max_tier]
+	title_label.text = "%s  ·  Tier %d / %d" % [dungeon.area.display_name, dungeon.tier, dungeon.max_tier] \
+		if not dungeon.guided else "%s  ·  Gathering Stone" % dungeon.area.display_name
 	var lines: Array[String] = []
 	lines.append("[color=#ff8080]HP %d / %d[/color]" % [hp, GameState.player_max_hp()])
 	lines.append("[color=#ffd75a]Keys: %d[/color]" % dungeon.keys)
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
-	lines.append("[color=%s]Danger %d[/color]  (enemies +%d Strength; +1 more in %d steps)" % [
-		danger_color, dungeon.danger(), dungeon.danger(), dungeon.steps_to_next_danger()])
+	if not dungeon.guided:  # No enemies on the guided run, so no Danger either.
+		lines.append("[color=%s]Danger %d[/color]  (enemies +%d Strength; +1 more in %d steps)" % [
+			danger_color, dungeon.danger(), dungeon.danger(), dungeon.steps_to_next_danger()])
 	lines.append("Rooms left in the deck: %d" % dungeon.deck.size())
 	if dungeon.boss_unlocked:
 		lines.append("[color=#ff6060]The Boss is somewhere in the deck![/color]")
@@ -356,6 +361,8 @@ func _on_square_pressed(square: Vector2i) -> void:
 	if square == dungeon.position and dungeon.rooms[square].campfire:
 		what = "campfire"
 	refresh()
+	if guide_label:
+		show_guide_tip(what, square)
 	match what:
 		"fight", "ambush":
 			var card: RoomCard = dungeon.rooms[square].card
@@ -374,6 +381,63 @@ func _on_square_pressed(square: Vector2i) -> void:
 			show_event()
 		"treasure":
 			show_popup("Treasure!", "You find %s." % dungeon.history[-1].trim_prefix("Treasure! "), [["Nice", close_popup]])
+
+
+# --- The guided first run ------------------------------------------------------
+# Before the Inn, the Plains trip has no enemies: a box under the stats
+# explains each new thing the first time you meet it.
+
+const GUIDE_START := "Welcome to the Plains! The grid is the dungeon. Click a ? square next to you to explore it: each new square draws a card from the area's room deck."
+const GUIDE_DONE := "That's 5 Stone! Find the campfire and Leave to take it home. (Rest would heal you and shuffle the rooms back in, but you don't need that today.)"
+
+func build_guide() -> void:
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.17, 0.08, 0.95)
+	style.border_color = Color(1, 0.84, 0.35)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(10)
+	panel.add_theme_stylebox_override("panel", style)
+	guide_label = Label.new()
+	guide_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	guide_label.add_theme_font_size_override("font_size", 16)
+	guide_label.text = "Guide:  " + GUIDE_START
+	panel.add_child(guide_label)
+	var box := info_label.get_parent()
+	box.add_child(panel)
+	box.move_child(panel, info_label.get_index() + 1)
+
+
+# A tip for what just happened. Once you have enough Stone, it points you home.
+func show_guide_tip(what: String, square: Vector2i) -> void:
+	var card: RoomCard = dungeon.rooms[square].card if dungeon.rooms.has(square) else null
+	var tip := ""
+	match what:
+		"treasure":
+			if card and card.loot.has("Key"):
+				tip = "A small key! Keys open Locked Chests. You can walk back through rooms you've explored for free, so go find that chest."
+			else:
+				tip = "Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it, except what's in your Save Sack. Try dragging the Stone into the sack."
+		"chest":
+			tip = "A Locked Chest. Open it with a key." if dungeon.keys > 0 \
+				else "A Locked Chest, and no key yet. Keep exploring, then come back: chests wait for you."
+		"empty":
+			tip = "Nothing here, just a quiet meadow. Explored rooms stay on the map."
+		"campfire":
+			tip = "A campfire! Rest heals you and shuffles the rooms back into the deck. Leave takes you home with everything you found."
+		"opened":
+			tip = "The key opened it! Chests hold better loot than the rooms around them."
+		"walk":
+			if dungeon.deck.is_empty():
+				tip = "The room deck is empty, so the dark squares are dead ends. Head for the campfire."
+	var stone: int = dungeon.found_materials.get("Stone", 0) + dungeon.sack.filter(
+		func(item: Dictionary) -> bool: return item.get("name", "") == "Stone").reduce(
+		func(total: int, item: Dictionary) -> int: return total + item.get("amount", 0), 0)
+	if stone >= 5 and what != "campfire":
+		tip = GUIDE_DONE
+	if not tip.is_empty():
+		guide_label.text = "Guide:  " + tip
 
 
 # An event: its story and a button per choice. Choices you can't pick yet
@@ -434,6 +498,8 @@ func show_chest() -> void:
 func _on_open_chest() -> void:
 	var loot := dungeon.open_chest(dungeon.position)
 	refresh()
+	if guide_label:
+		show_guide_tip("opened", dungeon.position)
 	show_popup("Opened!", "Inside: %s" % loot, [["Nice", close_popup]])
 
 

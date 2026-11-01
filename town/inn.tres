@@ -6,11 +6,12 @@
 [resource]
 script = ExtResource("2_kokil")
 building_name = "Inn"
-description = "Rest your feet and find quests."
+description = "Rest your feet and find quests. Adventurers stay here."
 icon = ExtResource("1_4ai3x")
+sort_order = 1
 costs = Array[int]([0])
 effects = PackedStringArray("inn")
 amounts = Array[int]([1])
-stage_texts = PackedStringArray("Opens quests and the road to the Plains")
-material_costs = PackedStringArray("Lumber 5")
+stage_texts = PackedStringArray("Opens quests, the Plains and the Adventurer")
+material_costs = PackedStringArray("Stone 5")
 needs_blueprint = true

@@ -145,11 +145,15 @@ func unlock_progress(all_cards: Array[CardData]) -> int:
 
 
 func is_unlocked(all_cards: Array[CardData]) -> bool:
+	if not GameState.adventurers_here():
+		return false  # Nobody to play until the Inn is built.
 	return starts_unlocked or unlock_progress(all_cards) >= unlock_card_count
 
 
 # e.g. "Unlock 12 Strength cards (6 / 12)"
 func get_unlock_text(all_cards: Array[CardData]) -> String:
+	if not GameState.adventurers_here():
+		return "Build the Inn in town: adventurers need somewhere to stay"
 	var school_name: String = CardData.School.find_key(unlock_school).capitalize()
 	return "Unlock %d %s cards (%d / %d)" % [
 		unlock_card_count, school_name, unlock_progress(all_cards), unlock_card_count]

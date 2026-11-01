@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Stone: a little pile of grey blocks. -->
+  <g stroke="#2e3036" stroke-width="2.5" stroke-linejoin="round">
+    <path d="M6 54 L10 38 L26 34 L32 52 Z" fill="#8a8f99"/>
+    <path d="M30 52 L28 36 L44 30 L58 40 L56 54 Z" fill="#a3a8b2"/>
+    <path d="M18 34 L22 18 L38 14 L44 30 L28 36 Z" fill="#b8bdc6"/>
+  </g>
+  <path d="M24 20 L36 17 M33 40 L44 36 M12 42 L22 39" stroke="#e2e5ea" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

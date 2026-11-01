@@ -39,6 +39,9 @@ const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOW
 
 var area: Area
 var tier := 1  # Which tier's cards are in the deck.
+# The guided first run (before the Inn): only the area's Guide rooms, no
+# enemies, and dungeon.gd shows tips as you go.
+var guided := false
 var max_tier := 1  # The area's last tier.
 var deck: Array[RoomCard] = []  # The room cards still to draw, top = the end.
 # Every explored square: Vector2i -> a Dictionary describing the room there:
@@ -97,7 +100,12 @@ func _init(for_area: Area) -> void:
 	for card in area.rooms:
 		max_tier = maxi(max_tier, card.tier)
 	rooms[START] = {"card": null, "cleared": true, "done": true, "campfire": false}
-	_add_tier(1)
+	guided = GameState.is_guided_run(area)
+	if guided:
+		_add_tier(RoomCard.GUIDE_TIER)
+		max_tier = RoomCard.GUIDE_TIER  # No tiers to go deeper into.
+	else:
+		_add_tier(1)
 	add_log("You enter the %s." % area.display_name)
 
 
@@ -111,7 +119,10 @@ func _add_tier(number: int) -> void:
 		if card.tier == number and GameState.is_room_unlocked(area, card):
 			for i in maxi(card.copies, 1):
 				deck.append(card)
-	deck.shuffle()
+	if number == RoomCard.GUIDE_TIER:
+		deck.reverse()  # Draw them in the sheet's order (the deck is drawn from the end).
+	else:
+		deck.shuffle()
 
 
 func _add_boss() -> void:
@@ -543,6 +554,13 @@ func take_loot(card: RoomCard) -> String:
 				found_gold += 10  # Every room is already unlocked.
 				return "an old map of rooms you know (10 gold instead)"
 			return "a Map! New room for the %s: %s" % [area.display_name, room.room_name]
+	# A material: "Stone 2", "Stone 1-3" or "Green Ooze 2" (the name can have spaces).
+	var last := words[-1].split("-")
+	var material_name := " ".join(words.slice(0, -1)) if words.size() > 1 and last[0].is_valid_int() else entry.strip_edges()
+	if GameState.find_material(material_name):
+		var amount := randi_range(last[0].to_int(), last[-1].to_int()) if words.size() > 1 and last[0].is_valid_int() else 1
+		add_found_material(material_name, amount)
+		return "%d %s" % [amount, material_name]
 	return entry
 
 

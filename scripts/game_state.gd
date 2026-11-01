@@ -153,6 +153,9 @@ var active_quest := ""  # The quest you're on ("" = none). See quest.gd.
 var quest_progress := 0  # Kills / rooms / tier counted for it.
 var quest_seen := false  # false = town shows the quest's story popup.
 var quests_done: Array[String] = []
+# Parts of the game a quest has opened up ("Unlock Talents" reward), e.g. ["Talents"].
+var unlocked_features: Array[String] = []
+const TALENTS_FEATURE := "Talents"
 var _materials: Array[MaterialInfo] = []
 var _quests: Array[Quest] = []
 
@@ -186,6 +189,7 @@ func start_fresh() -> void:
 	materials.clear()
 	blueprints.clear()
 	quests_done.clear()
+	unlocked_features.clear()
 	active_quest = ""
 	start_quest(first_quest_name())  # The King's letter: 5 Lumber and the Inn blueprint.
 	bonus_talent_points = 0
@@ -601,6 +605,10 @@ func give_rewards(text: String) -> Array[String]:
 				if not unlocked_rooms[area_name].has(room_name):
 					unlocked_rooms[area_name].append(room_name)
 				lines.append("New room in the %s: %s" % [area_name, room_name])
+			"unlock":  # "Unlock Talents": opens up a part of the game.
+				if not unlocked_features.has(rest):
+					unlocked_features.append(rest)
+				lines.append("%s unlocked!" % rest)
 			_:
 				push_warning("quests.csv: unknown reward '%s'" % reward)
 	return lines
@@ -1063,7 +1071,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 2  # Bump this if the save format changes. 2 = the town starts empty (quests).
+const SAVE_VERSION := 3  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn.
 
 
 func save_game() -> void:
@@ -1095,6 +1103,7 @@ func save_game() -> void:
 		"quest_progress": quest_progress,
 		"quest_seen": quest_seen,
 		"quests_done": quests_done,
+		"unlocked_features": unlocked_features,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -1150,6 +1159,7 @@ func load_game() -> bool:
 	quest_progress = int(data.get("quest_progress", 0))
 	quest_seen = bool(data.get("quest_seen", true))
 	quests_done.assign(data.get("quests_done", []))
+	unlocked_features.assign(data.get("unlocked_features", []))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
@@ -1198,8 +1208,31 @@ func load_classes() -> Array[CharacterClass]:
 # area has been cleared (you beat that area's boss).
 func is_area_unlocked(area: Area) -> bool:
 	if town_bonus(TownBuilding.INN) == 0:
-		return false  # Nobody adventures until the Inn is built.
+		# No adventurers until the Inn is built. Before that, only the guided
+		# run is open: once you have the Inn's blueprint, you go and get Stone.
+		return blueprints.has("Inn") and has_guide_rooms(area)
 	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
+
+
+# Does this area have rooms for the guided first run (Tier "Guide" in rooms.csv)?
+func has_guide_rooms(area: Area) -> bool:
+	return area.rooms.any(func(card: RoomCard) -> bool: return card.tier == RoomCard.GUIDE_TIER)
+
+
+# A run before the Inn is built is the guided one: no enemies, just tips.
+func is_guided_run(area: Area) -> bool:
+	return town_bonus(TownBuilding.INN) == 0 and has_guide_rooms(area)
+
+
+# Talents and specs stay hidden until a quest unlocks them (after the first boss).
+func talents_open() -> bool:
+	return unlocked_features.has(TALENTS_FEATURE)
+
+
+# Has an adventurer come to town yet? The Inn brings them: until it's built,
+# no class is playable and you're busy running the town.
+func adventurers_here() -> bool:
+	return town_bonus(TownBuilding.INN) > 0
 
 
 # You beat this area's boss. Returns the areas that just opened because of it.

@@ -27,12 +27,13 @@ const LOCKED_TINT := Color(0.45, 0.42, 0.4)
 func _ready() -> void:
 	GameState.ensure_ready()  # So pressing F6 on this scene still works.
 	deck_button.pressed.connect(_on_deck_pressed)
+	deck_button.visible = GameState.adventurers_here()  # No deck to edit until an adventurer arrives.
 	# A Town button next to Edit Deck (restore buildings, buy potions...).
 	var town_button := Button.new()
 	town_button.text = "Town"
 	town_button.custom_minimum_size = Vector2(120, 48)
 	town_button.add_theme_font_size_override("font_size", 20)
-	town_button.position = deck_button.position + Vector2(deck_button.size.x + 12, 0)
+	town_button.position = deck_button.position + (Vector2(deck_button.size.x + 12, 0) if deck_button.visible else Vector2.ZERO)
 	town_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(TOWN_SCENE))
 	add_child(town_button)
 	gold_label.text = "Gold %d" % GameState.gold
@@ -62,7 +63,9 @@ func make_area_marker(area: Area) -> Control:
 	marker.add_child(make_label(area.display_name, 26))
 	var open := GameState.is_area_unlocked(area)
 	var status_text := "Open"
-	if GameState.cleared_areas.has(area.display_name):
+	if open and GameState.is_guided_run(area):
+		status_text = "Find Stone"
+	elif GameState.cleared_areas.has(area.display_name):
 		status_text = "Cleared ✓"  # You've beaten its boss (you can still go back).
 	elif not open and GameState.town_bonus(TownBuilding.INN) == 0:
 		status_text = "Build the Inn in town first"
@@ -111,7 +114,9 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 	create_tween().tween_property(button, "scale", Vector2.ONE * target, 0.1)
 	if hovered:
 		info_label.text = "%s: %s" % [area.display_name, area.description]
-		if GameState.town_bonus(TownBuilding.INN) == 0:
+		if GameState.is_area_unlocked(area) and GameState.is_guided_run(area):
+			info_label.text += "  (A safe trip to gather Stone for the Inn. Tips show you how to explore.)"
+		elif GameState.town_bonus(TownBuilding.INN) == 0:
 			info_label.text += "  (Build the Inn in town first: adventurers need somewhere to stay!)"
 		elif not GameState.is_area_unlocked(area):
 			info_label.text += "  (Locked: beat the %s boss to open it)" % area.unlock_after \

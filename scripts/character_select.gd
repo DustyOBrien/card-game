@@ -28,12 +28,16 @@ func _ready() -> void:
 		class_list.add_child(make_class_panel(character_class, all_cards))
 	add_reset_button()
 	add_tutorial_button()
-	# A brand new player gets the tutorial first (they can Skip it).
-	if not GameState.tutorial_done:
+	# No Inn yet: nobody to play. You're running the town, so go there.
+	if not GameState.adventurers_here():
+		get_tree().change_scene_to_file.call_deferred(TOWN_SCENE)
+	# The Adventurer just arrived: their training (the tutorial) comes first (they can Skip it).
+	elif not GameState.tutorial_done:
 		start_tutorial.call_deferred()
 
 
 const BATTLE_SCENE := "res://scenes/battle.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"
 
 
 func start_tutorial() -> void:
@@ -152,7 +156,8 @@ func make_class_panel(character_class: CharacterClass, all_cards: Array[CardData
 		choose_button.text = "Choose"
 		# bind() remembers which class this button is for (see deck_builder.gd).
 		choose_button.pressed.connect(_on_class_chosen.bind(character_class))
-		box.add_child(make_talents_button(character_class))
+		if GameState.talents_open():  # Hidden until a quest unlocks talents.
+			box.add_child(make_talents_button(character_class))
 	else:
 		choose_button.text = "Locked"
 		choose_button.disabled = true
@@ -191,5 +196,5 @@ func _on_talents_pressed(character_class: CharacterClass) -> void:
 func _on_class_chosen(character_class: CharacterClass) -> void:
 	GameState.choose_class(character_class)  # Also gives you that class's starter deck.
 	# Next, pick a spec, if the class has any (data/talents/specs.csv).
-	var has_specs := not GameState.specs_for(character_class).is_empty()
+	var has_specs := GameState.talents_open() and not GameState.specs_for(character_class).is_empty()
 	get_tree().change_scene_to_file(SPEC_SCENE if has_specs else DECK_BUILDER_SCENE)

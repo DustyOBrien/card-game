@@ -6,8 +6,8 @@
 script = ExtResource("1_qxo5b")
 quest_name = "A Town of Your Own"
 giver = "The King"
-text = "A royal letter arrives: \"The old town lies in ruins, but every town starts somewhere. Take this lumber and these plans, and build an Inn so adventurers have a place to rest.\" Buildings need their blueprint and some materials (and sometimes gold). Click Build on the Inn."
-target = "Inn"
-start_gift = "Material Lumber 5; Blueprint Inn"
-rewards = "Gold 10"
-next_quest = "Clear the Slimes"
+text = "A royal letter arrives: \"The old town lies in ruins, and you're the one to bring it back. Start with a Guild Hall: it will be your home base, and its Bank keeps everything you bring home safe. Here's some stone and the plans.\" Buildings need their blueprint, plus materials (and sometimes gold). Click Build on the Guild Hall."
+target = "Guild Hall"
+start_gift = "Material Stone 5; Blueprint Guild Hall"
+rewards = "Blueprint Inn"
+next_quest = "Stone for the Inn"

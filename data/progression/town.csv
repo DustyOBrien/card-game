@@ -1,6 +1,6 @@
 Building,Stage,Cost,Effect,Amount,Icon,Description,Stage Text,Materials,Blueprint
-Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests.,Opens quests and the road to the Plains,Lumber 5,Yes
-Guild Hall,1,20,Bank,1,guild_hall.svg,Your home base. Its Bank keeps your materials safe.,The Bank: see the materials you brought home,,Yes
+Guild Hall,1,0,Bank,1,guild_hall.svg,Your home base. Its Bank keeps your materials safe.,The Bank: see the materials you brought home,Stone 5,Yes
+Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,"Opens quests, the Plains and the Adventurer",Stone 5,Yes
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,,
 Tailor,1,30,Sack Slots,1,tailor.svg,Sews a bigger Save Sack.,Save Sack +1 slot,,Yes

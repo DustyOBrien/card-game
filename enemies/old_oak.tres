@@ -42,4 +42,4 @@ move_order = 1
 is_boss = true
 exp = 70
 bonus_gold = 25
-drops = PackedStringArray()
+drops = PackedStringArray("Lumber 100")

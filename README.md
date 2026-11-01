@@ -206,28 +206,34 @@ Your HP carries over from one fight to the next (the top of the battle screen
 shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
 to the grid. When the run ends (Boss beaten, Leave, or death) you go back to **Town**.
 
-**The tutorial.** A brand new save starts with three quick practice fights
-against Training Dummies (kill them, block their hits, heal yourself). **Skip
-Tutorial** jumps straight to the game, and Character Select has a **Tutorial**
-button to replay it. The fights live in `scripts/tutorial.gd`.
+**How a new game starts.** You're the one rebuilding the town, so there's no
+fighting at first: Character Select and the Deck Builder stay hidden.
 
-**The town and quests.** The town starts **empty**. After the tutorial, a letter
-from the King gives you **5 Lumber** and the **Inn blueprint**. You only see a
-building once you have its blueprint, and building it costs materials, gold, or
-both. The **Inn** opens the road to the Plains and the **Quest Board**. You have one
-quest at a time, and handing it in gives its rewards and starts the next one:
-
-1. **A Town of Your Own**: build the Inn.
-2. **Clear the Slimes**: bring home 5 Green Ooze (Green Slimes drop it). Gives the
+1. **A Town of Your Own** (the King): his letter gives you 5 Stone and the
+   **Guild Hall** blueprint. Build it: its **Bank** keeps what you bring home.
+2. **Stone for the Inn**: a guided trip to the Plains with no monsters, just
+   Stone piles, a key, a chest and a campfire. A Guide box explains each new
+   thing (exploring, keys and chests, Found loot and the Save Sack, leaving at a
+   campfire). Bring home 5 Stone and build the **Inn**.
+3. The Inn brings the first **Adventurer** (a big unlock banner). Character
+   Select and the Deck Builder open, and the Adventurer's training starts: three
+   quick fights against Training Dummies (kill them, block, heal). **Skip
+   Tutorial** jumps past it, and Character Select's **Tutorial** button replays it.
+4. **Clear the Slimes**: bring home 5 Green Ooze (Green Slimes drop it). Gives the
    Alchemist blueprint and adds the Blue Slime rooms to the Plains.
-3. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
-   Health Flask there (3 Green Ooze). Gives the Shop and Guild Hall blueprints.
-4. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
+5. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
+   Health Flask there (3 Green Ooze). Gives the Shop blueprint.
+6. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
    the Plains deck for good. Beat it and rest at its campfire to reach Tier 2.
+   Handing it in unlocks **Talents** (and specs), with a banner explaining them.
 
-**Materials** (like Green Ooze) drop from enemies. Like gold, they're only yours
-once you get home; put them in the Save Sack to keep them if you die. The
-**Guild Hall**'s **Bank** shows everything you've brought home.
+One quest at a time: the **Quest** button at the bottom of town (or the Inn's
+Quest Board) shows it, and **Hand In** gives its rewards and starts the next.
+
+**Materials** drop from enemies and turn up in rooms: Stone is the Plains'
+building material, Green Ooze comes from Green Slimes, and Lumber from the
+Forest's trees. Like gold, they're only yours once you get home; put them in the
+Save Sack to keep them if you die. The **Guild Hall**'s **Bank** shows them all.
 
 The other buildings, once you have their blueprint (hover the button to see what
 the next stage does):
@@ -326,6 +332,7 @@ card-game/
 │   ├── town.gd          The town: building panels, restoring, buying
 │   ├── town_building.gd One building (a row group of town.csv)
 │   ├── quest.gd         One quest (a row of quests.csv)
+│   ├── unlock_banner.gd The big "You unlocked something!" banner
 │   ├── material_info.gd One material (a row of materials.csv)
 │   ├── tutorial.gd      The three training-dummy fights
 │   ├── enchant.gd       An enchant, and how it changes a card in a fight
@@ -982,8 +989,10 @@ first quest).
 | Next Quest | Make your first Flask | The quest that starts next (blank = none) |
 
 Gifts and rewards can be `Gold 10`, `Pack 1`, `Material Green Ooze 3`,
-`Blueprint Shop`, or `Room Plains: Big Slime Nest`. A room in `rooms.csv` with
-Unlocked = `Quest` only joins the room deck through a quest reward.
+`Blueprint Shop`, `Room Plains: Big Slime Nest`, or `Unlock Talents`. A room in `rooms.csv` with
+Unlocked = `Quest` only joins the room deck through a quest reward. Rows with
+Tier = `Guide` are the guided first run (before the Inn): no shuffle, drawn in
+the sheet's order. Room Loot can name a material too: `Stone 2` or `Stone 1-3`.
 
 The prices (enchant 15, potion 8, map 25) and the starting Save Sack (2 slots,
 5 gold) and potion slots (3) are at the top of `game_state.gd`. Drop chances are
