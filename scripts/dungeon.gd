@@ -36,6 +36,7 @@ const ICONS := {
 	RoomCard.Type.EVENT: preload("res://art/rooms/event.svg"),
 }
 const OPEN_CHEST_ICON := preload("res://art/rooms/open_chest.svg")
+const KEY_ICON := preload("res://art/rooms/key.svg")
 const START_ICON := preload("res://art/rooms/start.svg")
 const PLAYER_ICON := preload("res://art/rooms/player.svg")
 
@@ -71,6 +72,12 @@ var enchant_button: Button
 var potion_row: HBoxContainer
 var picker: ColorRect  # The "put an enchant on a card" screen, while it's open.
 var guide_label: Label  # The guided first run's tip box (null on normal runs).
+# The popup's picture (a key, a chest...) and its little animation.
+var popup_holder: Control
+var popup_picture: TextureRect
+var popup_sparkles: CPUParticles2D
+var popup_tween: Tween
+var popup_loot_texture: Texture2D  # What pops out of a chest you just opened.
 
 
 func _ready() -> void:
@@ -380,15 +387,23 @@ func _on_square_pressed(square: Vector2i) -> void:
 		"event":
 			show_event()
 		"treasure":
-			show_popup("Treasure!", "You find %s." % dungeon.history[-1].trim_prefix("Treasure! "), [["Nice", close_popup]])
+			var found := dungeon.history[-1].trim_prefix("Treasure! ")
+			var card: RoomCard = dungeon.rooms[square].card
+			var text := "You find %s." % found
+			if dungeon.guided and dungeon.guide_goal_met():
+				text += "\n" + guide_goal_text()
+			if card.loot.has("Key"):
+				show_popup("A Key!", text, [["Nice", close_popup]], KEY_ICON, "key")
+			else:
+				show_popup("Treasure!", text, [["Nice", close_popup]], loot_picture(card), "pop")
 
 
 # --- The guided first run ------------------------------------------------------
 # Before the Inn, the Plains trip has no enemies: a box under the stats
-# explains each new thing the first time you meet it.
+# explains each new thing the first time you meet it. Its campfire only offers
+# Return to Town, and only once you have the Stone the Inn needs.
 
-const GUIDE_START := "Welcome to the Plains! The grid is the dungeon. Click a ? square next to you to explore it: each new square draws a card from the area's room deck."
-const GUIDE_DONE := "That's 5 Stone! Find the campfire and Leave to take it home. (Rest would heal you and shuffle the rooms back in, but you don't need that today.)"
+const GUIDE_START := "Welcome to the Plains! The grid is the dungeon. Click a ? square next to you to explore it: each new square draws a card from the area's room deck. You need 5 Stone for the Inn."
 
 func build_guide() -> void:
 	var panel := PanelContainer.new()
@@ -409,14 +424,31 @@ func build_guide() -> void:
 	box.move_child(panel, info_label.get_index() + 1)
 
 
-# A tip for what just happened. Once you have enough Stone, it points you home.
+# "Stone 3 / 5" for the guide, from what the Inn needs.
+func guide_progress() -> String:
+	var parts: Array[String] = []
+	var needs := dungeon.guide_needs()
+	for material_name in needs:
+		parts.append("%s %d / %d" % [material_name, mini(dungeon.material_total(material_name), needs[material_name]), needs[material_name]])
+	return "  ".join(parts)
+
+
+# Once you have enough Stone: find the campfire, or go back to the one you found.
+func guide_goal_text() -> String:
+	var found_fire := dungeon.rooms.values().any(func(room: Dictionary) -> bool:
+		return room.card != null and room.card.type == RoomCard.Type.CAMPFIRE)
+	return "You have all the Stone you need! Walk back to the campfire and Return to Town." if found_fire \
+		else "You have all the Stone you need! Find a campfire to Return to Town."
+
+
+# A tip for what just happened.
 func show_guide_tip(what: String, square: Vector2i) -> void:
 	var card: RoomCard = dungeon.rooms[square].card if dungeon.rooms.has(square) else null
 	var tip := ""
 	match what:
 		"treasure":
 			if card and card.loot.has("Key"):
-				tip = "A small key! Keys open Locked Chests. You can walk back through rooms you've explored for free, so go find that chest."
+				tip = "A small key! Each key opens one Locked Chest. You can walk back through rooms you've explored for free."
 			else:
 				tip = "Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it, except what's in your Save Sack. Try dragging the Stone into the sack."
 		"chest":
@@ -425,19 +457,30 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 		"empty":
 			tip = "Nothing here, just a quiet meadow. Explored rooms stay on the map."
 		"campfire":
-			tip = "A campfire! Rest heals you and shuffles the rooms back into the deck. Leave takes you home with everything you found."
+			tip = "A campfire! Campfires are your way back to town." if not dungeon.guide_goal_met() else guide_goal_text()
 		"opened":
-			tip = "The key opened it! Chests hold better loot than the rooms around them."
+			tip = "The key opened it!"
 		"walk":
 			if dungeon.deck.is_empty():
-				tip = "The room deck is empty, so the dark squares are dead ends. Head for the campfire."
-	var stone: int = dungeon.found_materials.get("Stone", 0) + dungeon.sack.filter(
-		func(item: Dictionary) -> bool: return item.get("name", "") == "Stone").reduce(
-		func(total: int, item: Dictionary) -> int: return total + item.get("amount", 0), 0)
-	if stone >= 5 and what != "campfire":
-		tip = GUIDE_DONE
+				tip = "The room deck is empty, so the dark squares are dead ends."
+	if dungeon.guide_goal_met() and what != "campfire":
+		tip = guide_goal_text()
 	if not tip.is_empty():
-		guide_label.text = "Guide:  " + tip
+		guide_label.text = "Guide:  %s\n(%s)" % [tip, guide_progress()]
+
+
+# The guided run's campfire: Return to Town is the only choice, greyed out
+# until you have the Stone.
+func show_guided_campfire() -> void:
+	var text := "Campfires let you return to town with everything you found. (Later, you'll also be able to rest at them.)"
+	var blocked := ""
+	if dungeon.guide_goal_met():
+		text += "\nYou have the Stone. Time to go home and build the Inn!"
+	else:
+		blocked = "You need 5 Stone first (%s)." % guide_progress()
+		text += "\n" + blocked
+	show_popup("Campfire", text, [["Return to Town", _on_leave, blocked], ["Keep exploring", close_popup]],
+		ICONS[RoomCard.Type.CAMPFIRE], "pop")
 
 
 # An event: its story and a button per choice. Choices you can't pick yet
@@ -489,21 +532,30 @@ func show_chest() -> void:
 	var card: RoomCard = dungeon.rooms[dungeon.position].card
 	if dungeon.keys > 0:
 		show_popup(card.room_name, "A locked chest. Use a small key? (You have %d.)" % dungeon.keys,
-			[["Open it", _on_open_chest], ["Leave it", close_popup]])
+			[["Open it", _on_open_chest], ["Leave it", close_popup]], ICONS[RoomCard.Type.LOCKED_CHEST], "chest")
 	else:
-		show_popup(card.room_name, "A locked chest. You need a small key: fights sometimes drop one.",
-			[["OK", close_popup]])
+		show_popup(card.room_name, "A locked chest. You need a small key: %s" % ("look around for one." if dungeon.guided else "fights sometimes drop one."),
+			[["OK", close_popup]], ICONS[RoomCard.Type.LOCKED_CHEST], "chest")
 
 
 func _on_open_chest() -> void:
+	var card: RoomCard = dungeon.rooms[dungeon.position].card
 	var loot := dungeon.open_chest(dungeon.position)
 	refresh()
 	if guide_label:
 		show_guide_tip("opened", dungeon.position)
-	show_popup("Opened!", "Inside: %s" % loot, [["Nice", close_popup]])
+	var text := "Inside: %s" % loot
+	if dungeon.guided and dungeon.guide_goal_met():
+		text += "\n" + guide_goal_text()
+	# The chest rattles, then bursts open (see play_picture).
+	show_popup("Opened!", text, [["Nice", close_popup]], ICONS[RoomCard.Type.LOCKED_CHEST], "unlock")
+	popup_loot_texture = loot_picture(card)
 
 
 func show_campfire() -> void:
+	if dungeon.guided:
+		show_guided_campfire()
+		return
 	var text := "Rest: heal %d%% HP, get your Vanished cards back, refill your flask, and the rooms shift (the map goes blank and every room goes back in the deck)." % roundi(DungeonRun.REST_HEAL * 100)
 	if dungeon.tier_up_waiting:
 		text += "\nThe Mini Boss is beaten: resting takes you deeper (Tier %d)." % (dungeon.tier + 1) \
@@ -547,7 +599,8 @@ func _on_leave() -> void:
 
 # choices: a list of [button text, function to call], or [text, function,
 # why it's blocked] to grey a button out (with the reason as its tooltip).
-func show_popup(heading: String, text: String, choices: Array) -> void:
+func show_popup(heading: String, text: String, choices: Array, picture: Texture2D = null, animation := "") -> void:
+	play_picture(picture, animation)
 	popup_title.text = heading
 	popup_text.text = text
 	for old in popup_buttons.get_children():
@@ -560,15 +613,143 @@ func show_popup(heading: String, text: String, choices: Array) -> void:
 		if choice.size() > 2 and not str(choice[2]).is_empty():
 			button.disabled = true
 			button.tooltip_text = choice[2]
+		if choice == choices[0]:
+			button.theme_type_variation = &"PrimaryButton"  # The first choice is the main one (gold).
 		popup_buttons.add_child(button)
-	if not choices.is_empty():
-		popup_buttons.get_child(0).theme_type_variation = &"PrimaryButton"
 	popup.show()
 
 
 func close_popup() -> void:
 	popup.hide()
+	if popup_tween:
+		popup_tween.kill()
 	refresh()
+
+
+# --- Popup pictures and animations ------------------------------------------------
+# A picture above the popup's title, animated with Tweens:
+#   "key"    spins in and sparkles
+#   "chest"  drops in and bounces
+#   "unlock" rattles, then swaps to an open chest with a burst (and the loot pops out)
+#   "pop"    grows in with a little bounce
+
+const PICTURE_SIZE := Vector2(110, 110)
+
+func make_popup_picture() -> void:
+	popup_holder = Control.new()  # A plain Control, so we can move the picture freely inside it.
+	popup_holder.custom_minimum_size = Vector2(0, PICTURE_SIZE.y + 10)
+	popup_holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	popup_title.get_parent().add_child(popup_holder)
+	popup_title.get_parent().move_child(popup_holder, 0)
+	popup_picture = TextureRect.new()
+	popup_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	popup_picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	# Anchored to the middle of the holder, so it stays centred whatever the popup's width.
+	popup_picture.anchor_left = 0.5
+	popup_picture.anchor_right = 0.5
+	popup_picture.offset_left = -PICTURE_SIZE.x / 2
+	popup_picture.offset_right = PICTURE_SIZE.x / 2
+	popup_picture.offset_bottom = PICTURE_SIZE.y
+	popup_picture.pivot_offset = PICTURE_SIZE / 2
+	popup_holder.add_child(popup_picture)
+	popup_sparkles = CPUParticles2D.new()
+	popup_sparkles.amount = 40
+	popup_sparkles.one_shot = true
+	popup_sparkles.explosiveness = 0.9
+	popup_sparkles.lifetime = 0.9
+	popup_sparkles.spread = 180
+	popup_sparkles.initial_velocity_min = 120
+	popup_sparkles.initial_velocity_max = 260
+	popup_sparkles.gravity = Vector2(0, 300)
+	popup_sparkles.scale_amount_min = 3
+	popup_sparkles.scale_amount_max = 6
+	popup_sparkles.color = Color(1, 0.85, 0.35)
+	popup_sparkles.emitting = false
+	popup_sparkles.position = PICTURE_SIZE / 2  # The picture's middle.
+	popup_picture.add_child(popup_sparkles)
+
+
+# The loot's picture: a material's icon, a key, or the treasure gem.
+func loot_picture(card: RoomCard) -> Texture2D:
+	for entry in card.loot:
+		var words := entry.split(" ", false)
+		var info := GameState.find_material(" ".join(words.slice(0, -1)) if words.size() > 1 else entry)
+		if info and info.icon:
+			return info.icon
+	return ICONS[RoomCard.Type.TREASURE]
+
+
+func play_picture(picture: Texture2D, animation: String) -> void:
+	if popup_holder == null:
+		make_popup_picture()
+	if popup_tween:
+		popup_tween.kill()
+	popup_loot_texture = null
+	for old in popup_holder.get_children():  # Loot still floating out of the last chest.
+		if old != popup_picture:
+			old.queue_free()
+	popup_holder.visible = picture != null
+	if picture == null:
+		return
+	popup_picture.texture = picture
+	popup_picture.position.y = 0
+	popup_picture.rotation = 0
+	popup_picture.scale = Vector2.ONE
+	popup_picture.modulate = Color.WHITE
+	popup_tween = create_tween()
+	match animation:
+		"key":
+			popup_picture.scale = Vector2.ZERO
+			popup_picture.rotation = -PI
+			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			popup_tween.parallel().tween_property(popup_picture, "rotation", 0.0, 0.45).set_ease(Tween.EASE_OUT)
+			popup_tween.tween_callback(func() -> void: popup_sparkles.restart())
+			popup_tween.tween_property(popup_picture, "rotation", 0.25, 0.15)
+			popup_tween.tween_property(popup_picture, "rotation", 0.0, 0.15)
+		"chest":
+			var rest_y := popup_picture.position.y
+			popup_picture.position.y = rest_y - 80
+			popup_picture.modulate.a = 0
+			popup_tween.tween_property(popup_picture, "modulate:a", 1.0, 0.15)
+			popup_tween.parallel().tween_property(popup_picture, "position:y", rest_y, 0.4).set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+		"unlock":
+			# Rattle: tip left and right a few times...
+			for i in 3:
+				popup_tween.tween_property(popup_picture, "rotation", 0.18, 0.06)
+				popup_tween.tween_property(popup_picture, "rotation", -0.18, 0.06)
+			popup_tween.tween_property(popup_picture, "rotation", 0.0, 0.05)
+			# ...then the lid flies open: swap the picture, pop, sparkle...
+			popup_tween.tween_callback(func() -> void:
+				popup_picture.texture = OPEN_CHEST_ICON
+				popup_sparkles.restart())
+			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE * 1.25, 0.1)
+			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
+			# ...and the loot jumps out and floats up.
+			popup_tween.tween_callback(_pop_out_loot)
+		_:  # "pop"
+			popup_picture.scale = Vector2.ZERO
+			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			popup_tween.tween_callback(func() -> void: popup_sparkles.restart())
+
+
+# The loot's picture jumps out of the opened chest and fades away.
+func _pop_out_loot() -> void:
+	if popup_loot_texture == null:
+		return
+	var loot := TextureRect.new()
+	loot.texture = popup_loot_texture
+	loot.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	loot.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	loot.size = PICTURE_SIZE * 0.55
+	loot.position = popup_picture.position + PICTURE_SIZE / 2 - loot.size / 2  # Starts in the chest.
+	loot.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	popup_holder.add_child(loot)
+	var tween := loot.create_tween()
+	tween.tween_property(loot, "position:x", loot.position.x + 90, 0.5)
+	tween.parallel().tween_property(loot, "position:y", loot.position.y - 20, 0.5).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	tween.tween_interval(0.6)
+	tween.tween_property(loot, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(loot.queue_free)
 
 
 # --- Save Sack, Found loot, enchants and potions --------------------------------

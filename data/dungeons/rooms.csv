@@ -1,10 +1,12 @@
 Area,Tier,Room,Type,Copies,Unlocked,Ambush,Encounters,Loot,Notes
-Plains,Guide,Stone Pile,Treasure,1,Yes,,,Stone 2,"Guided first run (no Inn yet): these rooms are drawn in this order, no enemies"
-Plains,Guide,Quiet Meadow,Empty,1,Yes,,,,
+Plains,Guide,Stone Pile,Treasure,1,Yes,,,Stone 1,"Guided first run (no Inn yet): drawn in this order, no enemies. 5 Stone in all: 2 on tiles, 1 + 2 in the chests"
 Plains,Guide,Rusty Key,Treasure,1,Yes,,,Key,
-Plains,Guide,Old Crate,Locked Chest,1,Yes,,,Stone 2,
-Plains,Guide,Stone Pile,Treasure,2,Yes,,,Stone 2,
-Plains,Guide,Campfire,Campfire,1,Yes,,,,Leave here to take the Stone home
+Plains,Guide,Small Chest,Locked Chest,1,Yes,,,Stone 1,
+Plains,Guide,Campfire,Campfire,1,Yes,,,,Return to Town once you have 5 Stone
+Plains,Guide,Quiet Meadow,Empty,1,Yes,,,,
+Plains,Guide,Stone Pile,Treasure,1,Yes,,,Stone 1,
+Plains,Guide,Shiny Key,Treasure,1,Yes,,,Key,
+Plains,Guide,Medium Chest,Locked Chest,1,Yes,,,Stone 2,
 Plains,1,Slime Patch,Fight,3,Yes,,"Slime | Slime | Slime, Slime",,Green Slimes only (they drop Green Ooze)
 Plains,1,Slime Ambush,Fight,2,Yes,Yes,"Slime | Slime, Slime",,Ambush: no backing off
 Plains,1,Blue Slime Patch,Fight,3,Quest,,"Slimeling, Slimeling | Slimeling, Slime | Slimeling, Slimeling, Slimeling",,Unlocked by the quest Clear the Slimes

@@ -688,6 +688,30 @@ func claim_loot() -> void:
 	GameState.save_game()
 
 
+# How much of a material you have this run: Found plus what's in the Save Sack.
+func material_total(material_name: String) -> int:
+	var total: int = found_materials.get(material_name, 0)
+	for item in sack:
+		if item.get("kind", "") == "material" and item.get("name", "") == material_name:
+			total += int(item.get("amount", 0))
+	return total
+
+
+# The guided run's goal: what the Inn needs ({"Stone": 5}).
+func guide_needs() -> Dictionary:
+	var inn := GameState.find_building("Inn")
+	return inn.materials_for_next(GameState.town_stage(inn)) if inn else {}
+
+
+# Do you have it all (counting what's already in the Bank)?
+func guide_goal_met() -> bool:
+	var needs := guide_needs()
+	for material_name in needs:
+		if material_total(material_name) + GameState.material_count(material_name) < needs[material_name]:
+			return false
+	return true
+
+
 # "23 gold, 1 pack, 2 cards" (or "nothing").
 func loot_text() -> String:
 	var parts: Array[String] = []

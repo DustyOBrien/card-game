@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A small key: a round bow with a hole, a shaft and two teeth. -->
+  <g stroke="#5a3a08" stroke-width="3" stroke-linejoin="round">
+    <circle cx="18" cy="32" r="12" fill="#f2c13a"/>
+    <path d="M29 28 H58 V36 H52 V44 H46 V36 H41 V42 H35 V36 H29 Z" fill="#f2c13a"/>
+  </g>
+  <circle cx="18" cy="32" r="4.5" fill="#5a3a08"/>
+  <path d="M10 26 A10 10 0 0 1 20 21" stroke="#fff3c0" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

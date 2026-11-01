@@ -211,10 +211,12 @@ fighting at first: Character Select and the Deck Builder stay hidden.
 
 1. **A Town of Your Own** (the King): his letter gives you 5 Stone and the
    **Guild Hall** blueprint. Build it: its **Bank** keeps what you bring home.
-2. **Stone for the Inn**: a guided trip to the Plains with no monsters, just
-   Stone piles, a key, a chest and a campfire. A Guide box explains each new
-   thing (exploring, keys and chests, Found loot and the Save Sack, leaving at a
-   campfire). Bring home 5 Stone and build the **Inn**.
+2. **Stone for the Inn**: a scripted trip to the Plains with no monsters. 5 Stone
+   in all: 1 each on two Stone Piles, plus a Small Chest (1) and a Medium Chest (2),
+   opened with the 2 keys you find. A Guide box explains each new thing (with
+   "Stone 3 / 5" progress). The campfire's only choice is **Return to Town**,
+   greyed out until you have the Stone. Then build the **Inn**.
+   Finding a key or a chest, and unlocking a chest, are animated.
 3. The Inn brings the first **Adventurer** (a big unlock banner). Character
    Select and the Deck Builder open, and the Adventurer's training starts: three
    quick fights against Training Dummies (kill them, block, heal). **Skip
