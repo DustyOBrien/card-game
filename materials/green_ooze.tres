@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialInfo" format=3]
+
+[ext_resource type="Texture2D" path="res://art/materials/ooze.svg" id="1_xq4xc"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_o0jqr"]
+
+[resource]
+script = ExtResource("2_o0jqr")
+material_name = "Green Ooze"
+description = "Sticky green goo from Green Slimes. Alchemists love it."
+color = Color(0.41568628, 0.84705883, 0.2901961, 1)
+icon = ExtResource("1_xq4xc")

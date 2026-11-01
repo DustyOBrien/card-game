@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="1_wmlwa"]
+
+[resource]
+script = ExtResource("1_wmlwa")
+quest_name = "Make your first Flask"
+giver = "The Innkeeper"
+text = "\"An old alchemist wants to set up shop. Build her a workshop and she'll brew you a Health Flask from that Ooze.\" Flasks refill every time you Rest at a campfire. Blue Slimes now live in the Plains too."
+objective = "brew"
+target = "Health Flask"
+rewards = "Blueprint Shop; Blueprint Guild Hall; Gold 10"
+next_quest = "Slay the Slime Nest"
+sort_order = 2

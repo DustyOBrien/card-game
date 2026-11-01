@@ -146,6 +146,16 @@ var tutorial_stage := 0
 var tutorial_done := false
 var tutorial_backup := {}
 
+# --- Materials, blueprints and quests (all saved) -------------------------------
+var materials := {}  # The Bank: what you've brought home. {"Lumber": 5, "Green Ooze": 3}
+var blueprints: Array[String] = []  # Buildings you can build: ["Inn", "Alchemist"]
+var active_quest := ""  # The quest you're on ("" = none). See quest.gd.
+var quest_progress := 0  # Kills / rooms / tier counted for it.
+var quest_seen := false  # false = town shows the quest's story popup.
+var quests_done: Array[String] = []
+var _materials: Array[MaterialInfo] = []
+var _quests: Array[Quest] = []
+
 
 func _ready() -> void:
 	start_fresh()
@@ -173,6 +183,11 @@ func start_fresh() -> void:
 	flask_upgrades.clear()
 	chosen_flask = ""
 	tutorial_done = false  # A new player sees the tutorial again.
+	materials.clear()
+	blueprints.clear()
+	quests_done.clear()
+	active_quest = ""
+	start_quest(first_quest_name())  # The King's letter: 5 Lumber and the Inn blueprint.
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -385,24 +400,217 @@ func load_town() -> Array[TownBuilding]:
 	return _town
 
 
-# How far a building is restored: 0 = ruins. Stages that cost 0 gold are
-# restored from the start (the Shop).
+# How far a building is restored: 0 = ruins. Stages that cost nothing at all
+# (no gold, no materials, no blueprint) are restored from the start.
 func town_stage(building: TownBuilding) -> int:
 	var free := 0
-	while free < building.costs.size() and building.costs[free] == 0:
-		free += 1
+	if not building.needs_blueprint:
+		while free < building.costs.size() and building.costs[free] == 0 and building.materials_for_next(free).is_empty():
+			free += 1
 	return maxi(town_stages.get(building.building_name, 0), free)
+
+
+# Shown in town? Buildings that need a blueprint stay hidden until a quest gives it.
+func has_blueprint(building: TownBuilding) -> bool:
+	return not building.needs_blueprint or blueprints.has(building.building_name)
+
+
+# Why you can't build the next stage right now ("" = you can).
+func restore_blocked(building: TownBuilding) -> String:
+	var stage := town_stage(building)
+	if stage >= building.max_stage():
+		return "Fully restored"
+	if not has_blueprint(building):
+		return "You need its blueprint"
+	if gold < building.cost_of_next(stage):
+		return "Needs %d gold" % building.cost_of_next(stage)
+	var needs := building.materials_for_next(stage)
+	if not has_materials(needs):
+		return "Needs " + MaterialInfo.costs_text(needs)
+	return ""
 
 
 # Pay for the next stage. Returns false if you can't afford it (or it's done).
 func restore(building: TownBuilding) -> bool:
-	var stage := town_stage(building)
-	if stage >= building.max_stage() or gold < building.cost_of_next(stage):
+	if not restore_blocked(building).is_empty():
 		return false
+	var stage := town_stage(building)
 	gold -= building.cost_of_next(stage)
+	spend_materials(building.materials_for_next(stage))
 	town_stages[building.building_name] = stage + 1
+	check_quest()
 	save_game()
 	return true
+
+
+# --- Materials (the Bank) --------------------------------------------------------
+
+func load_materials() -> Array[MaterialInfo]:
+	if _materials.is_empty():
+		for file_name in ResourceLoader.list_directory(CardImporter.MATERIALS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_materials.append(load(CardImporter.MATERIALS_FOLDER + file_name))
+	return _materials
+
+
+func find_material(material_name: String) -> MaterialInfo:
+	for info in load_materials():
+		if info.material_name == material_name:
+			return info
+	return null
+
+
+func material_count(material_name: String) -> int:
+	return materials.get(material_name, 0)
+
+
+func add_material(material_name: String, amount: int) -> void:
+	materials[material_name] = material_count(material_name) + amount
+
+
+func has_materials(costs: Dictionary) -> bool:
+	for material_name in costs:
+		if material_count(material_name) < costs[material_name]:
+			return false
+	return true
+
+
+func spend_materials(costs: Dictionary) -> void:
+	for material_name in costs:
+		materials[material_name] = maxi(material_count(material_name) - costs[material_name], 0)
+
+
+# --- Quests (see quest.gd) --------------------------------------------------------
+
+func load_quests() -> Array[Quest]:
+	if _quests.is_empty():
+		for file_name in ResourceLoader.list_directory(CardImporter.QUESTS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_quests.append(load(CardImporter.QUESTS_FOLDER + file_name))
+		_quests.sort_custom(func(a: Quest, b: Quest) -> bool: return a.sort_order < b.sort_order)
+	return _quests
+
+
+func find_quest(quest_name: String) -> Quest:
+	for quest in load_quests():
+		if quest.quest_name == quest_name:
+			return quest
+	return null
+
+
+func first_quest_name() -> String:
+	return load_quests()[0].quest_name if not load_quests().is_empty() else ""
+
+
+func current_quest() -> Quest:
+	return find_quest(active_quest) if not active_quest.is_empty() else null
+
+
+# Start a quest: hand out its Start Gift, and town shows its story next visit.
+func start_quest(quest_name: String) -> void:
+	var quest := find_quest(quest_name)
+	active_quest = quest.quest_name if quest else ""
+	quest_progress = 0
+	quest_seen = false
+	if quest:
+		give_rewards(quest.start_gift)
+
+
+# How far along the active quest is, and how much it needs: Vector2i(3, 5).
+func quest_status() -> Vector2i:
+	var quest := current_quest()
+	if quest == null:
+		return Vector2i.ZERO
+	match quest.objective:
+		Quest.BUILD:
+			var building := find_building(quest.target)
+			return Vector2i(mini(town_stage(building) if building else 0, 1), 1)
+		Quest.HAVE:
+			return Vector2i(mini(material_count(quest.target), quest.amount), quest.amount)
+		Quest.BREW:
+			var flask := find_flask(quest.target)
+			return Vector2i(1 if flask and is_flask_unlocked(flask) else 0, 1)
+	return Vector2i(mini(quest_progress, quest.amount), quest.amount)
+
+
+func quest_ready() -> bool:
+	var status := quest_status()
+	return current_quest() != null and status.x >= status.y
+
+
+# Count something for the active quest: a kill, a beaten room, a tier reached.
+func record_for_quest(objective: String, target: String, value: int = 1) -> void:
+	var quest := current_quest()
+	if quest == null or quest.objective != objective:
+		return
+	if objective == Quest.REACH_TIER:
+		quest_progress = maxi(quest_progress, value)
+	elif quest.target.to_lower() == target.to_lower():
+		quest_progress += value
+
+
+# Nothing to do here yet: quests are handed in at the Inn (town.gd).
+func check_quest() -> void:
+	pass
+
+
+# Hand in the active quest: rewards, then the next quest starts. Returns
+# what you got, one line each.
+func complete_quest() -> Array[String]:
+	var quest := current_quest()
+	if quest == null or not quest_ready():
+		return []
+	quests_done.append(quest.quest_name)
+	var lines := give_rewards(quest.rewards)
+	start_quest(quest.next_quest)
+	save_game()
+	return lines
+
+
+# "Gold 20; Pack 1; Material Lumber 5; Blueprint Alchemist; Room Plains: Big Slime Nest"
+func give_rewards(text: String) -> Array[String]:
+	var lines: Array[String] = []
+	for part in text.split(";", false):
+		var reward := part.strip_edges()
+		var words := reward.split(" ", false)
+		if words.is_empty():
+			continue
+		var rest := reward.substr(words[0].length()).strip_edges()
+		match words[0].to_lower():
+			"gold":
+				gold += rest.to_int()
+				lines.append("%d gold" % rest.to_int())
+			"pack":
+				var count := maxi(rest.to_int(), 1)
+				booster_packs[DungeonRun.PACK_NAME] = booster_packs.get(DungeonRun.PACK_NAME, 0) + count
+				lines.append("%d Booster Pack%s" % [count, "s" if count > 1 else ""])
+			"material":
+				var costs := MaterialInfo.parse_costs(rest)
+				for material_name in costs:
+					add_material(material_name, costs[material_name])
+				lines.append(MaterialInfo.costs_text(costs))
+			"blueprint":
+				if not blueprints.has(rest):
+					blueprints.append(rest)
+				lines.append("Blueprint: " + rest)
+			"room":  # "Room Plains: Blue Slime Patch"
+				var area_name := rest.get_slice(":", 0).strip_edges()
+				var room_name := rest.get_slice(":", 1).strip_edges()
+				if not unlocked_rooms.has(area_name):
+					unlocked_rooms[area_name] = []
+				if not unlocked_rooms[area_name].has(room_name):
+					unlocked_rooms[area_name].append(room_name)
+				lines.append("New room in the %s: %s" % [area_name, room_name])
+			_:
+				push_warning("quests.csv: unknown reward '%s'" % reward)
+	return lines
+
+
+func find_building(building_name: String) -> TownBuilding:
+	for building in load_town():
+		if building.building_name == building_name:
+			return building
+	return null
 
 
 # One effect added up over every building's restored stages, e.g.
@@ -437,8 +645,15 @@ func load_flasks() -> Array[Flask]:
 	return _flasks
 
 
+func find_flask(flask_name: String) -> Flask:
+	for flask in load_flasks():
+		if flask.flask_name == flask_name:
+			return flask
+	return null
+
+
 func is_flask_unlocked(flask: Flask) -> bool:
-	return flask.unlock_cost == 0 or unlocked_flasks.has(flask.flask_name)
+	return flask.starts_unlocked() or unlocked_flasks.has(flask.flask_name)
 
 
 # The flask you'll take on your next run: the one you chose, or else the
@@ -470,9 +685,11 @@ func alchemist_open() -> bool:
 
 
 func unlock_flask(flask: Flask) -> bool:
-	if is_flask_unlocked(flask) or not alchemist_open() or gold < flask.unlock_cost:
+	var needs := MaterialInfo.parse_costs(flask.unlock_materials)
+	if is_flask_unlocked(flask) or not alchemist_open() or gold < flask.unlock_cost or not has_materials(needs):
 		return false
 	gold -= flask.unlock_cost
+	spend_materials(needs)
 	unlocked_flasks.append(flask.flask_name)
 	save_game()
 	return true
@@ -573,7 +790,8 @@ func is_room_unlocked(area: Area, card: RoomCard) -> bool:
 # A Map: unlock a random locked room card for this area (saved straight
 # away: what you learn from a map stays, even if you die). null if none are left.
 func unlock_random_room(area: Area) -> RoomCard:
-	var locked := area.rooms.filter(func(card: RoomCard) -> bool: return not is_room_unlocked(area, card))
+	# Quest rooms are left out: only their quest unlocks them.
+	var locked := area.rooms.filter(func(card: RoomCard) -> bool: return not card.quest_only and not is_room_unlocked(area, card))
 	if locked.is_empty():
 		return null
 	var card: RoomCard = locked.pick_random()
@@ -845,7 +1063,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 1  # Bump this if the save format ever changes.
+const SAVE_VERSION := 2  # Bump this if the save format changes. 2 = the town starts empty (quests).
 
 
 func save_game() -> void:
@@ -871,6 +1089,12 @@ func save_game() -> void:
 		"flask_upgrades": flask_upgrades,
 		"chosen_flask": chosen_flask,
 		"tutorial_done": tutorial_done,
+		"materials": materials,
+		"blueprints": blueprints,
+		"active_quest": active_quest,
+		"quest_progress": quest_progress,
+		"quest_seen": quest_seen,
+		"quests_done": quests_done,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -887,6 +1111,9 @@ func load_game() -> bool:
 	var data: Variant = JSON.parse_string(FileAccess.get_file_as_string(SAVE_PATH))
 	if not data is Dictionary:
 		push_warning("The save file couldn't be read, so you start fresh.")
+		return false
+	if int(data.get("version", 1)) < SAVE_VERSION:
+		push_warning("This save is from an older version of the game, so you start fresh.")
 		return false
 	# JSON stores every number as a float (3.0), so int() turns them back.
 	gold = int(data.get("gold", 0))
@@ -916,6 +1143,13 @@ func load_game() -> bool:
 				flask_upgrades[flask_name] = _whole_numbers(saved_flasks[flask_name])
 	chosen_flask = str(data.get("chosen_flask", ""))
 	tutorial_done = bool(data.get("tutorial_done", false))
+	var saved_materials = data.get("materials", {})
+	materials = _whole_numbers(saved_materials) if saved_materials is Dictionary else {}
+	blueprints.assign(data.get("blueprints", []))
+	active_quest = str(data.get("active_quest", ""))
+	quest_progress = int(data.get("quest_progress", 0))
+	quest_seen = bool(data.get("quest_seen", true))
+	quests_done.assign(data.get("quests_done", []))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
@@ -963,6 +1197,8 @@ func load_classes() -> Array[CharacterClass]:
 # Is this area open on the map? Open from the start, or its Unlock After
 # area has been cleared (you beat that area's boss).
 func is_area_unlocked(area: Area) -> bool:
+	if town_bonus(TownBuilding.INN) == 0:
+		return false  # Nobody adventures until the Inn is built.
 	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
 
 

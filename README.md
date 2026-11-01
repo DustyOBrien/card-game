@@ -206,17 +206,41 @@ Your HP carries over from one fight to the next (the top of the battle screen
 shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
 to the grid. When the run ends (Boss beaten, Leave, or death) you go back to **Town**.
 
-**The town.** It shows how the run went, and its buildings start in **ruins**. Put
-gold into a building to restore it, one stage at a time (hover the button to see
-what the next stage does):
+**The tutorial.** A brand new save starts with three quick practice fights
+against Training Dummies (kill them, block their hits, heal yourself). **Skip
+Tutorial** jumps straight to the game, and Character Select has a **Tutorial**
+button to replay it. The fights live in `scripts/tutorial.gd`.
 
-- **Shop** (open from the start): booster packs. Stage 2: packs cost 1 less.
+**The town and quests.** The town starts **empty**. After the tutorial, a letter
+from the King gives you **5 Lumber** and the **Inn blueprint**. You only see a
+building once you have its blueprint, and building it costs materials, gold, or
+both. The **Inn** opens the road to the Plains and the **Quest Board**. You have one
+quest at a time, and handing it in gives its rewards and starts the next one:
+
+1. **A Town of Your Own**: build the Inn.
+2. **Clear the Slimes**: bring home 5 Green Ooze (Green Slimes drop it). Gives the
+   Alchemist blueprint and adds the Blue Slime rooms to the Plains.
+3. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
+   Health Flask there (3 Green Ooze). Gives the Shop and Guild Hall blueprints.
+4. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
+   the Plains deck for good. Beat it and rest at its campfire to reach Tier 2.
+
+**Materials** (like Green Ooze) drop from enemies. Like gold, they're only yours
+once you get home; put them in the Save Sack to keep them if you die. The
+**Guild Hall**'s **Bank** shows everything you've brought home.
+
+The other buildings, once you have their blueprint (hover the button to see what
+the next stage does):
+
+- **Shop**: booster packs. Stage 2: packs cost 1 less.
 - **Tailor**: a bigger Save Sack (+1 slot, then 10 more gold per slot, then +1 slot).
 - **Enchanter**: buy a random enchant (15 gold) to take into your next run.
   Stage 2: when an enchant drops, choose from 2.
-- **Alchemist**: buy a random potion (8 gold) for your next run. Stage 2: carry 1 more.
+- **Alchemist**: brew flasks, and buy a random potion (8 gold) for your next run. Stage 2: carry 1 more.
 - **Mapmaker**: buy a map (25 gold) that unlocks a new room card. Stage 2: danger
   rises every 8 steps instead of 6.
+
+The Tailor, Enchanter and Mapmaker have no quest giving their blueprints yet.
 
 What you buy for your next run is listed at the bottom of the town. **Start Next
 Run** goes to the map; the map also has a **Town** button.
@@ -301,6 +325,9 @@ card-game/
 │   ├── battle_log.gd    The Battle Log panel (a RichTextLabel)
 │   ├── town.gd          The town: building panels, restoring, buying
 │   ├── town_building.gd One building (a row group of town.csv)
+│   ├── quest.gd         One quest (a row of quests.csv)
+│   ├── material_info.gd One material (a row of materials.csv)
+│   ├── tutorial.gd      The three training-dummy fights
 │   ├── enchant.gd       An enchant, and how it changes a card in a fight
 │   ├── potion.gd        A potion you drink in a fight
 │   ├── flask.gd         Your flask: charges, upgrades (flasks.csv)
@@ -882,8 +909,9 @@ are in `art/rooms/`.
 
 ### Enchants, potions and the town: `data/progression/`
 
-Three small sheets. Run `tools/import_cards.gd` after changing them; they become
-`enchants/*.tres`, `potions/*.tres` and `town/*.tres`.
+A few small sheets. Run `tools/import_cards.gd` after changing them; they become
+`enchants/*.tres`, `potions/*.tres`, `flasks/*.tres`, `town/*.tres`,
+`materials/*.tres` and `quests/*.tres`.
 
 **`enchants.csv`**: one row per enchant. Blank = no.
 
@@ -912,6 +940,7 @@ Advantage, Roll Bonus (next roll), Color (the bottle's colour), Description.
 | Upgrade | Bigger Die | `Base` = what it does before upgrades. Rows with the same Upgrade are its stages, bought in order |
 | Stage | 1 | Just for you to read (the row order is what counts) |
 | Cost | 40 | Gold for that stage. On the flask's FIRST Base row: the unlock cost (0 = you start with it) |
+| Materials | Green Ooze 3 | Materials it takes to brew (first Base row only). With no gold and no materials, you start with it |
 | Effect | Heal Die | Heal Die (a bigger one replaces the old one), Energy, Charges, Roll Bonus (+ to the heal roll), Save Chance (% to keep the charge) |
 | Amount | 6 | How much (Heal Die 6 = d6). Everything but Heal Die adds up |
 | Color | #e74c3c | The liquid's colour (first row) |
@@ -924,12 +953,37 @@ Advantage, Roll Bonus (next roll), Color (the bottle's colour), Description.
 |---|---|---|
 | Building | Tailor | Rows with the same Building are one building |
 | Stage | 1 | Its stages, 1 first |
-| Cost | 30 | Gold to restore that stage. 0 = restored from the start (the Shop) |
-| Effect | Sack Slots | Shop, Pack Discount, Sack Slots, Gold Stack, Enchanter, Enchant Choice, Alchemist, Potion Slots, Mapmaker, Danger Steps |
+| Cost | 30 | Gold for that stage |
+| Materials | Lumber 5 | Materials for that stage, split by `;` (`Lumber 5; Green Ooze 2`) |
+| Blueprint | Yes | On stage 1: the building is hidden until a quest gives its blueprint. With no blueprint, gold or materials, stage 1 is free |
+| Effect | Sack Slots | Inn, Bank, Shop, Pack Discount, Sack Slots, Gold Stack, Enchanter, Enchant Choice, Alchemist, Potion Slots, Mapmaker, Danger Steps |
 | Amount | 1 | How much of the effect |
 | Icon | tailor.svg | Its picture in `art/town/` (first row only) |
 | Description | | One line about the building (first row only) |
 | Stage Text | Save Sack +1 slot | What the stage does, shown in town |
+
+**`materials.csv`**: Name, Color (tints the icon), Icon (in `art/materials/`),
+Description. Enemies drop them through the **Drops** column of `enemies.csv`:
+`Green Ooze 100%` (several split by `;`).
+
+**`quests.csv`**: one row per quest, in story order (the first row is the
+first quest).
+
+| Column | Example | What it means |
+|---|---|---|
+| Quest | Clear the Slimes | Its name |
+| Giver | The Innkeeper | Who gives it, shown above the story |
+| Text | | The story, shown when it starts |
+| Objective | Have | Build (a building), Have (materials in the Bank), Brew (a flask), Clear Room, Defeat (an enemy), Reach Tier |
+| Target | Green Ooze | What the objective is about |
+| Amount | 5 | How many |
+| Start Gift | Material Lumber 5; Blueprint Inn | Given when the quest starts |
+| Rewards | Blueprint Alchemist; Room Plains: Blue Slime Patch | Given when you hand it in |
+| Next Quest | Make your first Flask | The quest that starts next (blank = none) |
+
+Gifts and rewards can be `Gold 10`, `Pack 1`, `Material Green Ooze 3`,
+`Blueprint Shop`, or `Room Plains: Big Slime Nest`. A room in `rooms.csv` with
+Unlocked = `Quest` only joins the room deck through a quest reward.
 
 The prices (enchant 15, potion 8, map 25) and the starting Save Sack (2 slots,
 5 gold) and potion slots (3) are at the top of `game_state.gd`. Drop chances are

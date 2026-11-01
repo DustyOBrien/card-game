@@ -1,12 +1,14 @@
-Building,Stage,Cost,Effect,Amount,Icon,Description,Stage Text
-Shop,1,0,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs
-Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less
-Tailor,1,30,Sack Slots,1,tailor.svg,Sews a bigger Save Sack.,Save Sack +1 slot
-Tailor,2,50,Gold Stack,10,,,Each Save Sack slot holds 10 more gold
-Tailor,3,90,Sack Slots,1,,,Save Sack +1 slot
-Enchanter,1,40,Enchanter,1,enchanter.svg,Enchants for your next run.,Buy enchants to take into your next run
-Enchanter,2,70,Enchant Choice,1,,,"When an enchant drops, choose from 2"
-Alchemist,1,30,Alchemist,1,alchemist.svg,Brews potions.,Buy potions to take into your next run
-Alchemist,2,60,Potion Slots,1,,,Carry 1 more potion
-Mapmaker,1,40,Mapmaker,1,mapmaker.svg,Draws maps of the dungeons.,Buy maps that unlock new room cards
-Mapmaker,2,70,Danger Steps,2,,,Danger rises every 2 more steps
+Building,Stage,Cost,Effect,Amount,Icon,Description,Stage Text,Materials,Blueprint
+Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests.,Opens quests and the road to the Plains,Lumber 5,Yes
+Guild Hall,1,20,Bank,1,guild_hall.svg,Your home base. Its Bank keeps your materials safe.,The Bank: see the materials you brought home,,Yes
+Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,,Yes
+Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,,
+Tailor,1,30,Sack Slots,1,tailor.svg,Sews a bigger Save Sack.,Save Sack +1 slot,,Yes
+Tailor,2,50,Gold Stack,10,,,Each Save Sack slot holds 10 more gold,,
+Tailor,3,90,Sack Slots,1,,,Save Sack +1 slot,,
+Enchanter,1,40,Enchanter,1,enchanter.svg,Enchants for your next run.,Buy enchants to take into your next run,,Yes
+Enchanter,2,70,Enchant Choice,1,,,"When an enchant drops, choose from 2",,
+Alchemist,1,0,Alchemist,1,alchemist.svg,Brews potions.,Brew potions and flasks,Green Ooze 5,Yes
+Alchemist,2,60,Potion Slots,1,,,Carry 1 more potion,,
+Mapmaker,1,40,Mapmaker,1,mapmaker.svg,Draws maps of the dungeons.,Buy maps that unlock new room cards,,Yes
+Mapmaker,2,70,Danger Steps,2,,,Danger rises every 2 more steps,,

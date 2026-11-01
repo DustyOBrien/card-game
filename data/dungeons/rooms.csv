@@ -1,11 +1,13 @@
 Area,Tier,Room,Type,Copies,Unlocked,Ambush,Encounters,Loot,Notes
-Plains,1,Slime Patch,Fight,3,Yes,,"Slime | Slimeling, Slimeling | Slimeling, Slime",,One group is picked at random each time
-Plains,1,Slime Ambush,Fight,3,Yes,Yes,"Slime | Slimeling, Slimeling | Slimeling, Slime",,Ambush: no backing off
+Plains,1,Slime Patch,Fight,3,Yes,,"Slime | Slime | Slime, Slime",,Green Slimes only (they drop Green Ooze)
+Plains,1,Slime Ambush,Fight,2,Yes,Yes,"Slime | Slime, Slime",,Ambush: no backing off
+Plains,1,Blue Slime Patch,Fight,3,Quest,,"Slimeling, Slimeling | Slimeling, Slime | Slimeling, Slimeling, Slimeling",,Unlocked by the quest Clear the Slimes
+Plains,1,Blue Slime Ambush,Fight,1,Quest,Yes,"Slimeling, Slimeling | Slimeling, Slime",,Unlocked by the quest Clear the Slimes
 Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 10-20 | Card | Pack | Map | Enchant | Potion,Needs a small key
 Plains,1,Shiny Rock,Treasure,1,Yes,,,Gold 5-12 | Key | Map | Potion,
 Plains,1,Campfire,Campfire,1,Yes,,,,Rest or Leave
 Plains,1,Mystery,Event,2,Yes,,,,A random event (events.csv)
-Plains,1,Big Slime Nest,Mini Boss,1,Yes,,"Big Slime, Slimeling",Card | Pack,Beating it opens Tier 2
+Plains,1,Big Slime Nest,Mini Boss,1,Quest,,"Big Slime, Slimeling",Card | Pack,Beating it opens Tier 2
 Plains,1,Quiet Meadow,Empty,1,Yes,,,,
 Plains,2,Slime Swarm,Hard Fight,2,Yes,,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 5-10 | Key,
 Plains,2,Slime Pit,Hard Fight,2,Yes,Yes,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 5-10 | Key,Ambush: no backing off

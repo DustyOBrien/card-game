@@ -23,8 +23,10 @@ const ALCHEMIST := "alchemist"  # Buy potions to take into your next run.
 const POTION_SLOTS := "potion slots"  # Carry more potions.
 const MAPMAKER := "mapmaker"  # Buy maps that unlock room cards.
 const DANGER_STEPS := "danger steps"  # Steps per danger level go up by this much.
+const INN := "inn"  # Opens quests, the map and adventuring.
+const BANK := "bank"  # The Guild Hall's Bank: see your materials.
 const EFFECTS := [SHOP, PACK_DISCOUNT, SACK_SLOTS, GOLD_STACK, ENCHANTER, ENCHANT_CHOICE,
-	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS]
+	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS, INN, BANK]
 
 @export var building_name: String = "Building"
 @export_multiline var description: String = ""
@@ -36,6 +38,10 @@ const EFFECTS := [SHOP, PACK_DISCOUNT, SACK_SLOTS, GOLD_STACK, ENCHANTER, ENCHAN
 @export var effects: PackedStringArray = []
 @export var amounts: Array[int] = []
 @export var stage_texts: PackedStringArray = []
+# Materials each stage costs on top of the gold: "Lumber 5" (blank = none).
+@export var material_costs: PackedStringArray = []
+# true = hidden in town until a quest gives you its BLUEPRINT.
+@export var needs_blueprint: bool = false
 
 
 func max_stage() -> int:
@@ -45,6 +51,13 @@ func max_stage() -> int:
 # What the next stage costs (stage = the one you're at now).
 func cost_of_next(stage: int) -> int:
 	return costs[stage] if stage < costs.size() else 0
+
+
+# The materials the next stage costs: {"Lumber": 5}.
+func materials_for_next(stage: int) -> Dictionary:
+	if stage < material_costs.size():
+		return MaterialInfo.parse_costs(material_costs[stage])
+	return {}
 
 
 # Total of one effect over stages 1 to `stage`.

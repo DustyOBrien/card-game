@@ -5,8 +5,9 @@
 [resource]
 script = ExtResource("1_gipbj")
 flask_name = "Health Flask"
-description = "You start with this one. A sip heals a die of HP."
+description = "Brew it at the Alchemist from Green Ooze. A sip heals a die of HP."
 color = Color(0.90588236, 0.29803923, 0.23529412, 1)
+unlock_materials = "Green Ooze 3"
 upgrade_names = PackedStringArray("Base", "Base", "Bigger Die", "Bigger Die", "Extra Charge", "Steady Hand", "Steady Hand")
 costs = Array[int]([0, 0, 40, 80, 60, 30, 60])
 effects = PackedStringArray("heal die", "charges", "heal die", "heal die", "charges", "roll bonus", "roll bonus")

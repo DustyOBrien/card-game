@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="TownBuilding" format=3]
+
+[ext_resource type="Texture2D" path="res://art/town/inn.svg" id="1_4ai3x"]
+[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_kokil"]
+
+[resource]
+script = ExtResource("2_kokil")
+building_name = "Inn"
+description = "Rest your feet and find quests."
+icon = ExtResource("1_4ai3x")
+costs = Array[int]([0])
+effects = PackedStringArray("inn")
+amounts = Array[int]([1])
+stage_texts = PackedStringArray("Opens quests and the road to the Plains")
+material_costs = PackedStringArray("Lumber 5")
+needs_blueprint = true

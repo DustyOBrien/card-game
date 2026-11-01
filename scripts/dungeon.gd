@@ -594,6 +594,16 @@ func refresh_sack() -> void:
 		found_row.add_child(make_chip("Booster Pack x%d" % dungeon.found_packs, {"kind": "pack"}, ""))
 	for card in dungeon.found_cards:
 		found_row.add_child(make_chip(card.card_name, {"kind": "card", "card": card}, ""))
+	for material_name in dungeon.found_materials:
+		var chip := make_chip("%s x%d" % [material_name, dungeon.found_materials[material_name]],
+			{"kind": "material", "name": material_name},
+			"Drag into the sack: a slot holds up to %d of one material." % GameState.gold_stack())
+		var info := GameState.find_material(material_name)
+		if info:
+			chip.add_theme_color_override("font_color", info.color)
+			chip.icon = info.icon
+			chip.add_theme_constant_override("icon_max_width", 18)
+		found_row.add_child(chip)
 	if found_row.get_child_count() == 0:
 		found_row.add_child(make_small_label("nothing yet", Color(1, 1, 1, 0.5)))
 	# Enchants waiting, and potions.
@@ -656,7 +666,7 @@ func _drop_in_sack(_at: Vector2, data: Variant) -> void:
 
 
 func _put_in_sack(data: Dictionary) -> void:
-	if dungeon.put_in_sack(data.kind, data.get("card")):
+	if dungeon.put_in_sack(data.kind, data.get("card"), data.get("name", "")):
 		info_label.text = "Into the Save Sack: safe even if you die."
 	else:
 		info_label.text = "The Save Sack is full. Click a slot to take something out."

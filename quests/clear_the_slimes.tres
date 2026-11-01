@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="1_xd7kw"]
+
+[resource]
+script = ExtResource("1_xd7kw")
+quest_name = "Clear the Slimes"
+giver = "The Innkeeper"
+text = "\"Green Slimes are oozing all over the Plains road! Bring me back 5 Green Ooze and I'll know you can handle yourself.\" Green Slimes drop Green Ooze. Like gold, it's only yours once you get home (or if it's in your Save Sack)."
+objective = "have"
+target = "Green Ooze"
+amount = 5
+rewards = "Blueprint Alchemist; Room Plains: Blue Slime Patch; Room Plains: Blue Slime Ambush"
+next_quest = "Make your first Flask"
+sort_order = 1

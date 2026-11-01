@@ -26,11 +26,14 @@ const DONE_COLOR := Color(0.55, 0.95, 0.55)
 @onready var next_run_button: Button = %NextRunButton
 
 var flask_button: Button  # "Flask: Health Flask", next to Edit Deck.
+var quest_button: Button  # "Quest: Clear the Slimes", next to the flask button.
+var overlay: Control  # The quest panel or the Bank while it's open.
 var flask_layer: Control  # The flask screen while it's open (null when closed).
 
 
 func _ready() -> void:
 	GameState.ensure_ready()  # So pressing F6 on this scene still works.
+	GameState.check_quest()
 	deck_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(DECK_BUILDER_SCENE))
 	next_run_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(MAP_SCENE))
 	flask_button = Button.new()
@@ -39,9 +42,18 @@ func _ready() -> void:
 	flask_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
 	flask_button.pressed.connect(open_flasks)
 	deck_button.add_sibling(flask_button)
+	quest_button = Button.new()
+	quest_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
+	quest_button.pressed.connect(show_quest_panel.bind(false))
+	flask_button.add_sibling(quest_button)
 	summary_label.text = run_summary()
 	message_label.text = ""
 	refresh()
+	# A quest that just started tells its story once (the King's letter...).
+	if GameState.current_quest() and not GameState.quest_seen:
+		GameState.quest_seen = true
+		GameState.save_game()
+		show_quest_panel(true)
 
 
 # How the last run went (empty if you haven't been on one yet).
@@ -55,16 +67,26 @@ func run_summary() -> String:
 			return "You left the %s after %d fight(s), with %s." % [area_name, dungeon.fights_won, dungeon.loot_text()]
 		"died":
 			return "You fell after %d fight(s). Your Save Sack brought home %s." % [dungeon.fights_won, dungeon.loot_text()]
-	return "Restore the town with the gold you bring home from the dungeons."
+	return "Build up the town with the gold and materials you bring home from the dungeons."
 
 
 # Build every building's panel again (after restoring or buying something).
 func refresh() -> void:
 	gold_label.text = "Gold %d" % GameState.gold
+	for material_name in GameState.materials:
+		if GameState.materials[material_name] > 0:
+			gold_label.text += "   %s %d" % [material_name, GameState.materials[material_name]]
 	for old in building_row.get_children():
 		old.queue_free()
 	for building in GameState.load_town():
-		building_row.add_child(make_building(building))
+		if GameState.has_blueprint(building):  # The rest stay hidden until a quest gives their blueprint.
+			building_row.add_child(make_building(building))
+	var inn_open := GameState.town_bonus(TownBuilding.INN) > 0
+	next_run_button.disabled = not inn_open
+	next_run_button.tooltip_text = "" if inn_open else "Build the Inn first: it opens the road to the Plains."
+	quest_button.text = "Quest: %s%s" % [GameState.active_quest, "  ✓ Ready!" if GameState.quest_ready() else ""] \
+		if GameState.current_quest() else "No quest right now"
+	quest_button.disabled = GameState.current_quest() == null
 	var ready_for_run: Array[String] = []
 	if not GameState.pending_enchants.is_empty():
 		ready_for_run.append("Enchants: " + ", ".join(GameState.pending_enchants))
@@ -76,6 +98,9 @@ func refresh() -> void:
 		flask_button.add_theme_color_override("icon_normal_color", flask.color)
 		flask_button.add_theme_color_override("icon_hover_color", flask.color)
 		flask_button.tooltip_text = "Choose and upgrade the flask you take into the dungeon."
+	else:
+		flask_button.text = "Flask: none yet"
+		flask_button.tooltip_text = "Brew your first flask at the Alchemist."
 	if flask_layer:
 		build_flask_screen()
 	pending_label.text = ("Ready for your next run:  " + "   ·   ".join(ready_for_run)) if not ready_for_run.is_empty() else ""
@@ -133,14 +158,22 @@ func make_building(building: TownBuilding) -> PanelContainer:
 	var action := make_action(building, stage)
 	if action:
 		box.add_child(action)
-	# Restore the next stage.
+	# Restore the next stage: gold and/or materials.
 	if stage < building.max_stage():
 		var cost := building.cost_of_next(stage)
+		var prices: Array[String] = []
+		if cost > 0:
+			prices.append("%d gold" % cost)
+		var needs := building.materials_for_next(stage)
+		if not needs.is_empty():
+			prices.append(MaterialInfo.costs_text(needs))
 		var restore := Button.new()
-		restore.text = "%s  (%d gold)" % ["Restore" if stage == 0 else "Upgrade", cost]
+		var verb := ("Build" if building.needs_blueprint else "Restore") if stage == 0 else "Upgrade"
+		restore.text = "%s  (%s)" % [verb, ", ".join(prices) if not prices.is_empty() else "free"]
 		restore.theme_type_variation = &"PrimaryButton"
-		restore.disabled = GameState.gold < cost
-		restore.tooltip_text = "Next: " + building.stage_texts[stage]
+		var blocked := GameState.restore_blocked(building)
+		restore.disabled = not blocked.is_empty()
+		restore.tooltip_text = "Next: " + building.stage_texts[stage] + ("\n" + blocked if not blocked.is_empty() else "")
 		restore.pressed.connect(_on_restore_pressed.bind(building))
 		box.add_child(restore)
 	return panel
@@ -149,7 +182,15 @@ func make_building(building: TownBuilding) -> PanelContainer:
 # The building's own button: Enter the Shop, buy an enchant / potion / map.
 func make_action(building: TownBuilding, stage: int) -> Button:
 	var button := Button.new()
-	if building.bonus(TownBuilding.SHOP, stage) > 0:
+	if building.bonus(TownBuilding.INN, stage) > 0:
+		button.text = "Quest Board" + ("  ✓" if GameState.quest_ready() else "")
+		button.tooltip_text = "See your quest, and hand it in when it's done."
+		button.pressed.connect(show_quest_panel.bind(false))
+	elif building.bonus(TownBuilding.BANK, stage) > 0:
+		button.text = "Open the Bank"
+		button.tooltip_text = "The materials you've brought home."
+		button.pressed.connect(show_bank)
+	elif building.bonus(TownBuilding.SHOP, stage) > 0:
 		button.text = "Enter the Shop"
 		button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
 	elif building.bonus(TownBuilding.ENCHANTER, stage) > 0:
@@ -185,7 +226,8 @@ func make_label(text: String, font_size: int, color: Color) -> Label:
 func _on_restore_pressed(building: TownBuilding) -> void:
 	if GameState.restore(building):
 		var stage := GameState.town_stage(building)
-		message_label.text = "The %s is restored: %s!" % [building.building_name, building.stage_texts[stage - 1]]
+		message_label.text = "The %s is %s: %s!" % [building.building_name,
+			"built" if stage == 1 and building.needs_blueprint else "restored", building.stage_texts[stage - 1]]
 	refresh()
 
 
@@ -321,10 +363,23 @@ func make_flask_panel(flask: Flask) -> PanelContainer:
 		main.theme_type_variation = &"PrimaryButton"
 		main.pressed.connect(_choose_flask.bind(flask))
 	else:
-		main.text = "Unlock  (%d gold)" % flask.unlock_cost
+		# The price can be gold, materials, or both ("Brew  (3 Green Ooze)").
+		var needs := MaterialInfo.parse_costs(flask.unlock_materials)
+		var price: Array[String] = []
+		if flask.unlock_cost > 0:
+			price.append("%d gold" % flask.unlock_cost)
+		if not needs.is_empty():
+			price.append(MaterialInfo.costs_text(needs))
+		main.text = "Brew  (%s)" % ", ".join(price)
 		main.theme_type_variation = &"PrimaryButton"
-		main.disabled = not GameState.alchemist_open() or GameState.gold < flask.unlock_cost
-		main.tooltip_text = "Unlocked at the Alchemist." if GameState.alchemist_open() else "Restore the Alchemist first."
+		main.disabled = not GameState.alchemist_open() or GameState.gold < flask.unlock_cost \
+			or not GameState.has_materials(needs)
+		if not GameState.alchemist_open():
+			main.tooltip_text = "Build the Alchemist first."
+		elif not GameState.has_materials(needs):
+			main.tooltip_text = "You need %s (you have what's in the Bank)." % MaterialInfo.costs_text(needs)
+		else:
+			main.tooltip_text = "Brewed at the Alchemist."
 		main.pressed.connect(_unlock_flask.bind(flask))
 	box.add_child(main)
 
@@ -379,3 +434,156 @@ func _buy_flask_upgrade(flask: Flask, upgrade: String) -> void:
 		var stage := GameState.flask_upgrade_stage(flask, upgrade)
 		message_label.text = "%s upgraded: %s" % [flask.flask_name, flask.stage_texts[flask.stages_of(upgrade)[stage - 1]]]
 	refresh()
+
+
+# --- Quests and the Bank -----------------------------------------------------------
+# Both open as a panel on top of the town, like the flask screen.
+
+func open_overlay() -> VBoxContainer:
+	close_overlay()
+	overlay = ColorRect.new()
+	overlay.color = Color(0, 0, 0, 0.75)
+	overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(overlay)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(center)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.1, 0.09, 0.98)
+	style.border_color = GOLD_COLOR
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(12)
+	style.set_content_margin_all(22)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size = Vector2(620, 0)
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	return box
+
+
+func close_overlay() -> void:
+	if overlay:
+		overlay.queue_free()
+		overlay = null
+
+
+# The active quest: who gives it, the story, the objective and how far along
+# it is, what it gives you. `story` = the first time (no hand-in button yet).
+func show_quest_panel(story: bool) -> void:
+	var quest := GameState.current_quest()
+	if quest == null:
+		return
+	var box := open_overlay()
+	if not quest.giver.is_empty():
+		box.add_child(make_label(quest.giver + (" writes:" if story else " says:"), 16, Color(1, 1, 1, 0.7)))
+	box.add_child(make_label(quest.quest_name, 30, GOLD_COLOR))
+	box.add_child(make_label(quest.text, 16, Color.WHITE))
+	if story and not quest.start_gift.is_empty():
+		box.add_child(make_label("You receive: " + quest_reward_text(quest.start_gift), 16, DONE_COLOR))
+	var status := GameState.quest_status()
+	var objective := make_label("Objective: %s  (%d / %d)" % [quest.objective_text(), status.x, status.y], 18,
+		DONE_COLOR if GameState.quest_ready() else GOLD_COLOR)
+	box.add_child(objective)
+	if not quest.rewards.is_empty():
+		box.add_child(make_label("Reward: " + quest_reward_text(quest.rewards), 15, Color(1, 1, 1, 0.8)))
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	box.add_child(buttons)
+	var inn_open := GameState.town_bonus(TownBuilding.INN) > 0
+	if GameState.quest_ready():
+		var hand_in := Button.new()
+		hand_in.text = "Hand In" if inn_open or quest.objective == Quest.BUILD else "Hand in at the Inn"
+		hand_in.theme_type_variation = &"PrimaryButton"
+		hand_in.custom_minimum_size = Vector2(180, 46)
+		hand_in.pressed.connect(_on_hand_in)
+		buttons.add_child(hand_in)
+	var ok := Button.new()
+	ok.text = "Let's go!" if story else "Close"
+	ok.custom_minimum_size = Vector2(140, 46)
+	ok.pressed.connect(func() -> void:
+		close_overlay()
+		refresh())
+	buttons.add_child(ok)
+
+
+# "Material Lumber 5; Blueprint Inn" -> "5 Lumber, Inn blueprint".
+func quest_reward_text(text: String) -> String:
+	var parts: Array[String] = []
+	for part in text.split(";", false):
+		var reward := part.strip_edges()
+		var word := reward.get_slice(" ", 0).to_lower()
+		var rest := reward.substr(word.length()).strip_edges()
+		match word:
+			"material": parts.append(MaterialInfo.costs_text(MaterialInfo.parse_costs(rest)))
+			"blueprint": parts.append("%s blueprint" % rest)
+			"room": parts.append("new room: " + rest.get_slice(":", 1).strip_edges())
+			"pack": parts.append("%s Booster Pack" % rest)
+			"gold": parts.append("%s gold" % rest)
+			_: parts.append(reward)
+	return ", ".join(parts)
+
+
+func _on_hand_in() -> void:
+	var finished := GameState.active_quest
+	var lines := GameState.complete_quest()
+	refresh()
+	var box := open_overlay()
+	box.add_child(make_label("Quest complete!", 32, GOLD_COLOR))
+	box.add_child(make_label(finished, 20, Color.WHITE))
+	for line in lines:
+		box.add_child(make_label("+ " + line, 17, DONE_COLOR))
+	var next := GameState.current_quest()
+	box.add_child(make_label("New quest: %s" % next.quest_name if next else "No more quests for now. More are coming!", 17, Color(1, 1, 1, 0.8)))
+	var ok := Button.new()
+	ok.text = "See the new quest" if next else "Nice"
+	ok.theme_type_variation = &"PrimaryButton"
+	ok.custom_minimum_size = Vector2(200, 46)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ok.pressed.connect(func() -> void:
+		if GameState.current_quest():
+			GameState.quest_seen = true
+			GameState.save_game()
+			show_quest_panel(true)
+		else:
+			close_overlay()
+			refresh())
+	box.add_child(ok)
+
+
+# The Guild Hall's Bank: every material you've brought home.
+func show_bank() -> void:
+	var box := open_overlay()
+	box.add_child(make_label("The Bank", 30, GOLD_COLOR))
+	box.add_child(make_label("What you've brought home is safe here. Materials you find in the dungeon only count once you get out (or if they're in your Save Sack).", 15, Color(1, 1, 1, 0.75)))
+	var any := false
+	for info in GameState.load_materials():
+		var count := GameState.material_count(info.material_name)
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 10)
+		var picture := TextureRect.new()
+		picture.texture = info.icon
+		picture.self_modulate = info.color if info.icon and info.icon.resource_path.ends_with("ooze.svg") else Color.WHITE
+		picture.custom_minimum_size = Vector2(40, 40)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		row.add_child(picture)
+		var label := make_label("%s:  %d" % [info.material_name, count], 20, info.color if count > 0 else Color(1, 1, 1, 0.4))
+		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.tooltip_text = info.description
+		label.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(label)
+		box.add_child(row)
+		any = any or count > 0
+	if not any:
+		box.add_child(make_label("Empty for now.", 16, Color(1, 1, 1, 0.6)))
+	var ok := Button.new()
+	ok.text = "Close"
+	ok.custom_minimum_size = Vector2(140, 44)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ok.pressed.connect(close_overlay)
+	box.add_child(ok)

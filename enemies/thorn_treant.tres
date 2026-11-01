@@ -35,3 +35,4 @@ name_color = Color(0.6039216, 0.8156863, 0.4392157, 1)
 moves = Array[ExtResource("1_lu12s")]([SubResource("Resource_kl6eq"), SubResource("Resource_sx8lq"), SubResource("Resource_h8mhf")])
 exp = 20
 bonus_gold = 2
+drops = PackedStringArray()

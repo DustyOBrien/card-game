@@ -39,6 +39,9 @@ enum MoveOrder { RANDOM, IN_ORDER }
 @export var is_boss: bool = false  # Beating an area's boss opens the next area.
 @export var exp: int = 10  # Class Exp for beating it.
 @export var bonus_gold: int = 0  # Extra gold on top of the usual 1-5.
+# Materials it can drop: "Green Ooze 100" = a 100% chance of 1 Green Ooze
+# (the sheet's Drops column: "Green Ooze 100%; Lumber 25%").
+@export var drops: PackedStringArray = []
 
 
 # The plain attack for enemies with no moves (and for old enemy files).

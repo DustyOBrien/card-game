@@ -51,6 +51,7 @@ signal reroll_picked(card: CardData)
 var enemy_views: Array[EnemyView] = []  # Every enemy in this fight, left to right (dead ones too).
 var fight_gold := 0  # Gold dropped by the enemies beaten in this fight.
 var fight_exp := 0  # Class Exp from the enemies beaten in this fight (bosses give more).
+var fight_materials := {}  # Materials dropped in this fight, for the victory panel.
 # Names of the cards played at least once this fight. Pack Rat's talents
 # (Flawless first play, Fresh Find) only work on a card's FIRST play.
 var played_this_fight := {}
@@ -346,6 +347,7 @@ func make_enemies() -> void:
 	enemy_views.clear()
 	fight_gold = 0
 	fight_exp = 0
+	fight_materials.clear()
 	var encounter: Array[EnemyData] = GameState.current_encounter()
 	if encounter.is_empty():
 		encounter = [DEFAULT_ENEMY]
@@ -1261,12 +1263,23 @@ func _on_enemy_died(view: EnemyView) -> void:
 	fight_gold += loot
 	battle_log.add("The %s is defeated and drops %d gold (%d found so far)" % [view.data.display_name, loot, dungeon.found_gold],
 		BattleLog.TURN_COLOR)
+	# Materials: each Drops entry is "Green Ooze 100" = its % chance of one.
+	for drop in view.data.drops:
+		var chance := drop.get_slice(" ", drop.count(" ")).to_int()
+		var material_name := drop.trim_suffix(" " + str(chance)).strip_edges()
+		if randi_range(1, 100) <= chance:
+			dungeon.add_found_material(material_name, 1)
+			fight_materials[material_name] = fight_materials.get(material_name, 0) + 1
+			battle_log.add("It drops 1 %s!" % material_name, BattleLog.CRIT_COLOR)
+	GameState.record_for_quest(Quest.DEFEAT, view.data.display_name)
 	if not living_enemies().is_empty():
 		update_ui()
 		return  # Still more to beat.
 
 	GameState.run_hp = player.hp  # Carry your HP into the next fight.
 	var reward := "You found %d gold!" % fight_gold
+	if not fight_materials.is_empty():
+		reward += "  +" + MaterialInfo.costs_text(fight_materials)
 	# The dungeon hands out the room's rewards (keys, loot) and says what's next.
 	var log_size := dungeon.history.size()
 	var outcome := dungeon.win_fight()

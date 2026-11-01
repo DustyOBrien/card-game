@@ -19,3 +19,4 @@ sprite_size = Vector2(120, 163)
 name_color = Color(1, 0.6039216, 0.41568628, 1)
 moves = Array[ExtResource("1_ksxax")]([SubResource("Resource_hdw4v")])
 exp = 0
+drops = PackedStringArray()

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Guild Hall: a stone hall with banners and a big door. The Bank is inside. -->
+  <rect x="14" y="48" width="100" height="68" fill="#9a9aa6" stroke="#2e2e3a" stroke-width="4"/>
+  <path d="M8 50 L64 18 L120 50 Z" fill="#3c5a9a" stroke="#2e2e3a" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M14 68 L114 68 M14 88 L114 88" stroke="#7a7a86" stroke-width="2"/>
+  <path d="M40 48 L40 116 M88 48 L88 116" stroke="#7a7a86" stroke-width="2"/>
+  <!-- Banners -->
+  <path d="M24 54 L36 54 L36 80 L30 74 L24 80 Z" fill="#e0b030" stroke="#2e2e3a" stroke-width="2"/>
+  <path d="M92 54 L104 54 L104 80 L98 74 L92 80 Z" fill="#e0b030" stroke="#2e2e3a" stroke-width="2"/>
+  <!-- Door -->
+  <path d="M48 116 L48 84 C48 70 80 70 80 84 L80 116 Z" fill="#5a3a1c" stroke="#2e2e3a" stroke-width="3"/>
+  <circle cx="74" cy="100" r="3" fill="#e0b030"/>
+  <!-- Crest -->
+  <circle cx="64" cy="38" r="8" fill="#e0b030" stroke="#2e2e3a" stroke-width="2"/>
+</svg>

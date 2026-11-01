@@ -19,6 +19,7 @@ extends PanelContainer
 
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 const AFTER_SCENE := "res://scenes/character_select.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"  # A new player goes to town next, for the King's letter.
 const CLEAN_TURNS_NEEDED := 2  # Stage 2: enemy turns in a row with no damage.
 const HEAL_NEEDED := 8  # Stage 3.
 const GOLD := Color(1, 0.84, 0.35)
@@ -259,7 +260,7 @@ func stage_won() -> void:
 func _on_next() -> void:
 	if GameState.tutorial_stage >= STAGES.size():
 		finish()
-		get_tree().change_scene_to_file(AFTER_SCENE)
+		get_tree().change_scene_to_file(after_scene())
 	else:
 		begin(GameState.tutorial_stage + 1)
 		get_tree().change_scene_to_file(BATTLE_SCENE)
@@ -267,4 +268,10 @@ func _on_next() -> void:
 
 func _on_skip() -> void:
 	finish()
-	get_tree().change_scene_to_file(AFTER_SCENE)
+	get_tree().change_scene_to_file(after_scene())
+
+
+# Where to go when the tutorial ends: town if there's no Inn yet (so the
+# King's letter shows up and explains buildings), otherwise Character Select.
+static func after_scene() -> String:
+	return TOWN_SCENE if GameState.town_bonus(TownBuilding.INN) == 0 else AFTER_SCENE

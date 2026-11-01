@@ -60,11 +60,13 @@ var tier_up_waiting := false  # A Mini Boss was beaten: the next rest adds the n
 # What you've found, given to you when you Leave or beat the Boss.
 var found_gold := 0
 var found_packs := 0
+var found_materials := {}  # Materials found this run: {"Green Ooze": 3}. Lost if you die (unless sacked).
 var found_cards: Array[CardData] = []
 
 # The SAVE SACK: what's in it survives if you die. Each slot holds one
-# thing: {"kind": "pack"}, {"kind": "card", "card": CardData} or
-# {"kind": "gold", "amount": 5} (up to GameState.gold_stack() gold).
+# thing: {"kind": "pack"}, {"kind": "card", "card": CardData},
+# {"kind": "gold", "amount": 5} (up to GameState.gold_stack() gold) or
+# {"kind": "material", "name": "Green Ooze", "amount": 3} (a stack of the same size).
 # Things move between the Found list and the sack (put_in_sack / take_out_of_sack).
 var sack: Array[Dictionary] = []
 
@@ -397,6 +399,7 @@ func win_fight() -> String:
 	var room: Dictionary = rooms[fight_square]
 	var card: RoomCard = room.card
 	room.cleared = true
+	GameState.record_for_quest(Quest.CLEAR_ROOM, card.room_name)
 	if not card.loot.is_empty():
 		add_log("Reward: %s" % take_loot(card))
 	if randi_range(1, 100) <= KEY_CHANCE:
@@ -470,6 +473,7 @@ func rest() -> int:
 		tier_up_waiting = false
 		if tier < max_tier:
 			_add_tier(tier + 1)
+			GameState.record_for_quest(Quest.REACH_TIER, "", tier)
 			add_log("Tier %d! Harder rooms (and better loot) are shuffled in." % tier)
 		elif not boss_unlocked:
 			_add_boss()
@@ -491,6 +495,7 @@ func die() -> String:
 	found_gold = 0
 	found_packs = 0
 	found_cards.clear()
+	found_materials.clear()
 	_empty_sack()  # The sack's contents become the only thing "found"...
 	var saved := loot_text()
 	claim_loot()  # ...and you take them home.
@@ -584,7 +589,7 @@ func add_potion(potion: Potion) -> bool:
 
 # Move one thing from Found into a free sack slot: kind is "pack", "gold"
 # or "card" (with which card). Gold fills the slot up to the gold stack.
-func put_in_sack(kind: String, card: CardData = null) -> bool:
+func put_in_sack(kind: String, card: CardData = null, material_name: String = "") -> bool:
 	if sack.size() >= GameState.sack_slots():
 		return false
 	match kind:
@@ -604,6 +609,12 @@ func put_in_sack(kind: String, card: CardData = null) -> bool:
 				return false
 			found_cards.erase(card)
 			sack.append({"kind": "card", "card": card})
+		"material":
+			var amount := mini(found_materials.get(material_name, 0), GameState.gold_stack())
+			if amount <= 0:
+				return false
+			add_found_material(material_name, -amount)
+			sack.append({"kind": "material", "name": material_name, "amount": amount})
 		_:
 			return false
 	return true
@@ -619,6 +630,7 @@ func take_out_of_sack(slot: int) -> void:
 		"pack": found_packs += 1
 		"gold": found_gold += item.amount
 		"card": found_cards.append(item.card)
+		"material": add_found_material(item.name, item.amount)
 
 
 static func sack_item_text(item: Dictionary) -> String:
@@ -626,7 +638,17 @@ static func sack_item_text(item: Dictionary) -> String:
 		"pack": return "Pack"
 		"gold": return "%d gold" % item.amount
 		"card": return item.card.card_name
+		"material": return "%d %s" % [item.amount, item.name]
 	return "?"
+
+
+# Add (or, with a minus amount, take away) found materials.
+func add_found_material(material_name: String, amount: int) -> void:
+	var total: int = found_materials.get(material_name, 0) + amount
+	if total > 0:
+		found_materials[material_name] = total
+	else:
+		found_materials.erase(material_name)
 
 
 func _empty_sack() -> void:
@@ -643,6 +665,8 @@ func claim_loot() -> void:
 		GameState.booster_packs[PACK_NAME] = GameState.booster_packs.get(PACK_NAME, 0) + found_packs
 	for card in found_cards:
 		GameState.add_card(card)
+	for material_name in found_materials:
+		GameState.add_material(material_name, found_materials[material_name])
 	GameState.save_game()
 
 
@@ -655,6 +679,8 @@ func loot_text() -> String:
 		parts.append("%d pack%s" % [found_packs, "s" if found_packs > 1 else ""])
 	if not found_cards.is_empty():
 		parts.append("%d card%s" % [found_cards.size(), "s" if found_cards.size() > 1 else ""])
+	for material_name in found_materials:
+		parts.append("%d %s" % [found_materials[material_name], material_name])
 	return ", ".join(parts) if not parts.is_empty() else "nothing"
 
 

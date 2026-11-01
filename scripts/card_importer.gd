@@ -52,6 +52,10 @@ const POTIONS_FOLDER := "res://potions/"
 const TOWN_FOLDER := "res://town/"
 const TOWN_ART_FOLDER := "res://art/town/"
 const FLASKS_FOLDER := "res://flasks/"
+const MATERIALS_FOLDER := "res://materials/"
+const MATERIAL_ART_FOLDER := "res://art/materials/"
+const QUESTS_SHEET := "res://data/progression/quests.csv"
+const QUESTS_FOLDER := "res://quests/"
 const EVENTS_SHEET := "res://data/dungeons/events.csv"
 const EVENTS_FOLDER := "res://dungeon_events/"
 
@@ -462,6 +466,10 @@ static func _import_enemies() -> void:
 		enemy.split_count = _to_int(row.get("split count", ""), 2)
 		enemy.is_boss = _parse_yes_no(row.get("boss", ""), false)
 		enemy.exp = _to_int(row.get("exp", ""), 10)
+		# Drops: "Green Ooze 100%; Lumber 25%" -> ["Green Ooze 100", "Lumber 25"].
+		for drop in row.get("drops", "").split(";", false):
+			if not drop.strip_edges().is_empty():
+				enemy.drops.append(drop.strip_edges().trim_suffix("%"))
 		enemy.bonus_gold = _to_int(row.get("bonus gold", ""))
 		enemy.moves.assign(moves_by_enemy.get(enemy.display_name.to_lower(), []))
 		if enemy.moves.is_empty():
@@ -510,7 +518,8 @@ static func _import_rooms(known: Dictionary) -> void:
 		if card.type == RoomCard.Type.BOSS:
 			card.tier = 0  # The Boss room only goes in after the last Mini Boss.
 		card.copies = _to_int(row.get("copies", ""), 1)
-		card.unlocked = _parse_yes_no(row.get("unlocked", ""), true)
+		card.quest_only = row.get("unlocked", "").strip_edges().to_lower() == "quest"
+		card.unlocked = false if card.quest_only else _parse_yes_no(row.get("unlocked", ""), true)
 		card.ambush = _parse_yes_no(row.get("ambush", ""), false)
 		for group_text in row.get("encounters", "").split("|", false):
 			var encounter := Encounter.new()
@@ -797,6 +806,9 @@ static func _import_progression() -> void:
 		building.effects.append(effect)
 		building.amounts.append(_to_int(row.get("amount", ""), 1))
 		building.stage_texts.append(row.get("stage text", ""))
+		building.material_costs.append(row.get("materials", ""))
+		if _parse_yes_no(row.get("blueprint", ""), false):
+			building.needs_blueprint = true
 	_save_all(order, TOWN_FOLDER, func(b: TownBuilding) -> String: return b.building_name)
 
 	# flasks.csv: one row per stage, like town.csv (see flask.gd).
@@ -814,6 +826,7 @@ static func _import_progression() -> void:
 			new_flask.flask_name = row.get("flask", "")
 			new_flask.sort_order = flasks.size()
 			new_flask.unlock_cost = _to_int(row.get("cost", ""))  # The first row's Cost = unlocking it.
+			new_flask.unlock_materials = row.get("materials", "")
 			flasks[key] = new_flask
 			flask_order.append(new_flask)
 		var flask: Flask = flasks[key]
@@ -831,6 +844,38 @@ static func _import_progression() -> void:
 		flask.amounts.append(_to_int(row.get("amount", ""), 1))
 		flask.stage_texts.append(row.get("stage text", ""))
 	_save_all(flask_order, FLASKS_FOLDER, func(f: Flask) -> String: return f.flask_name)
+
+	# materials.csv: one row per material.
+	var materials: Array[Resource] = []
+	for row in _read_sheet(PROGRESSION_FOLDER + "materials.csv"):
+		var info := MaterialInfo.new()
+		info.material_name = row.get("name", "Material")
+		info.description = row.get("description", "")
+		info.color = Color.from_string(row.get("color", ""), Color.WHITE)
+		var icon_name: String = row.get("icon", "")
+		if not icon_name.is_empty() and ResourceLoader.exists(MATERIAL_ART_FOLDER + icon_name):
+			info.icon = load(MATERIAL_ART_FOLDER + icon_name)
+		materials.append(info)
+	_save_all(materials, MATERIALS_FOLDER, func(m: MaterialInfo) -> String: return m.material_name)
+
+	# quests.csv: one row per quest, in order (see quest.gd).
+	var quests: Array[Resource] = []
+	for row in _read_sheet(QUESTS_SHEET):
+		var quest := Quest.new()
+		quest.quest_name = row.get("quest", "Quest")
+		quest.sort_order = quests.size()
+		quest.giver = row.get("giver", "")
+		quest.text = row.get("text", "")
+		quest.objective = row.get("objective", "").to_lower()
+		if not quest.objective in Quest.OBJECTIVES:
+			push_warning("quests.csv: %s has Objective '%s'. Use one of: %s" % [quest.quest_name, row.get("objective", ""), ", ".join(Quest.OBJECTIVES)])
+		quest.target = row.get("target", "")
+		quest.amount = maxi(_to_int(row.get("amount", ""), 1), 1)
+		quest.start_gift = row.get("start gift", "")
+		quest.rewards = row.get("rewards", "")
+		quest.next_quest = row.get("next quest", "")
+		quests.append(quest)
+	_save_all(quests, QUESTS_FOLDER, func(q: Quest) -> String: return q.quest_name)
 
 	# events.csv: one row per CHOICE; rows with the same Event are one event.
 	var events := {}  # "strange fountain" -> DungeonEvent

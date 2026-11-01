@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A blob of ooze. White, so the game tints it the material's colour. -->
+  <path d="M10 50 C6 50 6 42 12 36 C16 22 24 12 32 12 C40 12 48 22 52 36 C58 42 58 50 54 50 C46 54 18 54 10 50 Z" fill="#ffffff" stroke="#000000" stroke-opacity="0.45" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="25" cy="26" rx="6" ry="4" fill="#ffffff" opacity="0.9" transform="rotate(-30 25 26)"/>
+  <circle cx="44" cy="56" r="3" fill="#ffffff" stroke="#000000" stroke-opacity="0.45" stroke-width="1.5"/>
+</svg>

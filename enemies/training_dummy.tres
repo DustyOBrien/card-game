@@ -17,3 +17,4 @@ sprite_size = Vector2(110, 150)
 name_color = Color(0.8862745, 0.76862746, 0.41568628, 1)
 moves = Array[ExtResource("1_u8hve")]([SubResource("Resource_hjykn")])
 exp = 0
+drops = PackedStringArray()

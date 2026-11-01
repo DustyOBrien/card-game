@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="1_xvvbg"]
+
+[resource]
+script = ExtResource("1_xvvbg")
+quest_name = "Slay the Slime Nest"
+giver = "The Innkeeper"
+text = "\"Something BIG is growing in the Plains. I've marked its nest on your map.\" The Big Slime Nest is now in the Plains room deck for good. Beat it, rest at its campfire, and Tier 2 opens."
+objective = "clear room"
+target = "Big Slime Nest"
+start_gift = "Room Plains: Big Slime Nest"
+rewards = "Gold 25; Pack 1"
+sort_order = 3

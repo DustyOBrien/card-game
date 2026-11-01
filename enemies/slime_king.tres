@@ -34,3 +34,4 @@ move_order = 1
 is_boss = true
 exp = 60
 bonus_gold = 20
+drops = PackedStringArray()

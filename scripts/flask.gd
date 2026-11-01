@@ -30,7 +30,13 @@ const BASE := "Base"
 @export_multiline var description: String = ""
 @export var color: Color = Color(0.9, 0.3, 0.3)  # The liquid's colour.
 @export var sort_order: int = 0
-@export var unlock_cost: int = 0  # 0 = you start with it.
+@export var unlock_cost: int = 0  # Gold to brew it.
+@export var unlock_materials: String = ""  # Materials to brew it: "Green Ooze 3".
+
+
+# Free to unlock (no gold, no materials) = you start with it.
+func starts_unlocked() -> bool:
+	return unlock_cost == 0 and unlock_materials.strip_edges().is_empty()
 
 # One entry per sheet row (Base rows included), in sheet order.
 @export var upgrade_names: PackedStringArray = []  # "Base", "Bigger Die"...
