@@ -20,6 +20,7 @@ const TOWN_SCENE := "res://scenes/town.tscn"  # Where you go when the run is ove
 const POTION_ICON := preload("res://art/potions/potion.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
+const VICTORY_SCENE := "res://scenes/victory.tscn"  # The WIN screen after a final Boss.
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn (before talents).
 const MAX_ENERGY := 3  # Energy you get each turn (before talents).
@@ -109,7 +110,7 @@ func _ready() -> void:
 	# Your flask and potions, bottom-left. Built in code; refreshed in update_ui().
 	var item_bar := HBoxContainer.new()
 	item_bar.add_theme_constant_override("separation", 14)
-	item_bar.position = Vector2(32, 600)
+	item_bar.position = Vector2(32, 344)  # Left of the battlefield, clear of a big hand.
 	add_child(item_bar)
 	item_bar.get_parent().move_child(item_bar, game_over_screen.get_index())  # Under the end screen.
 	flask_button = make_flask_button()
@@ -295,6 +296,15 @@ func start_battle() -> void:
 		if GameState.run_enchants.has(i):
 			GameState.run_enchants[i].apply_to(card)
 		draw_pile.append(card)
+	# Super cards found this run (dungeon_run.gd). Their "deck index" carries
+	# on after your real deck's, so Vanish works for them too.
+	if GameState.dungeon:
+		for j in GameState.dungeon.super_cards.size():
+			var index := GameState.deck.size() + j
+			if not GameState.vanished.has(index):
+				var super_card: CardData = GameState.dungeon.super_cards[j].duplicate()
+				super_card.set_meta("deck_index", index)
+				draw_pile.append(super_card)
 	draw_pile.shuffle()
 	dice_tray.hide()
 	# The fight happens in the area you picked on the map.
@@ -1242,12 +1252,14 @@ func _on_enemy_died(view: EnemyView) -> void:
 		battle_log.add(line, BattleLog.CRIT_COLOR)
 
 	var exp_gain := fight_exp
+	var opened_areas: Array[Area] = []
 	if outcome == "won":
 		# The Boss: the run is over, you keep your loot, and the next area opens.
 		exp_gain += GameState.EXP_PER_RUN
 		dungeon.claim_loot()
 		reward += "\nYou take home %s." % dungeon.loot_text()
-		for opened in GameState.clear_area(GameState.current_area):
+		opened_areas = GameState.clear_area(GameState.current_area)
+		for opened in opened_areas:
 			reward += "\nThe %s is now open on the map!" % opened.display_name
 			battle_log.add("The %s is now open!" % opened.display_name, BattleLog.CRIT_COLOR)
 	# Remember where the bar was, so it can fill up from there.
@@ -1257,7 +1269,14 @@ func _on_enemy_died(view: EnemyView) -> void:
 	battle_log.add("You gain %d Exp" % exp_gain, BattleLog.TURN_COLOR)
 
 	if outcome == "won":
-		end_battle("%s cleared!" % GameState.current_area.display_name, reward, "Back to Town →")
+		# The Victory screen (victory.gd) shows this when you press Continue.
+		var boss_names: Array[String] = []
+		for enemy_view in enemy_views:
+			if enemy_view.data.is_boss:
+				boss_names.append(enemy_view.data.display_name)
+		GameState.last_victory = {"area": GameState.current_area, "opened": opened_areas, "exp": exp_gain,
+			"boss": " and ".join(boss_names) if not boss_names.is_empty() else "the Boss"}
+		end_battle("%s cleared!" % GameState.current_area.display_name, reward, "Victory! →")
 	else:
 		end_battle("Victory!", reward, "Back to the Dungeon →")
 	show_exp_gain(before_level, before_progress, exp_gain, level_ups)
@@ -1298,6 +1317,8 @@ func _on_player_died() -> void:
 func _on_continue_pressed() -> void:
 	if GameState.dungeon.result.is_empty():
 		get_tree().change_scene_to_file(DUNGEON_SCENE)
+	elif GameState.dungeon.result == "won":
+		get_tree().change_scene_to_file(VICTORY_SCENE)
 	else:
 		get_tree().change_scene_to_file(TOWN_SCENE)
 

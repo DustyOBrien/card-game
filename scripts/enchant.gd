@@ -31,7 +31,7 @@ extends Resource
 @export var draw: int = 0  # Draw this many more cards when played.
 
 # How likely each rarity is to drop, compared with each other.
-const RARITY_WEIGHTS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10}
+const RARITY_WEIGHTS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10, CardData.Rarity.SUPER: 3}
 
 
 # Does it only make sense on a card that rolls dice?

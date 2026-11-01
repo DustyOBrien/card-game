@@ -5,7 +5,7 @@ Slimeling,Nibble,3,,1-3,,,,,,,,,
 Slimeling,Jiggle,1,1,,,,,,,1,,,Every enemy gets +1 Strength
 Big Slime,Body Slam,2,,4-7,,,,,,,,,Splits into 2 Slimes at half HP
 Big Slime,Ooze,1,1,3,,3,,,,,,,Attack and Block in one move
-Slime King,Royal Slam,1,,6-8,,,,,,,,,Boss: moves go in this order
+Slime King,Royal Slam,1,,7-10,,,,,,,,,Boss: moves go in this order
 Slime King,Call the Court,1,,,,,,,,,Slimeling,1,
 Slime King,Royal Jelly,1,,,,6,1,,,,,,
 Wolf,Bite,2,,2-3,2,,,,,,,,Two hits
@@ -17,3 +17,14 @@ Old Oak,Root Slam,1,,8-10,,,,,,,,,Boss: moves go in this order
 Old Oak,Bark Skin,1,,,,8,,,,,,,Armor 3 keeps some Block
 Old Oak,Sprout,1,,,,,1,,,,Mushroom,1,
 Old Oak,Whirling Branches,1,,3,3,,,,,,,,Three hits
+Acid Slime,Acid Spit,2,,2,2,,,,,,,,Two hits
+Acid Slime,Corrode,2,,3-5,,,,,,,,,
+Acid Slime,Bubble,1,1,,,4,1,,,,,,Block and +1 Strength for itself
+Slime Knight,Shield Bash,3,,3-4,,5,,,,,,,Attack and Block in one move
+Slime Knight,Rally,1,1,,,4,,,,1,,,Every enemy gets +1 Strength
+Dire Wolf,Maul,2,,4-6,,,,,,,,,
+Dire Wolf,Savage Bite,2,,3,2,,,,,,,,Two hits
+Dire Wolf,Howl,1,1,,,,,,,1,,,Every enemy gets +1 Strength
+Thorn Treant,Thorn Lash,3,,4-6,,,,,,,,,
+Thorn Treant,Bramble Wall,1,1,,,6,,,3,,,,Block for itself and its friends
+Thorn Treant,Take Root,1,1,,,,,5,,,,,Heals 5

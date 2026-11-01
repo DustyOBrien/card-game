@@ -1,0 +1,32 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_pbav5"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_cra4u"]
+[ext_resource type="Texture2D" path="res://art/enemies/slime_knight.svg" id="3_jrhdp"]
+
+[sub_resource type="Resource" id="Resource_ay5sf"]
+script = ExtResource("1_pbav5")
+move_name = "Shield Bash"
+weight = 3
+attack_min = 3
+attack_max = 4
+block = 5
+
+[sub_resource type="Resource" id="Resource_oqtxd"]
+script = ExtResource("1_pbav5")
+move_name = "Rally"
+max_in_a_row = 1
+block = 4
+ally_strength = 1
+
+[resource]
+script = ExtResource("2_cra4u")
+display_name = "Slime Knight"
+max_hp = 30
+armor = 2
+texture = ExtResource("3_jrhdp")
+sprite_size = Vector2(175, 131)
+name_color = Color(0.65882355, 0.84705883, 1, 1)
+moves = Array[ExtResource("1_pbav5")]([SubResource("Resource_ay5sf"), SubResource("Resource_oqtxd")])
+exp = 20
+bonus_gold = 2

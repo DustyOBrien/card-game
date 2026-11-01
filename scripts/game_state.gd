@@ -82,7 +82,7 @@ var _potions: Array[Potion] = []
 # rest in booster packs.
 const MAX_COPIES := 3  # The most copies of one card you can own (and put in a deck).
 # The chance of each rarity for every card in a pack. They add up to 100.
-const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10}
+const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10, CardData.Rarity.SUPER: 0}  # Super cards never come from packs.
 const CARDS_PER_PACK := 3
 var collection := {}
 
@@ -128,6 +128,7 @@ var saved_decks := {}
 
 # Remembered lists, so the cards/ folder is only read once (see load_all_cards()).
 var _all_cards: Array[CardData] = []
+var _super_cards: Array[CardData] = []
 var _cards_by_name := {}  # "Strike" -> its CardData, for find_card().
 var _classes: Array[CharacterClass] = []  # For load_classes().
 var _talents := {}  # Class name -> its Array[Talent], for talents_for().
@@ -137,6 +138,8 @@ const ENEMIES_FOLDER := "res://enemies/"
 # Areas whose boss you've beaten (finished a run there): ["Plains"].
 # An area with Unlock After = "Plains" opens once the Plains is in here.
 var cleared_areas: Array[String] = []
+# The last final-Boss win, for the Victory screen (victory.gd): area, boss, opened areas, exp.
+var last_victory := {}
 
 
 func _ready() -> void:
@@ -996,6 +999,25 @@ func load_areas() -> Array[Area]:
 # The cards don't change while the game runs, so the folder is only read the
 # first time; after that the same list is handed back. Don't change the list
 # you get (loop over it, or make your own list from it).
+# Every event (data/dungeons/events.csv -> dungeon_events/). Read once.
+var _events: Array[DungeonEvent] = []
+func load_events() -> Array[DungeonEvent]:
+	if _events.is_empty():
+		for file_name in ResourceLoader.list_directory(CardImporter.EVENTS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_events.append(load(CardImporter.EVENTS_FOLDER + file_name))
+	return _events
+
+
+# The run-only Super cards (data/super_cards.csv -> cards/super/). Not in packs or the collection.
+func load_super_cards() -> Array[CardData]:
+	if _super_cards.is_empty():
+		for file_name in ResourceLoader.list_directory(CardImporter.SUPER_FOLDER):
+			if file_name.ends_with(".tres"):
+				_super_cards.append(load(CardImporter.SUPER_FOLDER + file_name))
+	return _super_cards
+
+
 func load_all_cards() -> Array[CardData]:
 	if _all_cards.is_empty():
 		for file_name in ResourceLoader.list_directory(CARDS_FOLDER):

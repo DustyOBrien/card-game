@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_d74sl"]
+
+[resource]
+script = ExtResource("1_d74sl")
+event_name = "Lost Adventurer"
+area = "Any"
+text = "A wounded adventurer sits against a wall. \"Help a fellow explorer?\""
+choice_labels = PackedStringArray("Share a bandage", "Search their bag", "Walk on")
+chances = Array[int]([100, 50, 100])
+effects = PackedStringArray("Lose HP 3; Key; Gold 5-10", "Gold 10-20", "")
+fail_effects = PackedStringArray("", "Danger 1", "")
+results = PackedStringArray("\"Thank you! Take these, I won\'t need them.\"", "You find some coins while they sleep.", "You wish them luck.")
+fail_results = PackedStringArray("", "They shout for help. Something heard that...", "")

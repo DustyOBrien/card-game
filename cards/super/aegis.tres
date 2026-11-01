@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_4bjhv"]
+
+[resource]
+script = ExtResource("1_4bjhv")
+card_name = "Aegis"
+types = 2
+attack = PackedStringArray()
+block = "2d6"
+gain_advantage = true
+critical = "+2 Block"
+rarity = 3
+class_only = PackedStringArray()
+effect = "Gain 2d6 Block. Gain Advantage. Critical: +2 Block."
+color = Color(0.4, 0.4, 0.42, 1)

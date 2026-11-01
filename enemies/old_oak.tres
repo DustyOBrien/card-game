@@ -32,7 +32,7 @@ hits = 3
 [resource]
 script = ExtResource("2_1rhgd")
 display_name = "Old Oak"
-max_hp = 50
+max_hp = 65
 armor = 2
 texture = ExtResource("3_bg7ij")
 sprite_size = Vector2(175, 185)
@@ -40,5 +40,5 @@ name_color = Color(0.8509804, 0.7176471, 0.47843137, 1)
 moves = Array[ExtResource("1_0kvr1")]([SubResource("Resource_kmgmc"), SubResource("Resource_atkhu"), SubResource("Resource_8ohtv"), SubResource("Resource_rjo5y")])
 move_order = 1
 is_boss = true
-exp = 50
-bonus_gold = 15
+exp = 70
+bonus_gold = 25

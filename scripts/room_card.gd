@@ -9,7 +9,8 @@
 class_name RoomCard
 extends Resource
 
-enum Type { FIGHT, HARD_FIGHT, LOCKED_CHEST, TREASURE, CAMPFIRE, MINI_BOSS, BOSS, EMPTY }
+# (New types go on the END: room files store the number, so the order must not change.)
+enum Type { FIGHT, HARD_FIGHT, LOCKED_CHEST, TREASURE, CAMPFIRE, MINI_BOSS, BOSS, EMPTY, EVENT }
 
 # What each type is called in the sheet's Type column, and on screen.
 const TYPE_NAMES := {
@@ -21,6 +22,7 @@ const TYPE_NAMES := {
 	Type.MINI_BOSS: "Mini Boss",
 	Type.BOSS: "Boss",
 	Type.EMPTY: "Empty",
+	Type.EVENT: "Event",  # A random event from data/dungeons/events.csv (see dungeon_event.gd).
 }
 
 @export var room_name: String = "Room"

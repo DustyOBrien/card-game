@@ -169,7 +169,17 @@ of squares, and you start in the middle. Every other square is hidden.
 - **The Mini Boss.** Beating it lights a campfire where it fell. Resting there
   (now, or later with **Not now**) adds the next **tier**'s harder (and richer)
   rooms to the deck. After the last tier's Mini Boss, resting shuffles in the
-  **Boss** room instead. The Plains and the Forest have 2 tiers.
+  **Boss** room instead. The Plains and the Forest have **3 tiers**. Beating the
+  final Boss shows the **Victory** screen and opens the next area on the map.
+- **Events.** A **Mystery** room is a little story with choices: a strange
+  fountain, a wandering merchant (spend found gold on potions, enchants, keys),
+  an ancient altar... Some choices are a gamble (they show their % chance), and
+  some cost found gold (greyed out if you can't pay). Events come from
+  `data/dungeons/events.csv`.
+- **Super cards.** Very rare, very strong cards (orange glow, "★ Super"). A Mini
+  Boss drops one 25% of the time, and some events and Tier 3 chests give them.
+  They join your deck for **this run only** and are gone when it ends. They come
+  from `data/super_cards.csv` (same columns as cards.csv, Rarity = Super).
 - Gold, cards and packs you find are only **yours once you get out**: Leave at a
   campfire or beat the Boss. Die, and the dungeon keeps them (you keep your Exp),
   except what's in your **Save Sack**.
@@ -294,6 +304,8 @@ card-game/
 │   ├── enchant.gd       An enchant, and how it changes a card in a fight
 │   ├── potion.gd        A potion you drink in a fight
 │   ├── flask.gd         Your flask: charges, upgrades (flasks.csv)
+│   ├── dungeon_event.gd An event with choices (events.csv)
+│   ├── victory.gd       The WIN screen after a final Boss
 │   ├── shop.gd          The shop: pack list, buying, opening packs
 │   └── card_importer.gd Turns the spreadsheet into card files
 ├── tools/
@@ -838,13 +850,30 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Area | Plains | Which area's deck it goes in |
 | Tier | 1 | **1** = in the deck from the start. **2** = shuffled in when you rest after the Tier 1 Mini Boss, and so on. **Boss** = the Boss room, shuffled in after the last tier's Mini Boss |
 | Room | Slime Patch | The room's name, shown on the square |
-| Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss** or **Empty** |
+| Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss**, **Event** (a random event from events.csv) or **Empty** |
 | Copies | 6 | How many of this card go in the deck |
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
 | Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
 | Encounters | Slime \| Slimeling, Slimeling | Fights only: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right |
-| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map**, **Enchant**, **Potion** |
+| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map**, **Enchant**, **Potion**, **Super Card** |
 | Notes | | Anything you like; the game ignores it |
+
+### Events: `data/dungeons/events.csv`
+
+One row per **choice**; rows with the same Event are one event (see
+`scripts/dungeon_event.gd`). Run `tools/import_cards.gd` after changing it.
+
+| Column | Example | What it means |
+|---|---|---|
+| Event | Strange Fountain | The event's name (and the popup's title) |
+| Area | Any | `Any`, or one area's name (first row only) |
+| Min Tier | 1 | Only found in this tier or deeper (first row only) |
+| Text | A stone fountain... | The story (first row only) |
+| Choice | Drink deeply | The button |
+| Chance | 65 | % that the Effect happens; otherwise the Fail Effect does. 100 = always |
+| Effect | Heal 8 | What happens, several split by `;`: **Heal N**, **Lose HP N** (never below 1), **Gold N-M**, **Pay N** (costs found gold; greyed out without it), **Key**, **Potion**, **Enchant**, **Card**, **Pack**, **Super Card**, **Flask** (+1 charge), **Danger N**, **Calm** (danger to 0), **Fight Wolf, Wolf** (a fight, no backing off) |
+| Fail Effect | Lose HP 4 | What happens when the Chance misses |
+| Result / Fail Result | Cool and sweet. | The text shown afterwards |
 
 The dungeon screen is `scenes/dungeon.tscn` + `scripts/dungeon.gd`; the rules
 (drawing rooms, danger, resting, loot) are in `scripts/dungeon_run.gd`, kept

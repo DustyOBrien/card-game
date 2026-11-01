@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="140" viewBox="0 0 200 140">
+  <!-- A Dire Wolf: bigger, darker, with red eyes. -->
+  <defs>
+    <linearGradient id="fur" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#5a5466"/>
+      <stop offset="1" stop-color="#2e2a36"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="100" cy="130" rx="80" ry="8" fill="#000000" opacity="0.3"/>
+  <!-- Tail -->
+  <path d="M30 78 C10 70 8 50 18 40 C22 58 32 64 44 66 Z" fill="url(#fur)" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Body -->
+  <path d="M38 70 C44 50 90 46 120 54 L132 92 C110 100 70 100 46 96 Z" fill="url(#fur)" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Legs -->
+  <path d="M48 92 L44 128 L56 128 L60 96 Z" fill="#2e2a36" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M72 96 L70 128 L82 128 L84 96 Z" fill="#3a3542" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M104 94 L104 128 L116 128 L118 92 Z" fill="#2e2a36" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M122 90 L126 128 L138 128 L134 88 Z" fill="#3a3542" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Head -->
+  <path d="M112 50 L124 18 L136 40 L150 20 L156 46 C170 52 186 62 190 72 C184 80 170 84 158 84 C148 92 128 92 118 82 Z"
+        fill="url(#fur)" stroke="#141218" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Inner ears -->
+  <path d="M124 26 L130 40 L122 42 Z" fill="#e8b4a8"/>
+  <path d="M150 28 L152 44 L144 42 Z" fill="#e8b4a8"/>
+  <!-- Eye: narrow and yellow -->
+  <path d="M146 56 L160 54 L156 62 Z" fill="#ff3030" stroke="#141218" stroke-width="2"/>
+  <!-- Nose and teeth -->
+  <circle cx="188" cy="70" r="5" fill="#1b1b24"/>
+  <path d="M164 82 L168 90 L172 82 L176 89 L180 80" fill="#ffffff" stroke="#141218" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Light fur on the chest -->
+  <path d="M118 62 C126 70 126 80 120 88 C116 80 114 70 118 62 Z" fill="#8a8496" opacity="0.8"/>
+  <!-- Scars -->
+  <path d="M70 60 L84 74 M78 58 L90 70" stroke="#c9a0a0" stroke-width="3" stroke-linecap="round"/>
+</svg>

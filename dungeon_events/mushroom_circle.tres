@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_rqeke"]
+
+[resource]
+script = ExtResource("1_rqeke")
+event_name = "Mushroom Circle"
+area = "Forest"
+text = "A perfect ring of glowing mushrooms. The air smells sweet."
+choice_labels = PackedStringArray("Eat a mushroom", "Dance in the ring", "Step around it")
+chances = Array[int]([50, 100, 100])
+effects = PackedStringArray("Heal 10", "Enchant; Danger 1", "")
+fail_effects = PackedStringArray("Lose HP 5", "", "")
+results = PackedStringArray("Delicious! You feel strong.", "The mushrooms glow brighter... and something out there notices you.", "You step carefully around the ring.")
+fail_results = PackedStringArray("That was not a good mushroom.", "", "")

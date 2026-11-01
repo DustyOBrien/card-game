@@ -30,6 +30,8 @@ const KEY_CHANCE := 25  # % chance a fight drops a small key.
 # % chance a won fight drops an enchant / a potion, by room type.
 const ENCHANT_CHANCE := {RoomCard.Type.FIGHT: 35, RoomCard.Type.HARD_FIGHT: 60, RoomCard.Type.MINI_BOSS: 100}
 const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, RoomCard.Type.MINI_BOSS: 50}
+# % chance a won fight drops a SUPER card (run-only, see card_data.gd). Super rare!
+const SUPER_CARD_CHANCE := {RoomCard.Type.MINI_BOSS: 25}
 const REST_HEAL := 0.3  # Resting heals this much of your max HP.
 const PACK_NAME := "Basic Booster"  # The pack that "Pack" loot gives you.
 # The four squares next to a square: right, left, down, up.
@@ -70,12 +72,15 @@ var sack: Array[Dictionary] = []
 # (usually 1; the Enchanter's upgrade makes it 2): pick one, then a card.
 var enchant_drops: Array = []
 var potions: Array[Potion] = []  # Potions you carry (drink them in a fight).
+# Super cards you found: they join your deck for the rest of THIS run only.
+var super_cards: Array[CardData] = []
 # Your flask (flask.gd), set by GameState.start_run(). Its charges come back
 # when you Rest at a campfire.
 var flask: Flask = null
 var flask_stats := {}  # What it does this run (Flask.stats()).
 var flask_charges := 0
 
+var seen_events: Array[String] = []  # Events met this run (each one only once if there are enough).
 var fights_won := 0
 var result := ""  # "" while in the dungeon, then "left", "won" or "died".
 var history: Array[String] = []  # The dungeon's log, newest last.
@@ -220,6 +225,16 @@ func _enter(square: Vector2i) -> String:
 		fight_enemies = card.pick_encounter()
 		return "ambush" if card.ambush else "fight"
 	match card.type:
+		RoomCard.Type.EVENT:
+			if room.done:
+				return "walk"
+			if not room.has("event"):
+				room.event = pick_event()
+			if room.event == null:
+				room.cleared = true  # No events in the sheet: just an empty room.
+				room.done = true
+				return "empty"
+			return "event"
 		RoomCard.Type.LOCKED_CHEST:
 			return "chest"
 		RoomCard.Type.TREASURE:
@@ -229,6 +244,109 @@ func _enter(square: Vector2i) -> String:
 			return "treasure"
 	room.cleared = true  # Empty.
 	return "empty"
+
+
+# --- Events -------------------------------------------------------------------
+
+# A random event for this area and tier, preferring ones you haven't seen this run.
+func pick_event() -> DungeonEvent:
+	var fitting := GameState.load_events().filter(func(e: DungeonEvent) -> bool: return e.fits(area.display_name, tier))
+	var fresh := fitting.filter(func(e: DungeonEvent) -> bool: return not seen_events.has(e.event_name))
+	var pool := fresh if not fresh.is_empty() else fitting
+	if pool.is_empty():
+		return null
+	var event: DungeonEvent = pool.pick_random()
+	seen_events.append(event.event_name)
+	return event
+
+
+# Can you pick this choice? "" = yes, otherwise why not ("Needs 10 gold").
+func choice_blocked(event: DungeonEvent, index: int) -> String:
+	for effect in DungeonEvent.split_effects(event.effects[index]):
+		var words := effect.split(" ", false)
+		match words[0].to_lower():
+			"pay":
+				var cost := words[1].to_int() if words.size() > 1 else 0
+				if found_gold < cost:
+					return "Needs %d found gold (you have %d)" % [cost, found_gold]
+			"flask":
+				if flask == null:
+					return "You have no flask"
+				if flask_charges >= flask_stats[Flask.CHARGES]:
+					return "Your flask is already full"
+	return ""
+
+
+# Make a choice in the event where you're standing. Roll its Chance, do its
+# effects, and finish the room. Returns {"text": what happened, "fight": true
+# if it started a fight (fight_enemies is set, like an ambush)}.
+func choose(index: int) -> Dictionary:
+	var room: Dictionary = rooms[position]
+	var event: DungeonEvent = room.event
+	var worked := randi_range(1, 100) <= event.chances[index]
+	var effect_text: String = event.effects[index] if worked else event.fail_effects[index]
+	var story: String = event.results[index] if worked else event.fail_results[index]
+	room.done = true
+	room.cleared = true
+	var outcome := apply_effects(DungeonEvent.split_effects(effect_text))
+	add_log("%s: %s" % [event.event_name, event.choice_labels[index]] + (" (%s)" % ", ".join(outcome.lines) if not outcome.lines.is_empty() else ""))
+	var text := story
+	if not outcome.lines.is_empty():
+		text += ("
+" if not text.is_empty() else "") + "
+".join(outcome.lines)
+	if outcome.fight:
+		room.cleared = false  # Blocks the way until you win.
+		fight_square = position
+	return {"text": text, "fight": outcome.fight}
+
+
+# Do a list of effects (see dungeon_event.gd). Returns {"lines": what happened, "fight": bool}.
+func apply_effects(list: Array[String]) -> Dictionary:
+	var lines: Array[String] = []
+	var fight := false
+	var max_hp := GameState.player_max_hp()
+	for effect in list:
+		var words := effect.split(" ", false)
+		var word := words[0].to_lower()
+		var number := words[-1].to_int() if words.size() > 1 else 0
+		match word:
+			"heal":
+				var before := GameState.run_hp if GameState.run_hp > 0 else max_hp
+				GameState.run_hp = mini(before + number, max_hp)
+				lines.append("Healed %d (HP %d/%d)" % [GameState.run_hp - before, GameState.run_hp, max_hp])
+			"lose":  # "Lose HP 4"
+				var before := GameState.run_hp if GameState.run_hp > 0 else max_hp
+				GameState.run_hp = maxi(before - number, 1)  # An event never kills you.
+				lines.append("Lost %d HP (HP %d/%d)" % [before - GameState.run_hp, GameState.run_hp, max_hp])
+			"pay":
+				found_gold -= mini(number, found_gold)
+				lines.append("Paid %d gold" % number)
+			"flask":
+				if flask:
+					flask_charges = mini(flask_charges + 1, flask_stats[Flask.CHARGES])
+					lines.append("Flask %d/%d" % [flask_charges, flask_stats[Flask.CHARGES]])
+			"danger":
+				steps += number * steps_per_danger()
+				lines.append("Danger +%d" % number)
+			"calm":
+				steps = 0
+				lines.append("Danger back to 0")
+			"fight":
+				fight_enemies.clear()
+				for enemy_name in effect.substr(5).split(",", false):
+					var enemy := GameState.find_enemy(enemy_name.strip_edges())
+					if enemy:
+						fight_enemies.append(enemy)
+					else:
+						push_warning("events.csv: no enemy called '%s'" % enemy_name.strip_edges())
+				fight = not fight_enemies.is_empty()
+			_:
+				# Everything else is a loot word, like a chest: Gold 5-10, Key, Potion...
+				var loot_card := RoomCard.new()
+				loot_card.loot = PackedStringArray([effect])
+				lines.append("You get " + take_loot(loot_card))
+	return {"lines": lines, "fight": fight}
 
 
 # Step back out of a fight you don't want yet, to the square you came from.
@@ -288,6 +406,8 @@ func win_fight() -> String:
 		add_log("An enchant! %s" % _drop_enchant())
 	if randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
 		add_log("A potion! %s" % _drop_potion())
+	if randi_range(1, 100) <= SUPER_CARD_CHANCE.get(card.type, 0):
+		add_log("★ A SUPER CARD! %s" % _drop_super_card())
 	match card.type:
 		RoomCard.Type.BOSS:
 			room.done = true
@@ -410,6 +530,8 @@ func take_loot(card: RoomCard) -> String:
 			return "an enchant: " + _drop_enchant()
 		"potion":
 			return _drop_potion()
+		"super":  # "Super Card"
+			return "a Super card: " + _drop_super_card()
 		"map":
 			var room := GameState.unlock_random_room(area)
 			if room == null:
@@ -428,6 +550,18 @@ func _drop_enchant() -> String:
 	for enchant in choices:
 		names.append(enchant.enchant_name)
 	return " or ".join(names) + " (put it on a card from the dungeon screen)"
+
+
+# A random Super card you don't have yet this run, straight into your deck.
+func _drop_super_card() -> String:
+	var choices := GameState.load_super_cards().filter(func(c: CardData) -> bool: return not super_cards.has(c))
+	if choices.is_empty():
+		choices = GameState.load_super_cards()
+	if choices.is_empty():
+		return "nothing"
+	var card: CardData = choices.pick_random()
+	super_cards.append(card)
+	return "%s (in your deck until the run ends)" % card.card_name
 
 
 func _drop_potion() -> String:

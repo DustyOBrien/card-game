@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_o81ya"]
+
+[resource]
+script = ExtResource("1_o81ya")
+card_name = "Kingslayer"
+types = 1
+attack = PackedStringArray("d12")
+flawless = true
+critical = "+4 Damage"
+rarity = 3
+class_only = PackedStringArray()
+effect = "Flawless. Deal d12 damage. Critical: +4 Damage."
+color = Color(0.4, 0.4, 0.42, 1)

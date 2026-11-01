@@ -1,0 +1,37 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_lu12s"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_8sosc"]
+[ext_resource type="Texture2D" path="res://art/enemies/thorn_treant.svg" id="3_cdy7v"]
+
+[sub_resource type="Resource" id="Resource_kl6eq"]
+script = ExtResource("1_lu12s")
+move_name = "Thorn Lash"
+weight = 3
+attack_min = 4
+attack_max = 6
+
+[sub_resource type="Resource" id="Resource_sx8lq"]
+script = ExtResource("1_lu12s")
+move_name = "Bramble Wall"
+max_in_a_row = 1
+block = 6
+ally_block = 3
+
+[sub_resource type="Resource" id="Resource_h8mhf"]
+script = ExtResource("1_lu12s")
+move_name = "Take Root"
+max_in_a_row = 1
+heal = 5
+
+[resource]
+script = ExtResource("2_8sosc")
+display_name = "Thorn Treant"
+max_hp = 28
+armor = 1
+texture = ExtResource("3_cdy7v")
+sprite_size = Vector2(135, 160)
+name_color = Color(0.6039216, 0.8156863, 0.4392157, 1)
+moves = Array[ExtResource("1_lu12s")]([SubResource("Resource_kl6eq"), SubResource("Resource_sx8lq"), SubResource("Resource_h8mhf")])
+exp = 20
+bonus_gold = 2

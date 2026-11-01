@@ -43,12 +43,15 @@ const NEUTRAL_COLOR := Color(0.4, 0.4, 0.42)
 #   RANDOM: each hit picks a random enemy.
 enum Target { SINGLE, ALL, RANDOM }
 
-# Rarity is just one value per card, so it's a normal enum (0, 1, 2), not flags.
-enum Rarity { COMMON, UNCOMMON, RARE }
+# Rarity is just one value per card, so it's a normal enum (0, 1, 2, 3), not flags.
+# SUPER cards only come from data/super_cards.csv: rare drops (Mini Bosses,
+# events) that join your deck for ONE run and are gone after it.
+enum Rarity { COMMON, UNCOMMON, RARE, SUPER }
 const RARITY_COLORS := {
 	Rarity.COMMON: Color(0.85, 0.85, 0.85),
 	Rarity.UNCOMMON: Color(0.45, 0.75, 1.0),
 	Rarity.RARE: Color(1.0, 0.8, 0.3),
+	Rarity.SUPER: Color(1.0, 0.45, 0.2),
 }
 
 # @export makes a variable show up in the Inspector so you can edit it there.

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Event room: a glowing question mark on a scroll. Something strange happens here. -->
+  <path d="M14 10 L50 10 C54 10 54 18 50 18 L50 52 C50 56 46 56 46 56 L14 56 C10 56 10 48 14 48 Z" fill="#e8d4a0" stroke="#6b4e1e" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M14 48 L46 48" stroke="#6b4e1e" stroke-width="2"/>
+  <path d="M24 24 C24 16 40 16 40 24 C40 30 32 30 32 36 L32 38" fill="none" stroke="#9a3cc8" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="32" cy="44" r="3" fill="#9a3cc8"/>
+</svg>

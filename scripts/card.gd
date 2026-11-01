@@ -90,6 +90,9 @@ func setup(data: CardData) -> void:
 	if not data.enchant_name.is_empty():
 		rarity_label.text = "Enchant: " + data.enchant_name
 		rarity_label.add_theme_color_override("font_color", data.enchant_color)
+	if data.rarity == CardData.Rarity.SUPER:
+		rarity_label.text = "★ Super · this run only"
+	_show_super_glow(data.rarity == CardData.Rarity.SUPER)
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
 	keyword_label.text = data.get_keyword_text()
@@ -318,3 +321,26 @@ func make_drag_preview(at_position: Vector2) -> Control:
 	copy.position = -at_position * PREVIEW_SCALE
 	banner.position = copy.position + Vector2(size.x * PREVIEW_SCALE + 8, 0)
 	return holder
+
+
+# Super cards get a glowing orange frame, so they stand out in your hand.
+# Made the first time it's needed, then just shown or hidden.
+func _show_super_glow(show_it: bool) -> void:
+	var glow: Panel = get_node_or_null("SuperGlow")
+	if glow == null:
+		if not show_it:
+			return
+		glow = Panel.new()
+		glow.name = "SuperGlow"
+		glow.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		glow.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var style := StyleBoxFlat.new()
+		style.draw_center = false
+		style.border_color = CardData.RARITY_COLORS[CardData.Rarity.SUPER]
+		style.set_border_width_all(3)
+		style.set_corner_radius_all(8)
+		style.shadow_color = Color(1, 0.5, 0.15, 0.6)
+		style.shadow_size = 10
+		glow.add_theme_stylebox_override("panel", style)
+		add_child(glow)
+	glow.visible = show_it

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_lwitn"]
+
+[resource]
+script = ExtResource("1_lwitn")
+event_name = "Ancient Altar"
+area = "Any"
+min_tier = 2
+text = "An altar of black stone hums. Old words are carved around an empty bowl."
+choice_labels = PackedStringArray("Offer your blood", "Offer gold", "Leave it alone")
+chances = Array[int]([100, 100, 100])
+effects = PackedStringArray("Lose HP 6; Super Card", "Pay 20; Super Card", "")
+fail_effects = PackedStringArray("", "", "")
+results = PackedStringArray("Power floods into your deck!", "The coins melt away. Power floods into your deck!", "Some things are best left alone.")
+fail_results = PackedStringArray("", "", "")

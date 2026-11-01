@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_duhki"]
+
+[resource]
+script = ExtResource("1_duhki")
+event_name = "Strange Fountain"
+area = "Any"
+text = "A stone fountain bubbles with glowing blue water."
+choice_labels = PackedStringArray("Drink deeply", "Fill your flask", "Walk away")
+chances = Array[int]([65, 100, 100])
+effects = PackedStringArray("Heal 8", "Flask", "")
+fail_effects = PackedStringArray("Lose HP 4", "", "")
+results = PackedStringArray("Cool and sweet. You feel much better.", "Your flask fills with shimmering water (+1 charge).", "You leave the fountain be.")
+fail_results = PackedStringArray("It tastes of old coins. Your stomach twists.", "", "")

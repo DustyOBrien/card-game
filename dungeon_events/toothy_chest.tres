@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_5o6ns"]
+
+[resource]
+script = ExtResource("1_5o6ns")
+event_name = "Toothy Chest"
+area = "Plains"
+text = "A chest sits alone in the grass. It has... teeth marks? Or teeth?"
+choice_labels = PackedStringArray("Open it", "Leave it")
+chances = Array[int]([50, 100])
+effects = PackedStringArray("Gold 15-25; Potion", "")
+fail_effects = PackedStringArray("Fight Big Slime", "")
+results = PackedStringArray("Just a chest! Full of gold.", "You back away slowly.")
+fail_results = PackedStringArray("It\'s a slime wearing a chest! It attacks!", "")

@@ -1,0 +1,23 @@
+Event,Area,Min Tier,Text,Choice,Chance,Effect,Fail Effect,Result,Fail Result
+Strange Fountain,Any,1,A stone fountain bubbles with glowing blue water.,Drink deeply,65,Heal 8,Lose HP 4,Cool and sweet. You feel much better.,It tastes of old coins. Your stomach twists.
+Strange Fountain,,,,Fill your flask,100,Flask,,Your flask fills with shimmering water (+1 charge).,
+Strange Fountain,,,,Walk away,100,,,You leave the fountain be.,
+Wandering Merchant,Any,1,"A merchant with an enormous pack waves you over. ""Fine wares, fair prices!""",Buy a potion,100,Pay 10; Potion,,"""Pleasure doing business!""",
+Wandering Merchant,,,,Buy an enchant,100,Pay 15; Enchant,,"""A fine choice. Use it well.""",
+Wandering Merchant,,,,Buy a small key,100,Pay 8; Key,,"""Opens most chests. Most.""",
+Wandering Merchant,,,,No thanks,100,,,The merchant shrugs and wanders off.,
+Ancient Altar,Any,2,An altar of black stone hums. Old words are carved around an empty bowl.,Offer your blood,100,Lose HP 6; Super Card,,Power floods into your deck!,
+Ancient Altar,,,,Offer gold,100,Pay 20; Super Card,,The coins melt away. Power floods into your deck!,
+Ancient Altar,,,,Leave it alone,100,,,Some things are best left alone.,
+Lost Adventurer,Any,1,"A wounded adventurer sits against a wall. ""Help a fellow explorer?""",Share a bandage,100,Lose HP 3; Key; Gold 5-10,,"""Thank you! Take these, I won't need them.""",
+Lost Adventurer,,,,Search their bag,50,Gold 10-20,Danger 1,You find some coins while they sleep.,They shout for help. Something heard that...
+Lost Adventurer,,,,Walk on,100,,,You wish them luck.,
+Toothy Chest,Plains,1,A chest sits alone in the grass. It has... teeth marks? Or teeth?,Open it,50,Gold 15-25; Potion,Fight Big Slime,Just a chest! Full of gold.,It's a slime wearing a chest! It attacks!
+Toothy Chest,,,,Leave it,100,,,You back away slowly.,
+Mushroom Circle,Forest,1,A perfect ring of glowing mushrooms. The air smells sweet.,Eat a mushroom,50,Heal 10,Lose HP 5,Delicious! You feel strong.,That was not a good mushroom.
+Mushroom Circle,,,,Dance in the ring,100,Enchant; Danger 1,,The mushrooms glow brighter... and something out there notices you.,
+Mushroom Circle,,,,Step around it,100,,,You step carefully around the ring.,
+Quiet Shrine,Any,2,A small shrine. It is very very quiet here.,Rest a moment,100,Calm; Heal 4,,The dungeon's noise fades away (Danger back to 0).,
+Quiet Shrine,,,,Take the offering,100,Gold 15-25; Danger 2,,You pocket the coins. The silence breaks.,
+Howling Cave,Forest,2,Gold glints at the back of a dark cave. You hear growling.,Grab the gold,100,"Gold 15-25; Fight Wolf, Wolf",,There's gold... and its owners are home!,
+Howling Cave,,,,Walk away,100,,,Not today.,

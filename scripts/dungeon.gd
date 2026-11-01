@@ -33,6 +33,7 @@ const ICONS := {
 	RoomCard.Type.CAMPFIRE: preload("res://art/rooms/campfire.svg"),
 	RoomCard.Type.MINI_BOSS: preload("res://art/rooms/mini_boss.svg"),
 	RoomCard.Type.BOSS: preload("res://art/rooms/boss.svg"),
+	RoomCard.Type.EVENT: preload("res://art/rooms/event.svg"),
 }
 const OPEN_CHEST_ICON := preload("res://art/rooms/open_chest.svg")
 const START_ICON := preload("res://art/rooms/start.svg")
@@ -105,7 +106,7 @@ func build_legend() -> void:
 	legend.size = Vector2(grid.size.x, 36)
 	legend.alignment = BoxContainer.ALIGNMENT_CENTER
 	for type in [RoomCard.Type.FIGHT, RoomCard.Type.HARD_FIGHT, RoomCard.Type.LOCKED_CHEST,
-			RoomCard.Type.TREASURE, RoomCard.Type.CAMPFIRE, RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS]:
+			RoomCard.Type.TREASURE, RoomCard.Type.EVENT, RoomCard.Type.CAMPFIRE, RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS]:
 		var picture := TextureRect.new()
 		picture.texture = ICONS[type]
 		picture.custom_minimum_size = Vector2(26, 26)
@@ -225,6 +226,10 @@ func draw_square(square: Vector2i) -> void:
 				icon.texture = OPEN_CHEST_ICON
 			elif card.type == RoomCard.Type.TREASURE and room.cleared:
 				icon.modulate = Color(1, 1, 1, 0.35)
+			elif card.type == RoomCard.Type.EVENT and room.get("event") != null:
+				label.text = room.event.event_name  # Once you've found out what it is.
+				if room.done:
+					icon.modulate = Color(1, 1, 1, 0.35)
 		if room.campfire:
 			icon.texture = ICONS[RoomCard.Type.CAMPFIRE]
 			icon.modulate = Color.WHITE
@@ -295,6 +300,10 @@ func describe_square(square: Vector2i) -> String:
 		lines.append("The fire is out (each campfire can be used once).")
 	elif card.type == RoomCard.Type.EMPTY:
 		lines.append("Nothing here.")
+	elif card.type == RoomCard.Type.EVENT:
+		if room.get("event") != null:
+			lines[0] = "%s (Event)" % room.event.event_name
+		lines.append("Done." if room.done else "Something strange happens here. Step in to find out.")
 	if not card.loot.is_empty() and not room.get("opened", false) and not (card.type == RoomCard.Type.TREASURE and room.cleared):
 		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
 	return "\n".join(lines.filter(func(line: String) -> bool: return not line.is_empty()))
@@ -361,8 +370,39 @@ func _on_square_pressed(square: Vector2i) -> void:
 			show_chest()
 		"campfire":
 			show_campfire()
+		"event":
+			show_event()
 		"treasure":
 			show_popup("Treasure!", "You find %s." % dungeon.history[-1].trim_prefix("Treasure! "), [["Nice", close_popup]])
+
+
+# An event: its story and a button per choice. Choices you can't pick yet
+# (not enough gold, no flask) are greyed out with the reason as a tooltip.
+func show_event() -> void:
+	var event: DungeonEvent = dungeon.rooms[dungeon.position].event
+	var choices := []
+	for i in event.choice_labels.size():
+		var label := event.choice_labels[i]
+		for effect in DungeonEvent.split_effects(event.effects[i]):
+			if effect.to_lower().begins_with("pay "):
+				label += " (%s gold)" % effect.substr(4)  # Show the price.
+		if event.chances[i] < 100:
+			label += " (%d%%)" % event.chances[i]
+		var blocked := dungeon.choice_blocked(event, i)
+		choices.append([label, _on_event_choice.bind(i), blocked])
+	show_popup(event.event_name, event.text, choices)
+
+
+func _on_event_choice(index: int) -> void:
+	var event: DungeonEvent = dungeon.rooms[dungeon.position].event
+	if not dungeon.choice_blocked(event, index).is_empty():
+		return  # Greyed out (not enough gold...).
+	var outcome := dungeon.choose(index)
+	refresh()
+	if outcome.fight:
+		show_popup(event.event_name, outcome.text + "\n" + enemy_list(dungeon.fight_enemies), [["Fight!", start_fight]])
+	else:
+		show_popup(event.event_name, outcome.text if not outcome.text.is_empty() else "...", [["OK", close_popup]])
 
 
 func enemy_list(enemies: Array[EnemyData]) -> String:
@@ -439,7 +479,8 @@ func _on_leave() -> void:
 
 # --- The popup ----------------------------------------------------------------
 
-# choices: a list of [button text, function to call].
+# choices: a list of [button text, function to call], or [text, function,
+# why it's blocked] to grey a button out (with the reason as its tooltip).
 func show_popup(heading: String, text: String, choices: Array) -> void:
 	popup_title.text = heading
 	popup_text.text = text
@@ -450,6 +491,9 @@ func show_popup(heading: String, text: String, choices: Array) -> void:
 		button.text = choice[0]
 		button.custom_minimum_size = Vector2(150, 44)
 		button.pressed.connect(choice[1])
+		if choice.size() > 2 and not str(choice[2]).is_empty():
+			button.disabled = true
+			button.tooltip_text = choice[2]
 		popup_buttons.add_child(button)
 	if not choices.is_empty():
 		popup_buttons.get_child(0).theme_type_variation = &"PrimaryButton"

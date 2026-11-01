@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="190" viewBox="0 0 160 190">
+  <!-- A Thorn Treant: a small angry tree covered in thorns. -->
+  <defs>
+    <linearGradient id="bark" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#5a3c22"/>
+      <stop offset="0.5" stop-color="#8a5c34"/>
+      <stop offset="1" stop-color="#4a301a"/>
+    </linearGradient>
+  </defs>
+  <ellipse cx="80" cy="180" rx="62" ry="8" fill="#000000" opacity="0.3"/>
+  <!-- Leaves -->
+  <circle cx="50" cy="48" r="32" fill="#3f7a2e" stroke="#1f3f16" stroke-width="4"/>
+  <circle cx="110" cy="46" r="34" fill="#4a8a34" stroke="#1f3f16" stroke-width="4"/>
+  <circle cx="80" cy="30" r="30" fill="#5a9a3e" stroke="#1f3f16" stroke-width="4"/>
+  <!-- Trunk -->
+  <path d="M48 176 L56 120 C50 100 54 80 62 70 L98 70 C106 80 110 100 104 120 L112 176 C96 168 64 168 48 176 Z"
+        fill="url(#bark)" stroke="#2a1a0c" stroke-width="4" stroke-linejoin="round"/>
+  <!-- Arms -->
+  <path d="M58 104 C40 100 24 108 14 92 C28 96 40 90 56 92 Z" fill="#6a4628" stroke="#2a1a0c" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M102 104 C120 100 136 108 146 92 C132 96 120 90 104 92 Z" fill="#6a4628" stroke="#2a1a0c" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Thorns -->
+  <path d="M52 140 L40 136 L52 132 Z M108 140 L120 136 L108 132 Z M56 160 L44 160 L56 154 Z M104 160 L116 160 L104 154 Z M24 98 L18 86 L30 94 Z M136 98 L142 86 L130 94 Z" fill="#d8c8a0" stroke="#2a1a0c" stroke-width="2" stroke-linejoin="round"/>
+  <!-- Face -->
+  <path d="M62 92 L76 98 L62 104 Z" fill="#ffcf40" stroke="#2a1a0c" stroke-width="2"/>
+  <path d="M98 92 L84 98 L98 104 Z" fill="#ffcf40" stroke="#2a1a0c" stroke-width="2"/>
+  <path d="M66 124 L72 118 L78 124 L84 118 L90 124 L94 120" fill="none" stroke="#2a1a0c" stroke-width="4" stroke-linejoin="round"/>
+</svg>

@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_73ykg"]
+
+[resource]
+script = ExtResource("1_73ykg")
+event_name = "Wandering Merchant"
+area = "Any"
+text = "A merchant with an enormous pack waves you over. \"Fine wares, fair prices!\""
+choice_labels = PackedStringArray("Buy a potion", "Buy an enchant", "Buy a small key", "No thanks")
+chances = Array[int]([100, 100, 100, 100])
+effects = PackedStringArray("Pay 10; Potion", "Pay 15; Enchant", "Pay 8; Key", "")
+fail_effects = PackedStringArray("", "", "", "")
+results = PackedStringArray("\"Pleasure doing business!\"", "\"A fine choice. Use it well.\"", "\"Opens most chests. Most.\"", "The merchant shrugs and wanders off.")
+fail_results = PackedStringArray("", "", "", "")

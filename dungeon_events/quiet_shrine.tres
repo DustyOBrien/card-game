@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_61s4v"]
+
+[resource]
+script = ExtResource("1_61s4v")
+event_name = "Quiet Shrine"
+area = "Any"
+min_tier = 2
+text = "A small shrine. It is very very quiet here."
+choice_labels = PackedStringArray("Rest a moment", "Take the offering")
+chances = Array[int]([100, 100])
+effects = PackedStringArray("Calm; Heal 4", "Gold 15-25; Danger 2")
+fail_effects = PackedStringArray("", "")
+results = PackedStringArray("The dungeon\'s noise fades away (Danger back to 0).", "You pocket the coins. The silence breaks.")
+fail_results = PackedStringArray("", "")

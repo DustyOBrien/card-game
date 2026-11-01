@@ -7,8 +7,8 @@
 [sub_resource type="Resource" id="Resource_d20a6"]
 script = ExtResource("1_cewxh")
 move_name = "Royal Slam"
-attack_min = 6
-attack_max = 8
+attack_min = 7
+attack_max = 10
 
 [sub_resource type="Resource" id="Resource_mykew"]
 script = ExtResource("1_cewxh")
@@ -25,12 +25,12 @@ strength = 1
 [resource]
 script = ExtResource("2_unc01")
 display_name = "Slime King"
-max_hp = 36
+max_hp = 55
 texture = ExtResource("3_1yfmv")
 sprite_size = Vector2(190, 165)
 name_color = Color(1, 0.827451, 0.3019608, 1)
 moves = Array[ExtResource("1_cewxh")]([SubResource("Resource_d20a6"), SubResource("Resource_mykew"), SubResource("Resource_wv8p5")])
 move_order = 1
 is_boss = true
-exp = 40
-bonus_gold = 10
+exp = 60
+bonus_gold = 20

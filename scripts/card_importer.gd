@@ -33,6 +33,8 @@ extends RefCounted
 const CSV_PATH := "res://data/cards.csv"
 const CARDS_FOLDER := "res://cards/"
 const LEVELS_FOLDER := "res://cards/levels/"
+const SUPER_CSV_PATH := "res://data/super_cards.csv"  # Run-only Super cards (see card_data.gd).
+const SUPER_FOLDER := "res://cards/super/"
 const LEVEL_SHEETS := {2: "res://data/cards_level2.csv", 3: "res://data/cards_level3.csv"}
 const CLASS_CARDS_PATH := "res://data/class_cards.csv"
 const CLASSES_FOLDER := "res://classes/"
@@ -50,6 +52,8 @@ const POTIONS_FOLDER := "res://potions/"
 const TOWN_FOLDER := "res://town/"
 const TOWN_ART_FOLDER := "res://art/town/"
 const FLASKS_FOLDER := "res://flasks/"
+const EVENTS_SHEET := "res://data/dungeons/events.csv"
+const EVENTS_FOLDER := "res://dungeon_events/"
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -65,6 +69,8 @@ static func import_cards() -> int:
 				level_files.append(level_file_name(card_name, level))
 	_remove_old_cards(LEVELS_FOLDER, level_files)
 	_import_class_cards(names)
+	if FileAccess.file_exists(SUPER_CSV_PATH):
+		_import_sheet(SUPER_CSV_PATH, SUPER_FOLDER, 1, [])
 	_import_talents()
 	_import_enemies()
 	_import_progression()
@@ -825,6 +831,30 @@ static func _import_progression() -> void:
 		flask.amounts.append(_to_int(row.get("amount", ""), 1))
 		flask.stage_texts.append(row.get("stage text", ""))
 	_save_all(flask_order, FLASKS_FOLDER, func(f: Flask) -> String: return f.flask_name)
+
+	# events.csv: one row per CHOICE; rows with the same Event are one event.
+	var events := {}  # "strange fountain" -> DungeonEvent
+	var event_order: Array[Resource] = []
+	for row in _read_sheet(EVENTS_SHEET):
+		var key: String = row.get("event", "").to_lower()
+		if key.is_empty():
+			continue
+		if not events.has(key):
+			var new_event := DungeonEvent.new()
+			new_event.event_name = row.get("event", "")
+			new_event.area = row.get("area", "")
+			new_event.min_tier = maxi(_to_int(row.get("min tier", ""), 1), 1)
+			new_event.text = row.get("text", "")
+			events[key] = new_event
+			event_order.append(new_event)
+		var event: DungeonEvent = events[key]
+		event.choice_labels.append(row.get("choice", "OK"))
+		event.chances.append(clampi(_to_int(row.get("chance", ""), 100), 0, 100))
+		event.effects.append(row.get("effect", ""))
+		event.fail_effects.append(row.get("fail effect", ""))
+		event.results.append(row.get("result", ""))
+		event.fail_results.append(row.get("fail result", ""))
+	_save_all(event_order, EVENTS_FOLDER, func(e: DungeonEvent) -> String: return e.event_name)
 
 
 # Save each resource as folder/<its name>.tres, and delete files for rows
