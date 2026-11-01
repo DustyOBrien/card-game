@@ -282,7 +282,7 @@ The Tailor, Enchanter and Mapmaker have no quest giving their blueprints yet.
 
 What you buy for your next run is listed at the bottom of the town. The **road**
 at the bottom-right, with its **To the Map** signpost (`town_road.gd`, drawn with
-code), goes to the map; the map also has a **Town** button. the gold **Open Packs (n)** button (a booster pack icon)
+code), goes to the map; the map also has a **Town** button. The gold **Open Packs (n)** button (a booster pack icon)
 opens your booster packs, even before the Shop is built (then nothing is for sale).
 
 In the **Shop**:
