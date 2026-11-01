@@ -5,6 +5,7 @@
 [resource]
 script = ExtResource("1_36v6f")
 card_name = "Energize"
+cost = 0
 types = 4
 attack = PackedStringArray()
 energy = 1

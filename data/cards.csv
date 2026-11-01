@@ -7,7 +7,7 @@ Master of None,1,Master of None,0,Neutral,Ability,Adventurer,Common,TRUE,add +1 
 Heavy Strike,2,Heavy Strike,2,Neutral,Attack,,Common,TRUE,,d6,0,,0,,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
 Full Guard,2,Full Guard,2,Neutral,Defense,,Common,TRUE,,,0,d6,0,,0,0,0,FALSE,0,0,0,0,0,Gain 1 Energy,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
 First Aid,1,First Aid,1,Neutral,Ability,,Uncommon,FALSE,,,0,,0,d6,0,0,0,FALSE,0,0,0,0,0,Dont Vanish,TRUE,TRUE,FALSE,FALSE,FALSE,0,Single
-Energize,1,Energize,1,Neutral,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,0,0,0,1,0,,FALSE,TRUE,FALSE,FALSE,FALSE,0,Single
+Energize,1,Energize,0,Neutral,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,0,0,0,1,0,,FALSE,TRUE,FALSE,FALSE,FALSE,0,Single
 Punch,1,Punch,1,Strength,Attack,,Uncommon,FALSE,,d6,0,,0,,0,0,0,FALSE,0,0,0,0,0,+2 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
 Kick,1,Kick,1,Agility,Attack,,Uncommon,FALSE,,d4,0,,0,,0,0,0,FALSE,0,0,0,0,0,+2 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
 Pump Up,1,Pump Up,0,Strength,Ability,,Rare,FALSE,,,0,,0,,0,0,0,FALSE,d3,0,0,0,0,Draw a Card,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
