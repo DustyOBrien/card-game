@@ -817,14 +817,23 @@ func discard_random_cards(amount: int) -> void:
 
 
 # Rebuild the row of card buttons so it matches the `hand` array.
+# Cards still in your hand keep their card node (making one is slow-ish, and
+# the old one already shows its dice); only new cards get a new node.
 func refresh_hand() -> void:
-	# Remove the old card nodes. queue_free() deletes a node safely at the
-	# end of the current frame.
-	for child in hand_box.get_children():
-		child.queue_free()
-	# ...and create a fresh one for every card in the hand.
-	for card_data in hand:
-		add_card_view(card_data)
+	var views := {}  # CardData -> its Card node, for the cards still in hand.
+	for child: Card in hand_box.get_children():
+		if hand.has(child.card_data):
+			views[child.card_data] = child
+		else:
+			# remove_child() takes it off the screen now; queue_free() deletes
+			# it safely at the end of the frame.
+			hand_box.remove_child(child)
+			child.queue_free()
+	for i in hand.size():
+		var view: Card = views.get(hand[i])
+		if view == null:
+			view = add_card_view(hand[i])
+		hand_box.move_child(view, i)  # Same order as the hand.
 	update_ui()
 
 

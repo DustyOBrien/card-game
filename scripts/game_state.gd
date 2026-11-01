@@ -89,6 +89,7 @@ var class_specs := {}
 # true: points only go in your spec's tree (modern WoW style).
 const SPEC_TREE_ONLY := false
 var bonus_talent_points := 0  # Extra points every class gets (none yet).
+var _bonus_cache := {}  # Remembered talent_bonus() totals (see there).
 var talents_return_scene := "res://scenes/character_select.tscn"  # Where the Talents screen's Back goes.
 
 # The last deck you built for each class, as card names: {"Knight": ["Strike", ...]}.
@@ -118,6 +119,7 @@ func start_fresh() -> void:
 	saved_decks.clear()
 	talent_ranks.clear()
 	class_specs.clear()
+	_talents_changed()
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -399,6 +401,7 @@ func set_spec(for_class: CharacterClass, tree_name: String) -> void:
 	if spec_of(for_class) == tree_name:
 		return
 	class_specs[for_class.display_name] = tree_name
+	_talents_changed()
 	reset_talents(for_class)  # Also saves, and fixes the deck for the new rules.
 
 
@@ -467,6 +470,7 @@ func learn_talent(talent: Talent) -> bool:
 	if not talent_ranks.has(talent.class_display_name):
 		talent_ranks[talent.class_display_name] = {}
 	talent_ranks[talent.class_display_name][talent.talent_name] = talent_rank(talent) + 1
+	_talents_changed()
 	save_game()
 	return true
 
@@ -474,6 +478,7 @@ func learn_talent(talent: Talent) -> bool:
 # Take back every point in this class's tree (free, for now).
 func reset_talents(for_class: CharacterClass) -> void:
 	talent_ranks.erase(for_class.display_name)
+	_talents_changed()
 	if for_class == character_class:
 		# Cards a talent let into the deck might not be allowed any more.
 		deck = _keep_allowed(deck, for_class)
@@ -484,11 +489,24 @@ func reset_talents(for_class: CharacterClass) -> void:
 # talent_bonus(knight, Talent.ENERGY). Pass a card to only count talents whose
 # School matches it, or a school to only count talents for that school
 # ("All" talents always count).
+#
+# The deck builder asks this many times for every card on screen, so answers
+# without a card are remembered in _bonus_cache until the talents change.
 func talent_bonus(for_class: CharacterClass, effect: String, card: CardData = null, school: int = -1) -> int:
+	var key := "%s|%s|%d" % [for_class.display_name, effect, school]
+	if card == null and _bonus_cache.has(key):
+		return _bonus_cache[key]
 	var total := 0
 	for talent in talents_for(for_class):
 		total += talent.effect_amount(effect, talent_rank(talent), card, school)
+	if card == null:
+		_bonus_cache[key] = total
 	return total
+
+
+# Talents or specs changed: forget the remembered talent_bonus() answers.
+func _talents_changed() -> void:
+	_bonus_cache.clear()
 
 
 # The lowest Copy Limit from a learned talent (Pack Rat: 1), or 0 for none.
@@ -602,7 +620,9 @@ func load_game() -> bool:
 	for class_name_key in saved_talents:
 		talent_ranks[class_name_key] = _whole_numbers(saved_talents[class_name_key])
 	bonus_talent_points = int(data.get("bonus_talent_points", 0))
-	class_specs = data.get("specs", {})
+	var saved_specs = data.get("specs", {})
+	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
+	_talents_changed()
 	# A card added to the spreadsheet as Unlocked after you saved still
 	# shows up in your collection.
 	for card in load_all_cards():

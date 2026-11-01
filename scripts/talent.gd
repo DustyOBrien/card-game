@@ -8,8 +8,8 @@
 # e.g. the Adventurer's Jack of All Trades, Master of None and Pack Rat.
 # Your talent points are shared: spend them in any tree.
 #
-# A SPEC talent (Spec column = Yes, usually the top of a tree) isn't bought
-# with points: you pick ONE spec per class and get its spec talent for free.
+# A SPEC (from data/talents/specs.csv) is a talent too, but it isn't bought
+# with points: you pick ONE spec per class on the Spec screen, and it's free.
 #
 # A talent has a spot in its tree (Tier = row, Column = left to right), some
 # rules about when you can learn it, and up to THREE effects the game knows how
@@ -79,7 +79,7 @@ const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, CO
 @export var rank_texts: PackedStringArray = []  # What each rank does, for the tooltip.
 
 
-# Our effects as a list, so code can loop over both slots:
+# Our effects as a list, so code can loop over every slot:
 # [{"effect": "max deck size", "school": "", "amounts": [10]}, ...]
 func effect_slots() -> Array[Dictionary]:
 	var slots: Array[Dictionary] = []

@@ -47,6 +47,7 @@ var sort_mode := 0  # Index into SORT_OPTIONS.
 # The pieces of each card's cell in the pool, so refresh() can update them:
 # CardData -> {"cell": VBoxContainer, "card": Card, "pips": RichTextLabel, "note": Label}
 var cells := {}
+var deck_rows := {}  # Card -> its row in the deck list (see refresh_deck_list()).
 
 @onready var emblem: TextureRect = %Emblem
 @onready var title_label: Label = %TitleLabel
@@ -335,18 +336,33 @@ func refresh_stats(deck: Array[CardData]) -> void:
 
 
 # The list of cards in your deck: one row per kind of card, cheapest first.
+#
+# Building a row is slow-ish (a button, five labels, three styles), so rows
+# are kept in deck_rows and reused: a click only makes a row for a NEW card,
+# deletes the row of a card that left the deck, and updates the counts.
 func refresh_deck_list(deck: Array[CardData]) -> void:
-	clear_children(deck_list)
-	var unique: Array[CardData] = []
+	var counts := {}  # Card -> copies in the deck.
 	for card in deck:
-		if not unique.has(card):
-			unique.append(card)
+		counts[card] = counts.get(card, 0) + 1
+	# Remove rows for cards that aren't in the deck any more.
+	for card_data: CardData in deck_rows.keys():
+		if not counts.has(card_data):
+			deck_list.remove_child(deck_rows[card_data])
+			deck_rows[card_data].queue_free()
+			deck_rows.erase(card_data)
+	var unique: Array = counts.keys()
 	unique.sort_custom(func(a: CardData, b: CardData) -> bool:
 		if a.cost != b.cost:
 			return a.cost < b.cost
 		return a.card_name < b.card_name)
-	for card_data in unique:
-		deck_list.add_child(make_deck_row(card_data, deck.count(card_data)))
+	for i in unique.size():
+		var card_data: CardData = unique[i]
+		if not deck_rows.has(card_data):
+			deck_rows[card_data] = make_deck_row(card_data)
+			deck_list.add_child(deck_rows[card_data])
+		var row: Button = deck_rows[card_data]
+		row.get_meta("count_label").text = "×%d" % counts[card_data]
+		deck_list.move_child(row, i)  # Keep the list sorted by cost, then name.
 
 
 # ---------------------------------------------------------------------------
@@ -399,7 +415,7 @@ func make_cost_bar(cost_text: String, count: int) -> Control:
 
 # One row in the deck list: [cost] Name ............ x2
 # The row is a Button (so it can be clicked), with labels laid on top of it.
-func make_deck_row(card_data: CardData, count: int) -> Button:
+func make_deck_row(card_data: CardData) -> Button:
 	var row := Button.new()
 	row.custom_minimum_size = Vector2(0, 34)
 	row.tooltip_text = "%s\n%s\n\nClick to remove one" % [card_data.card_name, card_data.effect]
@@ -446,14 +462,13 @@ func make_deck_row(card_data: CardData, count: int) -> Button:
 	rarity_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	content.add_child(rarity_dot)
 
-	var count_label := Label.new()
-	count_label.text = "×%d" % count
+	var count_label := Label.new()  # refresh_deck_list() fills in "×2".
 	count_label.custom_minimum_size = Vector2(24, 0)
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
 	count_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
 	count_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	content.add_child(count_label)
-	row.set_meta("card", card_data)  # So we can find this row again to flash it.
+	row.set_meta("count_label", count_label)  # So the count can change without a new row.
 	return row
 
 
@@ -535,12 +550,12 @@ func _on_pool_card_hovered(card: Card, hovered: bool) -> void:
 
 # Flash the deck list row of the card you just added, so you can see where it went.
 func flash_deck_row(card_data: CardData) -> void:
-	for row in deck_list.get_children():
-		if row.get_meta("card") == card_data:
-			row.modulate = Color(1.6, 1.4, 0.8)  # Above 1 = brighter than normal.
-			create_tween().tween_property(row, "modulate", Color.WHITE, 0.4)
-			# Scroll the list so the row is on screen.
-			(deck_list.get_parent() as ScrollContainer).ensure_control_visible(row)
+	var row: Button = deck_rows.get(card_data)
+	if row:
+		row.modulate = Color(1.6, 1.4, 0.8)  # Above 1 = brighter than normal.
+		create_tween().tween_property(row, "modulate", Color.WHITE, 0.4)
+		# Scroll the list so the row is on screen.
+		(deck_list.get_parent() as ScrollContainer).ensure_control_visible(row)
 
 
 # A quick "bounce" so you can see which card you just added.
