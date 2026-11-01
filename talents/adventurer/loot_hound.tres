@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_0moi2"]
+
+[resource]
+script = ExtResource("1_0moi2")
+talent_name = "Loot Hound"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+column = 3.0
+max_ranks = 2
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "bonus gold"
+amounts = Array[int]([1])
+effect_2 = "pack discount"
+amounts_2 = Array[int]([1])
+rules = "Enemies drop 1 / 2 more gold, and booster packs cost 1 / 2 less."
+rank_texts = PackedStringArray("Enemies drop 1 more gold, and booster packs cost 1 less.", "Enemies drop 2 more gold, and booster packs cost 2 less.")

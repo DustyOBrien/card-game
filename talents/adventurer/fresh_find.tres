@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_hpbsx"]
+
+[resource]
+script = ExtResource("1_hpbsx")
+talent_name = "Fresh Find"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+max_ranks = 2
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "first play bonus"
+amounts = Array[int]([1])
+rules = "The first time you play each card in a fight, its dice get +1 / +2."
+rank_texts = PackedStringArray("The first time you play each card in a fight, its dice get +1.", "The first time you play each card in a fight, its dice get +2.")

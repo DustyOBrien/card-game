@@ -170,7 +170,7 @@ func show_roll() -> void:
 		for value: int in card_data.roll_result.get(key, []):
 			var die := DieView.new(DIE_SIZE)
 			die.sides = sides
-			die.show_value(value, value >= sides)  # The top number is always a crit.
+			die.show_value(value, value >= sides or card_data.flawless)  # The top number is always a crit.
 			dice_row.add_child(die)
 
 

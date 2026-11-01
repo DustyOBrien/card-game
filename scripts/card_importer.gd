@@ -121,6 +121,7 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 		card.wild = _parse_yes_no(_cell(row, columns, "wild"), false) \
 				or _cell(row, columns, "roll").to_lower() == "play"
 		card.vanish = _parse_yes_no(_cell(row, columns, "vanish"), false)
+		card.flawless = _parse_yes_no(_cell(row, columns, "flawless"), false)
 		card.advantage = _parse_yes_no(_cell(row, columns, "advantage"), false)
 		card.disadvantage = _parse_yes_no(_cell(row, columns, "disadvantage"), false)
 		card.gain_advantage = _parse_yes_no(_cell(row, columns, "gain advantage"), false)
@@ -273,6 +274,9 @@ static func _import_talents() -> void:
 			talent.effect_2 = _read_talent_effect(_cell(row, columns, "effect 2"), talent_name)
 			talent.school_2 = _cell(row, columns, "school 2").to_lower()
 			talent.amounts_2 = _read_amounts(_cell(row, columns, "amount 2"))
+			talent.effect_3 = _read_talent_effect(_cell(row, columns, "effect 3"), talent_name)
+			talent.school_3 = _cell(row, columns, "school 3").to_lower()
+			talent.amounts_3 = _read_amounts(_cell(row, columns, "amount 3"))
 			talent.rules = _cell(row, columns, "rules")
 			for rank in range(1, talent.max_ranks + 1):
 				talent.rank_texts.append(_cell(row, columns, "rank %d" % rank))
@@ -327,6 +331,9 @@ static func _import_specs(class_names: Dictionary) -> Dictionary:
 		spec.effect_2 = _read_talent_effect(_cell(row, columns, "effect 2"), spec_name)
 		spec.school_2 = _cell(row, columns, "school 2").to_lower()
 		spec.amounts_2 = _read_amounts(_cell(row, columns, "amount 2"))
+		spec.effect_3 = _read_talent_effect(_cell(row, columns, "effect 3"), spec_name)
+		spec.school_3 = _cell(row, columns, "school 3").to_lower()
+		spec.amounts_3 = _read_amounts(_cell(row, columns, "amount 3"))
 		var folder := TALENTS_FOLDER + class_key + "/"
 		DirAccess.make_dir_recursive_absolute(folder)
 		var file_name := "spec_" + _file_name_for(spec_name)

@@ -8,6 +8,9 @@
 # (2 + 1 = 3). Every die checks on its own: Multi Strike rolls two d3s, so it
 # can crit twice, and each crit applies the card's Critical effect once.
 #
+# FLAWLESS: a Flawless card (or one Pack Rat makes Flawless) crits on EVERY
+# die, whatever it rolls.
+#
 # Rolling happens in two steps, so "roll when drawn" works:
 #   1. roll()     rolls the bare dice, e.g. {"attack 0": [2]}. Saved on the card.
 #   2. resolve()  adds modifiers and crits at the moment you PLAY the card.
@@ -90,7 +93,8 @@ static func fixed_roll(card: CardData, highest: bool) -> Dictionary:
 
 # Step 2: what the card does with these dice.
 # `bonuses` holds the bonuses waiting in the battle right now:
-#   {"roll": next roll bonus, "attack": next attack bonus, "defense": next defense bonus}
+#   {"roll": next roll bonus, "attack": next attack bonus, "defense": next defense bonus,
+#    "first_play": bonus on every die (Fresh Find), "flawless": true = every die crits}
 # Returns:
 #   hits:   damage of each hit, e.g. [4, 1]
 #   block, heal, draw, energy: totals, crits included
@@ -106,6 +110,7 @@ static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dic
 	var crit_effects := card.get_critical_effects()
 	var formulas := card.get_formulas()
 	var extra_damage := 0  # Crit damage from a die that isn't an attack die.
+	var flawless: bool = card.flawless or bonuses.get("flawless", false)
 
 	for key: String in formulas:
 		var dice := Dice.parse(formulas[key])
@@ -121,7 +126,8 @@ static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dic
 		var crit_dice: Array[bool] = []  # Which of the dice crit, for the dice tray.
 		for value: int in values:
 			total += value
-			var is_crit: bool = value + modifier >= dice.sides  # Top number reached (modifiers count).
+			# Top number reached (modifiers count), or Flawless: always a crit.
+			var is_crit: bool = flawless or value + modifier >= dice.sides
 			crit_dice.append(is_crit)
 			if is_crit:
 				crits += 1
@@ -183,6 +189,7 @@ static func _modifier_for(card: CardData, key: String, bonuses: Dictionary) -> i
 	var modifier := 0
 	if card.has_dice():
 		modifier += bonuses.get("roll", 0)  # Next roll bonus: every die of a card that rolls.
+		modifier += bonuses.get("first_play", 0)  # Fresh Find: the card's first play this fight.
 	if key.begins_with("attack"):
 		modifier += card.attack_modifier
 		if card.has_type(CardData.CardType.ATTACK):

@@ -42,6 +42,9 @@ var choosing_reroll := false  # true while Gamble waits for you to click a card 
 signal reroll_picked(card: CardData)
 var enemy_views: Array[EnemyView] = []  # Every enemy in this fight, left to right (dead ones too).
 var fight_gold := 0  # Gold dropped by the enemies beaten in this fight.
+# Names of the cards played at least once this fight. Pack Rat's talents
+# (Flawless first play, Fresh Find) only work on a card's FIRST play.
+var played_this_fight := {}
 var game_over := false
 var turn := 0  # Turn number, for the battle log.
 var dragged_card: CardData = null  # The card being dragged right now, if any.
@@ -109,7 +112,7 @@ func start_battle() -> void:
 	busy = false
 	game_over_screen.visible = false
 	GameState.ensure_ready()
-	player.max_hp = GameState.character_class.max_hp  # Each class has its own HP...
+	player.max_hp = GameState.character_class.max_hp + talent_max_hp()  # Each class has its own HP...
 	player.armor = GameState.character_class.armor  # ...and Armor.
 	player.reset()
 	if GameState.run_hp > 0:
@@ -122,6 +125,7 @@ func start_battle() -> void:
 	next_roll_bonus = 0
 	next_roll_advantage = false
 	choosing_reroll = false
+	played_this_fight.clear()
 
 	# The deck you built in the deck builder is waiting in GameState (an autoload,
 	# see game_state.gd). ensure_ready() above gives you a starter deck if there
@@ -217,6 +221,8 @@ func start_player_turn() -> void:
 		battle_log.add("%s intends to attack for %d" % [view.data.display_name, view.next_attack], BattleLog.ENEMY_COLOR)
 	if player.armor > 0 and leftover > 0:
 		battle_log.add("Your Armor saves %d of your %d leftover Block" % [player.block, leftover])
+	if turn == 1:
+		apply_fight_start_talents()
 	busy = true
 	var my_fight := fight_id
 	# Wait for the cards to be dealt and their dice to land. Hand Size talents draw more.
@@ -341,6 +347,43 @@ func talent_energy() -> int:
 	return bonus
 
 
+# Extra max HP from talents. Heavy Pack: +Amount for every 2 cards above 20
+# in your deck. (A 30-card deck is 10 above 20, so 5 x Amount.)
+func talent_max_hp() -> int:
+	var per_two := GameState.talent_bonus(GameState.character_class, Talent.HP_PER_EXTRA_CARDS)
+	return maxi(GameState.deck.size() - 20, 0) / 2 * per_two
+
+
+# How many different schools your deck has. Neutral counts as one.
+func deck_school_count() -> int:
+	var schools := 0  # The school flags, added together with | (bitwise OR).
+	var has_neutral := false
+	for card in GameState.deck:
+		schools |= card.schools
+		has_neutral = has_neutral or card.is_neutral()
+	var count := 1 if has_neutral else 0
+	for school: int in CardData.School.values():
+		if school != 0 and schools & school:
+			count += 1
+	return count
+
+
+# Talents that trigger once, at the start of a fight (after the first draw).
+func apply_fight_start_talents() -> void:
+	var cls := GameState.character_class
+	# Collector: Block for every different school in your deck.
+	var block := GameState.talent_bonus(cls, Talent.START_BLOCK_PER_SCHOOL) * deck_school_count()
+	if block > 0:
+		player.gain_block(block)
+		battle_log.add("Talent: %d school(s) in your deck give you %d Block (Block %d)" % [
+			deck_school_count(), block, player.block], BattleLog.PLAYER_COLOR)
+
+
+# Is this the first time this card is played this fight?
+func is_first_play(card: CardData) -> bool:
+	return not played_this_fight.has(card.card_name)
+
+
 # Talents that trigger when a card is drawn.
 func apply_draw_talents(card: CardData) -> void:
 	var cls := GameState.character_class
@@ -413,7 +456,13 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 		elif mode == CardRoller.DISADVANTAGE:
 			battle_log.add("    Disadvantage: 2 dice each, keep the lower", BattleLog.DIM_COLOR)
 	# Add the modifiers and check for crits (see card_roller.gd).
-	var result := CardRoller.resolve(card, card.roll_result, get_bonuses())
+	var bonuses := get_bonuses(card)
+	var result := CardRoller.resolve(card, card.roll_result, bonuses)
+	if card.has_dice() and bonuses.get("flawless", false) and not card.flawless:
+		battle_log.add("    First play: Flawless (every die is a Critical)", BattleLog.CRIT_COLOR)
+	if card.has_dice() and bonuses.get("first_play", 0) > 0:
+		battle_log.add("    First play: +%d to every die" % bonuses.first_play, BattleLog.DIM_COLOR)
+	played_this_fight[card.card_name] = true
 
 	# Show the roll. `await` pauses here until the animation is done.
 	if card.has_dice():
@@ -576,9 +625,15 @@ func _on_hand_card_clicked(card: CardData) -> void:
 		reroll_picked.emit(card)
 
 
-# The bonuses waiting right now, in the form CardRoller.resolve() wants.
-func get_bonuses() -> Dictionary:
-	return {"roll": next_roll_bonus, "attack": next_attack_bonus, "defense": next_defense_bonus}
+# The bonuses waiting right now for this card, in the form CardRoller.resolve() wants.
+# Pack Rat's first-play talents only count if the card hasn't been played this fight.
+func get_bonuses(card: CardData) -> Dictionary:
+	var bonuses := {"roll": next_roll_bonus, "attack": next_attack_bonus, "defense": next_defense_bonus}
+	if is_first_play(card):
+		var cls := GameState.character_class
+		bonuses.first_play = GameState.talent_bonus(cls, Talent.FIRST_PLAY_BONUS, card)
+		bonuses.flawless = GameState.talent_bonus(cls, Talent.FIRST_PLAY_FLAWLESS, card) > 0
+	return bonuses
 
 
 # What this card would do if played now, at worst and at best:
@@ -586,10 +641,10 @@ func get_bonuses() -> Dictionary:
 # Used for the previews, so they always match what playing it really does.
 func get_outcomes(card: CardData) -> Array[Dictionary]:
 	if card.is_rolled():
-		var rolled := CardRoller.resolve(card, card.roll_result, get_bonuses())
+		var rolled := CardRoller.resolve(card, card.roll_result, get_bonuses(card))
 		return [rolled, rolled]
-	return [CardRoller.resolve(card, CardRoller.fixed_roll(card, false), get_bonuses()),
-		CardRoller.resolve(card, CardRoller.fixed_roll(card, true), get_bonuses())]
+	return [CardRoller.resolve(card, CardRoller.fixed_roll(card, false), get_bonuses(card)),
+		CardRoller.resolve(card, CardRoller.fixed_roll(card, true), get_bonuses(card))]
 
 
 # One number from both outcomes, e.g. outcome_range(outcomes, "block") -> Vector2i(1, 4)
@@ -661,10 +716,14 @@ func describe_card(card: CardData) -> String:
 			lines.append("Advantage: roll 2, keep the higher")
 		elif mode == CardRoller.DISADVANTAGE:
 			lines.append("Disadvantage: roll 2, keep the lower")
+	if card.has_dice() and (card.flawless or get_bonuses(card).get("flawless", false)):
+		lines.append("Flawless: every die crits" + ("" if card.flawless else " (first play)"))
 	if not card.critical.is_empty():
-		if card.is_rolled() and outcomes[0].crits > 0:
+		# outcomes[0] is the worst case, so crits there are certain: it already
+		# rolled a crit, or it's Flawless.
+		if outcomes[0].crits > 0:
 			var times := " (x%d)" % outcomes[0].crits if outcomes[0].crits > 1 else ""
-			lines.append("CRIT! %s%s" % [card.critical, times])  # Already rolled a crit.
+			lines.append("CRIT! %s%s" % [card.critical, times])
 		else:
 			lines.append("Crit: %s" % card.critical)
 	if card.has_dice() and not card.is_rolled():
@@ -832,7 +891,7 @@ func update_ui() -> void:
 		card.preview_text = describe_card(card.card_data)
 		if card.card_data.is_rolled():
 			# Light up dice that a bonus (like Master of None's +1) turns into crits.
-			card.show_crits(CardRoller.resolve(card.card_data, card.card_data.roll_result, get_bonuses()).rolls)
+			card.show_crits(CardRoller.resolve(card.card_data, card.card_data.roll_result, get_bonuses(card.card_data)).rolls)
 
 	show_drag_preview()
 
@@ -873,7 +932,9 @@ func show_drag_preview() -> void:
 # One enemy is defeated. It drops some gold; once they're ALL down, you win.
 func _on_enemy_died(view: EnemyView) -> void:
 	view.show_defeated()
-	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX)
+	# Loot Hound talents add Bonus Gold to every enemy.
+	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX) \
+		+ GameState.talent_bonus(GameState.character_class, Talent.BONUS_GOLD)
 	GameState.gold += loot
 	GameState.run_gold += loot
 	fight_gold += loot

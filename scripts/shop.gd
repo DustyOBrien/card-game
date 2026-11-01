@@ -71,10 +71,15 @@ func refresh() -> void:
 	open_button.disabled = GameState.booster_packs.is_empty()
 
 
+# What a pack costs you: its price, less any Pack Discount talents (never below 1).
+func price_of(pack: Dictionary) -> int:
+	return maxi(pack.price - GameState.talent_bonus(GameState.character_class, Talent.PACK_DISCOUNT), 1)
+
+
 func buy(pack: Dictionary, panel: Control) -> void:
-	if GameState.gold < pack.price:
+	if GameState.gold < price_of(pack):
 		return
-	GameState.gold -= pack.price
+	GameState.gold -= price_of(pack)
 	# Dictionary.get(key, 0) gives 0 if we don't own this pack yet.
 	GameState.booster_packs[pack.name] = GameState.booster_packs.get(pack.name, 0) + 1
 	GameState.save_game()
@@ -134,7 +139,9 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(blurb)
 
 	var button := Button.new()
-	button.text = "Buy  (%d gold)" % pack.price
+	button.text = "Buy  (%d gold)" % price_of(pack)
+	if price_of(pack) < pack.price:
+		button.text += "  was %d" % pack.price  # A Loot Hound discount.
 	button.custom_minimum_size = Vector2(0, 40)
 	button.focus_mode = Control.FOCUS_NONE
 	# bind() fills in buy()'s arguments, so each button buys its own pack.
@@ -142,7 +149,7 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(button)
 
 	panel.set_meta("buy_button", button)
-	panel.set_meta("price", pack.price)
+	panel.set_meta("price", price_of(pack))
 	return panel
 
 

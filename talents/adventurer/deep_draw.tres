@@ -1,10 +1,10 @@
 [gd_resource type="Resource" script_class="Talent" format=3]
 
-[ext_resource type="Script" path="res://scripts/talent.gd" id="1_lqawc"]
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_3eikq"]
 
 [resource]
-script = ExtResource("1_lqawc")
-talent_name = "Deep Pockets"
+script = ExtResource("1_3eikq")
+talent_name = "Deep Draw"
 class_display_name = "Adventurer"
 tree = "Pack Rat"
 tree_index = 2

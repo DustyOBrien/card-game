@@ -12,8 +12,8 @@
 # with points: you pick ONE spec per class and get its spec talent for free.
 #
 # A talent has a spot in its tree (Tier = row, Column = left to right), some
-# rules about when you can learn it, and up to TWO effects the game knows how
-# to do (Effect / School / Amount, and Effect 2 / School 2 / Amount 2).
+# rules about when you can learn it, and up to THREE effects the game knows how
+# to do (Effect / School / Amount, Effect 2 / School 2 / Amount 2, and Effect 3...).
 # Spend talent points on it to raise its rank (up to max_ranks).
 class_name Talent
 extends Resource
@@ -28,8 +28,16 @@ const DRAW_DAMAGE_CHANCE := "draw damage chance"  # Amount% chance a drawn Schoo
 const MAX_DECK_SIZE := "max deck size"  # +Amount to the most cards your deck can hold.
 const HAND_SIZE := "hand size"  # +Amount cards drawn at the start of each turn.
 const COPY_LIMIT := "copy limit"  # Only Amount copies of each card in the deck (Pack Rat: 1).
+# Pack Rat's payoffs (big decks, 1 copy each):
+const FIRST_PLAY_FLAWLESS := "first play flawless"  # The first time you play each card in a fight, it's Flawless (always a Critical).
+const FIRST_PLAY_BONUS := "first play bonus"  # +Amount to every die the first time you play each card in a fight.
+const HP_PER_EXTRA_CARDS := "max hp per 2 cards over 20"  # +Amount max HP for every 2 cards in your deck above 20.
+const START_BLOCK_PER_SCHOOL := "start block per school"  # Start each fight with Amount Block per different school in your deck (Neutral counts).
+const BONUS_GOLD := "bonus gold"  # +Amount gold from every enemy you beat.
+const PACK_DISCOUNT := "pack discount"  # Booster packs cost Amount less gold (never below 1).
 const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, COST_DISCOUNT_CHANCE,
-	DRAW_DAMAGE_CHANCE, MAX_DECK_SIZE, HAND_SIZE, COPY_LIMIT]
+	DRAW_DAMAGE_CHANCE, MAX_DECK_SIZE, HAND_SIZE, COPY_LIMIT, FIRST_PLAY_FLAWLESS, FIRST_PLAY_BONUS,
+	HP_PER_EXTRA_CARDS, START_BLOCK_PER_SCHOOL, BONUS_GOLD, PACK_DISCOUNT]
 
 @export var talent_name: String = "New Talent"
 @export var class_display_name: String = ""  # Whose tree it's in ("Adventurer").
@@ -61,6 +69,10 @@ const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, CO
 @export var effect_2: String = ""
 @export var school_2: String = ""
 @export var amounts_2: Array[int] = []
+# And a third (Pack Rat: bigger deck, 1 copy each, AND Flawless first plays).
+@export var effect_3: String = ""
+@export var school_3: String = ""
+@export var amounts_3: Array[int] = []
 
 @export_group("Text")
 @export_multiline var rules: String = ""  # The summary, e.g. "10% / 20% / 30% chance..."
@@ -75,6 +87,8 @@ func effect_slots() -> Array[Dictionary]:
 		slots.append({"effect": effect, "school": school, "amounts": amounts})
 	if not effect_2.is_empty():
 		slots.append({"effect": effect_2, "school": school_2, "amounts": amounts_2})
+	if not effect_3.is_empty():
+		slots.append({"effect": effect_3, "school": school_3, "amounts": amounts_3})
 	return slots
 
 

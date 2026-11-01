@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_aelm3"]
+
+[resource]
+script = ExtResource("1_aelm3")
+talent_name = "Collector"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+column = 4.0
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "start block per school"
+amounts = Array[int]([2])
+rules = "Start each fight with 2 Block for every different school in your deck (Neutral counts)."
+rank_texts = PackedStringArray("Start each fight with 2 Block for every different school in your deck (Neutral counts).")

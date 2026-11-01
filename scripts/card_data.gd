@@ -93,8 +93,11 @@ const RARITY_COLORS := {
 # Keywords:
 #   Wild:   the dice roll when you PLAY the card, not when you draw it. A gamble!
 #   Vanish: once played, the card is gone for the rest of the run.
+#   Flawless: every die on the card is a Critical, whatever it rolls.
+#             (Pack Rat makes the first play of each card Flawless too.)
 @export var wild: bool = false
 @export var vanish: bool = false
+@export var flawless: bool = false
 # What happens on a Critical: each die that reaches its top number (modifiers
 # count!). Written like the spreadsheet, e.g. "+1 Damage" or "Draw 1, Gain 1 Energy".
 @export var critical: String = ""
@@ -294,6 +297,8 @@ func get_keyword_text() -> String:
 		words.append("Disadv")
 	if vanish:
 		words.append("Vanish")
+	if flawless and has_dice():
+		words.append("Flawless")  # Only dice can crit.
 	return " · ".join(words)
 
 
