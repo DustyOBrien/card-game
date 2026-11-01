@@ -6,7 +6,7 @@
 # Enemies come from spreadsheets, like cards do (see card_importer.gd):
 #   data/enemies/enemies.csv     one row per enemy: HP, Armor, art, boss...
 #   data/enemies/moves.csv       one row per MOVE: which enemy, what it does
-#   data/enemies/encounters.csv  which enemies are in each fight of each area
+#   data/dungeons/rooms.csv      which enemies are in each fight room of each area
 # Run tools/import_cards.gd after changing them.
 class_name EnemyData
 extends Resource

@@ -140,15 +140,38 @@ In the battle:
 - An enemy's **Strength** and **Armor** show on a second line under its intent.
 - Defeat every enemy to win. Each one drops **1 to 5 gold** (bosses drop extra).
 
-**Runs and the shop.** A run is **5 fights in a row**, and your HP carries over
-from one fight to the next (the top of the screen shows `Plains · Fight 2 / 5`).
-In the Plains, the fights are: a Slime, 2 Slimelings, a Big Slime, a Slimeling
-and a Slime, then the boss, the **Slime King**. In the Forest: a Wolf, a
-Mushroom and a Wolf, 2 Wolves, Wolf + Mushroom + Wolf, then the **Old Oak**.
-After a win, **Next Fight** starts the next one.
-Win all 5, or die, and you go to the **Shop**:
+**The dungeon.** Picking an area starts a run in its dungeon: a **5 × 5 grid**
+of squares, and you start in the middle. Every other square is hidden.
 
-- It shows how the run went and your gold.
+- Click a **?** square next to where you've been to explore it. That draws a
+  card from the area's **room deck**, and the square becomes that room: a
+  **Fight**, a **Hard Fight**, a **Locked Chest**, a **Treasure**, a
+  **Campfire**, the **Mini Boss**, or an **Empty** room.
+- You can walk back through rooms you've cleared for free (click any explored
+  room), but you can't walk through a fight you haven't won.
+- **Danger.** Every step makes noise: every **6 steps** since your last rest,
+  every enemy gets **+1 Strength**. The side panel shows how many steps until it
+  goes up again, and hovering a square shows how far it is.
+- **Keys and chests.** Fights drop a **small key** 25% of the time. A key opens one
+  Locked Chest (gold, a card, a pack, or a **Map**). A Map unlocks a new room card
+  for that area for good, so the area gets richer the more you play it.
+- **Campfires**: **Rest** heals 30% of your max HP, brings back your Vanished
+  cards, and **shuffles every room back into the deck**: the map goes blank and you
+  explore it again from where you are. Or **Leave** the dungeon, keeping
+  everything you found. Each campfire can be used once.
+- **The Mini Boss.** Beating it lights a campfire where it fell, and you must
+  stop there: Rest or Leave. Resting adds the next **tier**'s harder (and richer)
+  rooms to the deck. After the last tier's Mini Boss, resting shuffles in the
+  **Boss** room instead. The Plains and the Forest have 2 tiers.
+- Gold, cards and packs you find are only **yours once you get out**: Leave at a
+  campfire or beat the Boss. Die, and the dungeon keeps them (you keep your Exp).
+- If the room deck runs out, the other squares become dead ends until you rest.
+
+Your HP carries over from one fight to the next (the top of the battle screen
+shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
+to the grid. When the run ends (Boss beaten, Leave, or death) you go to the **Shop**:
+
+- It shows how the run went and what you took home.
 - Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
 - Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
 - **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept.
@@ -166,7 +189,8 @@ last deck you built for each class are saved to `user://save.json` (on
 Windows: `%APPDATA%\Godot\app_userdata\Card Game\`; in the editor,
 **Project > Open User Data Folder**). It saves when you win a fight, buy or
 open a pack, leave the deck builder, and close the game. A run in progress
-isn't saved: quit mid-run and you start a new run next time. To start over,
+isn't saved: quit mid-run and you start a new run next time. Room cards you
+unlock with Maps are saved. To start over,
 press **Reset Save** in the top corner of Character Select. The code is under
 "Saving" in `game_state.gd`.
 
@@ -185,8 +209,9 @@ builder. Each enemy gives its own Exp (the **Exp** column in `data/enemies/enemi
 10 for most, more for bosses). The other numbers are at the top of `game_state.gd` (
 `EXP_PER_RUN`, `FIRST_LEVEL_EXP`, `LEVEL_EXP_STEP`, `CLASS_MAX_LEVEL`).
 
-Gold amounts, the run length and pack prices live at the top of
-`game_state.gd` (`GOLD_MIN`, `GOLD_MAX`, `FIGHTS_PER_RUN`) and in `PACKS` in `shop.gd`.
+Gold amounts and pack prices live at the top of `game_state.gd` (`GOLD_MIN`,
+`GOLD_MAX`) and in `PACKS` in `shop.gd`. The dungeon's numbers (grid size, steps
+per danger, key chance, rest heal) are at the top of `dungeon_run.gd`.
 
 ---
 
@@ -199,6 +224,7 @@ card-game/
 │   ├── character_select.tscn The first screen: pick a class
 │   ├── deck_builder.tscn Pick the cards for your deck
 │   ├── map.tscn         Pick an area (Plains, Forest, Cave) to start a run
+│   ├── dungeon.tscn     The 5 x 5 grid you explore between fights
 │   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
 │   ├── shop.tscn        Between runs: spend gold on booster packs
 │   └── card.tscn        What ONE card looks like
@@ -208,6 +234,9 @@ card-game/
 │   ├── character_select.gd Shows one panel per class
 │   ├── area.gd          Defines what an area is (name, picture, background, map spot)
 │   ├── map.gd           Puts a button on the map for every area
+│   ├── dungeon.gd       Draws the dungeon grid and handles clicks and popups
+│   ├── dungeon_run.gd   The dungeon's rules: room deck, danger, keys, resting, loot
+│   ├── room_card.gd     One room card (a row of rooms.csv)
 │   ├── deck_builder.gd  Adding and removing cards, filters, deck stats
 │   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data; clicked (deck builder) or dragged (battle)
@@ -225,10 +254,11 @@ card-game/
 ├── tools/
 │   └── import_cards.gd  Run this in the editor to re-import the spreadsheet
 ├── data/
-│   └── cards.csv        The card spreadsheet (the master list of cards)
+│   ├── cards.csv        The card spreadsheet (the master list of cards)
+│   └── dungeons/rooms.csv  Each area's room deck
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
-├── areas/               One .tres file per area on the map (plains, forest, cave), with its fights
+├── areas/               One .tres file per area on the map (plains, forest, cave), with its room deck
 ├── enemies/             One .tres file per kind of enemy (made from data/enemies/*.csv)
 ├── art/                 Pictures (SVG): backgrounds/, enemies/ (Slimes, Wolf, Mushroom, Old Oak), areas/ (map icons), map/
 ├── emblems/             The class emblems (SVG pictures)
@@ -472,7 +502,7 @@ Small changes, roughly easiest first:
 3. **Change an enemy's moves.** Edit its rows in `data/enemies/moves.csv` and re-import.
 4. **Make a new card.** Add a row to the spreadsheet and re-import (see below).
 5. **Show HP as a bar** using a `ProgressBar` node instead of a label.
-6. **Make a new enemy.** Add a row to `enemies.csv`, its moves to `moves.csv`, and put it in a fight in `encounters.csv`.
+6. **Make a new enemy.** Add a row to `enemies.csv`, its moves to `moves.csv`, and put it in a fight room in `data/dungeons/rooms.csv`.
 7. **Add a card reward** after winning, so your deck grows: that's the "deckbuilding" part!
 
 ## Making cards from the spreadsheet
@@ -695,7 +725,7 @@ Areas work like classes: one `.tres` file per area in `areas/`, made from
 `area.gd`. To change one, click it and edit it in the **Inspector**:
 
 - **Unlocked**: tick it to have the area open from the start (the Plains).
-- **Unlock After**: the name of the area whose boss opens this one (the Forest says `Plains`). Beating a boss = finishing a run in that area. Cleared areas are saved.
+- **Unlock After**: the name of the area whose boss opens this one (the Forest says `Plains`). Cleared areas are saved.
 - **Icon**: the round picture on the map. **Background**: the picture behind the fight (the Cave doesn't have one yet, so it would use the plain dark colour).
 - **Map Position**: where its centre sits on the map, in pixels (the screen is 1280 × 720).
 - **Sort Order**: its place along the road.
@@ -704,7 +734,7 @@ To add a new area, duplicate `areas/forest.tres`. The map draws a button for eve
 
 ### Enemies and fights: `data/enemies/`
 
-Enemies come from three spreadsheets, like cards. Run `tools/import_cards.gd`
+Enemies come from two spreadsheets, like cards (which fights they're in is in the room sheet, below). Run `tools/import_cards.gd`
 after changing them (it does cards, talents and enemies). The folder has a
 `.gdignore` file so Godot doesn't try to import the sheets itself.
 
@@ -721,7 +751,7 @@ after changing them (it does cards, talents and enemies). The folder has a
 | Move Order | Random | **Random**: picks a move by Weight each turn. **In Order**: move 1, 2, 3, then back to 1 (bosses, so you can learn the pattern) |
 | Split Into | Slime | Blank = never splits. Otherwise, at half HP it splits on its turn into Split Count of these, each with the HP it had left |
 | Split Count | 2 | How many it splits into |
-| Boss | Yes | A boss. Finishing a run in an area (its last fight is the boss) opens the areas that Unlock After it |
+| Boss | Yes | A boss. Beating it in an area's Boss room opens the areas that Unlock After it |
 | Exp | 15 | Class Exp for beating it |
 | Bonus Gold | 10 | Gold on top of the usual 1-5 |
 
@@ -745,19 +775,32 @@ move can do several things at once: Attack 3 and Block 3 is one move.
 | Summon Count | 2 | How many it calls in |
 | Notes | | Anything you like; the game ignores it |
 
-**`encounters.csv`**: the fights in each area. It's saved into `areas/*.tres`.
-
-| Area | Fight | Enemies |
-|---|---|---|
-| Plains | 3 | Big Slime |
-| Plains | 4 | Slimeling, Slime |
-
-Enemies are listed left to right. If an area has fewer fights than a run, the
-list starts over.
-
 The pictures are in `art/enemies/`. In battle each enemy "breathes" with a
 looping Tween (`set_loops()`), hops when it attacks, flashes red when hit, and
 squishes flat when defeated. See `enemy_view.gd`.
+
+### Room decks: `data/dungeons/rooms.csv`
+
+Each area's dungeon draws its rooms from this sheet (one row per room card).
+Run `tools/import_cards.gd` after changing it: it saves each area's cards into
+`areas/<area>.tres`.
+
+| Column | Example | What it means |
+|---|---|---|
+| Area | Plains | Which area's deck it goes in |
+| Tier | 1 | **1** = in the deck from the start. **2** = shuffled in when you rest after the Tier 1 Mini Boss, and so on. **Boss** = the Boss room, shuffled in after the last tier's Mini Boss |
+| Room | Slime Patch | The room's name, shown on the square |
+| Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss** or **Empty** |
+| Copies | 6 | How many of this card go in the deck |
+| Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
+| Encounters | Slime \| Slimeling, Slimeling | Fights only: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right |
+| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map** |
+| Notes | | Anything you like; the game ignores it |
+
+The dungeon screen is `scenes/dungeon.tscn` + `scripts/dungeon.gd`; the rules
+(drawing rooms, danger, resting, loot) are in `scripts/dungeon_run.gd`, kept
+apart from the screen like `combatant.gd` is from the battle. The room pictures
+are in `art/rooms/`.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 

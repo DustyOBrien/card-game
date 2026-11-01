@@ -38,12 +38,18 @@ func _ready() -> void:
 	next_run_button.pressed.connect(_on_next_run_pressed)
 
 	# How the run went.
-	if GameState.run_died:
-		summary_label.text = "You fell after winning %d fight(s), and earned %d gold." % [
-			GameState.fights_won, GameState.run_gold]
-	else:
-		summary_label.text = "You won all %d fights and earned %d gold!" % [
-			GameState.fights_won, GameState.run_gold]
+	var dungeon := GameState.dungeon
+	match dungeon.result if dungeon else "":
+		"won":
+			summary_label.text = "You beat the %s boss after %d fight(s), and took home %s!" % [
+				GameState.current_area.display_name, dungeon.fights_won, dungeon.loot_text()]
+		"left":
+			summary_label.text = "You left the %s after %d fight(s), with %s." % [
+				GameState.current_area.display_name, dungeon.fights_won, dungeon.loot_text()]
+		"died":
+			summary_label.text = "You fell after %d fight(s). What you found stayed in the dungeon." % dungeon.fights_won
+		_:
+			summary_label.text = "Welcome to the shop!"
 
 	for pack in PACKS:
 		pack_row.add_child(_make_pack(pack))

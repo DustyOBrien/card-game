@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Treasure room: a sparkling gem. -->
+  <path d="M14 22 L24 10 L40 10 L50 22 L32 56 Z" fill="#5ad0e8" stroke="#145a6a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M14 22 L50 22 M24 10 L28 22 L32 56 L36 22 L40 10" fill="none" stroke="#145a6a" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M20 18 L26 12" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity="0.8"/>
+  <path d="M54 8 L54 16 M50 12 L58 12" stroke="#fff3a0" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

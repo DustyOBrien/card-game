@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- You: a little hero marker. -->
+  <ellipse cx="32" cy="58" rx="14" ry="4" fill="#000" opacity="0.35"/>
+  <path d="M18 56 L22 34 L42 34 L46 56 Z" fill="#3a6ad0" stroke="#152a5a" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="32" cy="22" r="12" fill="#f2c8a0" stroke="#5a3a1a" stroke-width="3"/>
+  <path d="M20 18 C22 8 42 8 44 18 C38 14 26 14 20 18 Z" fill="#6e4220"/>
+</svg>

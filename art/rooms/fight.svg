@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Fight room: a sword. -->
+  <path d="M46 6 L58 6 L58 18 L26 50 L14 38 Z" fill="#e8ecf2" stroke="#2a2f3a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M10 34 L30 54" stroke="#8a5a2a" stroke-width="6" stroke-linecap="round"/>
+  <path d="M14 50 L6 58" stroke="#8a5a2a" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="6" cy="58" r="4" fill="#d9a020"/>
+</svg>

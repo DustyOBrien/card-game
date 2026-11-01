@@ -8,7 +8,7 @@
 # each area's map_position. So a new area shows up on its own.
 extends Control
 
-const BATTLE_SCENE := "res://scenes/battle.tscn"
+const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const LOCK_ICON := preload("res://art/map/lock.svg")
 
@@ -52,7 +52,7 @@ func make_area_marker(area: Area) -> Control:
 
 	marker.add_child(make_label(area.display_name, 26))
 	var open := GameState.is_area_unlocked(area)
-	var status_text := "Open: %d fights" % GameState.FIGHTS_PER_RUN
+	var status_text := "Open"
 	if GameState.cleared_areas.has(area.display_name):
 		status_text = "Cleared ✓"  # You've beaten its boss (you can still go back).
 	elif not open:
@@ -109,8 +109,8 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 
 func _on_area_chosen(area: Area) -> void:
 	GameState.current_area = area
-	GameState.start_run()  # Fight 1 of a new run, at full HP.
-	get_tree().change_scene_to_file(BATTLE_SCENE)
+	GameState.start_run()  # A fresh dungeon, at full HP.
+	get_tree().change_scene_to_file(DUNGEON_SCENE)
 
 
 func _on_deck_pressed() -> void:

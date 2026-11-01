@@ -1,7 +1,7 @@
 # area.gd
 #
-# An Area is one place on the map (Plains, Forest, Cave...). Each run is
-# fought in the area you pick on the map screen.
+# An Area is one place on the map (Plains, Forest, Cave...). Each run is a
+# trip into the dungeon of the area you pick on the map screen.
 #
 # Like cards and classes, an area is a Resource: one .tres file per area in
 # the areas/ folder. To ADD AN AREA, duplicate areas/forest.tres in Godot's
@@ -21,6 +21,6 @@ extends Resource
 # Where the area's button sits on the map, in pixels from the top-left of the
 # 1280 x 720 screen. Its centre goes here.
 @export var map_position: Vector2 = Vector2(640, 360)
-# The fights in this area, in order: fight 1 uses the first encounter, fight 2
-# the second... If there are fewer encounters than fights, the list starts over.
-@export var encounters: Array[Encounter] = []
+# The area's room cards (see room_card.gd and dungeon_run.gd), from the
+# spreadsheet data/dungeons/rooms.csv. Every tier's cards are in here.
+@export var rooms: Array[RoomCard] = []

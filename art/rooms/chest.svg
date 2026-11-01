@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Locked Chest room: a wooden chest with a padlock. -->
+  <path d="M8 26 C8 14 18 10 32 10 C46 10 56 14 56 26 Z" fill="#a8692e" stroke="#4a2a10" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="8" y="26" width="48" height="28" rx="3" fill="#8a5424" stroke="#4a2a10" stroke-width="3"/>
+  <rect x="8" y="24" width="48" height="6" fill="#d9a020" stroke="#4a2a10" stroke-width="2"/>
+  <rect x="25" y="32" width="14" height="14" rx="2" fill="#d9a020" stroke="#4a2a10" stroke-width="2"/>
+  <circle cx="32" cy="38" r="2.5" fill="#4a2a10"/>
+  <rect x="31" y="38" width="2" height="5" fill="#4a2a10"/>
+</svg>

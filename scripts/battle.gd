@@ -17,6 +17,7 @@ extends Control
 # "blueprints" we use to build the deck and the cards on screen.
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const SHOP_SCENE := "res://scenes/shop.tscn"
+const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn (before talents).
 const MAX_ENERGY := 3  # Energy you get each turn (before talents).
@@ -66,7 +67,7 @@ var _ui_update_queued := false  # See queue_update_ui().
 # %Name finds any node marked as a "unique name" anywhere in this scene.
 @onready var player: Combatant = $Player
 
-@onready var fight_label: Label = %FightLabel  # "Plains · Fight 2 / 5"
+@onready var fight_label: Label = %FightLabel  # "Plains · Tier 1 · Danger 0"
 @onready var enemy_row: HBoxContainer = %EnemyRow  # The EnemyViews go in here.
 @onready var message_label: Label = %MessageLabel
 @onready var player_hp_label: Label = %PlayerHpLabel
@@ -117,7 +118,7 @@ func start_battle() -> void:
 	busy = false
 	game_over_screen.visible = false
 	GameState.ensure_ready()
-	player.max_hp = GameState.character_class.max_hp + talent_max_hp()  # Each class has its own HP...
+	player.max_hp = GameState.player_max_hp()  # Each class has its own HP (plus Heavy Pack)...
 	player.armor = GameState.character_class.armor  # ...and Armor.
 	player.reset()
 	if GameState.run_hp > 0:
@@ -157,17 +158,18 @@ func start_battle() -> void:
 	area_background.texture = GameState.current_area.background
 
 	turn = 0
-	# Set once per fight. (Winning moves the count on straight away, so
-	# working it out again later would show the NEXT fight's number.)
-	fight_label.text = "%s  ·  Fight %d / %d" % [GameState.current_area.display_name,
-		GameState.current_fight(), GameState.FIGHTS_PER_RUN]
+	var dungeon := GameState.dungeon
+	fight_label.text = "%s  ·  Tier %d  ·  Danger %d" % [GameState.current_area.display_name,
+		dungeon.tier, dungeon.danger()]
 	battle_log.clear()
 	message_label.text = "%s appear%s!" % [enemy_names(), "s" if enemy_views.size() == 1 else ""]
 	var enemy_list: Array[String] = []
 	for view in enemy_views:
 		enemy_list.append("%s (%d HP)" % [view.data.display_name, view.data.max_hp])
-	battle_log.add("%s, fight %d of %d: %s" % [GameState.current_area.display_name,
-		GameState.current_fight(), GameState.FIGHTS_PER_RUN, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
+	battle_log.add("%s, tier %d: %s" % [GameState.current_area.display_name,
+		dungeon.tier, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
+	if dungeon.danger() > 0:
+		battle_log.add("Danger %d: every enemy has +%d Strength" % [dungeon.danger(), dungeon.danger()], BattleLog.ENEMY_COLOR)
 	battle_log.add("You are the %s (HP %d/%d, %d gold)" % [GameState.character_class.display_name,
 		player.hp, player.max_hp, GameState.gold], BattleLog.PLAYER_COLOR)
 	if not GameState.vanished.is_empty():
@@ -198,6 +200,8 @@ func add_enemy(enemy_data: EnemyData, hp: int = 0, at: int = -1) -> EnemyView:
 	var view := EnemyView.new()
 	enemy_row.add_child(view)
 	view.setup(enemy_data, hp)
+	# Danger: the longer you wander the dungeon without resting, the stronger they are.
+	view.combatant.strength = GameState.dungeon.danger() if GameState.dungeon else 0
 	if at >= 0:
 		enemy_row.move_child(view, at)
 	# bind() adds `view` to the call, so we know WHICH enemy died.
@@ -468,13 +472,6 @@ func talent_energy() -> int:
 	if GameState.deck.all(func(card: CardData) -> bool: return card.is_neutral()):
 		bonus += GameState.talent_bonus(cls, Talent.ENERGY_IF_ONLY_NEUTRAL)
 	return bonus
-
-
-# Extra max HP from talents. Heavy Pack: +Amount for every 2 cards above 20
-# in your deck. (A 30-card deck is 10 above 20, so 5 x Amount.)
-func talent_max_hp() -> int:
-	var per_two := GameState.talent_bonus(GameState.character_class, Talent.HP_PER_EXTRA_CARDS)
-	return maxi(GameState.deck.size() - 20, 0) / 2 * per_two
 
 
 # How many different schools your deck has. Neutral counts as one.
@@ -993,6 +990,8 @@ func _run_queued_update() -> void:
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
 	gold_label.text = "Gold %d" % GameState.gold
+	if GameState.dungeon and GameState.dungeon.found_gold > 0:
+		gold_label.text += " (+%d found)" % GameState.dungeon.found_gold
 	for view in enemy_views:
 		view.refresh()
 
@@ -1069,25 +1068,32 @@ func _on_enemy_died(view: EnemyView) -> void:
 	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX) + view.data.bonus_gold \
 		+ GameState.talent_bonus(GameState.character_class, Talent.BONUS_GOLD)
 	fight_exp += view.data.exp  # Each enemy's Exp (10 for most, more for bosses).
-	GameState.gold += loot
-	GameState.run_gold += loot
+	# Gold found in the dungeon is only yours once you get out alive
+	# (Leave at a campfire, or beat the Boss). See dungeon_run.gd.
+	var dungeon := GameState.dungeon
+	dungeon.found_gold += loot
 	fight_gold += loot
-	battle_log.add("The %s is defeated and drops %d gold (you have %d)" % [view.data.display_name, loot, GameState.gold],
+	battle_log.add("The %s is defeated and drops %d gold (%d found so far)" % [view.data.display_name, loot, dungeon.found_gold],
 		BattleLog.TURN_COLOR)
-	GameState.save_game()  # So the gold is kept even if you close the game mid-fight.
 	if not living_enemies().is_empty():
 		update_ui()
 		return  # Still more to beat.
 
-	GameState.fights_won += 1
 	GameState.run_hp = player.hp  # Carry your HP into the next fight.
 	var reward := "You found %d gold!" % fight_gold
+	# The dungeon hands out the room's rewards (keys, loot) and says what's next.
+	var log_size := dungeon.history.size()
+	var outcome := dungeon.win_fight()
+	for line in dungeon.history.slice(log_size):
+		reward += "\n" + line
+		battle_log.add(line, BattleLog.CRIT_COLOR)
 
-	# Class Exp: some for every enemy beaten, and a bonus for finishing the run.
 	var exp_gain := fight_exp
-	if GameState.is_run_over():
+	if outcome == "won":
+		# The Boss: the run is over, you keep your loot, and the next area opens.
 		exp_gain += GameState.EXP_PER_RUN
-		# Finishing the run means you beat the area's boss: the next area opens.
+		dungeon.claim_loot()
+		reward += "\nYou take home %s." % dungeon.loot_text()
 		for opened in GameState.clear_area(GameState.current_area):
 			reward += "\nThe %s is now open on the map!" % opened.display_name
 			battle_log.add("The %s is now open!" % opened.display_name, BattleLog.CRIT_COLOR)
@@ -1097,10 +1103,10 @@ func _on_enemy_died(view: EnemyView) -> void:
 	var level_ups := GameState.add_class_exp(exp_gain)
 	battle_log.add("You gain %d Exp" % exp_gain, BattleLog.TURN_COLOR)
 
-	if GameState.is_run_over():
-		end_battle("Run complete!", reward + "\nYou won all %d fights." % GameState.FIGHTS_PER_RUN, "Go to the Shop →")
+	if outcome == "won":
+		end_battle("%s cleared!" % GameState.current_area.display_name, reward, "Go to the Shop →")
 	else:
-		end_battle("Victory!", reward, "Next Fight →  (%d / %d)" % [GameState.current_fight(), GameState.FIGHTS_PER_RUN])
+		end_battle("Victory!", reward, "Back to the Dungeon →")
 	show_exp_gain(before_level, before_progress, exp_gain, level_ups)
 
 
@@ -1129,16 +1135,19 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 
 func _on_player_died() -> void:
 	GameState.run_died = true
+	var dungeon := GameState.dungeon
+	var lost := dungeon.loot_text()
+	dungeon.die()
 	exp_bar.hide()  # No Exp for losing (you kept the Exp from the fights you won).
-	end_battle("Defeat...", "You won %d fight(s) and earned %d gold this run." % [GameState.fights_won, GameState.run_gold], "Go to the Shop →")
+	end_battle("Defeat...", "You won %d fight(s). The dungeon keeps what you found (%s)." % [dungeon.fights_won, lost], "Go to the Shop →")
 
 
-# The button on the end-of-fight panel: the next fight, or the shop once the run is over.
+# The button on the end-of-fight panel: back to the dungeon, or the shop once the run is over.
 func _on_continue_pressed() -> void:
-	if GameState.is_run_over():
-		get_tree().change_scene_to_file(SHOP_SCENE)
+	if GameState.dungeon.result.is_empty():
+		get_tree().change_scene_to_file(DUNGEON_SCENE)
 	else:
-		start_battle()
+		get_tree().change_scene_to_file(SHOP_SCENE)
 
 
 func end_battle(result: String, reward: String, button_text: String) -> void:

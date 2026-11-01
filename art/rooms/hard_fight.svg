@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Hard Fight room: two crossed swords. -->
+  <g stroke="#2a2f3a" stroke-width="3" stroke-linejoin="round">
+    <path d="M44 4 L56 4 L56 16 L24 48 L16 40 Z" fill="#f0b8b0"/>
+    <path d="M20 4 L8 4 L8 16 L40 48 L48 40 Z" fill="#e8ecf2"/>
+  </g>
+  <path d="M12 44 L22 54 M42 54 L52 44" stroke="#8a5a2a" stroke-width="6" stroke-linecap="round"/>
+  <path d="M16 50 L8 58 M48 50 L56 58" stroke="#8a5a2a" stroke-width="6" stroke-linecap="round"/>
+</svg>

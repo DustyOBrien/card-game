@@ -29,18 +29,20 @@ var deck: Array[CardData] = []
 var current_area: Area
 
 # --- The run --------------------------------------------------------------
-# A "run" is FIGHTS_PER_RUN battles in a row. Your HP carries over from one
-# fight to the next. Win them all, or die, and you go to the shop. From the
-# shop you start a new run with full HP.
-const FIGHTS_PER_RUN := 5
+# A "run" is one trip into an area's dungeon (see dungeon_run.gd): explore
+# rooms, beat Mini Bosses, and beat the Boss, Leave at a campfire, or die.
+# Your HP carries over from one fight to the next. Then you go to the shop,
+# and from there you start a new run with full HP.
 const GOLD_MIN := 1  # Gold each enemy drops (a random amount between these).
 const GOLD_MAX := 5
 
 var gold := 0  # Kept between runs, and saved (see "Saving" below).
-var fights_won := 0  # Fights won in this run.
-var run_gold := 0  # Gold earned in this run, for the shop's summary.
+var dungeon: DungeonRun  # The dungeon in progress (null between runs).
+var run_gold := 0  # Gold you took home from the last run, for the shop's summary.
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
 var run_died := false  # Did the last run end in a defeat?
+# Room cards you've unlocked with Maps, per area: {"Plains": ["Slime Den"]}.
+var unlocked_rooms := {}
 # Booster packs bought in the shop and not opened yet, by name: {"Basic Booster": 2}.
 var booster_packs := {}
 
@@ -127,6 +129,7 @@ func start_fresh() -> void:
 	class_specs.clear()
 	_talents_changed()
 	cleared_areas.clear()
+	unlocked_rooms.clear()
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -291,33 +294,51 @@ func find_card(card_name: String) -> CardData:
 	return _cards_by_name.get(card_name)
 
 
-# The enemies for the current fight: the area's encounters in order (fight 1
-# = the first encounter...), starting over if there are fewer than 5.
-# An empty list means the area has no encounters yet.
+# The enemies for the current fight: the dungeon room you stepped into
+# picked them (see dungeon_run.gd). An empty list = no enemies were set up.
 func current_encounter() -> Array[EnemyData]:
 	var enemies: Array[EnemyData] = []
-	var encounters := current_area.encounters
-	if not encounters.is_empty():
-		enemies.assign(encounters[(current_fight() - 1) % encounters.size()].enemies)
+	if dungeon:
+		enemies.assign(dungeon.fight_enemies)
 	return enemies
 
 
 # Called when you pick an area on the map: a fresh run there.
 func start_run() -> void:
-	fights_won = 0
 	run_gold = 0
 	run_hp = -1
 	run_died = false
 	vanished.clear()  # Vanished cards come back for a new run.
+	dungeon = DungeonRun.new(current_area) if current_area else null
 
 
-# Which fight of the run is next (or now): 1 to FIGHTS_PER_RUN.
-func current_fight() -> int:
-	return fights_won + 1
+# Your max HP in a fight: your class's, plus Heavy Pack (+Amount for every
+# 2 cards above 20 in your deck).
+func player_max_hp() -> int:
+	var per_two := talent_bonus(character_class, Talent.HP_PER_EXTRA_CARDS)
+	return character_class.max_hp + maxi(deck.size() - 20, 0) / 2 * per_two
 
 
-func is_run_over() -> bool:
-	return run_died or fights_won >= FIGHTS_PER_RUN
+# --- Room cards ---------------------------------------------------------------
+
+# Is this room card in the area's deck? Cards start Unlocked (the sheet's
+# Unlocked column), or you find a Map for them.
+func is_room_unlocked(area: Area, card: RoomCard) -> bool:
+	return card.unlocked or unlocked_rooms.get(area.display_name, []).has(card.room_name)
+
+
+# A Map: unlock a random locked room card for this area (saved straight
+# away: what you learn from a map stays, even if you die). null if none are left.
+func unlock_random_room(area: Area) -> RoomCard:
+	var locked := area.rooms.filter(func(card: RoomCard) -> bool: return not is_room_unlocked(area, card))
+	if locked.is_empty():
+		return null
+	var card: RoomCard = locked.pick_random()
+	if not unlocked_rooms.has(area.display_name):
+		unlocked_rooms[area.display_name] = []
+	unlocked_rooms[area.display_name].append(card.room_name)
+	save_game()
+	return card
 
 
 # Called by the Character Select screen. A new class means a new deck,
@@ -599,6 +620,7 @@ func save_game() -> void:
 		"specs": class_specs,
 		"bonus_talent_points": bonus_talent_points,
 		"cleared_areas": cleared_areas,
+		"unlocked_rooms": unlocked_rooms,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -629,6 +651,8 @@ func load_game() -> bool:
 		talent_ranks[class_name_key] = _whole_numbers(saved_talents[class_name_key])
 	bonus_talent_points = int(data.get("bonus_talent_points", 0))
 	cleared_areas.assign(data.get("cleared_areas", []))
+	var saved_rooms = data.get("unlocked_rooms", {})
+	unlocked_rooms = saved_rooms if saved_rooms is Dictionary else {}
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
@@ -767,3 +791,5 @@ func ensure_ready() -> void:
 		deck = make_starter_deck()
 	if current_area == null:
 		current_area = load_areas()[0]  # The first area on the road (the Plains).
+	if dungeon == null:
+		dungeon = DungeonRun.new(current_area)

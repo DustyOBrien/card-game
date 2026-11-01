@@ -1,6 +1,7 @@
 [gd_resource type="Resource" script_class="Area" format=3]
 
 [ext_resource type="Script" path="res://scripts/area.gd" id="1_area"]
+[ext_resource type="Script" path="res://scripts/room_card.gd" id="2_ceelc"]
 [ext_resource type="Texture2D" path="res://art/areas/cave.svg" id="2_icon"]
 
 [resource]

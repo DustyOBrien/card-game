@@ -15,7 +15,7 @@
 #                          (adventurer.csv) -> talents/<class>/<name>.tres
 #   data/enemies/enemies.csv     Every enemy          -> enemies/<name>.tres
 #   data/enemies/moves.csv       Every enemy's moves  -> saved inside those files
-#   data/enemies/encounters.csv  The fights in each area -> saved into areas/*.tres
+#   data/dungeons/rooms.csv      Each area's room deck -> saved into areas/*.tres
 #
 # The level sheets have exactly the same columns as cards.csv (copy the whole
 # sheet and change the numbers). A row's Name says which card it levels up.
@@ -43,6 +43,7 @@ const ENEMY_SHEETS_FOLDER := "res://data/enemies/"
 const ENEMIES_FOLDER := "res://enemies/"
 const ENEMY_ART_FOLDER := "res://art/enemies/"
 const AREAS_FOLDER := "res://areas/"
+const ROOMS_SHEET := "res://data/dungeons/rooms.csv"
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -466,45 +467,63 @@ static func _import_enemies() -> void:
 		known[enemy.display_name.to_lower()] = enemy
 		print("Enemy: %s (%d HP, %d moves)" % [enemy.display_name, enemy.max_hp, enemy.moves.size()])
 	_remove_old_cards(ENEMIES_FOLDER, files)
-	_import_encounters(known)
+	_import_rooms(known)
 
 
-# encounters.csv: Area, Fight, Enemies ("Slimeling, Slime"). Fight 1 is the
-# first fight of a run there. Saved into that area's file (areas/*.tres).
-static func _import_encounters(known: Dictionary) -> void:
-	var rows := _read_sheet(ENEMY_SHEETS_FOLDER + "encounters.csv")
+# rooms.csv: one row per room card. Saved into that area's file
+# (areas/*.tres -> Rooms). Columns:
+#   Area, Tier, Room, Type, Copies, Unlocked, Encounters, Loot
+# Encounters: enemy groups separated by "|", enemies in a group by commas:
+#   "Slime | Slimeling, Slimeling"  (one group is picked at random each time)
+# Loot: options separated by "|": "Gold 5-10 | Card | Pack" (one is picked).
+static func _import_rooms(known: Dictionary) -> void:
+	var rows := _read_sheet(ROOMS_SHEET)
 	if rows.is_empty():
 		return
-	var by_area := {}  # "plains" -> {fight number: [EnemyData, ...]}
+	var types := {}  # "hard fight" -> RoomCard.Type.HARD_FIGHT
+	for type in RoomCard.TYPE_NAMES:
+		types[RoomCard.TYPE_NAMES[type].to_lower()] = type
+	var by_area := {}  # "plains" -> [RoomCard, ...]
 	for row in rows:
+		var card := RoomCard.new()
+		card.room_name = row.get("room", "Room")
+		var type_text: String = row.get("type", "").to_lower()
+		if not types.has(type_text):
+			push_warning("rooms.csv: %s has Type '%s'. Use one of: %s" % [card.room_name, row.get("type", ""), ", ".join(RoomCard.TYPE_NAMES.values())])
+			continue
+		card.type = types[type_text]
+		var tier_text: String = row.get("tier", "1").to_lower()
+		card.tier = 0 if tier_text == "boss" else _to_int(tier_text, 1)
+		if card.type == RoomCard.Type.BOSS:
+			card.tier = 0  # The Boss room only goes in after the last Mini Boss.
+		card.copies = _to_int(row.get("copies", ""), 1)
+		card.unlocked = _parse_yes_no(row.get("unlocked", ""), true)
+		for group_text in row.get("encounters", "").split("|", false):
+			var encounter := Encounter.new()
+			for enemy_name in _parse_list(group_text.replace("|", "")):
+				if known.get(enemy_name.to_lower()) is EnemyData:
+					encounter.enemies.append(known[enemy_name.to_lower()])
+				else:
+					push_warning("rooms.csv: %s has '%s', which isn't in enemies.csv" % [card.room_name, enemy_name])
+			if not encounter.enemies.is_empty():
+				card.encounters.append(encounter)
+		if card.is_fight() and card.encounters.is_empty():
+			push_warning("rooms.csv: %s is a fight with no Encounters" % card.room_name)
+		for loot_text in row.get("loot", "").split("|", false):
+			if not loot_text.strip_edges().is_empty():
+				card.loot.append(loot_text.strip_edges())
 		var area_key: String = row.get("area", "").to_lower()
-		var fight := _to_int(row.get("fight", ""), 1)
-		var enemies: Array[EnemyData] = []
-		for enemy_name in _parse_list(row.get("enemies", "")):
-			if not known.has(enemy_name.to_lower()):
-				push_warning("encounters.csv: %s fight %d has '%s', which isn't in enemies.csv" % [row.get("area", ""), fight, enemy_name])
-				continue
-			enemies.append(known[enemy_name.to_lower()])
 		if not by_area.has(area_key):
-			by_area[area_key] = {}
-		by_area[area_key][fight] = enemies
+			by_area[area_key] = []
+		by_area[area_key].append(card)
 	for file_name in DirAccess.get_files_at(AREAS_FOLDER):
 		if not file_name.ends_with(".tres"):
 			continue
 		var area: Area = load(AREAS_FOLDER + file_name)
-		var fights: Dictionary = by_area.get(area.display_name.to_lower(), {})
-		if fights.is_empty():
-			continue
-		var numbers := fights.keys()
-		numbers.sort()
-		var encounters: Array[Encounter] = []
-		for number in numbers:
-			var encounter := Encounter.new()
-			encounter.enemies.assign(fights[number])
-			encounters.append(encounter)
-		area.encounters = encounters
+		var cards: Array = by_area.get(area.display_name.to_lower(), [])
+		area.rooms.assign(cards)
 		ResourceSaver.save(area, AREAS_FOLDER + file_name)
-		print("Area %s: %d fights" % [area.display_name, encounters.size()])
+		print("Area %s: %d room cards" % [area.display_name, cards.size()])
 
 
 # Get one cell from a row by its column name, e.g. _cell(row, columns, "cost").

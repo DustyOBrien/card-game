@@ -1,9 +1,7 @@
 # encounter.gd
 #
 # An Encounter is the group of enemies in ONE fight, e.g. two Slimelings.
-# Areas hold a list of them (see area.gd): fight 1 uses the first one,
-# fight 2 the second, and so on. Click an area in Godot (areas/plains.tres)
-# to see and change its encounters in the Inspector.
+# Fight room cards (room_card.gd) hold a list of them and pick one at random.
 class_name Encounter
 extends Resource
 

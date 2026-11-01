@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Mini Boss room: a skull. -->
+  <path d="M32 6 C46 6 56 16 56 30 C56 38 52 42 48 44 L48 54 L16 54 L16 44 C12 42 8 38 8 30 C8 16 18 6 32 6 Z" fill="#efe8da" stroke="#3a3228" stroke-width="3" stroke-linejoin="round"/>
+  <ellipse cx="22" cy="30" rx="7" ry="8" fill="#3a3228"/>
+  <ellipse cx="42" cy="30" rx="7" ry="8" fill="#3a3228"/>
+  <path d="M32 38 L28 45 L36 45 Z" fill="#3a3228"/>
+  <path d="M24 54 L24 48 M32 54 L32 48 M40 54 L40 48" stroke="#3a3228" stroke-width="2.5"/>
+</svg>

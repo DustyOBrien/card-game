@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Campfire room: flames on crossed logs. -->
+  <path d="M10 54 L54 44 M10 44 L54 54" stroke="#6e4220" stroke-width="7" stroke-linecap="round"/>
+  <path d="M32 6 C40 18 48 24 46 36 C45 44 39 48 32 48 C25 48 19 44 18 36 C17 28 24 24 26 16 C28 22 30 24 32 24 C32 18 30 12 32 6 Z" fill="#ff8a2a" stroke="#a83a10" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M32 24 C37 30 40 34 39 39 C38 43 35 45 32 45 C29 45 26 43 25 39 C25 34 30 32 32 24 Z" fill="#ffe066"/>
+</svg>
