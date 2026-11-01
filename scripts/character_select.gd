@@ -9,6 +9,7 @@ extends Control
 
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
+const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const POINT_READY_COLOR := Color(1, 0.82, 0.3)
 
 @onready var class_list: HBoxContainer = %ClassList
@@ -165,4 +166,6 @@ func _on_talents_pressed(character_class: CharacterClass) -> void:
 
 func _on_class_chosen(character_class: CharacterClass) -> void:
 	GameState.choose_class(character_class)  # Also gives you that class's starter deck.
-	get_tree().change_scene_to_file(DECK_BUILDER_SCENE)
+	# Next, pick a spec, if the class has any (data/talents/specs.csv).
+	var has_specs := not GameState.specs_for(character_class).is_empty()
+	get_tree().change_scene_to_file(SPEC_SCENE if has_specs else DECK_BUILDER_SCENE)

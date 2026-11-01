@@ -40,6 +40,8 @@ func _ready() -> void:
 	GameState.ensure_ready()  # For running this scene on its own with F6.
 	character_class = GameState.character_class
 	title_label.text = "%s Talents" % character_class.display_name
+	if not GameState.spec_of(character_class).is_empty():
+		title_label.text = "%s · %s" % [GameState.spec_of(character_class), title_label.text]
 	back_button.pressed.connect(_on_back_pressed)
 	reset_button.pressed.connect(_on_reset_pressed)
 	# The lines between talents are drawn by the tree area itself. draw.connect()
@@ -59,7 +61,8 @@ func build_tabs() -> void:
 	var trees := GameState.trees_for(character_class)
 	if trees.is_empty():
 		return
-	current_tree = trees[0]
+	# Open on your spec's tree.
+	current_tree = GameState.spec_of(character_class) if trees.has(GameState.spec_of(character_class)) else trees[0]
 	var group := ButtonGroup.new()
 	for tree_name in trees:
 		var tab := Button.new()
@@ -80,8 +83,9 @@ func build_tree() -> void:
 		tree_area.remove_child(child)
 		child.queue_free()
 	boxes.clear()
+	# Specs live in the same list, but they're picked on the Spec screen.
 	var talents := GameState.talents_for(character_class).filter(
-		func(talent: Talent) -> bool: return talent.tree == current_tree)
+		func(talent: Talent) -> bool: return talent.tree == current_tree and not talent.is_spec)
 	if talents.is_empty():
 		var empty := Label.new()
 		empty.text = "No talents for the %s yet.\nAdd a sheet: data/talents/%s.csv" % [
@@ -140,7 +144,8 @@ func refresh() -> void:
 	points_label.text = "Talent points: %d" % points
 	# Each tab shows the points spent in it, e.g. "Pack Rat  (3)".
 	for tree_name: String in tab_buttons:
-		tab_buttons[tree_name].text = "%s  (%d)" % [tree_name,
+		var star := "★ " if tree_name == GameState.spec_of(character_class) else ""  # Your spec's tree.
+		tab_buttons[tree_name].text = "%s%s  (%d)" % [star, tree_name,
 			GameState.talent_points_spent(character_class, tree_name)]
 	points_label.add_theme_color_override("font_color", LEARNED_COLOR if points > 0 else Color(1, 1, 1, 0.6))
 	for talent: Talent in boxes:

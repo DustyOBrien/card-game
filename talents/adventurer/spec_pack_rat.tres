@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_ep6b7"]
+
+[resource]
+script = ExtResource("1_ep6b7")
+talent_name = "Pack Rat"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+is_spec = true
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "max deck size"
+amounts = Array[int]([10])
+effect_2 = "copy limit"
+amounts_2 = Array[int]([1])
+rules = "Plays huge decks. Your deck can hold 10 more cards, but only 1 copy of each card."
+rank_texts = PackedStringArray()

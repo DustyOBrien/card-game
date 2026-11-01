@@ -82,7 +82,12 @@ var vanished: Array[int] = []
 # Each class has its own talent tree (talent.gd, from data/talents/<class>.csv).
 # You get 1 talent point per class level after level 1, plus any bonus points
 # (later: clearing areas, quests, bosses), and spend them on talents.
-var talent_ranks := {}  # Class name -> {talent name -> rank}: {"Adventurer": {"Jack of All Trades": 1}}
+var talent_ranks := {}  # Class name -> {talent name -> rank}: {"Adventurer": {"Big Backpack": 3}}
+# Each class's spec: the tree whose spec talent it picked. {"Adventurer": "Pack Rat"}
+var class_specs := {}
+# false: once you have a spec, points can go in ANY tree (Classic WoW style).
+# true: points only go in your spec's tree (modern WoW style).
+const SPEC_TREE_ONLY := false
 var bonus_talent_points := 0  # Extra points every class gets (none yet).
 var talents_return_scene := "res://scenes/character_select.tscn"  # Where the Talents screen's Back goes.
 
@@ -112,6 +117,7 @@ func start_fresh() -> void:
 	booster_packs.clear()
 	saved_decks.clear()
 	talent_ranks.clear()
+	class_specs.clear()
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -366,8 +372,34 @@ func find_talent(for_class: CharacterClass, talent_name: String) -> Talent:
 
 
 # How many ranks of this talent the class has learned (0 = none).
+# A spec talent counts as rank 1 while its tree is the class's spec.
 func talent_rank(talent: Talent) -> int:
+	if talent.is_spec:
+		return 1 if class_specs.get(talent.class_display_name, "") == talent.tree else 0
 	return talent_ranks.get(talent.class_display_name, {}).get(talent.talent_name, 0)
+
+
+# This class's specs (from data/talents/specs.csv), in order. Empty = no specs.
+func specs_for(for_class: CharacterClass) -> Array[Talent]:
+	var specs: Array[Talent] = []
+	for talent in talents_for(for_class):
+		if talent.is_spec:
+			specs.append(talent)
+	return specs
+
+
+# The class's spec (a tree name), or "" before you pick one.
+func spec_of(for_class: CharacterClass) -> String:
+	return class_specs.get(for_class.display_name, "")
+
+
+# Pick a spec: its spec talent turns on for free. Changing spec gives back
+# every talent point too, so you can try a different build.
+func set_spec(for_class: CharacterClass, tree_name: String) -> void:
+	if spec_of(for_class) == tree_name:
+		return
+	class_specs[for_class.display_name] = tree_name
+	reset_talents(for_class)  # Also saves, and fixes the deck for the new rules.
 
 
 # Points: 1 per level after level 1, plus bonus points, minus what's spent.
@@ -379,6 +411,8 @@ func talent_points_earned(for_class: CharacterClass) -> int:
 func talent_points_spent(for_class: CharacterClass, only_tree: String = "", only_tier: int = 0) -> int:
 	var spent := 0
 	for talent in talents_for(for_class):
+		if talent.is_spec:
+			continue  # Spec talents are free.
 		if (only_tree.is_empty() or talent.tree == only_tree) and (only_tier == 0 or talent.tier == only_tier):
 			spent += talent_rank(talent) * talent.cost
 	return spent
@@ -393,8 +427,12 @@ func talent_points_left(for_class: CharacterClass) -> int:
 func why_cant_learn(talent: Talent) -> String:
 	var for_class := _class_named(talent.class_display_name)
 	var rank := talent_rank(talent)
+	if talent.is_spec:
+		return "Specs are picked on the Spec screen, not with points"
 	if rank >= talent.max_ranks:
 		return "Max rank"
+	if SPEC_TREE_ONLY and talent.tree != spec_of(for_class):
+		return "Only your spec's tree" if not spec_of(for_class).is_empty() else "Pick a spec first"
 	# Choice Group and Locks Out: has another talent shut this one out?
 	for other in talents_for(for_class):
 		if other == talent or talent_rank(other) == 0:
@@ -449,21 +487,25 @@ func reset_talents(for_class: CharacterClass) -> void:
 func talent_bonus(for_class: CharacterClass, effect: String, card: CardData = null, school: int = -1) -> int:
 	var total := 0
 	for talent in talents_for(for_class):
-		if talent.effect != effect:
-			continue
-		if card and not talent.matches_card(card):
-			continue
-		if school >= 0 and not (talent.school in ["all", "any", ""]) and talent.school_flag() != school:
-			continue
-		total += talent.amount_at(talent_rank(talent))
+		total += talent.effect_amount(effect, talent_rank(talent), card, school)
 	return total
+
+
+# The lowest Copy Limit from a learned talent (Pack Rat: 1), or 0 for none.
+func talent_copy_limit(for_class: CharacterClass) -> int:
+	var limit := 0
+	for talent in talents_for(for_class):
+		var amount := talent.effect_amount(Talent.COPY_LIMIT, talent_rank(talent))
+		if amount > 0:
+			limit = amount if limit == 0 else mini(limit, amount)
+	return limit
 
 
 # The first talent in this class's tree that opens up a school, for the deck
 # builder to say "Needs talent: Jack of All Trades". null if there isn't one.
 func talent_that_opens(for_class: CharacterClass, school: int) -> Talent:
 	for talent in talents_for(for_class):
-		if talent.effect == Talent.SCHOOL_LIMIT and (talent.school in ["all", "any", ""] or talent.school_flag() == school):
+		if talent.opens_school(school):
 			return talent
 	return null
 
@@ -529,6 +571,7 @@ func save_game() -> void:
 		"booster_packs": booster_packs,
 		"decks": saved_decks,
 		"talents": talent_ranks,
+		"specs": class_specs,
 		"bonus_talent_points": bonus_talent_points,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
@@ -559,6 +602,7 @@ func load_game() -> bool:
 	for class_name_key in saved_talents:
 		talent_ranks[class_name_key] = _whole_numbers(saved_talents[class_name_key])
 	bonus_talent_points = int(data.get("bonus_talent_points", 0))
+	class_specs = data.get("specs", {})
 	# A card added to the spreadsheet as Unlocked after you saved still
 	# shows up in your collection.
 	for card in load_all_cards():

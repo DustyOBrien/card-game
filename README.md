@@ -553,6 +553,19 @@ The importer saves each class's list into its file in `classes/` (look for
 
 ### Talent trees: `data/talents/<class>.csv`
 
+**Specs.** After you choose a class you pick a **spec** on the Spec screen
+(change it later with **Change Spec** in the deck builder). A spec is a free,
+always-on set of rules for how the class builds its deck. Specs come from
+`data/talents/specs.csv`:
+
+| Class | Spec | Description | Effect | School | Amount | Effect 2 | School 2 | Amount 2 |
+|---|---|---|---|---|---|---|---|---|
+| Adventurer | Pack Rat | Plays huge decks... | Max Deck Size | | 10 | Copy Limit | | 1 |
+
+Each spec has the talent tree with the same name, and that tree's tab comes
+first. Changing spec gives back every talent point. Points can go in any tree
+(`SPEC_TREE_ONLY` in `game_state.gd` switches that to "your spec's tree only").
+
 Each class can have talent trees, like World of Warcraft: one sheet per class,
 named after the class's file in `classes/` (`adventurer.csv` is the
 Adventurer's). The **Tree** column splits a sheet into trees, each with its own
@@ -594,6 +607,9 @@ The effects the game understands so far (talent.gd):
 | Draw Damage Chance | % chance a drawn School card deals 1 damage to all enemies |
 | Max Deck Size | +that many cards your deck can hold (Pack Rat) |
 | Hand Size | +that many cards drawn at the start of each turn |
+| Copy Limit | Only that many copies of each card in the deck (Pack Rat: 1) |
+
+Talents and specs can have a second effect: **Effect 2**, **School 2**, **Amount 2**.
 
 **Reset Talents** on the Talents screen gives every point back (free for now).
 Talents are saved with the rest of your progress.

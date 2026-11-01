@@ -1,17 +1,17 @@
 [gd_resource type="Resource" script_class="Talent" format=3]
 
-[ext_resource type="Script" path="res://scripts/talent.gd" id="1_yd2s2"]
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_c71fg"]
 
 [resource]
-script = ExtResource("1_yd2s2")
+script = ExtResource("1_c71fg")
 talent_name = "Master of None"
 class_display_name = "Adventurer"
 tree = "Master of None"
 tree_index = 1
-column = 2.0
+is_spec = true
 needs = PackedStringArray()
 locks_out = PackedStringArray()
 effect = "energy if only neutral"
 amounts = Array[int]([1])
-rules = "If your deck contains only Neutral cards, gain +1 Energy."
-rank_texts = PackedStringArray("If your deck contains only Neutral cards, gain +1 Energy.")
+rules = "Plays Neutral cards only. If your deck contains only Neutral cards, gain +1 Energy."
+rank_texts = PackedStringArray()

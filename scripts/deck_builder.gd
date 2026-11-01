@@ -21,6 +21,7 @@ const CARD_SCENE := preload("res://scenes/card.tscn")
 const MAP_SCENE := "res://scenes/map.tscn"
 const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
+const SPEC_SCENE := "res://scenes/spec_select.tscn"
 
 const ALL_SCHOOLS := -1  # Filter value meaning "show every card".
 const NEUTRAL := 0  # Filter value meaning "only cards with no school".
@@ -84,6 +85,8 @@ func _ready() -> void:
 
 	emblem.texture = rules.emblem
 	title_label.text = rules.display_name
+	if not GameState.spec_of(rules).is_empty():
+		title_label.text += "  ·  " + GameState.spec_of(rules)  # e.g. "Adventurer · Pack Rat"
 	subtitle_label.text = "Build your deck  ·  %d HP  ·  %d to %d cards" % [
 		rules.max_hp, rules.min_deck_size, rules.deck_size_limit()]
 	if rules.armor > 0:
@@ -583,6 +586,14 @@ func add_talents_button() -> void:
 		GameState.talents_return_scene = scene_file_path
 		get_tree().change_scene_to_file(TALENTS_SCENE))
 	back_button.add_sibling(button)
+	# And a Spec button, if this class has specs.
+	if not GameState.specs_for(GameState.character_class).is_empty():
+		var spec_button := Button.new()
+		spec_button.text = "Change Spec"
+		spec_button.pressed.connect(func() -> void:
+			GameState.save_game()
+			get_tree().change_scene_to_file(SPEC_SCENE))
+		back_button.add_sibling(spec_button)
 
 
 # Back to Character Select to pick a different class.

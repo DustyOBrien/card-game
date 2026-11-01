@@ -54,12 +54,18 @@ func max_copies_of(card: CardData) -> int:
 	if card.is_class_card() and not card.class_only.has(display_name):
 		return 0
 	if card.is_neutral():
-		return GameState.MAX_COPIES if allow_neutral else 0
+		return copies_per_card() if allow_neutral else 0
 	# A card with several schools is allowed if ANY of its schools is allowed.
 	for school in CardData.School.values():
 		if card.has_school(school) and school_limit(school) != 0:
-			return GameState.MAX_COPIES
+			return copies_per_card()
 	return 0
+
+
+# Copies of one card a deck may hold: 3, unless a talent says fewer (Pack Rat: 1).
+func copies_per_card() -> int:
+	var limit := GameState.talent_copy_limit(self)
+	return GameState.MAX_COPIES if limit == 0 else mini(limit, GameState.MAX_COPIES)
 
 
 # The most cards the deck can hold: max_deck_size, plus Max Deck Size talents (Pack Rat).
@@ -100,7 +106,7 @@ func why_not(deck: Array[CardData], card: CardData) -> String:
 			if card.has_school(school):
 				var talent := GameState.talent_that_opens(self, school)
 				if talent:
-					return "Needs talent: %s" % talent.talent_name
+					return "Needs %s: %s" % ["spec" if talent.is_spec else "talent", talent.talent_name]
 		return "Not for this class"
 	if count >= GameState.owned(card):
 		# You can't put in more copies than you own.
@@ -158,6 +164,8 @@ func get_rules_text() -> String:
 			school_names.append(school_name.capitalize())
 
 	var lines: Array[String] = []
+	if not GameState.spec_of(self).is_empty():
+		lines.append("Spec: %s" % GameState.spec_of(self))
 	if school_names.is_empty():
 		var opened := 0
 		for school in CardData.School.values():
@@ -169,7 +177,7 @@ func get_rules_text() -> String:
 		lines.append("At most %d card(s) from each school" % max_cards_per_school)
 	if allow_neutral:
 		lines.append("Neutral cards")
-	lines.append("Up to %d copies of each card" % GameState.MAX_COPIES)
+	lines.append("Up to %d copies of each card" % copies_per_card() if copies_per_card() > 1 else "Only 1 copy of each card")
 	lines.append("Deck size: %d to %d cards" % [min_deck_size, deck_size_limit()])
 	lines.append("HP: %d" % max_hp)
 	if armor > 0:

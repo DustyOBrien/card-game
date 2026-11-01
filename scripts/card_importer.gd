@@ -35,6 +35,7 @@ const CLASS_CARDS_PATH := "res://data/class_cards.csv"
 const CLASSES_FOLDER := "res://classes/"
 const TALENT_SHEETS_FOLDER := "res://data/talents/"
 const TALENTS_FOLDER := "res://talents/"
+const SPECS_SHEET := "specs.csv"  # In TALENT_SHEETS_FOLDER.
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -204,7 +205,9 @@ static func _import_class_cards(known_names: Array[String]) -> void:
 # The sheet's file name says whose tree it is: adventurer.csv -> the Adventurer.
 #   Tree | Talent | Tier | Column | Cost | Max Ranks | Needs | Needs Any or All |
 #   Points in Tree | Tier Unlock | Choice Group | Locks Out |
-#   Effect | School | Amount | Rules | Rank 1 | Rank 2 | Rank 3
+#   Effect | School | Amount | Effect 2 | School 2 | Amount 2 |
+#   Rules | Rank 1 | Rank 2 | Rank 3 ...
+# data/talents/specs.csv holds every class's specs (see _import_specs()).
 static func _import_talents() -> void:
 	if not DirAccess.dir_exists_absolute(TALENT_SHEETS_FOLDER):
 		return  # No talent sheets yet.
@@ -213,9 +216,11 @@ static func _import_talents() -> void:
 	for file_name in DirAccess.get_files_at(CLASSES_FOLDER):
 		if file_name.ends_with(".tres"):
 			class_names[file_name.get_basename()] = (load(CLASSES_FOLDER + file_name) as CharacterClass).display_name
+	# Specs first: their order is the tab order of the trees with the same names.
+	var specs := _import_specs(class_names)  # Class key -> {"order": [names], "files": [file names]}
 
 	for sheet_name in DirAccess.get_files_at(TALENT_SHEETS_FOLDER):
-		if not sheet_name.ends_with(".csv"):
+		if not sheet_name.ends_with(".csv") or sheet_name == SPECS_SHEET:
 			continue
 		var class_key := sheet_name.get_basename().to_lower()
 		if not class_names.has(class_key):
@@ -229,8 +234,14 @@ static func _import_talents() -> void:
 		for i in header.size():
 			columns[_clean_column_name(header[i])] = i
 
+		var class_specs: Dictionary = specs.get(class_key, {"order": [], "files": []})
 		var made_files: Array[String] = []
-		var trees: Array[String] = []  # In the order they first appear: that's the tab order.
+		for spec_file: String in class_specs.files:
+			made_files.append(spec_file)  # Keep the spec files.
+		# Tab order: the specs' trees in spec order, then any other trees in the
+		# order they first appear.
+		var trees: Array[String] = []
+		trees.assign(class_specs.order)
 		while not file.eof_reached():
 			var row := file.get_csv_line()
 			var talent_name := _cell(row, columns, "talent")
@@ -256,12 +267,12 @@ static func _import_talents() -> void:
 			talent.tier_unlock = _to_int(_cell(row, columns, "tier unlock").get_slice(" ", 0))
 			talent.choice_group = _cell(row, columns, "choice group")
 			talent.locks_out = _parse_list(_cell(row, columns, "locks out"))
-			talent.effect = _cell(row, columns, "effect").to_lower()
-			if not talent.effect.is_empty() and not Talent.EFFECTS.has(talent.effect):
-				push_warning("%s: unknown Effect \"%s\" (it won't do anything)" % [talent_name, talent.effect])
+			talent.effect = _read_talent_effect(_cell(row, columns, "effect"), talent_name)
 			talent.school = _cell(row, columns, "school").to_lower()
-			for amount in _parse_list(_cell(row, columns, "amount")):
-				talent.amounts.append(_to_int(amount.trim_suffix("%")))
+			talent.amounts = _read_amounts(_cell(row, columns, "amount"))
+			talent.effect_2 = _read_talent_effect(_cell(row, columns, "effect 2"), talent_name)
+			talent.school_2 = _cell(row, columns, "school 2").to_lower()
+			talent.amounts_2 = _read_amounts(_cell(row, columns, "amount 2"))
 			talent.rules = _cell(row, columns, "rules")
 			for rank in range(1, talent.max_ranks + 1):
 				talent.rank_texts.append(_cell(row, columns, "rank %d" % rank))
@@ -270,7 +281,76 @@ static func _import_talents() -> void:
 			ResourceSaver.save(talent, folder + file_name)
 			made_files.append(file_name)
 		_remove_old_cards(folder, made_files)
-		print("Talents for %s: %d in %d tree(s)" % [class_names[class_key], made_files.size(), trees.size()])
+		print("Talents for %s: %d in %d tree(s)" % [class_names[class_key],
+			made_files.size() - class_specs.files.size(), trees.size()])
+
+
+# data/talents/specs.csv: every class's specs, one row each.
+#   Class | Spec | Description | Effect | School | Amount | Effect 2 | School 2 | Amount 2
+# A spec is saved like a talent (talent.gd, is_spec = true) as
+# talents/<class>/spec_<name>.tres, so it uses the same effects. Its tree is
+# the talent tree with the same name.
+static func _import_specs(class_names: Dictionary) -> Dictionary:
+	var result := {}
+	var file := FileAccess.open(TALENT_SHEETS_FOLDER + SPECS_SHEET, FileAccess.READ)
+	if file == null:
+		return result  # No specs yet.
+	var columns := {}
+	var header := file.get_csv_line()
+	for i in header.size():
+		columns[_clean_column_name(header[i])] = i
+	var display_to_key := {}
+	for key in class_names:
+		display_to_key[class_names[key]] = key
+	while not file.eof_reached():
+		var row := file.get_csv_line()
+		var class_text := _cell(row, columns, "class")
+		var spec_name := _cell(row, columns, "spec")
+		if class_text.is_empty() or spec_name.is_empty():
+			continue
+		if not display_to_key.has(class_text):
+			push_warning("specs.csv: there's no class called \"%s\", skipped" % class_text)
+			continue
+		var class_key: String = display_to_key[class_text]
+		if not result.has(class_key):
+			result[class_key] = {"order": [], "files": []}
+		var spec := Talent.new()
+		spec.is_spec = true
+		spec.talent_name = spec_name
+		spec.class_display_name = class_text
+		spec.tree = spec_name
+		spec.tree_index = result[class_key].order.size()
+		spec.rules = _cell(row, columns, "description")
+		spec.effect = _read_talent_effect(_cell(row, columns, "effect"), spec_name)
+		spec.school = _cell(row, columns, "school").to_lower()
+		spec.amounts = _read_amounts(_cell(row, columns, "amount"))
+		spec.effect_2 = _read_talent_effect(_cell(row, columns, "effect 2"), spec_name)
+		spec.school_2 = _cell(row, columns, "school 2").to_lower()
+		spec.amounts_2 = _read_amounts(_cell(row, columns, "amount 2"))
+		var folder := TALENTS_FOLDER + class_key + "/"
+		DirAccess.make_dir_recursive_absolute(folder)
+		var file_name := "spec_" + _file_name_for(spec_name)
+		ResourceSaver.save(spec, folder + file_name)
+		result[class_key].order.append(spec_name)
+		result[class_key].files.append(file_name)
+		print("Spec for %s: %s" % [class_text, spec_name])
+	return result
+
+
+# "Max Deck Size" -> "max deck size", with a warning if the game doesn't know it.
+static func _read_talent_effect(text: String, talent_name: String) -> String:
+	var effect := text.to_lower()
+	if not effect.is_empty() and not Talent.EFFECTS.has(effect):
+		push_warning("%s: unknown Effect \"%s\" (it won't do anything)" % [talent_name, text])
+	return effect
+
+
+# "10, 20, 30" or "2% / 4%" -> [10, 20, 30] / [2, 4]
+static func _read_amounts(text: String) -> Array[int]:
+	var numbers: Array[int] = []
+	for amount in _parse_list(text):
+		numbers.append(_to_int(amount.trim_suffix("%")))
+	return numbers
 
 
 # Get one cell from a row by its column name, e.g. _cell(row, columns, "cost").

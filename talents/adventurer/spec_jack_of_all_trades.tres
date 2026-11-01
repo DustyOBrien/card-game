@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_ltoms"]
+
+[resource]
+script = ExtResource("1_ltoms")
+talent_name = "Jack of All Trades"
+class_display_name = "Adventurer"
+tree = "Jack of All Trades"
+is_spec = true
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "school limit"
+school = "all"
+amounts = Array[int]([1])
+rules = "Plays cards from every school. Your deck can include 1 Strength, 1 Agility, 1 Intellect and 1 Wisdom card."
+rank_texts = PackedStringArray()
