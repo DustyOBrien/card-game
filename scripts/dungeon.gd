@@ -71,15 +71,39 @@ func _ready() -> void:
 			var button := make_square(square)
 			grid.add_child(button)
 			squares[square] = button
+	build_legend()
 	popup.hide()
 	refresh()
-	# Back from beating a Mini Boss: its room is a campfire now, and you
-	# MUST stop there (rest, or leave with your loot).
+	# Back from beating a Mini Boss: its room is a campfire now. Offer it
+	# straight away (you can still say Not now and keep exploring: the next
+	# tier waits until you rest at a campfire).
 	if dungeon.tier_up_waiting and dungeon.rooms[dungeon.position].campfire:
-		show_campfire(true)
+		show_campfire()
 
 
 # --- Drawing ----------------------------------------------------------------
+
+# A row of the room pictures and their names, under the grid.
+func build_legend() -> void:
+	var legend := HBoxContainer.new()
+	legend.add_theme_constant_override("separation", 10)
+	legend.position = grid.position + Vector2(0, grid.size.y + 10)
+	legend.size = Vector2(grid.size.x, 36)
+	legend.alignment = BoxContainer.ALIGNMENT_CENTER
+	for type in [RoomCard.Type.FIGHT, RoomCard.Type.HARD_FIGHT, RoomCard.Type.LOCKED_CHEST,
+			RoomCard.Type.TREASURE, RoomCard.Type.CAMPFIRE, RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS]:
+		var picture := TextureRect.new()
+		picture.texture = ICONS[type]
+		picture.custom_minimum_size = Vector2(26, 26)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		legend.add_child(picture)
+		var name_label := Label.new()
+		name_label.text = RoomCard.TYPE_NAMES[type]
+		name_label.add_theme_font_size_override("font_size", 13)
+		legend.add_child(name_label)
+	add_child(legend)
+
 
 func make_square(square: Vector2i) -> Button:
 	var button := Button.new()
@@ -143,6 +167,13 @@ func refresh() -> void:
 	elif dungeon.tier_up_waiting:
 		lines.append("[color=#ffd75a]Rest at a campfire to go deeper.[/color]")
 	stats_label.text = "\n".join(lines)
+	stats_label.tooltip_text = "\n".join([
+		"HP: carries over from fight to fight. Resting at a campfire heals %d%%." % roundi(DungeonRun.REST_HEAL * 100),
+		"Keys: fights drop a small key %d%% of the time. A key opens one Locked Chest." % DungeonRun.KEY_CHANCE,
+		"Danger: every %d steps since your last rest, every enemy gets +1 Strength. Resting resets it." % DungeonRun.STEPS_PER_DANGER,
+		"Found: only yours once you get out (Leave at a campfire, or beat the Boss). Die and it's lost.",
+		"Rooms left: blank squares draw from this deck. When it's empty, the rest are dead ends until you rest.",
+	])
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
 
@@ -155,6 +186,7 @@ func draw_square(square: Vector2i) -> void:
 	icon.texture = null
 	icon.modulate = Color.WHITE
 	label.text = ""
+	button.tooltip_text = describe_square(square)  # Shown when you hover the square for a moment.
 	var color := FOG_COLOR
 	var reachable := dungeon.can_move_to(square)
 	if dungeon.walls.has(square):
@@ -198,6 +230,59 @@ func draw_square(square: Vector2i) -> void:
 	# its campfire or chest again).
 	button.disabled = not (reachable or (square == dungeon.position and has_action_here()))
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW if button.disabled else Control.CURSOR_POINTING_HAND
+
+
+# The tooltip for a square: what it is and what you can do with it.
+func describe_square(square: Vector2i) -> String:
+	if dungeon.walls.has(square):
+		return "Dead end: the room deck ran out.\nRest at a campfire to shuffle the rooms back in."
+	if not dungeon.is_explored(square):
+		var distance := dungeon.steps_to(square)
+		if distance > 0:
+			return "Unexplored (%d step%s away).\nStep here to draw a room from the deck." % [distance, "s" if distance > 1 else ""]
+		return "Unexplored.\nExplore a square next to it first."
+	var room: Dictionary = dungeon.rooms[square]
+	var card: RoomCard = room.card
+	if card == null:
+		return "The entrance."
+	var lines: Array[String] = ["%s (%s)" % [card.room_name, card.type_name()]]
+	if room.campfire:
+		lines.append("A lit campfire. Stand here and click it to Rest or Leave the dungeon.")
+		if dungeon.tier_up_waiting:
+			lines.append("Resting here takes you deeper.")
+		return "\n".join(lines)
+	if card.is_fight():
+		if room.cleared:
+			lines.append("Beaten. Safe to walk through.")
+			return "\n".join(lines)
+		var groups: Array[String] = []
+		for encounter in card.encounters:
+			var names: Array[String] = []
+			for enemy in encounter.enemies:
+				names.append(enemy.display_name)
+			groups.append(", ".join(names))
+		lines.append(("Could be: " if groups.size() > 1 else "Enemies: ") + "  /  ".join(groups))
+		match card.type:
+			RoomCard.Type.MINI_BOSS:
+				lines.append("Beat it to light a campfire. Resting there opens %s." % (
+					"Tier %d" % (dungeon.tier + 1) if dungeon.tier < dungeon.max_tier else "the Boss room"))
+			RoomCard.Type.BOSS:
+				lines.append("Beat it to clear the %s and take your loot home." % dungeon.area.display_name)
+		lines.append("Blocks the way until you beat it. Click it to fight.")
+	elif card.type == RoomCard.Type.LOCKED_CHEST:
+		if room.get("opened", false):
+			lines.append("Opened.")
+		else:
+			lines.append("Needs a small key (you have %d)." % dungeon.keys)
+	elif card.type == RoomCard.Type.TREASURE:
+		lines.append("Taken." if room.cleared else "")
+	elif card.type == RoomCard.Type.CAMPFIRE:
+		lines.append("The fire is out (each campfire can be used once).")
+	elif card.type == RoomCard.Type.EMPTY:
+		lines.append("Nothing here.")
+	if not card.loot.is_empty() and not room.get("opened", false) and not (card.type == RoomCard.Type.TREASURE and room.cleared):
+		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
+	return "\n".join(lines.filter(func(line: String) -> bool: return not line.is_empty()))
 
 
 func make_box(color: Color, border: Color, width: int) -> StyleBoxFlat:
@@ -244,15 +329,19 @@ func _on_square_pressed(square: Vector2i) -> void:
 		what = "campfire"
 	refresh()
 	match what:
-		"fight":
+		"fight", "ambush":
 			var card: RoomCard = dungeon.rooms[square].card
 			var heading := "Boss!" if card.type == RoomCard.Type.BOSS else card.type_name() + "!"
-			show_popup(heading, "%s\n%s" % [card.room_name, enemy_list(dungeon.fight_enemies)],
-				[["Fight!", start_fight]])
+			var text := "%s\n%s" % [card.room_name, enemy_list(dungeon.fight_enemies)]
+			if what == "ambush":
+				show_popup("Ambush!", text + "\nThey jump out at you. There's no backing off!", [["Fight!", start_fight]])
+			else:
+				text += "\nBacking off takes you to the square you came from (1 step). This room will block the way until you beat it."
+				show_popup(heading, text, [["Fight!", start_fight], ["Back off", _on_back_off]])
 		"chest":
 			show_chest()
 		"campfire":
-			show_campfire(false)
+			show_campfire()
 		"treasure":
 			show_popup("Treasure!", "You find %s." % dungeon.history[-1].trim_prefix("Treasure! "), [["Nice", close_popup]])
 
@@ -262,6 +351,11 @@ func enemy_list(enemies: Array[EnemyData]) -> String:
 	for enemy in enemies:
 		names.append(enemy.display_name)
 	return ", ".join(names)
+
+
+func _on_back_off() -> void:
+	dungeon.back_off()
+	close_popup()
 
 
 func start_fight() -> void:
@@ -284,16 +378,13 @@ func _on_open_chest() -> void:
 	show_popup("Opened!", "Inside: %s" % loot, [["Nice", close_popup]])
 
 
-# forced = straight after a Mini Boss: no "Not now", you must Rest or Leave.
-func show_campfire(forced: bool) -> void:
+func show_campfire() -> void:
 	var text := "Rest: heal %d%% HP, get your Vanished cards back, and the rooms shift (the map goes blank and every room goes back in the deck)." % roundi(DungeonRun.REST_HEAL * 100)
 	if dungeon.tier_up_waiting:
 		text += "\nThe Mini Boss is beaten: resting takes you deeper (Tier %d)." % (dungeon.tier + 1) \
 			if dungeon.tier < dungeon.max_tier else "\nThe Mini Boss is beaten: resting opens the way to the Boss."
 	text += "\nLeave: go home with what you found (%s)." % dungeon.loot_text()
-	var choices := [["Rest", _on_rest], ["Leave the dungeon", _on_leave]]
-	if not forced:
-		choices.append(["Not now", close_popup])
+	var choices := [["Rest", _on_rest], ["Leave the dungeon", _on_leave], ["Not now", close_popup]]
 	show_popup("Campfire", text, choices)
 
 

@@ -32,6 +32,10 @@ const TYPE_NAMES := {
 @export var copies: int = 1  # How many of this card go in the deck.
 # false = you need to find a Map in a chest before this card goes in the deck.
 @export var unlocked: bool = true
+# Fights only. true = an AMBUSH: the fight starts the moment you find it, no
+# backing off. Other fights show you the enemies first, and you choose to
+# Fight or Back off to the square you came from.
+@export var ambush: bool = false
 # Fights: the enemy groups it can be. One is picked at random each time.
 @export var encounters: Array[Encounter] = []
 # What you find: one entry is picked at random, e.g. ["Gold 5-10", "Card", "Pack"].

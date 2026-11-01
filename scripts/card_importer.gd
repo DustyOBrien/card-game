@@ -498,6 +498,7 @@ static func _import_rooms(known: Dictionary) -> void:
 			card.tier = 0  # The Boss room only goes in after the last Mini Boss.
 		card.copies = _to_int(row.get("copies", ""), 1)
 		card.unlocked = _parse_yes_no(row.get("unlocked", ""), true)
+		card.ambush = _parse_yes_no(row.get("ambush", ""), false)
 		for group_text in row.get("encounters", "").split("|", false):
 			var encounter := Encounter.new()
 			for enemy_name in _parse_list(group_text.replace("|", "")):

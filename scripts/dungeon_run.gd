@@ -45,6 +45,7 @@ var deck: Array[RoomCard] = []  # The room cards still to draw, top = the end.
 var rooms := {}
 var walls := {}  # Squares that are dead ends (the deck ran out): Vector2i -> true.
 var position := START  # Where you are.
+var came_from := START  # The square you stepped from (where Back off takes you).
 var steps := 0  # Steps since the last rest (danger).
 var total_steps := 0  # Steps this whole run.
 var keys := 0  # Small keys: each opens one Locked Chest.
@@ -128,10 +129,14 @@ func steps_to(target: Vector2i) -> int:
 				continue
 			distance[next] = distance[here] + 1
 			if next == target:
+				_step_before_target = here  # The last safe square on the way.
 				return distance[next]
 			if is_safe(next):
 				queue.append(next)  # Only walk ON through rooms that are safe.
 	return -1
+
+
+var _step_before_target := START  # Set by steps_to().
 
 
 func can_move_to(square: Vector2i) -> bool:
@@ -140,7 +145,8 @@ func can_move_to(square: Vector2i) -> bool:
 
 # Walk to a square. Returns what happened there, for the dungeon screen:
 #   "walk"     back into a room you've cleared (or a campfire)
-#   "fight"    a fight starts (fight_enemies says who)
+#   "fight"    a fight: see who it is, then Fight or Back off (fight_enemies says who)
+#   "ambush"   a fight that starts straight away (no backing off)
 #   "chest"    a Locked Chest (open it with a key, or leave it for later)
 #   "treasure" loot, taken right away
 #   "campfire" Rest or Leave
@@ -152,6 +158,7 @@ func move_to(square: Vector2i) -> String:
 		return ""
 	steps += distance
 	total_steps += distance
+	came_from = _step_before_target
 	position = square
 	if not rooms.has(square):
 		_reveal(square)
@@ -190,7 +197,7 @@ func _enter(square: Vector2i) -> String:
 	if card.is_fight():
 		fight_square = square
 		fight_enemies = card.pick_encounter()
-		return "fight"
+		return "ambush" if card.ambush else "fight"
 	match card.type:
 		RoomCard.Type.LOCKED_CHEST:
 			return "chest"
@@ -201,6 +208,27 @@ func _enter(square: Vector2i) -> String:
 			return "treasure"
 	room.cleared = true  # Empty.
 	return "empty"
+
+
+# Step back out of a fight you don't want yet, to the square you came from.
+# The room stays on the map, unbeaten, and you can't walk through it until
+# you beat it. Backing off still makes noise (1 step). Ambushes can't be backed off.
+func can_back_off() -> bool:
+	if not rooms.has(position) or rooms[position].card == null:
+		return false
+	var card: RoomCard = rooms[position].card
+	return card.is_fight() and not card.ambush and not rooms[position].cleared and position != came_from
+
+
+func back_off() -> void:
+	if not can_back_off():
+		return
+	add_log("You back away from %s." % rooms[position].card.room_name)
+	position = came_from
+	steps += 1
+	total_steps += 1
+	fight_square = Vector2i(-1, -1)
+	fight_enemies.clear()
 
 
 # --- Danger ------------------------------------------------------------------

@@ -147,8 +147,15 @@ of squares, and you start in the middle. Every other square is hidden.
   card from the area's **room deck**, and the square becomes that room: a
   **Fight**, a **Hard Fight**, a **Locked Chest**, a **Treasure**, a
   **Campfire**, the **Mini Boss**, or an **Empty** room.
+- **Fight or Back off.** When you find a fight, you see the enemies first and
+  choose: **Fight**, or **Back off** to the square you came from (1 step). The room
+  stays on the map and blocks the way until you beat it, so you can come back
+  for it later (the Mini Boss and the Boss too).
+- **Ambush** rooms (marked in the sheet) start the fight straight away: no backing off.
 - You can walk back through rooms you've cleared for free (click any explored
   room), but you can't walk through a fight you haven't won.
+- **Hover** any square for a moment to see what it is (enemies, loot, what a
+  Mini Boss opens), and hover the side panel for what HP, Keys, Danger and Found mean.
 - **Danger.** Every step makes noise: every **6 steps** since your last rest,
   every enemy gets **+1 Strength**. The side panel shows how many steps until it
   goes up again, and hovering a square shows how far it is.
@@ -159,8 +166,8 @@ of squares, and you start in the middle. Every other square is hidden.
   cards, and **shuffles every room back into the deck**: the map goes blank and you
   explore it again from where you are. Or **Leave** the dungeon, keeping
   everything you found. Each campfire can be used once.
-- **The Mini Boss.** Beating it lights a campfire where it fell, and you must
-  stop there: Rest or Leave. Resting adds the next **tier**'s harder (and richer)
+- **The Mini Boss.** Beating it lights a campfire where it fell. Resting there
+  (now, or later with **Not now**) adds the next **tier**'s harder (and richer)
   rooms to the deck. After the last tier's Mini Boss, resting shuffles in the
   **Boss** room instead. The Plains and the Forest have 2 tiers.
 - Gold, cards and packs you find are only **yours once you get out**: Leave at a
@@ -610,6 +617,9 @@ always-on set of rules for how the class builds its deck. Specs come from
 Each spec has the talent tree with the same name, and that tree's tab comes
 first. Changing spec gives back every talent point. Points can go in any tree
 (`SPEC_TREE_ONLY` in `game_state.gd` switches that to "your spec's tree only").
+The Talents screen shows your Spec in a gold banner at the top (with a
+**Change Spec** button), marks its tree's tab with ★, and says under the tabs
+whether the tree on show is your Spec's.
 
 Each class can have talent trees, like World of Warcraft: one sheet per class,
 named after the class's file in `classes/` (`adventurer.csv` is the
@@ -793,6 +803,7 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss** or **Empty** |
 | Copies | 6 | How many of this card go in the deck |
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
+| Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
 | Encounters | Slime \| Slimeling, Slimeling | Fights only: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right |
 | Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map** |
 | Notes | | Anything you like; the game ignores it |

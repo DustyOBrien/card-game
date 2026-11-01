@@ -12,12 +12,13 @@ extends Control
 
 const BOX_SIZE := Vector2(156, 72)
 const COLUMN_SPACING := 176.0  # Pixels from one column to the next.
-const ROW_SPACING := 132.0  # Pixels from one tier to the next.
+const ROW_SPACING := 112.0  # Pixels from one tier to the next.
 const TIER_LABEL_WIDTH := 150.0  # Room on the left for "Tier 2" labels.
 const LEARNED_COLOR := Color(1, 0.82, 0.3)  # Gold border: you have it.
 const OPEN_COLOR := Color(1, 1, 1, 0.85)  # White border: you can learn it now.
 const LOCKED_COLOR := Color(1, 1, 1, 0.15)  # Faint border: not yet.
 const REASON_COLOR := Color(1, 0.55, 0.45)
+const SPEC_SCENE := "res://scenes/spec_select.tscn"
 
 @onready var title_label: Label = %TitleLabel
 @onready var points_label: Label = %PointsLabel
@@ -34,19 +35,19 @@ var boxes := {}  # Talent -> its Button (only the tree on show).
 var current_tree := ""  # The tree whose tab is open.
 var tab_buttons := {}  # Tree name -> its tab Button.
 var hovered: Talent = null  # Shown in the details panel.
+var tree_note: Label  # Under the tabs: whose tree this is.
 
 
 func _ready() -> void:
 	GameState.ensure_ready()  # For running this scene on its own with F6.
 	character_class = GameState.character_class
 	title_label.text = "%s Talents" % character_class.display_name
-	if not GameState.spec_of(character_class).is_empty():
-		title_label.text = "%s · %s" % [GameState.spec_of(character_class), title_label.text]
 	back_button.pressed.connect(_on_back_pressed)
 	reset_button.pressed.connect(_on_reset_pressed)
 	# The lines between talents are drawn by the tree area itself. draw.connect()
 	# lets this script do the drawing, whenever Godot redraws that node.
 	tree_area.draw.connect(_draw_lines)
+	build_spec_banner()
 	build_tabs()
 	build_tree()
 	refresh()
@@ -55,6 +56,69 @@ func _ready() -> void:
 # ---------------------------------------------------------------------------
 # Building the tree (once)
 # ---------------------------------------------------------------------------
+
+# The banner at the top that says which Spec you picked and what it does,
+# so it's clear how the Spec and the trees fit together. Built in code and
+# slotted in above the tabs.
+func build_spec_banner() -> void:
+	var specs := GameState.specs_for(character_class)
+	if specs.is_empty():
+		return  # This class has no specs yet.
+	var spec_name := GameState.spec_of(character_class)
+	var spec: Talent = null
+	for talent in specs:
+		if talent.tree == spec_name:
+			spec = talent
+
+	var banner := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.22, 0.17, 0.07, 0.9)
+	style.border_color = LEARNED_COLOR
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(6)
+	style.content_margin_left = 16
+	banner.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 16)
+	banner.add_child(row)
+
+	var text_box := VBoxContainer.new()
+	text_box.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	text_box.add_theme_constant_override("separation", 2)
+	row.add_child(text_box)
+	var heading := Label.new()
+	heading.add_theme_font_size_override("font_size", 20)
+	heading.add_theme_color_override("font_color", LEARNED_COLOR)
+	var info := Label.new()
+	info.add_theme_font_size_override("font_size", 15)
+	info.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	if spec == null:
+		heading.text = "No Spec chosen"
+		info.text = "Pick a Spec to choose how your %s plays. Your Spec is free, and its tree is marked ★ below." % character_class.display_name
+	else:
+		heading.text = "Your Spec: ★ %s" % spec_name
+		info.text = spec.rank_text(1)
+	text_box.add_child(heading)
+	text_box.add_child(info)
+
+	var change := Button.new()
+	change.text = "Change Spec" if spec != null else "Choose a Spec"
+	change.tooltip_text = "Changing Spec gives back all your talent points."
+	change.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	change.custom_minimum_size = Vector2(170, 40)
+	change.pressed.connect(func() -> void: get_tree().change_scene_to_file(SPEC_SCENE))
+	row.add_child(change)
+
+	tree_tabs.add_sibling(banner)
+	tree_tabs.get_parent().move_child(banner, tree_tabs.get_index())  # Above the tabs.
+
+	# And a line under the tabs saying whose tree is on show.
+	tree_note = Label.new()
+	tree_note.add_theme_font_size_override("font_size", 15)
+	tree_note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	tree_tabs.add_sibling(tree_note)
+
 
 # One tab per tree. A ButtonGroup makes them work like radio buttons.
 func build_tabs() -> void:
@@ -148,6 +212,14 @@ func refresh() -> void:
 		tab_buttons[tree_name].text = "%s%s  (%d)" % [star, tree_name,
 			GameState.talent_points_spent(character_class, tree_name)]
 	points_label.add_theme_color_override("font_color", LEARNED_COLOR if points > 0 else Color(1, 1, 1, 0.6))
+	if tree_note:
+		var spec_name := GameState.spec_of(character_class)
+		if current_tree == spec_name:
+			tree_note.text = "★ Your Spec's tree: the talents made for %s. (Your points can go in any tree.)" % spec_name
+			tree_note.add_theme_color_override("font_color", LEARNED_COLOR)
+		else:
+			tree_note.text = "The %s tree (not your Spec). Its talents still work if you learn them." % current_tree
+			tree_note.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
 	for talent: Talent in boxes:
 		var box: Button = boxes[talent]
 		var rank := GameState.talent_rank(talent)
