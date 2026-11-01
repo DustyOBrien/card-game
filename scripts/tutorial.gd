@@ -422,5 +422,5 @@ func _mini_card(card: CardData, delay: float) -> Control:
 # (or no Inn yet), otherwise Character Select.
 static func after_scene() -> String:
 	# Back to town if there's a new quest to read (the Innkeeper's first job).
-	var unread := GameState.current_quest() != null and not GameState.quest_seen
+	var unread := not GameState.unseen_quests.is_empty()
 	return TOWN_SCENE if not GameState.adventurers_here() or unread else AFTER_SCENE

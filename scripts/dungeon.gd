@@ -848,7 +848,7 @@ func refresh_sack() -> void:
 		found_row.add_child(make_chip("%d gold" % dungeon.found_gold, {"kind": "gold"},
 			"Drag into the sack: a slot holds up to %d gold." % GameState.gold_stack()))
 	if dungeon.found_packs > 0:
-		found_row.add_child(make_chip("Booster Pack x%d" % dungeon.found_packs, {"kind": "pack"}, ""))
+		found_row.add_child(make_chip("Small Plains Pack x%d" % dungeon.found_packs, {"kind": "pack"}, ""))
 	for card in dungeon.found_cards:
 		found_row.add_child(make_chip(card.card_name, {"kind": "card", "card": card}, ""))
 	for material_name in dungeon.found_materials:

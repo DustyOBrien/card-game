@@ -42,7 +42,7 @@ var run_gold := 0  # Gold you took home from the last run, for the shop's summar
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
 # Room cards you've unlocked with Maps, per area: {"Plains": ["Slime Den"]}.
 var unlocked_rooms := {}
-# Booster packs bought in the shop and not opened yet, by name: {"Basic Booster": 2}.
+# Booster packs you own and have not opened yet, by name: {"Small Plains Booster Pack": 2}.
 var booster_packs := {}
 
 # --- Town, enchants and potions ---------------------------------------------
@@ -83,7 +83,13 @@ var _potions: Array[Potion] = []
 const MAX_COPIES := 3  # The most copies of one card you can own (and put in a deck).
 # The chance of each rarity for every card in a pack. They add up to 100.
 const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10, CardData.Rarity.SUPER: 0}  # Super cards never come from packs.
-const CARDS_PER_PACK := 3
+# The booster packs: how many cards each holds, and its Shop price.
+# Quest rewards name them by size ("Pack Medium 2"). Every pack uses PACK_ODDS.
+const PACKS := [
+	{"name": "Small Plains Booster Pack", "size": "Small", "cards": 3, "price": 5},
+	{"name": "Medium Plains Booster Pack", "size": "Medium", "cards": 5, "price": 8},
+	{"name": "Large Plains Booster Pack", "size": "Large", "cards": 7, "price": 11},
+]
 var collection := {}
 
 # --- Card Exp ------------------------------------------------------------------
@@ -149,9 +155,9 @@ var tutorial_backup := {}
 # --- Materials, blueprints and quests (all saved) -------------------------------
 var materials := {}  # The Bank: what you've brought home. {"Lumber": 5, "Green Ooze": 3}
 var blueprints: Array[String] = []  # Buildings you can build: ["Inn", "Alchemist"]
-var active_quest := ""  # The quest you're on ("" = none). See quest.gd.
-var quest_progress := 0  # Kills / rooms / tier counted for it.
-var quest_seen := false  # false = town shows the quest's story popup.
+var active_quests: Array[String] = []  # The quests you're on (story, class and side quests). See quest.gd.
+var quest_progress := {}  # Quest name -> kills / rooms / packs / tier counted for it.
+var unseen_quests: Array[String] = []  # Just started: town shows their story once.
 var quests_done: Array[String] = []
 # Parts of the game a quest has opened up ("Unlock Talents" reward), e.g. ["Talents"].
 var unlocked_features: Array[String] = []
@@ -192,7 +198,9 @@ func start_fresh() -> void:
 	quests_done.clear()
 	unlocked_features.clear()
 	seen_guides.clear()
-	active_quest = ""
+	active_quests.clear()
+	quest_progress.clear()
+	unseen_quests.clear()
 	start_quest(first_quest_name())  # The King's letter: 5 Lumber and the Inn blueprint.
 	bonus_talent_points = 0
 	character_class = null
@@ -254,12 +262,37 @@ func add_card(card: CardData) -> Dictionary:
 	return result
 
 
-# Open one booster pack: CARDS_PER_PACK cards, each one added to your
-# collection with add_card(). Returns what you got, for the shop to show.
+# The pack with this size ("Small") or name. Unknown = the Small one.
+func find_pack(size_or_name: String) -> Dictionary:
+	for pack in PACKS:
+		if pack.size.to_lower() == size_or_name.to_lower() or pack.name.to_lower() == size_or_name.to_lower():
+			return pack
+	return PACKS[0]
+
+
+func add_packs(pack_name: String, count: int) -> void:
+	booster_packs[pack_name] = booster_packs.get(pack_name, 0) + count
+
+
+func pack_count() -> int:
+	var total := 0
+	for pack_name in booster_packs:
+		total += booster_packs[pack_name]
+	return total
+
+
+# Open one booster pack you own (its card count from PACKS), each card added
+# to your collection with add_card(). Returns what you got, for the shop to show.
 # Any card can come out, even one you already own 3 of (that's how cards get Exp).
-func open_pack() -> Array[Dictionary]:
+func open_pack(pack_name: String) -> Array[Dictionary]:
 	var opened: Array[Dictionary] = []
-	for i in CARDS_PER_PACK:
+	if booster_packs.get(pack_name, 0) <= 0:
+		return opened
+	booster_packs[pack_name] -= 1
+	if booster_packs[pack_name] <= 0:
+		booster_packs.erase(pack_name)  # None of that pack left.
+	record_for_quest(Quest.OPEN_PACKS, pack_name)
+	for i in find_pack(pack_name).cards:
 		var card := _pick_pack_card()
 		if card:  # null only if there are no cards that can come from packs at all.
 			opened.append(add_card(card))
@@ -530,23 +563,44 @@ func first_quest_name() -> String:
 	return load_quests()[0].quest_name if not load_quests().is_empty() else ""
 
 
+# The STORY quest you're on (null = none). Side and class quests run
+# alongside it: see quests_active().
 func current_quest() -> Quest:
-	return find_quest(active_quest) if not active_quest.is_empty() else null
+	for quest in quests_active():
+		if quest.quest_type == "Story":
+			return quest
+	return null
+
+
+# Every quest you're on, story first, in quests.csv order.
+func quests_active() -> Array[Quest]:
+	var list: Array[Quest] = []
+	for quest in load_quests():
+		if active_quests.has(quest.quest_name):
+			list.append(quest)
+	# Story quests first, then the rest in their sheet order.
+	list.sort_custom(func(a: Quest, b: Quest) -> bool:
+		var a_story := a.quest_type == "Story"
+		var b_story := b.quest_type == "Story"
+		if a_story != b_story:
+			return a_story
+		return a.sort_order < b.sort_order)
+	return list
 
 
 # Start a quest: hand out its Start Gift, and town shows its story next visit.
 func start_quest(quest_name: String) -> void:
 	var quest := find_quest(quest_name)
-	active_quest = quest.quest_name if quest else ""
-	quest_progress = 0
-	quest_seen = false
-	if quest:
-		give_rewards(quest.start_gift)
+	if quest == null or active_quests.has(quest.quest_name) or quests_done.has(quest.quest_name):
+		return
+	active_quests.append(quest.quest_name)
+	quest_progress[quest.quest_name] = 0
+	unseen_quests.append(quest.quest_name)
+	give_rewards(quest.start_gift)
 
 
-# How far along the active quest is, and how much it needs: Vector2i(3, 5).
-func quest_status() -> Vector2i:
-	var quest := current_quest()
+# How far along a quest is, and how much it needs: Vector2i(3, 5).
+func quest_status(quest: Quest) -> Vector2i:
 	if quest == null:
 		return Vector2i.ZERO
 	match quest.objective:
@@ -558,23 +612,32 @@ func quest_status() -> Vector2i:
 		Quest.BREW:
 			var flask := find_flask(quest.target)
 			return Vector2i(1 if flask and is_flask_unlocked(flask) else 0, 1)
-	return Vector2i(mini(quest_progress, quest.amount), quest.amount)
+	return Vector2i(mini(quest_progress.get(quest.quest_name, 0), quest.amount), quest.amount)
 
 
-func quest_ready() -> bool:
-	var status := quest_status()
-	return current_quest() != null and status.x >= status.y
+func quest_ready(quest: Quest) -> bool:
+	if quest == null or not active_quests.has(quest.quest_name):
+		return false
+	var status := quest_status(quest)
+	return status.x >= status.y
 
 
-# Count something for the active quest: a kill, a beaten room, a tier reached.
+# How many of your quests are done and waiting to be handed in.
+func quests_ready_count() -> int:
+	return quests_active().filter(quest_ready).size()
+
+
+# Count something for every quest it fits: a kill, a beaten room, a pack, a tier.
 func record_for_quest(objective: String, target: String, value: int = 1) -> void:
-	var quest := current_quest()
-	if quest == null or quest.objective != objective:
-		return
-	if objective == Quest.REACH_TIER:
-		quest_progress = maxi(quest_progress, value)
-	elif quest.target.to_lower() == target.to_lower():
-		quest_progress += value
+	for quest in quests_active():
+		if quest.objective != objective:
+			continue
+		var count: int = quest_progress.get(quest.quest_name, 0)
+		if objective == Quest.REACH_TIER:
+			quest_progress[quest.quest_name] = maxi(count, value)
+		elif quest.target.to_lower() == target.to_lower() or quest.target.to_lower() == Quest.ANY \
+				or (objective == Quest.OPEN_PACKS and target.to_lower().contains(quest.target.to_lower())):
+			quest_progress[quest.quest_name] = count + value
 
 
 # Nothing to do here yet: quests are handed in at the Inn (town.gd).
@@ -582,17 +645,26 @@ func check_quest() -> void:
 	pass
 
 
-# Hand in the active quest: rewards, then the next quest starts. Returns
-# what you got, one line each.
-func complete_quest() -> Array[String]:
-	var quest := current_quest()
-	if quest == null or not quest_ready():
+# Hand in a quest: rewards, then its Next Quest starts, and any quest whose
+# Starts After names it. Returns what you got, one line each.
+func complete_quest(quest: Quest) -> Array[String]:
+	if not quest_ready(quest):
 		return []
+	active_quests.erase(quest.quest_name)
+	quest_progress.erase(quest.quest_name)
+	unseen_quests.erase(quest.quest_name)
 	quests_done.append(quest.quest_name)
 	var lines := give_rewards(quest.rewards)
 	start_quest(quest.next_quest)
+	_start_quests_after(quest.quest_name)
 	save_game()
 	return lines
+
+
+func _start_quests_after(done_name: String) -> void:
+	for other in load_quests():
+		if other.starts_after == done_name:
+			start_quest(other.quest_name)
 
 
 # "Gold 20; Pack 1; Material Lumber 5; Blueprint Alchemist; Room Plains: Big Slime Nest"
@@ -608,10 +680,12 @@ func give_rewards(text: String) -> Array[String]:
 			"gold":
 				gold += rest.to_int()
 				lines.append("%d gold" % rest.to_int())
-			"pack":
-				var count := maxi(rest.to_int(), 1)
-				booster_packs[DungeonRun.PACK_NAME] = booster_packs.get(DungeonRun.PACK_NAME, 0) + count
-				lines.append("%d Booster Pack%s" % [count, "s" if count > 1 else ""])
+			"pack":  # "Pack Small 2" (or just "Pack 2" = Small)
+				var size_word := rest.get_slice(" ", 0) if rest.get_slice(" ", 0).to_int() == 0 else "Small"
+				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
+				var pack := find_pack(size_word)
+				add_packs(pack.name, count)
+				lines.append("%d %s%s" % [count, pack.name, "s" if count > 1 else ""])
 			"material":
 				var costs := MaterialInfo.parse_costs(rest)
 				for material_name in costs:
@@ -1123,9 +1197,9 @@ func save_game() -> void:
 		"tutorial_done": tutorial_done,
 		"materials": materials,
 		"blueprints": blueprints,
-		"active_quest": active_quest,
+		"active_quests": active_quests,
 		"quest_progress": quest_progress,
-		"quest_seen": quest_seen,
+		"unseen_quests": unseen_quests,
 		"quests_done": quests_done,
 		"unlocked_features": unlocked_features,
 		"seen_guides": seen_guides,
@@ -1180,10 +1254,25 @@ func load_game() -> bool:
 	var saved_materials = data.get("materials", {})
 	materials = _whole_numbers(saved_materials) if saved_materials is Dictionary else {}
 	blueprints.assign(data.get("blueprints", []))
-	active_quest = str(data.get("active_quest", ""))
-	quest_progress = int(data.get("quest_progress", 0))
-	quest_seen = bool(data.get("quest_seen", true))
+	active_quests.assign(data.get("active_quests", []))
+	var saved_progress = data.get("quest_progress", {})
+	quest_progress = _whole_numbers(saved_progress) if saved_progress is Dictionary else {}
+	unseen_quests.assign(data.get("unseen_quests", []))
+	# A save from when there was one quest at a time.
+	if data.has("active_quest") and not str(data.active_quest).is_empty() and active_quests.is_empty():
+		active_quests.append(str(data.active_quest))
+		quest_progress[str(data.active_quest)] = int(saved_progress) if not saved_progress is Dictionary else 0
+		if not bool(data.get("quest_seen", true)):
+			unseen_quests.append(str(data.active_quest))
+	# Packs from before Plains Booster Packs: they become Small ones.
+	if booster_packs.has("Basic Booster"):
+		add_packs(PACKS[0].name, booster_packs["Basic Booster"])
+		booster_packs.erase("Basic Booster")
 	quests_done.assign(data.get("quests_done", []))
+	# Quests added to quests.csv after you saved: start the ones whose
+	# "Starts After" quest you've already handed in.
+	for done_name in quests_done:
+		_start_quests_after(done_name)
 	unlocked_features.assign(data.get("unlocked_features", []))
 	seen_guides.assign(data.get("seen_guides", []))
 	var saved_specs = data.get("specs", {})

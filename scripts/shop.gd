@@ -3,9 +3,12 @@
 # The Shop (scenes/shop.tscn), one of the buildings in town (see town.gd).
 # Spend gold on booster packs, then go back to town.
 #
-# Bought packs wait under "Your packs" until you press Open Pack. Opening one
-# shows its 3 cards and adds them to your collection (GameState.open_pack()),
-# so they show up in the deck builder.
+# Bought packs (and packs from quests and chests) wait under "Your packs"
+# until you press Open. Opening one shows its cards (3, 5 or 7) and adds them
+# to your collection (GameState.open_pack()), so they show up in the deck builder.
+#
+# Before the Shop is built, town's "Your Packs" button still brings you here,
+# but only to open packs: nothing is for sale yet.
 extends Control
 
 const TOWN_SCENE := "res://scenes/town.tscn"
@@ -13,13 +16,9 @@ const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const REVEAL_GAP := 0.35  # Seconds between the cards of a pack appearing.
 
-# Every pack the shop sells. To add a pack or change a price, edit this list.
-# `school` picks the pack's colour (0 = Neutral, grey).
-# (The odds and the number of cards are in game_state.gd: PACK_ODDS, CARDS_PER_PACK.)
-const PACKS := [
-	{"name": "Basic Booster", "price": 5, "school": 0,
-		"blurb": "3 cards\nCommon 60%  ·  Uncommon 30%  ·  Rare 10%"},
-]
+# The packs (names, card counts, prices) are GameState.PACKS, and the odds
+# are GameState.PACK_ODDS: edit them there.
+const PLAINS_COLOR := Color(0.36, 0.58, 0.27)  # Plains packs are grassy green.
 
 @onready var gold_label: Label = %GoldLabel
 @onready var summary_label: Label = %SummaryLabel
@@ -28,7 +27,7 @@ const PACKS := [
 @onready var edit_deck_button: Button = %EditDeckButton
 @onready var next_run_button: Button = %NextRunButton
 
-var open_button: Button  # "Open Pack", under "Your packs". Made in code.
+var open_row: HBoxContainer  # One "Open" button per kind of pack you own. Made in code.
 var reveal_layer: ColorRect  # The dark screen the opened cards appear on.
 
 
@@ -37,20 +36,24 @@ func _ready() -> void:
 	edit_deck_button.pressed.connect(_on_edit_deck_pressed)
 	next_run_button.pressed.connect(_on_next_run_pressed)
 
-	summary_label.text = "Spend your gold on booster packs. Open them here or later."
 	next_run_button.text = "← Back to Town"
-
-	for pack in PACKS:
-		pack_row.add_child(_make_pack(pack))
-	open_button = Button.new()
-	open_button.text = "Open Pack"
-	open_button.theme_type_variation = &"PrimaryButton"
-	open_button.custom_minimum_size = Vector2(200, 44)
-	open_button.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	open_button.pressed.connect(open_pack)
-	# add_sibling() puts the button right after "Your packs" in the layout.
-	owned_label.add_sibling(open_button)
+	if shop_built():
+		summary_label.text = "Spend your gold on booster packs. Open them here or later."
+		for pack in GameState.PACKS:
+			pack_row.add_child(_make_pack(pack))
+	else:
+		summary_label.text = "The Shop isn't built yet, so nothing's for sale. You can still open the packs you have."
+		pack_row.visible = false
+	open_row = HBoxContainer.new()
+	open_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	open_row.add_theme_constant_override("separation", 12)
+	# add_sibling() puts the buttons right after "Your packs" in the layout.
+	owned_label.add_sibling(open_row)
 	refresh()
+
+
+func shop_built() -> bool:
+	return GameState.town_bonus(TownBuilding.SHOP) > 0
 
 
 # Update the gold, the Buy buttons and the "you own" line.
@@ -59,11 +62,19 @@ func refresh() -> void:
 	for panel in pack_row.get_children():
 		var button: Button = panel.get_meta("buy_button")
 		button.disabled = GameState.gold < panel.get_meta("price")
-	var owned: Array[String] = []
-	for pack_name in GameState.booster_packs:
-		owned.append("%s x%d" % [pack_name, GameState.booster_packs[pack_name]])
-	owned_label.text = "Your packs: " + (", ".join(owned) if not owned.is_empty() else "none yet")
-	open_button.disabled = GameState.booster_packs.is_empty()
+	owned_label.text = "Your packs:" if GameState.pack_count() > 0 else "Your packs: none yet"
+	for old in open_row.get_children():
+		old.queue_free()
+	for pack in GameState.PACKS:  # Small, Medium, Large order.
+		var count: int = GameState.booster_packs.get(pack.name, 0)
+		if count <= 0:
+			continue
+		var button := Button.new()
+		button.text = "Open %s  (x%d)" % [pack.name, count]
+		button.theme_type_variation = &"PrimaryButton"
+		button.custom_minimum_size = Vector2(0, 44)
+		button.pressed.connect(open_pack.bind(pack.name))
+		open_row.add_child(button)
 
 
 # What a pack costs you: its price, less any Pack Discount talents (never below 1).
@@ -77,8 +88,7 @@ func buy(pack: Dictionary, panel: Control) -> void:
 	if GameState.gold < price_of(pack):
 		return
 	GameState.gold -= price_of(pack)
-	# Dictionary.get(key, 0) gives 0 if we don't own this pack yet.
-	GameState.booster_packs[pack.name] = GameState.booster_packs.get(pack.name, 0) + 1
+	GameState.add_packs(pack.name, 1)
 	GameState.save_game()
 	# A little bounce so you can see what you bought.
 	panel.pivot_offset = panel.size / 2
@@ -89,7 +99,7 @@ func buy(pack: Dictionary, panel: Control) -> void:
 
 # One pack for sale: a coloured "packet" with its name, price and a Buy button.
 func _make_pack(pack: Dictionary) -> PanelContainer:
-	var color: Color = CardData.SCHOOL_COLORS.get(pack.school, CardData.NEUTRAL_COLOR)
+	var color := PLAINS_COLOR
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(200, 300)
@@ -107,7 +117,7 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 
 	# The "packet": a coloured block with a big question mark, like a sealed pack.
 	var packet := PanelContainer.new()
-	packet.custom_minimum_size = Vector2(0, 140)
+	packet.custom_minimum_size = Vector2(0, 100 + pack.cards * 8)  # Bigger packs look bigger.
 	var packet_style := StyleBoxFlat.new()
 	packet_style.bg_color = color
 	packet_style.set_corner_radius_all(8)
@@ -129,7 +139,9 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(name_label)
 
 	var blurb := Label.new()
-	blurb.text = pack.blurb
+	blurb.text = "%d cards\nCommon %d%%  ·  Uncommon %d%%  ·  Rare %d%%" % [pack.cards,
+		GameState.PACK_ODDS[CardData.Rarity.COMMON], GameState.PACK_ODDS[CardData.Rarity.UNCOMMON], GameState.PACK_ODDS[CardData.Rarity.RARE]]
+	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.add_theme_font_size_override("font_size", 13)
 	blurb.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
 	blurb.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -168,21 +180,13 @@ const BACK_COLOR := Color(0.22, 0.16, 0.38)  # The back of a card.
 var _skip := false  # Clicked to hurry up the reveal.
 
 
-# Open the first pack you own and show its cards.
-func open_pack() -> void:
-	if GameState.booster_packs.is_empty():
+# Open one of your packs of this kind and show its cards.
+func open_pack(pack_name: String) -> void:
+	var opened := GameState.open_pack(pack_name)
+	if opened.is_empty():
 		return
-	var pack_name: String = GameState.booster_packs.keys()[0]
-	GameState.booster_packs[pack_name] -= 1
-	if GameState.booster_packs[pack_name] <= 0:
-		GameState.booster_packs.erase(pack_name)  # None of that pack left.
 	refresh()
-	var opened := GameState.open_pack()
-	var pack: Dictionary = PACKS[0]
-	for each in PACKS:
-		if each.name == pack_name:
-			pack = each
-	var color: Color = CardData.SCHOOL_COLORS.get(pack.school, CardData.NEUTRAL_COLOR)
+	var color := PLAINS_COLOR
 	_skip = false
 
 	# A dark layer over the whole shop. Clicking it hurries the reveal.
@@ -232,14 +236,16 @@ func open_pack() -> void:
 
 	# 3. The cards fly out face down to their places in a row.
 	var slots: Array[Control] = []
-	var row_width := opened.size() * CARD_SIZE.x + (opened.size() - 1) * CARD_GAP
+	# A Large pack has 7 cards: close the gaps so they all fit on screen.
+	var gap := minf(CARD_GAP, (get_viewport_rect().size.x - 40 - opened.size() * CARD_SIZE.x) / maxf(opened.size() - 1, 1))
+	var row_width := opened.size() * CARD_SIZE.x + (opened.size() - 1) * gap
 	for i in opened.size():
 		var slot := _make_slot(opened[i])
 		slot.position = middle - CARD_SIZE / 2
 		slot.scale = Vector2(0.3, 0.3)
 		slot.rotation = randf_range(-1.5, 1.5)
 		slots.append(slot)
-		var target := Vector2(middle.x - row_width / 2 + i * (CARD_SIZE.x + CARD_GAP), middle.y - CARD_SIZE.y / 2 - 20)
+		var target := Vector2(middle.x - row_width / 2 + i * (CARD_SIZE.x + gap), middle.y - CARD_SIZE.y / 2 - 20)
 		var fly := create_tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		fly.tween_property(slot, "position", target, 0.45).set_delay(i * 0.08)
 		fly.tween_property(slot, "scale", Vector2.ONE, 0.45).set_delay(i * 0.08)

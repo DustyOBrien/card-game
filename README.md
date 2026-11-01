@@ -89,7 +89,7 @@ Then you're on the **deck builder**, holding your class's starter deck:
 - Your class's level and Exp bar are under its name.
 - **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
-- When the deck is big enough, click **To the Map**. **Change Class** goes back to Character Select.
+- When the deck is big enough, click **To Town** (it saves the deck). From town, the road leads to the map. **Change Class** goes back to Character Select.
 - The first time you open it, a **Guide** walks you round the screen: it dims
   everything except one part, draws a glowing gold box round it, and explains it
   (`scripts/screen_guide.gd`, 6 steps in `start_guide()` in `deck_builder.gd`).
@@ -247,8 +247,20 @@ fighting at first: Character Select and the Deck Builder stay hidden.
    the Plains deck for good. Beat it and Go Deeper at its campfire to reach Tier 2.
    Handing it in unlocks **Talents**, with a banner explaining them.
 
-One quest at a time: the **Quest** button at the bottom of town (or the Inn's
-Quest Board) shows it, and **Hand In** gives its rewards and starts the next.
+**Several quests run at once**: the **Story** quest above, plus **Adventurer**
+quests and **Side** quests that start when the Adventurer arrives:
+- **Open Plains Packs** (Adventurer): open 10 Plains Booster Packs (any size).
+  Unlocks the **Pack Rat** spec, with a big "NEW SPEC UNLOCKED!" banner.
+- **Kill Enemies 1 / 2 / 3** (Side): defeat 10, then 20, then 30 enemies of any
+  kind (the training dummies don't count). Rewards: 1 Small, 2 Medium, then 1
+  Large Plains Booster Pack.
+
+**Click the Inn** (or its **Quests** button) for the quest screen: every quest
+you're on, grouped Story / Adventurer / Side, each with its objective, a
+progress bar, its reward and its story. Finished ones go to the top under
+**Ready to Hand In!** with a **Hand In** button. A new quest's story pops up
+once, when it starts. Before the Inn exists, the King's quests are on the
+**The King's Letter** button at the bottom of town.
 
 **Materials** drop from enemies and turn up in rooms: Stone is the Plains'
 building material, Green Ooze comes from Green Slimes, and Lumber from the
@@ -268,12 +280,14 @@ the next stage does):
 
 The Tailor, Enchanter and Mapmaker have no quest giving their blueprints yet.
 
-What you buy for your next run is listed at the bottom of the town. **Start Next
-Run** goes to the map; the map also has a **Town** button.
+What you buy for your next run is listed at the bottom of the town. The **road**
+at the bottom-right, with its **To the Map** signpost (`town_road.gd`, drawn with
+code), goes to the map; the map also has a **Town** button. **Your Packs (n)**
+opens your booster packs, even before the Shop is built (then nothing is for sale).
 
 In the **Shop**:
-- Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
-- Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
+- Buy **Plains Booster Packs**: **Small** (3 cards, 5 gold), **Medium** (5 cards, 8 gold) or **Large** (7 cards, 11 gold). Quests and chests give them too (a chest's Pack is a Small one). They wait under "Your packs" until you press **Open**, which shows the cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
+- Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Odds: `PACK_ODDS`, and the packs' names, sizes and prices: `PACKS`, both in `game_state.gd`.)
 - **Back to Town** returns to the town. A new run starts at full HP, and your unspent gold is kept.
 
 **Your card collection.** At the end of the training you get every card marked
@@ -353,6 +367,7 @@ card-game/
 │   ├── battle_log.gd    The Battle Log panel (a RichTextLabel)
 │   ├── town.gd          The town: building panels, restoring, buying
 │   ├── town_building.gd One building (a row group of town.csv)
+│   ├── town_road.gd     The road out of town, with its "To the Map" sign
 │   ├── quest.gd         One quest (a row of quests.csv)
 │   ├── unlock_banner.gd The big "You unlocked something!" banner
 │   ├── screen_guide.gd  The step-by-step Guide round a screen (spec screen, deck builder)
@@ -513,7 +528,7 @@ Double-click it in the FileSystem panel to open the **Theme editor** and try
 changing a colour: every screen updates at once.
 
 A theme can also have **variations**. `PrimaryButton` is a gold version of
-`Button`; the deck builder's **To the Map** button uses it by setting
+`Button`; the deck builder's **To Town** button uses it by setting
 `theme_type_variation` to `PrimaryButton` in the Inspector.
 
 ### Bonus idea: Resources and card data
@@ -915,7 +930,7 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
 | Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
 | Encounters | Slime \| Slimeling, Slimeling | Fights only: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right |
-| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map**, **Enchant**, **Potion**, **Super Card** |
+| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Small Plains Booster Pack), **Key**, **Map**, **Enchant**, **Potion**, **Super Card** |
 | Notes | | Anything you like; the game ignores it |
 
 ### Events: `data/dungeons/events.csv`
@@ -1000,22 +1015,26 @@ Description. Enemies drop them through the **Drops** column of `enemies.csv`:
 `Green Ooze 100%` (several split by `;`).
 
 **`quests.csv`**: one row per quest, in story order (the first row is the
-first quest).
+first quest). Several quests can run at once.
 
 | Column | Example | What it means |
 |---|---|---|
 | Quest | Clear the Slimes | Its name |
+| Type | Story | **Story**, **Adventurer**, **Side** (or any word): groups it on the Inn's quest screen. Blank = Story |
 | Giver | The Innkeeper | Who gives it, shown above the story |
 | Text | | The story, shown when it starts |
-| Objective | Have | Build (a building), Have (materials in the Bank), Brew (a flask), Clear Room, Defeat (an enemy), Reach Tier |
+| Objective | Have | Build (a building), Have (materials in the Bank), Brew (a flask), Clear Room, Defeat (an enemy, or **Any** enemy), Open Packs (Target `Plains Booster Pack`), Reach Tier |
 | Target | Green Ooze | What the objective is about |
 | Amount | 5 | How many |
 | Start Gift | Material Lumber 5; Blueprint Inn | Given when the quest starts |
 | Rewards | Blueprint Alchemist; Room Plains: Blue Slime Patch | Given when you hand it in |
 | Next Quest | Make your first Flask | The quest that starts next (blank = none) |
+| Starts After | Stone for the Inn | This quest also starts when THAT one is handed in (how side quests begin) |
 
-Gifts and rewards can be `Gold 10`, `Pack 1`, `Material Green Ooze 3`,
-`Blueprint Shop`, `Room Plains: Big Slime Nest`, or `Unlock Talents`. A room in `rooms.csv` with
+Gifts and rewards can be `Gold 10`, `Pack Small 2` (or `Pack Medium 1`,
+`Pack Large 1`), `Material Green Ooze 3`, `Blueprint Shop`,
+`Room Plains: Big Slime Nest`, `Unlock Talents`, or `Unlock Pack Rat` (opens a
+spec with Unlocked = No in specs.csv). A room in `rooms.csv` with
 Unlocked = `Quest` only joins the room deck through a quest reward. Rows with
 Tier = `Guide` are the guided first run (before the Inn): no shuffle, drawn in
 the sheet's order. Room Loot can name a material too: `Stone 2` or `Stone 1-3`.

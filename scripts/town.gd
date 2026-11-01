@@ -7,6 +7,9 @@
 #
 # Like the map, the buildings are made here in code, one panel per file in
 # town/, so a new row in the sheet shows up on its own.
+#
+# Click the Inn for the QUEST SCREEN (every quest you're on). The road at the
+# bottom-right (town_road.gd) leads out to the map.
 extends Control
 
 const SHOP_SCENE := "res://scenes/shop.tscn"
@@ -27,7 +30,9 @@ const DONE_COLOR := Color(0.55, 0.95, 0.55)
 @onready var next_run_button: Button = %NextRunButton
 
 var flask_button: Button  # "Flask: Health Flask", next to Edit Deck.
-var quest_button: Button  # "Quest: Clear the Slimes", next to the flask button.
+var quest_button: Button  # "The King's Letter": the quest button before the Inn exists.
+var packs_button: Button  # "Your Packs (3)": open them (at the Shop, or before it's built).
+var road: TownRoad  # The road out of town, with its "To the Map" sign (town_road.gd).
 var overlay: Control  # The quest panel or the Bank while it's open.
 var flask_layer: Control  # The flask screen while it's open (null when closed).
 
@@ -36,7 +41,11 @@ func _ready() -> void:
 	GameState.ensure_ready()  # So pressing F6 on this scene still works.
 	GameState.check_quest()
 	deck_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(DECK_BUILDER_SCENE))
-	next_run_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(MAP_SCENE))
+	# The road to the map replaces the old "Start Next Run" button.
+	next_run_button.visible = false
+	road = TownRoad.new()
+	road.pressed.connect(func() -> void: get_tree().change_scene_to_file(MAP_SCENE))
+	next_run_button.add_sibling(road)
 	flask_button = Button.new()
 	flask_button.icon = FLASK_ICON
 	flask_button.add_theme_constant_override("icon_max_width", 30)  # The svg is 64px: shrink it to fit.
@@ -45,16 +54,18 @@ func _ready() -> void:
 	deck_button.add_sibling(flask_button)
 	quest_button = Button.new()
 	quest_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
-	quest_button.pressed.connect(show_quest_panel.bind(false))
+	quest_button.pressed.connect(show_quest_board)
 	flask_button.add_sibling(quest_button)
+	packs_button = Button.new()
+	packs_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
+	packs_button.tooltip_text = "Open your booster packs."
+	packs_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
+	quest_button.add_sibling(packs_button)
 	summary_label.text = run_summary()
 	message_label.text = ""
 	refresh()
-	# A quest that just started tells its story once (the King's letter...).
-	if GameState.current_quest() and not GameState.quest_seen:
-		GameState.quest_seen = true
-		GameState.save_game()
-		show_quest_panel(true)
+	# Quests that just started tell their story once (the King's letter...).
+	show_next_story(false)
 
 
 # How the last run went (empty if you haven't been on one yet).
@@ -84,14 +95,16 @@ func refresh() -> void:
 			building_row.add_child(make_building(building))
 	# You can head out once any area is open (before the Inn: the guided Stone run).
 	var can_go := GameState.load_areas().any(func(area: Area) -> bool: return GameState.is_area_unlocked(area))
-	next_run_button.disabled = not can_go
-	next_run_button.tooltip_text = "" if can_go else "Follow your quest: the road opens soon."
+	road.set_open(can_go)
 	# No adventurer yet: you're running the town, so there's no deck or flask to look at.
 	deck_button.visible = GameState.adventurers_here()
 	flask_button.visible = GameState.adventurers_here()
-	quest_button.text = "Quest: %s%s" % [GameState.active_quest, "  ✓ Ready!" if GameState.quest_ready() else ""] \
-		if GameState.current_quest() else "No quest right now"
-	quest_button.disabled = GameState.current_quest() == null
+	# Before the Inn: a button for the King's quests. After: quests live at the Inn.
+	quest_button.visible = not GameState.adventurers_here()
+	quest_button.text = "The King's Letter" + ("  ✓ Ready!" if GameState.quests_ready_count() > 0 else "")
+	quest_button.disabled = GameState.quests_active().is_empty()
+	packs_button.visible = GameState.pack_count() > 0
+	packs_button.text = "Your Packs (%d)" % GameState.pack_count()
 	var ready_for_run: Array[String] = []
 	if not GameState.pending_enchants.is_empty():
 		ready_for_run.append("Enchants: " + ", ".join(GameState.pending_enchants))
@@ -181,6 +194,13 @@ func make_building(building: TownBuilding) -> PanelContainer:
 		restore.tooltip_text = "Next: " + building.stage_texts[stage] + ("\n" + blocked if not blocked.is_empty() else "")
 		restore.pressed.connect(_on_restore_pressed.bind(building))
 		box.add_child(restore)
+	# Click anywhere on the built Inn to see your quests.
+	if stage > 0 and building.bonus(TownBuilding.INN, stage) > 0:
+		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+		panel.tooltip_text = "Click the Inn to see your quests."
+		panel.gui_input.connect(func(event: InputEvent) -> void:
+			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+				show_quest_board())
 	return panel
 
 
@@ -188,9 +208,12 @@ func make_building(building: TownBuilding) -> PanelContainer:
 func make_action(building: TownBuilding, stage: int) -> Button:
 	var button := Button.new()
 	if building.bonus(TownBuilding.INN, stage) > 0:
-		button.text = "Quest Board" + ("  ✓" if GameState.quest_ready() else "")
-		button.tooltip_text = "See your quest, and hand it in when it's done."
-		button.pressed.connect(show_quest_panel.bind(false))
+		var ready := GameState.quests_ready_count()
+		button.text = "Quests" + ("  ✓ %d ready!" % ready if ready > 0 else "  (%d)" % GameState.quests_active().size())
+		button.tooltip_text = "Every quest you're on, how far along it is, and what it gives you."
+		if ready > 0:
+			button.theme_type_variation = &"PrimaryButton"
+		button.pressed.connect(show_quest_board)
 	elif building.bonus(TownBuilding.BANK, stage) > 0:
 		button.text = "Open the Bank"
 		button.tooltip_text = "The materials you've brought home."
@@ -234,10 +257,9 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 		message_label.text = "The %s is %s: %s!" % [building.building_name,
 			"built" if stage == 1 and building.needs_blueprint else "restored", building.stage_texts[stage - 1]]
 	refresh()
-	# Building what the quest asked for: straight to the hand-in.
-	var quest := GameState.current_quest()
-	if quest and quest.objective == Quest.BUILD and GameState.quest_ready():
-		show_quest_panel(false)
+	# Building what a quest asked for: straight to the quests, to hand it in.
+	if GameState.quests_active().any(func(q: Quest) -> bool: return q.objective == Quest.BUILD and GameState.quest_ready(q)):
+		show_quest_board()
 
 
 func _buy_enchant() -> void:
@@ -448,7 +470,7 @@ func _buy_flask_upgrade(flask: Flask, upgrade: String) -> void:
 # --- Quests and the Bank -----------------------------------------------------------
 # Both open as a panel on top of the town, like the flask screen.
 
-func open_overlay() -> VBoxContainer:
+func open_overlay(width: float = 620) -> VBoxContainer:
 	close_overlay()
 	overlay = ColorRect.new()
 	overlay.color = Color(0, 0, 0, 0.75)
@@ -465,7 +487,7 @@ func open_overlay() -> VBoxContainer:
 	style.set_corner_radius_all(12)
 	style.set_content_margin_all(22)
 	panel.add_theme_stylebox_override("panel", style)
-	panel.custom_minimum_size = Vector2(620, 0)
+	panel.custom_minimum_size = Vector2(width, 0)
 	center.add_child(panel)
 	var box := VBoxContainer.new()
 	box.add_theme_constant_override("separation", 10)
@@ -479,44 +501,161 @@ func close_overlay() -> void:
 		overlay = null
 
 
-# The active quest: who gives it, the story, the objective and how far along
-# it is, what it gives you. `story` = the first time (no hand-in button yet).
-func show_quest_panel(story: bool) -> void:
-	var quest := GameState.current_quest()
-	if quest == null:
-		return
-	var box := open_overlay()
-	if not quest.giver.is_empty():
-		box.add_child(make_label(quest.giver + (" writes:" if story else " says:"), 16, Color(1, 1, 1, 0.7)))
-	box.add_child(make_label(quest.quest_name, 30, GOLD_COLOR))
-	box.add_child(make_label(quest.text, 16, Color.WHITE))
-	if story and not quest.start_gift.is_empty():
-		box.add_child(make_label("You receive: " + quest_reward_text(quest.start_gift), 16, DONE_COLOR))
-	var status := GameState.quest_status()
-	var objective := make_label("Objective: %s  (%d / %d)" % [quest.objective_text(), status.x, status.y], 18,
-		DONE_COLOR if GameState.quest_ready() else GOLD_COLOR)
-	box.add_child(objective)
-	if not quest.rewards.is_empty():
-		box.add_child(make_label("Reward: " + quest_reward_text(quest.rewards), 15, Color(1, 1, 1, 0.8)))
-	var buttons := HBoxContainer.new()
-	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
-	buttons.add_theme_constant_override("separation", 12)
-	box.add_child(buttons)
-	var inn_open := GameState.town_bonus(TownBuilding.INN) > 0
-	if GameState.quest_ready():
-		var hand_in := Button.new()
-		hand_in.text = "Hand In" if inn_open or quest.objective == Quest.BUILD else "Hand in at the Inn"
-		hand_in.theme_type_variation = &"PrimaryButton"
-		hand_in.custom_minimum_size = Vector2(180, 46)
-		hand_in.pressed.connect(_on_hand_in)
-		buttons.add_child(hand_in)
-	var ok := Button.new()
-	ok.text = "Let's go!" if story else "Close"
-	ok.custom_minimum_size = Vector2(140, 46)
-	ok.pressed.connect(func() -> void:
+# --- Quests --------------------------------------------------------------------
+# The QUEST SCREEN (the Inn's Quests button): every quest you're on, grouped
+# by type (Story / Adventurer / Side), each with its objective, a progress
+# bar, its rewards and a Hand In button once it's done. Quests you've finished
+# are listed at the bottom. A quest's story shows once, when it starts
+# (show_next_story).
+
+const QUEST_TYPE_ORDER := ["Story", "Adventurer", "Side"]
+const QUEST_TYPE_TITLES := {"Story": "Story", "Adventurer": "Adventurer Quests", "Side": "Side Quests"}
+
+
+func show_quest_board() -> void:
+	var box := open_overlay(820)
+	box.add_child(make_label("Quests", 32, GOLD_COLOR))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 470)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 10)
+	scroll.add_child(list)
+	var active := GameState.quests_active()
+	# Quests that are done go at the top, so you see them first.
+	var ready := active.filter(GameState.quest_ready)
+	if not ready.is_empty():
+		list.add_child(_left(make_label("Ready to Hand In!", 20, DONE_COLOR)))
+		for quest: Quest in ready:
+			list.add_child(make_quest_card(quest))
+	# The rest, grouped: Story first, then Adventurer, Side, and any other type.
+	var types: Array[String] = []
+	types.assign(QUEST_TYPE_ORDER)
+	for quest in active:
+		if not types.has(quest.quest_type):
+			types.append(quest.quest_type)
+	for quest_type in types:
+		var of_type := active.filter(func(q: Quest) -> bool: return q.quest_type == quest_type and not ready.has(q))
+		if of_type.is_empty():
+			continue
+		var heading := make_label(QUEST_TYPE_TITLES.get(quest_type, quest_type + " Quests"), 20, Color(1, 1, 1, 0.75))
+		heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list.add_child(heading)
+		for quest: Quest in of_type:
+			list.add_child(make_quest_card(quest))
+	if active.is_empty():
+		list.add_child(make_label("No quests right now. More are coming!", 17, Color(1, 1, 1, 0.7)))
+	if not GameState.quests_done.is_empty():
+		var done := make_label("Finished:  " + ",  ".join(GameState.quests_done), 14, Color(1, 1, 1, 0.45))
+		done.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		list.add_child(done)
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(160, 44)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.pressed.connect(func() -> void:
 		close_overlay()
 		refresh())
-	buttons.add_child(ok)
+	box.add_child(close)
+
+
+# One quest on the quest screen: name and giver, objective with a progress
+# bar, rewards, the story (smaller), and Hand In when it's done.
+func make_quest_card(quest: Quest) -> PanelContainer:
+	var ready := GameState.quest_ready(quest)
+	var card := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.17, 0.13) if not ready else Color(0.16, 0.24, 0.14)
+	style.border_color = DONE_COLOR if ready else Color(1, 1, 1, 0.15)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(10)
+	style.set_content_margin_all(14)
+	card.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 14)
+	card.add_child(row)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 4)
+	row.add_child(info)
+	var title := _left(make_label(quest.quest_name + ("   from " + quest.giver if not quest.giver.is_empty() else ""), 20, GOLD_COLOR))
+	info.add_child(title)
+	var status := GameState.quest_status(quest)
+	info.add_child(_left(make_label("%s   %d / %d" % [quest.objective_text(), status.x, status.y], 17,
+		DONE_COLOR if ready else Color.WHITE)))
+	var bar := ProgressBar.new()
+	bar.max_value = status.y
+	bar.value = status.x
+	bar.show_percentage = false
+	bar.custom_minimum_size = Vector2(0, 10)
+	var fill := StyleBoxFlat.new()
+	fill.bg_color = DONE_COLOR if ready else GOLD_COLOR
+	fill.set_corner_radius_all(4)
+	bar.add_theme_stylebox_override("fill", fill)
+	var back := StyleBoxFlat.new()
+	back.bg_color = Color(0, 0, 0, 0.4)
+	back.set_corner_radius_all(4)
+	bar.add_theme_stylebox_override("background", back)
+	info.add_child(bar)
+	if not quest.rewards.is_empty():
+		info.add_child(_left(make_label("Reward: " + quest_reward_text(quest.rewards), 15, Color(0.95, 0.85, 0.6))))
+	var story := _left(make_label(quest.text, 13, Color(1, 1, 1, 0.55)))
+	info.add_child(story)
+	if ready:
+		var hand_in := Button.new()
+		hand_in.text = "Hand In"
+		hand_in.theme_type_variation = &"PrimaryButton"
+		hand_in.custom_minimum_size = Vector2(130, 46)
+		hand_in.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		hand_in.pressed.connect(_on_hand_in.bind(quest))
+		row.add_child(hand_in)
+	return card
+
+
+func _left(label: Label) -> Label:
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	return label
+
+
+# A quest's story, the first time (who gives it, what to do, any start gift).
+# Then the next new quest's story, until there are none left.
+func show_next_story(back_to_board: bool) -> void:
+	var quest: Quest = null
+	while quest == null and not GameState.unseen_quests.is_empty():
+		quest = GameState.find_quest(GameState.unseen_quests[0])
+		if quest == null or not GameState.active_quests.has(quest.quest_name):
+			GameState.unseen_quests.pop_front()  # Gone from the sheet, or already done.
+			quest = null
+	if quest == null:
+		if back_to_board:
+			show_quest_board()
+		else:
+			close_overlay()
+			refresh()
+		return
+	var box := open_overlay()
+	var kind := "" if quest.quest_type == "Story" else "  (%s quest)" % quest.quest_type
+	if not quest.giver.is_empty():
+		box.add_child(make_label(quest.giver + (" writes:" if not GameState.adventurers_here() else " says:") + kind, 16, Color(1, 1, 1, 0.7)))
+	box.add_child(make_label("New quest: " + quest.quest_name, 30, GOLD_COLOR))
+	box.add_child(make_label(quest.text, 16, Color.WHITE))
+	if not quest.start_gift.is_empty():
+		box.add_child(make_label("You receive: " + quest_reward_text(quest.start_gift), 16, DONE_COLOR))
+	box.add_child(make_label("Objective: " + quest.objective_text(), 18, GOLD_COLOR))
+	if not quest.rewards.is_empty():
+		box.add_child(make_label("Reward: " + quest_reward_text(quest.rewards), 15, Color(1, 1, 1, 0.8)))
+	var ok := Button.new()
+	ok.text = "Let's go!" if GameState.unseen_quests.size() <= 1 else "Next quest →"
+	ok.theme_type_variation = &"PrimaryButton"
+	ok.custom_minimum_size = Vector2(180, 46)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ok.pressed.connect(func() -> void:
+		GameState.unseen_quests.erase(quest.quest_name)
+		GameState.save_game()
+		show_next_story(back_to_board))
+	box.add_child(ok)
 
 
 # "Material Lumber 5; Blueprint Inn" -> "5 Lumber, Inn blueprint".
@@ -530,23 +669,26 @@ func quest_reward_text(text: String) -> String:
 			"material": parts.append(MaterialInfo.costs_text(MaterialInfo.parse_costs(rest)))
 			"blueprint": parts.append("%s blueprint" % rest)
 			"room": parts.append("new room: " + rest.get_slice(":", 1).strip_edges())
-			"pack": parts.append("%s Booster Pack" % rest)
+			"pack":  # "Small 2" -> "2 Small Plains Booster Packs"
+				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
+				var pack := GameState.find_pack(rest.get_slice(" ", 0))
+				parts.append("%d %s%s" % [count, pack.name, "s" if count > 1 else ""])
 			"gold": parts.append("%s gold" % rest)
 			"unlock": parts.append("%s unlocked" % rest)
 			_: parts.append(reward)
 	return ", ".join(parts)
 
 
-func _on_hand_in() -> void:
-	var finished := GameState.active_quest
+func _on_hand_in(quest: Quest) -> void:
 	var talents_before := GameState.talents_open()
-	var lines := GameState.complete_quest()
+	var features_before := GameState.unlocked_features.duplicate()
+	var lines := GameState.complete_quest(quest)
 	close_overlay()
 	refresh()
 	# Big moments get the big banner (unlock_banner.gd).
 	# The Inn just opened: the first Adventurer arrives, and Character Select
 	# and the deck builder open up. Off to meet them (and their training, the
-	# tutorial). The new quest's story shows when you're back in town.
+	# tutorial). The new quests' stories show when you're back in town.
 	if GameState.adventurers_here() and not GameState.tutorial_done:
 		var adventurer: CharacterClass = GameState.load_classes()[0]
 		UnlockBanner.show_in(self, "A NEW ADVENTURER!", "The %s has arrived" % adventurer.display_name, adventurer.emblem,
@@ -556,33 +698,41 @@ func _on_hand_in() -> void:
 	if GameState.talents_open() and not talents_before:
 		UnlockBanner.show_in(self, "TALENTS UNLOCKED!", "Your adventurers can grow", null,
 			"Every class levels up from the Exp it earns in fights. Each level gives a TALENT POINT: spend it in your spec's talent tree (or the others) for lasting bonuses.\n\nFind the Talents button on Character Select and in the Deck Builder.",
-			"Got it!", _show_quest_complete.bind(finished, lines))
+			"Got it!", _show_quest_complete.bind(quest.quest_name, lines))
 		return
-	_show_quest_complete(finished, lines)
+	# A quest reward opened a new spec (Pack Rat...).
+	for feature in GameState.unlocked_features:
+		var spec := _spec_named(feature)
+		if spec and not features_before.has(feature):
+			UnlockBanner.show_in(self, "NEW SPEC UNLOCKED!", spec.talent_name, null,
+				spec.rules + "\n\nPick it from Change Spec in the Deck Builder.",
+				"Got it!", _show_quest_complete.bind(quest.quest_name, lines))
+			return
+	_show_quest_complete(quest.quest_name, lines)
 
 
-# "Quest complete!" with what you got, then the next quest's story.
+func _spec_named(spec_name: String) -> Talent:
+	for character_class in GameState.load_classes():
+		for spec in GameState.specs_for(character_class):
+			if spec.talent_name == spec_name:
+				return spec
+	return null
+
+
+# "Quest complete!" with what you got, then any new quests' stories, then
+# back to the quest screen.
 func _show_quest_complete(finished: String, lines: Array[String]) -> void:
 	var box := open_overlay()
 	box.add_child(make_label("Quest complete!", 32, GOLD_COLOR))
 	box.add_child(make_label(finished, 20, Color.WHITE))
 	for line in lines:
 		box.add_child(make_label("+ " + line, 17, DONE_COLOR))
-	var next := GameState.current_quest()
-	box.add_child(make_label("New quest: %s" % next.quest_name if next else "No more quests for now. More are coming!", 17, Color(1, 1, 1, 0.8)))
 	var ok := Button.new()
-	ok.text = "See the new quest" if next else "Nice"
+	ok.text = "See the new quest" if not GameState.unseen_quests.is_empty() else "Nice"
 	ok.theme_type_variation = &"PrimaryButton"
 	ok.custom_minimum_size = Vector2(200, 46)
 	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	ok.pressed.connect(func() -> void:
-		if GameState.current_quest():
-			GameState.quest_seen = true
-			GameState.save_game()
-			show_quest_panel(true)
-		else:
-			close_overlay()
-			refresh())
+	ok.pressed.connect(show_next_story.bind(GameState.adventurers_here()))
 	box.add_child(ok)
 
 

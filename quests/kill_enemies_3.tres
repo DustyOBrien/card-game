@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="1_3rqox"]
+
+[resource]
+script = ExtResource("1_3rqox")
+quest_name = "Kill Enemies 3"
+giver = "The Innkeeper"
+text = "\"The travellers are talking about you! One last push: defeat 30 more.\""
+objective = "defeat"
+target = "Any"
+amount = 30
+rewards = "Pack Large 1"
+quest_type = "Side"
+sort_order = 8

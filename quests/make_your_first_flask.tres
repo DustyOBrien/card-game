@@ -9,6 +9,6 @@ giver = "The Innkeeper"
 text = "\"An old alchemist wants to set up shop. Build a workshop and the Alchemist will brew you a Health Flask from that Ooze.\" Flasks refill at the start of every run. Blue Slimes now live in the Plains too."
 objective = "brew"
 target = "Health Flask"
-rewards = "Blueprint Shop; Gold 10"
+rewards = "Blueprint Shop; Pack Small 2"
 next_quest = "Slay the Slime Nest"
 sort_order = 3

@@ -33,7 +33,7 @@ const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, R
 # % chance a won fight drops a SUPER card (run-only, see card_data.gd). Super rare!
 const SUPER_CARD_CHANCE := {RoomCard.Type.MINI_BOSS: 25}
 const REST_HEAL := 0.3  # Resting heals this much of your max HP.
-const PACK_NAME := "Basic Booster"  # The pack that "Pack" loot gives you.
+const PACK_NAME := "Small Plains Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
 # The four squares next to a square: right, left, down, up.
 const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
 
@@ -688,7 +688,7 @@ func claim_loot() -> void:
 	GameState.gold += found_gold
 	GameState.run_gold += found_gold
 	if found_packs > 0:
-		GameState.booster_packs[PACK_NAME] = GameState.booster_packs.get(PACK_NAME, 0) + found_packs
+		GameState.add_packs(PACK_NAME, found_packs)
 	for card in found_cards:
 		GameState.add_card(card)
 	for material_name in found_materials:

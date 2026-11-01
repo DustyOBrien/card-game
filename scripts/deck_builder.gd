@@ -10,15 +10,16 @@
 #       gold = in your deck, grey = owned but not in it, hollow = not owned.
 #   - Right: your DECK, with some stats (size, schools, costs, types).
 #     Click a row to take one copy back out.
-#   - "To the Map" goes to the map, where you pick an area to fight in. The
-#     battle then reads the deck from GameState (see game_state.gd).
+#   - "To Town" saves the deck and goes back to town. From there the road
+#     leads to the map, where you pick an area to fight in. The battle then
+#     reads the deck from GameState (see game_state.gd).
 #
 # Most of the screen is built in code, from small helper functions further
 # down, because it changes every time you add or remove a card.
 extends Control
 
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const MAP_SCENE := "res://scenes/map.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"
 const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
 const SPEC_SCENE := "res://scenes/spec_select.tscn"
@@ -116,7 +117,7 @@ func start_guide() -> void:
 		{"target": _panel_of(pool_grid), "text": "YOUR CARDS: everything you own. Click a card to add a copy to your deck (the dots show how many you own). Booster packs from the Shop bring more."},
 		{"target": _panel_of(deck_list), "text": "YOUR DECK: what you'll fight with. The bar shows the deck size, then the schools, the Energy cost curve and the card types. Click a card in the list to take it out."},
 		{"target": default_button, "text": "Lost? Starter Deck builds a good deck for you. Clear empties it."},
-		{"target": start_button, "text": "When your deck is ready, head out! (The Innkeeper has your first job: check the Quest button in town.)"},
+		{"target": start_button, "text": "When your deck is ready, go back To Town. Your quests are at the Inn (the Innkeeper has your first job), and the road out of town leads to the map."},
 	])
 
 
@@ -245,7 +246,7 @@ func refresh() -> void:
 	if missing > 0:
 		rules_label.text = "Add %d more card%s to start" % [missing, "" if missing == 1 else "s"]
 	else:
-		rules_label.text = "Ready to fight!"
+		rules_label.text = "Deck ready!"
 
 
 # The pool: copy dots, notes, darker cards you can't add, and the school filter.
@@ -602,10 +603,10 @@ func _on_default_pressed() -> void:
 
 
 func _on_start_pressed() -> void:
-	# change_scene_to_file() throws away this whole scene and loads the map.
+	# change_scene_to_file() throws away this whole scene and loads the town.
 	# The deck survives because it lives in GameState, not in this scene.
 	GameState.save_game()  # Also remembers this deck for next time.
-	get_tree().change_scene_to_file(MAP_SCENE)
+	get_tree().change_scene_to_file(TOWN_SCENE)
 
 
 # A Talents button next to Back. Talents can change which cards you may use,
