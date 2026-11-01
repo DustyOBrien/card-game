@@ -40,7 +40,6 @@ var gold := 0  # Kept between runs, and saved (see "Saving" below).
 var dungeon: DungeonRun  # The dungeon in progress (null between runs).
 var run_gold := 0  # Gold you took home from the last run, for the shop's summary.
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
-var run_died := false  # Did the last run end in a defeat?
 # Room cards you've unlocked with Maps, per area: {"Plains": ["Slime Den"]}.
 var unlocked_rooms := {}
 # Booster packs bought in the shop and not opened yet, by name: {"Basic Booster": 2}.
@@ -307,7 +306,6 @@ func current_encounter() -> Array[EnemyData]:
 func start_run() -> void:
 	run_gold = 0
 	run_hp = -1
-	run_died = false
 	vanished.clear()  # Vanished cards come back for a new run.
 	dungeon = DungeonRun.new(current_area) if current_area else null
 

@@ -111,32 +111,34 @@ func is_safe(square: Vector2i) -> bool:
 	return rooms.has(square) and rooms[square].cleared
 
 
-# How many steps from where you are to `target`, walking through safe
-# squares only, or -1 if you can't get there. The target can be a blank
-# square next to the explored area (that's exploring) or any explored room.
-# This is a "breadth-first search": try every square 1 step away, then
-# every square 2 steps away, and so on, until we reach the target.
-func steps_to(target: Vector2i) -> int:
-	if not in_grid(target) or walls.has(target) or target == position:
-		return -1
-	var distance := {position: 0}
+# Every square you can step to from where you are, walking through safe
+# squares only: square -> {"steps": how many steps, "from": the last safe
+# square on the way (where Back off takes you)}. A square you can step to is
+# a blank square next to the explored area (that's exploring) or any
+# explored room. This is a "breadth-first search": find every square 1 step
+# away, then every square 2 steps away, and so on. The grid is tiny, so one
+# search answers every square at once (the dungeon screen asks once per redraw).
+func reachable() -> Dictionary:
+	var found := {}
 	var queue: Array[Vector2i] = [position]
+	var seen := {position: 0}
 	while not queue.is_empty():
 		var here: Vector2i = queue.pop_front()
 		for direction in DIRECTIONS:
 			var next := here + direction
-			if not in_grid(next) or walls.has(next) or distance.has(next):
+			if not in_grid(next) or walls.has(next) or seen.has(next):
 				continue
-			distance[next] = distance[here] + 1
-			if next == target:
-				_step_before_target = here  # The last safe square on the way.
-				return distance[next]
+			seen[next] = seen[here] + 1
+			found[next] = {"steps": seen[next], "from": here}
 			if is_safe(next):
 				queue.append(next)  # Only walk ON through rooms that are safe.
-	return -1
+	return found
 
 
-var _step_before_target := START  # Set by steps_to().
+# How many steps to `target`, or -1 if you can't get there.
+func steps_to(target: Vector2i) -> int:
+	var reach := reachable()
+	return reach[target].steps if reach.has(target) else -1
 
 
 func can_move_to(square: Vector2i) -> bool:
@@ -153,12 +155,12 @@ func can_move_to(square: Vector2i) -> bool:
 #   "empty"    nothing here
 #   ""         you can't go there
 func move_to(square: Vector2i) -> String:
-	var distance := steps_to(square)
-	if distance <= 0 or not result.is_empty():
+	var reach := reachable()
+	if not reach.has(square) or not result.is_empty():
 		return ""
-	steps += distance
-	total_steps += distance
-	came_from = _step_before_target
+	steps += reach[square].steps
+	total_steps += reach[square].steps
+	came_from = reach[square].from
 	position = square
 	if not rooms.has(square):
 		_reveal(square)

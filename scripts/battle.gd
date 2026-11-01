@@ -1134,7 +1134,6 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 
 
 func _on_player_died() -> void:
-	GameState.run_died = true
 	var dungeon := GameState.dungeon
 	var lost := dungeon.loot_text()
 	dungeon.die()

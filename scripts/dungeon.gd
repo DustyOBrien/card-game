@@ -56,6 +56,8 @@ const HERE_BORDER := Color(0.55, 0.9, 1.0)
 
 var dungeon: DungeonRun
 var squares := {}  # Vector2i -> the Button drawn for that square.
+var reach := {}  # Where you can step to: dungeon.reachable(), worked out once per refresh().
+var _boxes := {}  # Square styles we've already made, so a redraw reuses them.
 
 
 func _ready() -> void:
@@ -150,6 +152,7 @@ func make_square(square: Vector2i) -> Button:
 
 # Draw every square and every label again from the DungeonRun.
 func refresh() -> void:
+	reach = dungeon.reachable() if dungeon.result.is_empty() else {}
 	for square: Vector2i in squares:
 		draw_square(square)
 	var hp := GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
@@ -188,7 +191,7 @@ func draw_square(square: Vector2i) -> void:
 	label.text = ""
 	button.tooltip_text = describe_square(square)  # Shown when you hover the square for a moment.
 	var color := FOG_COLOR
-	var reachable := dungeon.can_move_to(square)
+	var reachable := reach.has(square)
 	if dungeon.walls.has(square):
 		color = WALL_COLOR
 	elif dungeon.is_explored(square):
@@ -237,7 +240,7 @@ func describe_square(square: Vector2i) -> String:
 	if dungeon.walls.has(square):
 		return "Dead end: the room deck ran out.\nRest at a campfire to shuffle the rooms back in."
 	if not dungeon.is_explored(square):
-		var distance := dungeon.steps_to(square)
+		var distance: int = reach[square].steps if reach.has(square) else -1
 		if distance > 0:
 			return "Unexplored (%d step%s away).\nStep here to draw a room from the deck." % [distance, "s" if distance > 1 else ""]
 		return "Unexplored.\nExplore a square next to it first."
@@ -286,7 +289,11 @@ func describe_square(square: Vector2i) -> String:
 
 
 func make_box(color: Color, border: Color, width: int) -> StyleBoxFlat:
+	var key := "%s %s %d" % [color.to_html(), border.to_html(), width]
+	if _boxes.has(key):
+		return _boxes[key]
 	var box := StyleBoxFlat.new()
+	_boxes[key] = box
 	box.bg_color = color
 	box.border_color = border
 	box.set_border_width_all(width)
@@ -311,9 +318,9 @@ func has_action_here() -> bool:
 # --- Clicking ---------------------------------------------------------------
 
 func _on_square_hovered(square: Vector2i) -> void:
-	var distance := dungeon.steps_to(square)
-	if distance <= 0:
+	if not reach.has(square):
 		return
+	var distance: int = reach[square].steps
 	var what := "explore" if not dungeon.is_explored(square) else "walk there"
 	var text := "%d step%s to %s." % [distance, "s" if distance > 1 else "", what]
 	if dungeon.steps_to_next_danger() <= distance:

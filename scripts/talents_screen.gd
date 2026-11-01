@@ -238,8 +238,15 @@ func refresh() -> void:
 	tree_area.queue_redraw()  # Redraw the lines (learned paths turn gold).
 
 
+var _styles := {}  # Box styles already made (refresh() runs on every click).
+
+
 func make_box_style(border: Color, learned: bool, hover: bool) -> StyleBoxFlat:
+	var key := "%s %s %s" % [border.to_html(), learned, hover]
+	if _styles.has(key):
+		return _styles[key]
 	var style := StyleBoxFlat.new()
+	_styles[key] = style
 	style.bg_color = character_class.color.darkened(0.2 if learned else 0.6)
 	if hover:
 		style.bg_color = style.bg_color.lightened(0.15)
