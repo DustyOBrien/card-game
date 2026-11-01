@@ -282,11 +282,11 @@ The Tailor, Enchanter and Mapmaker have no quest giving their blueprints yet.
 
 What you buy for your next run is listed at the bottom of the town. The **road**
 at the bottom-right, with its **To the Map** signpost (`town_road.gd`, drawn with
-code), goes to the map; the map also has a **Town** button. **Your Packs (n)**
+code), goes to the map; the map also has a **Town** button. the gold **Open Packs (n)** button (a booster pack icon)
 opens your booster packs, even before the Shop is built (then nothing is for sale).
 
 In the **Shop**:
-- Buy **Plains Booster Packs**: **Small** (3 cards, 5 gold), **Medium** (5 cards, 8 gold) or **Large** (7 cards, 11 gold). Quests and chests give them too (a chest's Pack is a Small one). They wait under "Your packs" until you press **Open**, which shows the cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
+- Buy **Plains Booster Packs** with gold AND Plains **Stone** from your Bank, so you farm the Plains for them: **Small** (3 cards, 5 gold + 1 Stone), **Medium** (5 cards, 8 gold + 2 Stone) or **Large** (7 cards, 11 gold + 3 Stone). Quests and chests give them too (a chest's Pack is a Small one). They wait under "Your packs" until you press **Open**, which shows the cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
 - Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Odds: `PACK_ODDS`, and the packs' names, sizes and prices: `PACKS`, both in `game_state.gd`.)
 - **Back to Town** returns to the town. A new run starts at full HP, and your unspent gold is kept.
 

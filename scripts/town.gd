@@ -18,6 +18,7 @@ const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CHARACTER_SCENE := "res://scenes/character_select.tscn"
 const RUINS := preload("res://art/town/ruins.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
+const BOOSTER_ICON := preload("res://icons/booster.svg")
 const GOLD_COLOR := Color(1, 0.84, 0.35)
 const DONE_COLOR := Color(0.55, 0.95, 0.55)
 
@@ -56,7 +57,11 @@ func _ready() -> void:
 	quest_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
 	quest_button.pressed.connect(show_quest_board)
 	flask_button.add_sibling(quest_button)
+	# A booster pack you can click to open your packs (on the Shop screen,
+	# which only opens packs until the Shop is built).
 	packs_button = Button.new()
+	packs_button.icon = BOOSTER_ICON
+	packs_button.add_theme_constant_override("icon_max_width", 34)
 	packs_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
 	packs_button.tooltip_text = "Open your booster packs."
 	packs_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
@@ -104,7 +109,8 @@ func refresh() -> void:
 	quest_button.text = "The King's Letter" + ("  ✓ Ready!" if GameState.quests_ready_count() > 0 else "")
 	quest_button.disabled = GameState.quests_active().is_empty()
 	packs_button.visible = GameState.pack_count() > 0
-	packs_button.text = "Your Packs (%d)" % GameState.pack_count()
+	packs_button.text = "Open Packs (%d)" % GameState.pack_count()
+	packs_button.theme_type_variation = &"PrimaryButton"  # Gold: there's something to open!
 	var ready_for_run: Array[String] = []
 	if not GameState.pending_enchants.is_empty():
 		ready_for_run.append("Enchants: " + ", ".join(GameState.pending_enchants))

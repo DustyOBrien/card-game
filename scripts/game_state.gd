@@ -83,12 +83,13 @@ var _potions: Array[Potion] = []
 const MAX_COPIES := 3  # The most copies of one card you can own (and put in a deck).
 # The chance of each rarity for every card in a pack. They add up to 100.
 const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10, CardData.Rarity.SUPER: 0}  # Super cards never come from packs.
-# The booster packs: how many cards each holds, and its Shop price.
+# The booster packs: how many cards each holds, and its Shop price: gold
+# AND Plains Stone ("materials"), so you farm the Plains for Plains packs.
 # Quest rewards name them by size ("Pack Medium 2"). Every pack uses PACK_ODDS.
 const PACKS := [
-	{"name": "Small Plains Booster Pack", "size": "Small", "cards": 3, "price": 5},
-	{"name": "Medium Plains Booster Pack", "size": "Medium", "cards": 5, "price": 8},
-	{"name": "Large Plains Booster Pack", "size": "Large", "cards": 7, "price": 11},
+	{"name": "Small Plains Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}},
+	{"name": "Medium Plains Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}},
+	{"name": "Large Plains Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}},
 ]
 var collection := {}
 

@@ -38,7 +38,7 @@ func _ready() -> void:
 
 	next_run_button.text = "← Back to Town"
 	if shop_built():
-		summary_label.text = "Spend your gold on booster packs. Open them here or later."
+		summary_label.text = "Plains packs cost gold AND Stone from the Plains (it comes out of your Bank). Open them here or later."
 		for pack in GameState.PACKS:
 			pack_row.add_child(_make_pack(pack))
 	else:
@@ -58,10 +58,10 @@ func shop_built() -> bool:
 
 # Update the gold, the Buy buttons and the "you own" line.
 func refresh() -> void:
-	gold_label.text = "Gold %d" % GameState.gold
+	gold_label.text = "Gold %d   Stone %d" % [GameState.gold, GameState.material_count("Stone")]
 	for panel in pack_row.get_children():
 		var button: Button = panel.get_meta("buy_button")
-		button.disabled = GameState.gold < panel.get_meta("price")
+		button.disabled = not can_buy(panel.get_meta("pack"))
 	owned_label.text = "Your packs:" if GameState.pack_count() > 0 else "Your packs: none yet"
 	for old in open_row.get_children():
 		old.queue_free()
@@ -84,10 +84,16 @@ func price_of(pack: Dictionary) -> int:
 	return maxi(pack.price - discount, 1)
 
 
+# Enough gold AND Stone (in your Bank) for it?
+func can_buy(pack: Dictionary) -> bool:
+	return GameState.gold >= price_of(pack) and GameState.has_materials(pack.materials)
+
+
 func buy(pack: Dictionary, panel: Control) -> void:
-	if GameState.gold < price_of(pack):
+	if not can_buy(pack):
 		return
 	GameState.gold -= price_of(pack)
+	GameState.spend_materials(pack.materials)
 	GameState.add_packs(pack.name, 1)
 	GameState.save_game()
 	# A little bounce so you can see what you bought.
@@ -148,9 +154,9 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(blurb)
 
 	var button := Button.new()
-	button.text = "Buy  (%d gold)" % price_of(pack)
+	button.text = "Buy  (%d gold, %s)" % [price_of(pack), MaterialInfo.costs_text(pack.materials)]
 	if price_of(pack) < pack.price:
-		button.text += "  was %d" % pack.price  # A Loot Hound discount.
+		button.tooltip_text = "Was %d gold (discount)." % pack.price  # Loot Hound / the Shop's upgrade.
 	button.custom_minimum_size = Vector2(0, 40)
 	button.focus_mode = Control.FOCUS_NONE
 	# bind() fills in buy()'s arguments, so each button buys its own pack.
@@ -158,7 +164,7 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(button)
 
 	panel.set_meta("buy_button", button)
-	panel.set_meta("price", price_of(pack))
+	panel.set_meta("pack", pack)
 	return panel
 
 
