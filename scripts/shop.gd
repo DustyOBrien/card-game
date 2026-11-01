@@ -1,14 +1,14 @@
 # shop.gd
 #
-# The shop you visit at the end of every run (scenes/shop.tscn).
-# Spend gold on booster packs, then go to the map for the next run.
+# The Shop (scenes/shop.tscn), one of the buildings in town (see town.gd).
+# Spend gold on booster packs, then go back to town.
 #
 # Bought packs wait under "Your packs" until you press Open Pack. Opening one
 # shows its 3 cards and adds them to your collection (GameState.open_pack()),
 # so they show up in the deck builder.
 extends Control
 
-const MAP_SCENE := "res://scenes/map.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const REVEAL_GAP := 0.35  # Seconds between the cards of a pack appearing.
@@ -37,19 +37,8 @@ func _ready() -> void:
 	edit_deck_button.pressed.connect(_on_edit_deck_pressed)
 	next_run_button.pressed.connect(_on_next_run_pressed)
 
-	# How the run went.
-	var dungeon := GameState.dungeon
-	match dungeon.result if dungeon else "":
-		"won":
-			summary_label.text = "You beat the %s boss after %d fight(s), and took home %s!" % [
-				GameState.current_area.display_name, dungeon.fights_won, dungeon.loot_text()]
-		"left":
-			summary_label.text = "You left the %s after %d fight(s), with %s." % [
-				GameState.current_area.display_name, dungeon.fights_won, dungeon.loot_text()]
-		"died":
-			summary_label.text = "You fell after %d fight(s). What you found stayed in the dungeon." % dungeon.fights_won
-		_:
-			summary_label.text = "Welcome to the shop!"
+	summary_label.text = "Spend your gold on booster packs. Open them here or later."
+	next_run_button.text = "← Back to Town"
 
 	for pack in PACKS:
 		pack_row.add_child(_make_pack(pack))
@@ -79,7 +68,9 @@ func refresh() -> void:
 
 # What a pack costs you: its price, less any Pack Discount talents (never below 1).
 func price_of(pack: Dictionary) -> int:
-	return maxi(pack.price - GameState.talent_bonus(GameState.character_class, Talent.PACK_DISCOUNT), 1)
+	var discount := GameState.talent_bonus(GameState.character_class, Talent.PACK_DISCOUNT) \
+		+ GameState.town_bonus(TownBuilding.PACK_DISCOUNT)  # Loot Hound, and the Shop's upgrade.
+	return maxi(pack.price - discount, 1)
 
 
 func buy(pack: Dictionary, panel: Control) -> void:
@@ -242,4 +233,4 @@ func _on_edit_deck_pressed() -> void:
 
 
 func _on_next_run_pressed() -> void:
-	get_tree().change_scene_to_file(MAP_SCENE)  # Pick where the next run happens.
+	get_tree().change_scene_to_file(TOWN_SCENE)

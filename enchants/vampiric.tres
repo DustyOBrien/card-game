@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_4xdjw"]
+
+[resource]
+script = ExtResource("1_4xdjw")
+enchant_name = "Vampiric"
+description = "Leech 50%: heal half the damage it deals"
+rarity = 1
+color = Color(0.7529412, 0.22352941, 0.16862746, 1)
+leech = 50

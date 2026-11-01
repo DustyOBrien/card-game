@@ -171,18 +171,43 @@ of squares, and you start in the middle. Every other square is hidden.
   rooms to the deck. After the last tier's Mini Boss, resting shuffles in the
   **Boss** room instead. The Plains and the Forest have 2 tiers.
 - Gold, cards and packs you find are only **yours once you get out**: Leave at a
-  campfire or beat the Boss. Die, and the dungeon keeps them (you keep your Exp).
+  campfire or beat the Boss. Die, and the dungeon keeps them (you keep your Exp),
+  except what's in your **Save Sack**.
+- **Save Sack.** The side panel lists what you've Found as little buttons. Drag one
+  into a Save Sack slot (or click it) and it's safe even if you die; click a slot
+  to take it back out. You start with **2 slots**; a slot holds a pack, a card, or
+  up to **5 gold**. The Tailor in town adds slots and gold.
+- **Enchants.** Fights sometimes drop an enchant (35% for a Fight, 60% Hard Fight,
+  always for a Mini Boss). Press **Use Enchant** and click a card in your deck: it
+  gets the enchant **for this run** (one per card). Enchanted cards say
+  "Enchant: Sharpened" at the bottom.
+- **Potions.** Fights sometimes drop a potion (25% / 35% / 50%). You can carry 3. In a
+  fight, click one (bottom left) to drink it: heal, Block, Energy, draw, damage...
 - If the room deck runs out, the other squares become dead ends until you rest.
 
 Your HP carries over from one fight to the next (the top of the battle screen
 shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
-to the grid. When the run ends (Boss beaten, Leave, or death) you go to the **Shop**:
+to the grid. When the run ends (Boss beaten, Leave, or death) you go back to **Town**.
 
-- It shows how the run went and what you took home.
+**The town.** It shows how the run went, and its buildings start in **ruins**. Put
+gold into a building to restore it, one stage at a time (hover the button to see
+what the next stage does):
+
+- **Shop** (open from the start): booster packs. Stage 2: packs cost 1 less.
+- **Tailor**: a bigger Save Sack (+1 slot, then 10 more gold per slot, then +1 slot).
+- **Enchanter**: buy a random enchant (15 gold) to take into your next run.
+  Stage 2: when an enchant drops, choose from 2.
+- **Alchemist**: buy a random potion (8 gold) for your next run. Stage 2: carry 1 more.
+- **Mapmaker**: buy a map (25 gold) that unlocks a new room card. Stage 2: danger
+  rises every 8 steps instead of 6.
+
+What you buy for your next run is listed at the bottom of the town. **Start Next
+Run** goes to the map; the map also has a **Town** button.
+
+In the **Shop**:
 - Buy a **Basic Booster** (5 gold). It waits under "Your packs" until you press **Open Pack**, which shows its 3 cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
 - Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
-- **Start Next Run** goes to the map, to pick where the next run happens. It starts at full HP, and your unspent gold is kept.
-- **Edit Deck** goes back to the deck builder first.
+- **Back to Town** returns to the town. A new run starts at full HP, and your unspent gold is kept.
 
 **Your card collection.** You start owning every card marked **Unlocked** in
 the spreadsheet, as many copies as its **Copies** column (your starter deck);
@@ -233,7 +258,8 @@ card-game/
 │   ├── map.tscn         Pick an area (Plains, Forest, Cave) to start a run
 │   ├── dungeon.tscn     The 5 x 5 grid you explore between fights
 │   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
-│   ├── shop.tscn        Between runs: spend gold on booster packs
+│   ├── town.tscn        Between runs: restore buildings, buy enchants, potions and maps
+│   ├── shop.tscn        The Shop in town: spend gold on booster packs
 │   └── card.tscn        What ONE card looks like
 ├── scripts/
 │   ├── game_state.gd    Autoload: keeps your class, deck, gold and run while scenes change
@@ -256,7 +282,11 @@ card-game/
 │   ├── health_bar.gd    The enemy's health bar and damage preview, drawn with code
 │   ├── dice_tray.gd     The panel where dice tumble and land
 │   ├── battle_log.gd    The Battle Log panel (a RichTextLabel)
-│   ├── shop.gd          The shop: pack list, buying, starting the next run
+│   ├── town.gd          The town: building panels, restoring, buying
+│   ├── town_building.gd One building (a row group of town.csv)
+│   ├── enchant.gd       An enchant, and how it changes a card in a fight
+│   ├── potion.gd        A potion you drink in a fight
+│   ├── shop.gd          The shop: pack list, buying, opening packs
 │   └── card_importer.gd Turns the spreadsheet into card files
 ├── tools/
 │   └── import_cards.gd  Run this in the editor to re-import the spreadsheet
@@ -805,13 +835,55 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
 | Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
 | Encounters | Slime \| Slimeling, Slimeling | Fights only: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right |
-| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map** |
+| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Basic Booster), **Key**, **Map**, **Enchant**, **Potion** |
 | Notes | | Anything you like; the game ignores it |
 
 The dungeon screen is `scenes/dungeon.tscn` + `scripts/dungeon.gd`; the rules
 (drawing rooms, danger, resting, loot) are in `scripts/dungeon_run.gd`, kept
 apart from the screen like `combatant.gd` is from the battle. The room pictures
 are in `art/rooms/`.
+
+### Enchants, potions and the town: `data/progression/`
+
+Three small sheets. Run `tools/import_cards.gd` after changing them; they become
+`enchants/*.tres`, `potions/*.tres` and `town/*.tres`.
+
+**`enchants.csv`**: one row per enchant. Blank = no.
+
+| Column | Example | What it means |
+|---|---|---|
+| Name | Sharpened | The enchant's name, shown on the card |
+| Rarity | Common | Common 60, Uncommon 30, Rare 10 (how often it drops) |
+| Roll Bonus | 1 | +this to every die the card rolls |
+| Advantage / Empowered / Wild / Flawless / Vanish | Yes | Adds that keyword to the card |
+| Leech | 50 | Heal this % of the damage the card deals |
+| Cost | -1 | Changes the Energy cost (never below 0) |
+| Draw | 1 | Draw this many more cards when it's played |
+| Color | #e0e6f0 | The colour of its name on the card |
+| Description | | What it says when you pick a card for it |
+
+Enchants that change dice only go on cards with dice; Leech only on cards that deal damage.
+
+**`potions.csv`**: Name, Rarity, Heal, Block, Energy, Draw, Damage (to every enemy),
+Advantage, Roll Bonus (next roll), Color (the bottle's colour), Description.
+
+**`town.csv`**: one row per **stage** of a building, in order.
+
+| Column | Example | What it means |
+|---|---|---|
+| Building | Tailor | Rows with the same Building are one building |
+| Stage | 1 | Its stages, 1 first |
+| Cost | 30 | Gold to restore that stage. 0 = restored from the start (the Shop) |
+| Effect | Sack Slots | Shop, Pack Discount, Sack Slots, Gold Stack, Enchanter, Enchant Choice, Alchemist, Potion Slots, Mapmaker, Danger Steps |
+| Amount | 1 | How much of the effect |
+| Icon | tailor.svg | Its picture in `art/town/` (first row only) |
+| Description | | One line about the building (first row only) |
+| Stage Text | Save Sack +1 slot | What the stage does, shown in town |
+
+The prices (enchant 15, potion 8, map 25) and the starting Save Sack (2 slots,
+5 gold) and potion slots (3) are at the top of `game_state.gd`. Drop chances are
+`ENCHANT_CHANCE` and `POTION_CHANCE` in `dungeon_run.gd`, and room Loot can also
+say **Enchant** or **Potion**.
 
 ## Saving your own changes to GitHub (GitHub Desktop)
 

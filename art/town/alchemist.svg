@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Alchemist: a hut with a bubbling chimney and a potion sign. -->
+  <rect x="20" y="58" width="88" height="58" fill="#7aa36b" stroke="#24361c" stroke-width="4"/>
+  <path d="M12 60 L64 24 L116 60 Z" fill="#3e6b3a" stroke="#24361c" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="84" y="22" width="12" height="24" fill="#6b5a4a" stroke="#24361c" stroke-width="3"/>
+  <circle cx="92" cy="14" r="5" fill="#9cf29c" opacity="0.8"/><circle cx="100" cy="6" r="4" fill="#9cf29c" opacity="0.6"/>
+  <rect x="52" y="86" width="24" height="30" fill="#4a3424"/>
+  <path d="M30 70 L38 70 L38 76 L44 88 L24 88 L30 76 Z" fill="#e74c3c" stroke="#24361c" stroke-width="2.5" stroke-linejoin="round"/>
+</svg>

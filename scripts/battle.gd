@@ -16,7 +16,8 @@ extends Control
 # preload() loads a file once, when the script loads. These are the
 # "blueprints" we use to build the deck and the cards on screen.
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const SHOP_SCENE := "res://scenes/shop.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"  # Where you go when the run is over.
+const POTION_ICON := preload("res://art/potions/potion.svg")
 const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn (before talents).
@@ -104,8 +105,79 @@ func _ready() -> void:
 	continue_button.add_sibling(exp_bar)
 	exp_bar.get_parent().move_child(exp_bar, continue_button.get_index())
 	set_process(false)  # _process() is only needed while dragging an attack.
+	# Your potions, bottom-left. Built in code; refreshed in update_ui().
+	potion_bar = HBoxContainer.new()
+	potion_bar.add_theme_constant_override("separation", 6)
+	potion_bar.position = Vector2(32, 600)
+	add_child(potion_bar)
+	potion_bar.get_parent().move_child(potion_bar, game_over_screen.get_index())  # Under the end screen.
 
 	start_battle()
+
+
+# ---------------------------------------------------------------------------
+# Potions (see potion.gd): click one on your turn to drink it.
+# ---------------------------------------------------------------------------
+
+var potion_bar: HBoxContainer
+var _potion_count := -1  # How many potion buttons are showing (rebuild only when it changes).
+
+
+func refresh_potions() -> void:
+	var potions: Array[Potion] = GameState.dungeon.potions if GameState.dungeon else ([] as Array[Potion])
+	if potions.size() != _potion_count:
+		_potion_count = potions.size()
+		for old in potion_bar.get_children():
+			old.queue_free()
+		for i in potions.size():
+			var button := Button.new()
+			button.icon = POTION_ICON
+			button.expand_icon = true
+			button.custom_minimum_size = Vector2(56, 56)
+			# The bottle picture is white, so these colours tint it the potion's colour.
+			for state in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
+				button.add_theme_color_override(state, potions[i].color)
+			button.tooltip_text = "%s\n%s\nClick to drink it." % [potions[i].potion_name, potions[i].effect_text()]
+			button.pressed.connect(drink_potion.bind(i))
+			potion_bar.add_child(button)
+	for button: Button in potion_bar.get_children():
+		button.disabled = busy or game_over
+
+
+func drink_potion(index: int) -> void:
+	var potions := GameState.dungeon.potions
+	if busy or game_over or index >= potions.size():
+		return
+	var potion: Potion = potions[index]
+	potions.remove_at(index)
+	battle_log.add("You drink a %s" % potion.potion_name, BattleLog.PLAYER_COLOR)
+	if potion.heal > 0:
+		player.heal(potion.heal)
+		battle_log.add("You heal %d (HP %d/%d)" % [potion.heal, player.hp, player.max_hp])
+	if potion.block > 0:
+		player.gain_block(potion.block)
+		battle_log.add("You gain %d Block (Block %d)" % [potion.block, player.block])
+	if potion.energy > 0:
+		energy += potion.energy
+		battle_log.add("You gain %d energy" % potion.energy)
+	if potion.advantage:
+		next_roll_advantage = true
+		battle_log.add("Your next roll has Advantage")
+	if potion.roll_bonus > 0:
+		next_roll_bonus += potion.roll_bonus
+		battle_log.add("Your next roll gets +%d" % next_roll_bonus)
+	if potion.damage > 0:
+		for view in living_enemies():
+			battle_log.add("%s takes %d damage (HP %d/%d)" % [view.data.display_name, potion.damage,
+				view.hp_after(potion.damage), view.combatant.max_hp])
+			view.combatant.take_damage(potion.damage)
+			view.show_hurt()
+	if potion.draw > 0 and not game_over:
+		busy = true
+		await draw_cards(potion.draw)
+		busy = false
+	refresh_hand()
+	queue_update_ui()
 
 
 # ---------------------------------------------------------------------------
@@ -151,6 +223,9 @@ func start_battle() -> void:
 		# set_meta() tags the copy with where it came from in the deck,
 		# so if it Vanishes we know which deck card to leave out next fight.
 		card.set_meta("deck_index", i)
+		# An enchant on this card for the run (see enchant.gd) changes the copy.
+		if GameState.run_enchants.has(i):
+			GameState.run_enchants[i].apply_to(card)
 		draw_pile.append(card)
 	draw_pile.shuffle()
 	dice_tray.hide()
@@ -597,6 +672,7 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 		next_roll_advantage = false  # ...and so is Advantage.
 
 	# Apply each effect the card has. A card can have several.
+	var damage_dealt := 0  # For Leech.
 	for hit: int in result.hits:  # Each hit goes through the enemy's Block on its own.
 		if game_over:
 			break  # An earlier hit already won the fight.
@@ -608,13 +684,20 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 			# "defeated" line is added inside take_damage().
 			battle_log.add("%s takes %d damage (HP %d/%d)" % [view.data.display_name, hit,
 				view.hp_after(hit), view.combatant.max_hp])
+			var hp_before := view.combatant.hp
 			view.combatant.take_damage(hit)
+			damage_dealt += hp_before - view.combatant.hp
 			view.show_hurt()
 	if game_over:
 		# The fight is over, so the rest of the card (draws, heals...) doesn't matter.
 		put_away(card, result.keep > 0)  # But a Vanish card still Vanishes.
 		busy = false
 		return
+	if card.leech > 0 and damage_dealt > 0:
+		# Leech: heal part of the damage this card dealt (rounded up).
+		var leeched := ceili(damage_dealt * card.leech / 100.0)
+		player.heal(leeched)
+		battle_log.add("Leech: you heal %d (HP %d/%d)" % [leeched, player.hp, player.max_hp], BattleLog.PLAYER_COLOR)
 	if card.has_type(CardData.CardType.ATTACK):
 		next_attack_bonus = 0  # An Attack card uses up the waiting attack bonus (Rage).
 	if result.block > 0:
@@ -989,6 +1072,7 @@ func _run_queued_update() -> void:
 
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
+	refresh_potions()
 	gold_label.text = "Gold %d" % GameState.gold
 	if GameState.dungeon and GameState.dungeon.found_gold > 0:
 		gold_label.text += " (+%d found)" % GameState.dungeon.found_gold
@@ -1104,7 +1188,7 @@ func _on_enemy_died(view: EnemyView) -> void:
 	battle_log.add("You gain %d Exp" % exp_gain, BattleLog.TURN_COLOR)
 
 	if outcome == "won":
-		end_battle("%s cleared!" % GameState.current_area.display_name, reward, "Go to the Shop →")
+		end_battle("%s cleared!" % GameState.current_area.display_name, reward, "Back to Town →")
 	else:
 		end_battle("Victory!", reward, "Back to the Dungeon →")
 	show_exp_gain(before_level, before_progress, exp_gain, level_ups)
@@ -1136,17 +1220,17 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 func _on_player_died() -> void:
 	var dungeon := GameState.dungeon
 	var lost := dungeon.loot_text()
-	dungeon.die()
+	var saved := dungeon.die()
 	exp_bar.hide()  # No Exp for losing (you kept the Exp from the fights you won).
-	end_battle("Defeat...", "You won %d fight(s). The dungeon keeps what you found (%s)." % [dungeon.fights_won, lost], "Go to the Shop →")
+	end_battle("Defeat...", "You won %d fight(s). The dungeon keeps what you found (%s).\nYour Save Sack kept: %s." % [dungeon.fights_won, lost, saved], "Back to Town →")
 
 
-# The button on the end-of-fight panel: back to the dungeon, or the shop once the run is over.
+# The button on the end-of-fight panel: back to the dungeon, or to town once the run is over.
 func _on_continue_pressed() -> void:
 	if GameState.dungeon.result.is_empty():
 		get_tree().change_scene_to_file(DUNGEON_SCENE)
 	else:
-		get_tree().change_scene_to_file(SHOP_SCENE)
+		get_tree().change_scene_to_file(TOWN_SCENE)
 
 
 func end_battle(result: String, reward: String, button_text: String) -> void:

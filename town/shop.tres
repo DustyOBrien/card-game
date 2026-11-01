@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="TownBuilding" format=3]
+
+[ext_resource type="Texture2D" path="res://art/town/shop.svg" id="1_0mxd4"]
+[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_hygih"]
+
+[resource]
+script = ExtResource("2_hygih")
+building_name = "Shop"
+description = "Sells booster packs."
+icon = ExtResource("1_0mxd4")
+costs = Array[int]([0, 60])
+effects = PackedStringArray("shop", "pack discount")
+amounts = Array[int]([1, 1])
+stage_texts = PackedStringArray("Open for business: buy booster packs", "Packs cost 1 gold less")

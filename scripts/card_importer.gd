@@ -44,6 +44,11 @@ const ENEMIES_FOLDER := "res://enemies/"
 const ENEMY_ART_FOLDER := "res://art/enemies/"
 const AREAS_FOLDER := "res://areas/"
 const ROOMS_SHEET := "res://data/dungeons/rooms.csv"
+const PROGRESSION_FOLDER := "res://data/progression/"  # enchants.csv, potions.csv, town.csv
+const ENCHANTS_FOLDER := "res://enchants/"
+const POTIONS_FOLDER := "res://potions/"
+const TOWN_FOLDER := "res://town/"
+const TOWN_ART_FOLDER := "res://art/town/"
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -61,6 +66,7 @@ static func import_cards() -> int:
 	_import_class_cards(names)
 	_import_talents()
 	_import_enemies()
+	_import_progression()
 	print("Done! Imported %d cards." % names.size())
 	return names.size()
 
@@ -709,3 +715,97 @@ static func _remove_old_cards(folder: String, keep: Array[String]) -> void:
 			if FileAccess.file_exists(folder + file_name + ".uid"):
 				DirAccess.remove_absolute(folder + file_name + ".uid")
 			print("Removed ", file_name, " (not in the spreadsheet)")
+
+
+# --- Enchants, potions and the town ---------------------------------------
+# Three small sheets in data/progression/. Each row becomes a .tres file.
+# Old files whose row was deleted are removed, like cards.
+
+static func _import_progression() -> void:
+	var rarities := {"common": CardData.Rarity.COMMON, "uncommon": CardData.Rarity.UNCOMMON, "rare": CardData.Rarity.RARE}
+
+	var enchants: Array[Resource] = []
+	for row in _read_sheet(PROGRESSION_FOLDER + "enchants.csv"):
+		var enchant := Enchant.new()
+		enchant.enchant_name = row.get("name", "Enchant")
+		enchant.description = row.get("description", "")
+		enchant.rarity = rarities.get(row.get("rarity", "").to_lower(), CardData.Rarity.COMMON)
+		enchant.color = Color.from_string(row.get("color", ""), enchant.color)
+		enchant.roll_bonus = _to_int(row.get("roll bonus", ""))
+		enchant.advantage = _parse_yes_no(row.get("advantage", ""), false)
+		enchant.empowered = _parse_yes_no(row.get("empowered", ""), false)
+		enchant.wild = _parse_yes_no(row.get("wild", ""), false)
+		enchant.flawless = _parse_yes_no(row.get("flawless", ""), false)
+		enchant.vanish = _parse_yes_no(row.get("vanish", ""), false)
+		enchant.leech = _to_int(row.get("leech", "").trim_suffix("%"))
+		enchant.cost_change = _to_int(row.get("cost", ""))
+		enchant.draw = _to_int(row.get("draw", ""))
+		enchants.append(enchant)
+	_save_all(enchants, ENCHANTS_FOLDER, func(e: Enchant) -> String: return e.enchant_name)
+
+	var potions: Array[Resource] = []
+	for row in _read_sheet(PROGRESSION_FOLDER + "potions.csv"):
+		var potion := Potion.new()
+		potion.potion_name = row.get("name", "Potion")
+		potion.description = row.get("description", "")
+		potion.rarity = rarities.get(row.get("rarity", "").to_lower(), CardData.Rarity.COMMON)
+		potion.color = Color.from_string(row.get("color", ""), potion.color)
+		potion.heal = _to_int(row.get("heal", ""))
+		potion.block = _to_int(row.get("block", ""))
+		potion.energy = _to_int(row.get("energy", ""))
+		potion.draw = _to_int(row.get("draw", ""))
+		potion.damage = _to_int(row.get("damage", ""))
+		potion.advantage = _parse_yes_no(row.get("advantage", ""), false)
+		potion.roll_bonus = _to_int(row.get("roll bonus", ""))
+		potions.append(potion)
+	_save_all(potions, POTIONS_FOLDER, func(p: Potion) -> String: return p.potion_name)
+
+	# town.csv has one row per STAGE; rows with the same Building are one building.
+	var buildings := {}  # "shop" -> TownBuilding
+	var order: Array[Resource] = []
+	for row in _read_sheet(PROGRESSION_FOLDER + "town.csv"):
+		var key: String = row.get("building", "").to_lower()
+		if key.is_empty():
+			continue
+		if not buildings.has(key):
+			var building := TownBuilding.new()
+			building.building_name = row.get("building", "")
+			building.sort_order = buildings.size()
+			buildings[key] = building
+			order.append(building)
+		var building: TownBuilding = buildings[key]
+		if not row.get("description", "").is_empty():
+			building.description = row.description
+		var icon_name: String = row.get("icon", "")
+		if not icon_name.is_empty():
+			if ResourceLoader.exists(TOWN_ART_FOLDER + icon_name):
+				building.icon = load(TOWN_ART_FOLDER + icon_name)
+			else:
+				push_warning("town.csv: %s's icon %s isn't in %s" % [building.building_name, icon_name, TOWN_ART_FOLDER])
+		var effect: String = row.get("effect", "").to_lower()
+		if not effect in TownBuilding.EFFECTS:
+			push_warning("town.csv: %s stage %s has Effect '%s'. Use one of: %s" % [building.building_name,
+				row.get("stage", "?"), row.get("effect", ""), ", ".join(TownBuilding.EFFECTS)])
+		building.costs.append(_to_int(row.get("cost", "")))
+		building.effects.append(effect)
+		building.amounts.append(_to_int(row.get("amount", ""), 1))
+		building.stage_texts.append(row.get("stage text", ""))
+	_save_all(order, TOWN_FOLDER, func(b: TownBuilding) -> String: return b.building_name)
+
+
+# Save each resource as folder/<its name>.tres, and delete files for rows
+# that are gone. (take_over_path: replaces the copy Godot may have loaded.)
+static func _save_all(resources: Array[Resource], folder: String, name_of: Callable) -> void:
+	if resources.is_empty():
+		return  # Sheet missing or empty: keep the old files.
+	DirAccess.make_dir_recursive_absolute(folder)
+	var kept := {}
+	for resource in resources:
+		var file_name: String = name_of.call(resource).to_snake_case().replace("'", "") + ".tres"
+		kept[file_name] = true
+		resource.take_over_path(folder + file_name)
+		ResourceSaver.save(resource)
+	for file_name in DirAccess.get_files_at(folder):
+		if file_name.ends_with(".tres") and not kept.has(file_name):
+			DirAccess.remove_absolute(folder + file_name)
+	print("%s: %d" % [folder, resources.size()])

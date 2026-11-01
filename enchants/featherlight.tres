@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_7hawg"]
+
+[resource]
+script = ExtResource("1_7hawg")
+enchant_name = "Featherlight"
+description = "Costs 1 less Energy"
+rarity = 1
+color = Color(0.84705883, 0.9529412, 1, 1)
+cost_change = -1

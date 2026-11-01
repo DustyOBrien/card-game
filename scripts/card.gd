@@ -86,6 +86,10 @@ func setup(data: CardData) -> void:
 	if level > 1:
 		rarity_label.text += "  ·  Lv %d" % level
 	rarity_label.add_theme_color_override("font_color", CardData.RARITY_COLORS[data.rarity])
+	# Enchanted for this run (see enchant.gd): its name, in the enchant's colour.
+	if not data.enchant_name.is_empty():
+		rarity_label.text = "Enchant: " + data.enchant_name
+		rarity_label.add_theme_color_override("font_color", data.enchant_color)
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
 	keyword_label.text = data.get_keyword_text()

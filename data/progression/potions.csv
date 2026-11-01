@@ -1,0 +1,8 @@
+Name,Rarity,Heal,Block,Energy,Draw,Damage,Advantage,Roll Bonus,Color,Description
+Healing Potion,Common,8,,,,,,,#e74c3c,Heal 8 HP
+Stone Skin,Common,,8,,,,,,#95a5a6,Gain 8 Block
+Swift Tonic,Common,,,,2,,,,#3498db,Draw 2 cards
+Energy Draught,Uncommon,,,1,,,,,#f1c40f,Gain 1 Energy
+Fire Flask,Uncommon,,,,,6,,,#e67e22,Deal 6 damage to every enemy
+Lucky Brew,Uncommon,,,,,,Yes,2,#2ecc71,Your next roll has Advantage and +2
+Elixir,Rare,15,5,,,,,,#ff6fb5,Heal 15 HP and gain 5 Block

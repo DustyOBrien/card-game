@@ -1,0 +1,12 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_xno30"]
+
+[resource]
+script = ExtResource("1_xno30")
+enchant_name = "Keen Edge"
+description = "+2 to every die and Advantage"
+rarity = 2
+color = Color(1, 0.8784314, 0.4, 1)
+roll_bonus = 2
+advantage = true

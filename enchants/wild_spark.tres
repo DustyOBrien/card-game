@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_dv5hy"]
+
+[resource]
+script = ExtResource("1_dv5hy")
+enchant_name = "Wild Spark"
+description = "+2 to every die"
+color = Color(1, 0.7019608, 0.2784314, 1)
+roll_bonus = 2
+wild = true

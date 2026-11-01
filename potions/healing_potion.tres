@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Potion" format=3]
+
+[ext_resource type="Script" path="res://scripts/potion.gd" id="1_ww3ut"]
+
+[resource]
+script = ExtResource("1_ww3ut")
+potion_name = "Healing Potion"
+description = "Heal 8 HP"
+color = Color(0.90588236, 0.29803923, 0.23529412, 1)
+heal = 8

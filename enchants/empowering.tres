@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_nfpsa"]
+
+[resource]
+script = ExtResource("1_nfpsa")
+enchant_name = "Empowering"
+description = "Every die one size bigger (d6 becomes d8)"
+rarity = 1
+color = Color(0.7058824, 0.47843137, 1, 1)
+empowered = true

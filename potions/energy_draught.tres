@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Potion" format=3]
+
+[ext_resource type="Script" path="res://scripts/potion.gd" id="1_6vski"]
+
+[resource]
+script = ExtResource("1_6vski")
+potion_name = "Energy Draught"
+description = "Gain 1 Energy"
+rarity = 1
+color = Color(0.94509804, 0.76862746, 0.05882353, 1)
+energy = 1

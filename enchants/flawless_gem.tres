@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_2284p"]
+
+[resource]
+script = ExtResource("1_2284p")
+enchant_name = "Flawless Gem"
+description = "Flawless: every die is a Critical"
+rarity = 2
+color = Color(1, 0.84313726, 0, 1)
+flawless = true

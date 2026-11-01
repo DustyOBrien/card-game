@@ -101,6 +101,11 @@ const RARITY_COLORS := {
 @export var vanish: bool = false
 @export var flawless: bool = false
 @export var empowered: bool = false
+# Leech: heal this % of the damage the card deals (from enchants, for now).
+@export var leech: int = 0
+# The enchant on this card in a fight (set by Enchant.apply_to(), never saved).
+var enchant_name := ""
+var enchant_color := Color.WHITE
 # What happens on a Critical: each die that reaches its top number (modifiers
 # count!). Written like the spreadsheet, e.g. "+1 Damage" or "Draw 1, Gain 1 Energy".
 @export var critical: String = ""
@@ -314,6 +319,8 @@ func get_keyword_text() -> String:
 		words.append("Flawless")  # Only dice can crit.
 	if empowered and has_dice():
 		words.append("Empowered")
+	if leech > 0 and deals_damage():
+		words.append("Leech %d%%" % leech)
 	return " · ".join(words)
 
 

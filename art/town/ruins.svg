@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Drawn over a building that's still in ruins: rubble, cracks and planks. -->
+  <path d="M30 40 L44 62 L36 78 L50 96" fill="none" stroke="#1a1410" stroke-width="4"/>
+  <path d="M92 34 L80 56 L92 70" fill="none" stroke="#1a1410" stroke-width="4"/>
+  <rect x="14" y="70" width="100" height="10" rx="2" fill="#7a5a3a" stroke="#2a1d10" stroke-width="3" transform="rotate(-14 64 75)"/>
+  <rect x="20" y="86" width="90" height="10" rx="2" fill="#7a5a3a" stroke="#2a1d10" stroke-width="3" transform="rotate(10 64 91)"/>
+  <ellipse cx="34" cy="116" rx="18" ry="8" fill="#6d6a66" stroke="#2a2826" stroke-width="3"/>
+  <ellipse cx="66" cy="118" rx="14" ry="7" fill="#85817c" stroke="#2a2826" stroke-width="3"/>
+  <ellipse cx="96" cy="115" rx="20" ry="9" fill="#6d6a66" stroke="#2a2826" stroke-width="3"/>
+</svg>

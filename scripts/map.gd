@@ -10,6 +10,7 @@ extends Control
 
 const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"
 const LOCK_ICON := preload("res://art/map/lock.svg")
 
 const BUTTON_SIZE := Vector2(110, 110)  # The round area pictures.
@@ -26,6 +27,14 @@ const LOCKED_TINT := Color(0.45, 0.42, 0.4)
 func _ready() -> void:
 	GameState.ensure_ready()  # So pressing F6 on this scene still works.
 	deck_button.pressed.connect(_on_deck_pressed)
+	# A Town button next to Edit Deck (restore buildings, buy potions...).
+	var town_button := Button.new()
+	town_button.text = "Town"
+	town_button.custom_minimum_size = Vector2(120, 48)
+	town_button.add_theme_font_size_override("font_size", 20)
+	town_button.position = deck_button.position + Vector2(deck_button.size.x + 12, 0)
+	town_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(TOWN_SCENE))
+	add_child(town_button)
 	gold_label.text = "Gold %d" % GameState.gold
 	for area in GameState.load_areas():
 		areas_layer.add_child(make_area_marker(area))

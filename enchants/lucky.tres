@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_wyv3l"]
+
+[resource]
+script = ExtResource("1_wyv3l")
+enchant_name = "Lucky"
+description = "This card's dice roll with Advantage"
+color = Color(0.37254903, 0.81960785, 0.41568628, 1)
+advantage = true

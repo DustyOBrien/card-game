@@ -1,0 +1,11 @@
+Name,Rarity,Roll Bonus,Advantage,Empowered,Wild,Flawless,Vanish,Leech,Cost,Draw,Color,Description
+Sharpened,Common,1,,,,,,,,,#e0e6f0,+1 to every die this card rolls
+Lucky,Common,,Yes,,,,,,,,#5fd16a,This card's dice roll with Advantage
+Swift,Common,,,,,,,,,1,#7fd6ff,Draw 1 card when you play it
+Wild Spark,Common,2,,,Yes,,,,,,#ffb347,+2 to every die, but it rolls when played (Wild)
+Vampiric,Uncommon,,,,,,,50,,,#c0392b,Leech 50%: heal half the damage it deals
+Blood Pact,Uncommon,,,,,,Yes,100,,,#8e1b3a,Leech 100% + Vanish: heal all the damage it deals but it's gone for the run once played
+Empowering,Uncommon,,,Yes,,,,,,,#b47aff,Every die one size bigger (d6 becomes d8)
+Featherlight,Uncommon,,,,,,,,-1,,#d8f3ff,Costs 1 less Energy
+Keen Edge,Rare,2,Yes,,,,,,,,#ffe066,+2 to every die and Advantage
+Flawless Gem,Rare,,,,,Yes,,,,,#ffd700,Flawless: every die is a Critical

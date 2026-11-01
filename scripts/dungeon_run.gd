@@ -25,8 +25,11 @@ extends RefCounted
 
 const SIZE := 5  # The grid is SIZE x SIZE squares.
 const START := Vector2i(2, 2)  # The middle square.
-const STEPS_PER_DANGER := 6  # Steps (since the last rest) for each +1 enemy Strength.
+const STEPS_PER_DANGER := 6  # Steps (since the last rest) for each +1 enemy Strength (the Mapmaker adds more).
 const KEY_CHANCE := 25  # % chance a fight drops a small key.
+# % chance a won fight drops an enchant / a potion, by room type.
+const ENCHANT_CHANCE := {RoomCard.Type.FIGHT: 35, RoomCard.Type.HARD_FIGHT: 60, RoomCard.Type.MINI_BOSS: 100}
+const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, RoomCard.Type.MINI_BOSS: 50}
 const REST_HEAL := 0.3  # Resting heals this much of your max HP.
 const PACK_NAME := "Basic Booster"  # The pack that "Pack" loot gives you.
 # The four squares next to a square: right, left, down, up.
@@ -56,6 +59,17 @@ var tier_up_waiting := false  # A Mini Boss was beaten: the next rest adds the n
 var found_gold := 0
 var found_packs := 0
 var found_cards: Array[CardData] = []
+
+# The SAVE SACK: what's in it survives if you die. Each slot holds one
+# thing: {"kind": "pack"}, {"kind": "card", "card": CardData} or
+# {"kind": "gold", "amount": 5} (up to GameState.gold_stack() gold).
+# Things move between the Found list and the sack (put_in_sack / take_out_of_sack).
+var sack: Array[Dictionary] = []
+
+# Enchants waiting to be put on a card. Each drop is a list of choices
+# (usually 1; the Enchanter's upgrade makes it 2): pick one, then a card.
+var enchant_drops: Array = []
+var potions: Array[Potion] = []  # Potions you carry (drink them in a fight).
 
 var fights_won := 0
 var result := ""  # "" while in the dungeon, then "left", "won" or "died".
@@ -237,12 +251,16 @@ func back_off() -> void:
 
 # +1 enemy Strength for every STEPS_PER_DANGER steps since you last rested.
 func danger() -> int:
-	return steps / STEPS_PER_DANGER
+	return steps / steps_per_danger()
+
+
+func steps_per_danger() -> int:
+	return STEPS_PER_DANGER + GameState.town_bonus(TownBuilding.DANGER_STEPS)
 
 
 # Steps until danger goes up again.
 func steps_to_next_danger() -> int:
-	return STEPS_PER_DANGER - steps % STEPS_PER_DANGER
+	return steps_per_danger() - steps % steps_per_danger()
 
 
 # --- Rooms -------------------------------------------------------------------
@@ -261,6 +279,10 @@ func win_fight() -> String:
 	if randi_range(1, 100) <= KEY_CHANCE:
 		keys += 1
 		add_log("You found a small key!")
+	if randi_range(1, 100) <= ENCHANT_CHANCE.get(card.type, 0):
+		add_log("An enchant! %s" % _drop_enchant())
+	if randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
+		add_log("A potion! %s" % _drop_potion())
 	match card.type:
 		RoomCard.Type.BOSS:
 			room.done = true
@@ -335,9 +357,18 @@ func leave() -> void:
 	add_log("You leave the dungeon.")
 
 
-func die() -> void:
+# You lose what you found, but keep what's in the Save Sack. Returns what
+# the sack saved, as text ("nothing" if it was empty).
+func die() -> String:
 	result = "died"
-	add_log("You were defeated. What you found is lost.")
+	found_gold = 0
+	found_packs = 0
+	found_cards.clear()
+	_empty_sack()  # The sack's contents become the only thing "found"...
+	var saved := loot_text()
+	claim_loot()  # ...and you take them home.
+	add_log("You were defeated. Your Save Sack kept: %s." % saved)
+	return saved
 
 
 # --- Loot ----------------------------------------------------------------------
@@ -368,6 +399,10 @@ func take_loot(card: RoomCard) -> String:
 		"key":
 			keys += 1
 			return "a small key"
+		"enchant":
+			return "an enchant: " + _drop_enchant()
+		"potion":
+			return _drop_potion()
 		"map":
 			var room := GameState.unlock_random_room(area)
 			if room == null:
@@ -377,8 +412,90 @@ func take_loot(card: RoomCard) -> String:
 	return entry
 
 
+func _drop_enchant() -> String:
+	var choices := GameState.roll_enchant_choices()
+	if choices.is_empty():
+		return "nothing"
+	enchant_drops.append(choices)
+	var names: Array[String] = []
+	for enchant in choices:
+		names.append(enchant.enchant_name)
+	return " or ".join(names) + " (put it on a card from the dungeon screen)"
+
+
+func _drop_potion() -> String:
+	var potion := Potion.pick_random(GameState.load_potions())
+	if potion == null:
+		return "nothing"
+	if add_potion(potion):
+		return potion.potion_name
+	return "%s, but your potion slots are full, so you leave it" % potion.potion_name
+
+
+func add_potion(potion: Potion) -> bool:
+	if potions.size() >= GameState.potion_slots():
+		return false
+	potions.append(potion)
+	return true
+
+
+# --- The Save Sack ---------------------------------------------------------------
+
+# Move one thing from Found into a free sack slot: kind is "pack", "gold"
+# or "card" (with which card). Gold fills the slot up to the gold stack.
+func put_in_sack(kind: String, card: CardData = null) -> bool:
+	if sack.size() >= GameState.sack_slots():
+		return false
+	match kind:
+		"pack":
+			if found_packs <= 0:
+				return false
+			found_packs -= 1
+			sack.append({"kind": "pack"})
+		"gold":
+			var amount := mini(found_gold, GameState.gold_stack())
+			if amount <= 0:
+				return false
+			found_gold -= amount
+			sack.append({"kind": "gold", "amount": amount})
+		"card":
+			if not found_cards.has(card):
+				return false
+			found_cards.erase(card)
+			sack.append({"kind": "card", "card": card})
+		_:
+			return false
+	return true
+
+
+# Move a sack slot's contents back into Found.
+func take_out_of_sack(slot: int) -> void:
+	if slot < 0 or slot >= sack.size():
+		return
+	var item: Dictionary = sack[slot]
+	sack.remove_at(slot)
+	match item.kind:
+		"pack": found_packs += 1
+		"gold": found_gold += item.amount
+		"card": found_cards.append(item.card)
+
+
+static func sack_item_text(item: Dictionary) -> String:
+	match item.kind:
+		"pack": return "Pack"
+		"gold": return "%d gold" % item.amount
+		"card": return item.card.card_name
+	return "?"
+
+
+func _empty_sack() -> void:
+	while not sack.is_empty():
+		take_out_of_sack(0)
+
+
 # Give the player everything found (after Leaving or beating the Boss).
 func claim_loot() -> void:
+	_empty_sack()
 	GameState.gold += found_gold
 	GameState.run_gold += found_gold
 	if found_packs > 0:

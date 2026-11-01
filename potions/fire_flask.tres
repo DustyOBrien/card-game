@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="Potion" format=3]
+
+[ext_resource type="Script" path="res://scripts/potion.gd" id="1_8qemh"]
+
+[resource]
+script = ExtResource("1_8qemh")
+potion_name = "Fire Flask"
+description = "Deal 6 damage to every enemy"
+rarity = 1
+color = Color(0.9019608, 0.49411765, 0.13333334, 1)
+damage = 6

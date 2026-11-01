@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Mapmaker: a house with a rolled map and a compass. -->
+  <rect x="22" y="56" width="84" height="60" fill="#d6b98a" stroke="#3b2612" stroke-width="4"/>
+  <path d="M14 58 L64 22 L114 58 Z" fill="#2f6f8f" stroke="#3b2612" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="54" y="86" width="22" height="30" fill="#5a3a1c"/>
+  <rect x="28" y="66" width="30" height="18" fill="#f3e3b5" stroke="#3b2612" stroke-width="3"/>
+  <path d="M32 78 L40 70 L46 76 L54 68" fill="none" stroke="#c0392b" stroke-width="2" stroke-dasharray="3 2"/>
+  <circle cx="88" cy="76" r="11" fill="#f3e3b5" stroke="#3b2612" stroke-width="3"/>
+  <path d="M88 67 L91 76 L88 85 L85 76 Z" fill="#c0392b"/>
+</svg>

@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Enchant" format=3]
+
+[ext_resource type="Script" path="res://scripts/enchant.gd" id="1_h5orm"]
+
+[resource]
+script = ExtResource("1_h5orm")
+enchant_name = "Swift"
+description = "Draw 1 card when you play it"
+color = Color(0.49803922, 0.8392157, 1, 1)
+draw = 1

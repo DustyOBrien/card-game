@@ -1,32 +1,32 @@
 Area,Tier,Room,Type,Copies,Unlocked,Ambush,Encounters,Loot,Notes
 Plains,1,Slime Patch,Fight,3,Yes,,"Slime | Slimeling, Slimeling | Slimeling, Slime",,One group is picked at random each time
 Plains,1,Slime Ambush,Fight,3,Yes,Yes,"Slime | Slimeling, Slimeling | Slimeling, Slime",,Ambush: no backing off
-Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 10-20 | Card | Pack | Map,Needs a small key
-Plains,1,Shiny Rock,Treasure,1,Yes,,,Gold 5-12 | Key | Map,
+Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 10-20 | Card | Pack | Map | Enchant | Potion,Needs a small key
+Plains,1,Shiny Rock,Treasure,1,Yes,,,Gold 5-12 | Key | Map | Potion,
 Plains,1,Campfire,Campfire,1,Yes,,,,Rest or Leave
 Plains,1,Big Slime Nest,Mini Boss,1,Yes,,"Big Slime, Slimeling",Card | Pack,Beating it opens Tier 2
 Plains,1,Quiet Meadow,Empty,1,Yes,,,,
 Plains,2,Slime Swarm,Hard Fight,2,Yes,,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 5-10 | Key,
 Plains,2,Slime Pit,Hard Fight,2,Yes,Yes,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 5-10 | Key,Ambush: no backing off
-Plains,2,Mossy Chest,Locked Chest,1,Yes,,,Card | Pack | Map,
-Plains,2,Lost Satchel,Treasure,1,Yes,,,Gold 10-20 | Card,
+Plains,2,Mossy Chest,Locked Chest,1,Yes,,,Card | Pack | Map | Enchant | Potion,
+Plains,2,Lost Satchel,Treasure,1,Yes,,,Gold 10-20 | Card | Potion,
 Plains,2,Twin Giants,Mini Boss,1,Yes,,"Big Slime, Big Slime",Card | Pack,Beating it opens the Boss room
 Plains,1,Slime Den,Hard Fight,1,No,,"Big Slime, Slime",Pack | Card,Unlocked by a Map
-Plains,1,Hidden Cache,Treasure,1,No,,,Pack | Card | Gold 15-25,Unlocked by a Map
+Plains,1,Hidden Cache,Treasure,1,No,,,Pack | Card | Gold 15-25 | Potion,Unlocked by a Map
 Plains,2,Golden Glade,Campfire,1,No,,,,Unlocked by a Map
 Plains,Boss,Slime King's Throne,Boss,1,Yes,,Slime King,Pack,The boss
 Forest,1,Wolf Trail,Fight,3,Yes,,"Wolf | Mushroom, Wolf | Wolf, Wolf",,
 Forest,1,Wolf Ambush,Fight,3,Yes,Yes,"Wolf | Mushroom, Wolf | Wolf, Wolf",,Ambush: no backing off
-Forest,1,Rotten Chest,Locked Chest,2,Yes,,,Gold 12-22 | Card | Pack | Map,
-Forest,1,Bird Nest,Treasure,1,Yes,,,Gold 6-14 | Key | Map,
+Forest,1,Rotten Chest,Locked Chest,2,Yes,,,Gold 12-22 | Card | Pack | Map | Enchant | Potion,
+Forest,1,Bird Nest,Treasure,1,Yes,,,Gold 6-14 | Key | Map | Potion,
 Forest,1,Campfire,Campfire,1,Yes,,,,
 Forest,1,Wolf Pack,Mini Boss,1,Yes,,"Wolf, Wolf, Wolf",Card | Pack,
 Forest,1,Quiet Clearing,Empty,1,Yes,,,,
 Forest,2,Deep Woods,Hard Fight,2,Yes,,"Wolf, Mushroom, Wolf | Mushroom, Mushroom, Wolf",Gold 6-12 | Key,
 Forest,2,Thorn Thicket,Hard Fight,2,Yes,Yes,"Wolf, Mushroom, Wolf | Mushroom, Mushroom, Wolf",Gold 6-12 | Key,Ambush: no backing off
-Forest,2,Hollow Log,Locked Chest,1,Yes,,,Card | Pack | Map,
-Forest,2,Hunter's Camp,Treasure,1,Yes,,,Gold 12-22 | Card,
+Forest,2,Hollow Log,Locked Chest,1,Yes,,,Card | Pack | Map | Enchant | Potion,
+Forest,2,Hunter's Camp,Treasure,1,Yes,,,Gold 12-22 | Card | Potion,
 Forest,2,Mushroom Ring,Mini Boss,1,Yes,,"Mushroom, Wolf, Wolf, Mushroom",Card | Pack,
 Forest,1,Wolf Den,Hard Fight,1,No,,"Wolf, Wolf",Pack | Card,Unlocked by a Map
-Forest,1,Fairy Ring,Treasure,1,No,,,Pack | Card | Gold 15-25,Unlocked by a Map
+Forest,1,Fairy Ring,Treasure,1,No,,,Pack | Card | Gold 15-25 | Potion,Unlocked by a Map
 Forest,Boss,Old Oak's Grove,Boss,1,Yes,,Old Oak,Pack,The boss

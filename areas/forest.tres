@@ -56,13 +56,13 @@ script = ExtResource("3_ioxcy")
 room_name = "Rotten Chest"
 type = 2
 copies = 2
-loot = PackedStringArray("Gold 12-22", "Card", "Pack", "Map")
+loot = PackedStringArray("Gold 12-22", "Card", "Pack", "Map", "Enchant", "Potion")
 
 [sub_resource type="Resource" id="Resource_sne0c"]
 script = ExtResource("3_ioxcy")
 room_name = "Bird Nest"
 type = 3
-loot = PackedStringArray("Gold 6-14", "Key", "Map")
+loot = PackedStringArray("Gold 6-14", "Key", "Map", "Potion")
 
 [sub_resource type="Resource" id="Resource_rqlhb"]
 script = ExtResource("3_ioxcy")
@@ -126,14 +126,14 @@ script = ExtResource("3_ioxcy")
 room_name = "Hollow Log"
 type = 2
 tier = 2
-loot = PackedStringArray("Card", "Pack", "Map")
+loot = PackedStringArray("Card", "Pack", "Map", "Enchant", "Potion")
 
 [sub_resource type="Resource" id="Resource_fc4s1"]
 script = ExtResource("3_ioxcy")
 room_name = "Hunter's Camp"
 type = 3
 tier = 2
-loot = PackedStringArray("Gold 12-22", "Card")
+loot = PackedStringArray("Gold 12-22", "Card", "Potion")
 
 [sub_resource type="Resource" id="Resource_1c1y3"]
 script = ExtResource("2_4k5lq")
@@ -164,7 +164,7 @@ script = ExtResource("3_ioxcy")
 room_name = "Fairy Ring"
 type = 3
 unlocked = false
-loot = PackedStringArray("Pack", "Card", "Gold 15-25")
+loot = PackedStringArray("Pack", "Card", "Gold 15-25", "Potion")
 
 [sub_resource type="Resource" id="Resource_lts0p"]
 script = ExtResource("2_4k5lq")

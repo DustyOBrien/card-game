@@ -1,0 +1,10 @@
+[gd_resource type="Resource" script_class="Potion" format=3]
+
+[ext_resource type="Script" path="res://scripts/potion.gd" id="1_newyj"]
+
+[resource]
+script = ExtResource("1_newyj")
+potion_name = "Swift Tonic"
+description = "Draw 2 cards"
+color = Color(0.20392157, 0.59607846, 0.85882354, 1)
+draw = 2

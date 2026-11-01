@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="720" viewBox="0 0 1280 720">
+  <!-- The town: dusk sky, hills and a cobbled square. -->
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2b3a67"/><stop offset="0.6" stop-color="#d98c5f"/><stop offset="1" stop-color="#f2c38b"/>
+    </linearGradient>
+  </defs>
+  <rect width="1280" height="720" fill="url(#sky)"/>
+  <circle cx="1040" cy="180" r="60" fill="#ffe2a8" opacity="0.8"/>
+  <path d="M0 420 Q200 330 420 400 T860 380 T1280 400 L1280 720 L0 720 Z" fill="#4f6b3f"/>
+  <path d="M0 470 Q300 420 640 460 T1280 450 L1280 720 L0 720 Z" fill="#3e5832"/>
+  <rect x="0" y="540" width="1280" height="180" fill="#8b7d6b"/>
+  <g fill="none" stroke="#6f6354" stroke-width="3">
+    <path d="M0 580 H1280 M0 625 H1280 M0 670 H1280"/>
+  </g>
+</svg>

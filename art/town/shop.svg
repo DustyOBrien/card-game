@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- Shop: a stall with a striped awning and a pack on the counter. -->
+  <rect x="18" y="56" width="92" height="60" fill="#a0703c" stroke="#3b2612" stroke-width="4"/>
+  <path d="M10 56 L24 28 L104 28 L118 56 Z" fill="#e74c3c" stroke="#3b2612" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M40 28 L34 56 M64 28 L64 56 M88 28 L94 56" stroke="#f6e7c8" stroke-width="10"/>
+  <path d="M10 56 L24 28 L104 28 L118 56 Z" fill="none" stroke="#3b2612" stroke-width="4" stroke-linejoin="round"/>
+  <rect x="30" y="74" width="68" height="12" fill="#6b4523"/>
+  <rect x="54" y="58" width="22" height="18" rx="2" fill="#5fa8ff" stroke="#1f3a66" stroke-width="3"/>
+  <text x="65" y="72" font-size="14" font-family="sans-serif" font-weight="bold" fill="#fff" text-anchor="middle">?</text>
+  <rect x="50" y="90" width="28" height="26" fill="#5a3a1c"/>
+</svg>

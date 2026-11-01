@@ -31,7 +31,7 @@ var current_area: Area
 # --- The run --------------------------------------------------------------
 # A "run" is one trip into an area's dungeon (see dungeon_run.gd): explore
 # rooms, beat Mini Bosses, and beat the Boss, Leave at a campfire, or die.
-# Your HP carries over from one fight to the next. Then you go to the shop,
+# Your HP carries over from one fight to the next. Then you go back to town,
 # and from there you start a new run with full HP.
 const GOLD_MIN := 1  # Gold each enemy drops (a random amount between these).
 const GOLD_MAX := 5
@@ -44,6 +44,27 @@ var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP
 var unlocked_rooms := {}
 # Booster packs bought in the shop and not opened yet, by name: {"Basic Booster": 2}.
 var booster_packs := {}
+
+# --- Town, enchants and potions ---------------------------------------------
+# The town (scenes/town.tscn): buildings you restore with gold. Saved.
+const TOWN_FOLDER := "res://town/"
+const ENCHANTS_FOLDER := "res://enchants/"
+const POTIONS_FOLDER := "res://potions/"
+const BASE_SACK_SLOTS := 2  # Save Sack slots before the Tailor.
+const BASE_GOLD_STACK := 5  # Gold one Save Sack slot holds before the Tailor.
+const BASE_POTION_SLOTS := 3  # Potions you can carry before the Alchemist.
+const ENCHANT_PRICE := 15  # At the Enchanter.
+const POTION_PRICE := 8  # At the Alchemist.
+const MAP_PRICE := 25  # At the Mapmaker.
+var town_stages := {}  # Building name -> stage restored: {"Tailor": 2}
+# Bought in town for your next run (names): they go into the dungeon when it starts.
+var pending_enchants: Array[String] = []
+var pending_potions: Array[String] = []
+# Enchants on your deck this run: deck index -> Enchant (each card holds one).
+var run_enchants := {}
+var _town: Array[TownBuilding] = []
+var _enchants: Array[Enchant] = []
+var _potions: Array[Potion] = []
 
 # --- Your card collection ----------------------------------------------------
 # Which cards you own, and how many: {"Strike": 3, "Punch": 1}. The deck
@@ -129,6 +150,9 @@ func start_fresh() -> void:
 	_talents_changed()
 	cleared_areas.clear()
 	unlocked_rooms.clear()
+	town_stages.clear()
+	pending_enchants.clear()
+	pending_potions.clear()
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -307,7 +331,134 @@ func start_run() -> void:
 	run_gold = 0
 	run_hp = -1
 	vanished.clear()  # Vanished cards come back for a new run.
+	run_enchants.clear()  # Enchants only last one run.
 	dungeon = DungeonRun.new(current_area) if current_area else null
+	if dungeon:
+		# What you bought in town for this run.
+		for enchant_name in pending_enchants:
+			var enchant := find_enchant(enchant_name)
+			if enchant:
+				dungeon.enchant_drops.append([enchant])
+		for potion_name in pending_potions:
+			var potion := find_potion(potion_name)
+			if potion:
+				dungeon.add_potion(potion)
+		if not pending_enchants.is_empty() or not pending_potions.is_empty():
+			pending_enchants.clear()
+			pending_potions.clear()
+			save_game()
+
+
+# --- The town ------------------------------------------------------------------
+
+func load_town() -> Array[TownBuilding]:
+	if _town.is_empty():
+		for file_name in ResourceLoader.list_directory(TOWN_FOLDER):
+			if file_name.ends_with(".tres"):
+				_town.append(load(TOWN_FOLDER + file_name))
+		_town.sort_custom(func(a: TownBuilding, b: TownBuilding) -> bool: return a.sort_order < b.sort_order)
+	return _town
+
+
+# How far a building is restored: 0 = ruins. Stages that cost 0 gold are
+# restored from the start (the Shop).
+func town_stage(building: TownBuilding) -> int:
+	var free := 0
+	while free < building.costs.size() and building.costs[free] == 0:
+		free += 1
+	return maxi(town_stages.get(building.building_name, 0), free)
+
+
+# Pay for the next stage. Returns false if you can't afford it (or it's done).
+func restore(building: TownBuilding) -> bool:
+	var stage := town_stage(building)
+	if stage >= building.max_stage() or gold < building.cost_of_next(stage):
+		return false
+	gold -= building.cost_of_next(stage)
+	town_stages[building.building_name] = stage + 1
+	save_game()
+	return true
+
+
+# One effect added up over every building's restored stages, e.g.
+# town_bonus(TownBuilding.SACK_SLOTS) = 1 once the Tailor is at stage 1.
+func town_bonus(effect: String) -> int:
+	var total := 0
+	for building in load_town():
+		total += building.bonus(effect, town_stage(building))
+	return total
+
+
+func sack_slots() -> int:
+	return BASE_SACK_SLOTS + town_bonus(TownBuilding.SACK_SLOTS)
+
+
+func gold_stack() -> int:
+	return BASE_GOLD_STACK + town_bonus(TownBuilding.GOLD_STACK)
+
+
+func potion_slots() -> int:
+	return BASE_POTION_SLOTS + town_bonus(TownBuilding.POTION_SLOTS)
+
+
+# --- Enchants and potions ---------------------------------------------------------
+
+func load_enchants() -> Array[Enchant]:
+	if _enchants.is_empty():
+		for file_name in ResourceLoader.list_directory(ENCHANTS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_enchants.append(load(ENCHANTS_FOLDER + file_name))
+	return _enchants
+
+
+func load_potions() -> Array[Potion]:
+	if _potions.is_empty():
+		for file_name in ResourceLoader.list_directory(POTIONS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_potions.append(load(POTIONS_FOLDER + file_name))
+	return _potions
+
+
+func find_enchant(enchant_name: String) -> Enchant:
+	for enchant in load_enchants():
+		if enchant.enchant_name == enchant_name:
+			return enchant
+	return null
+
+
+func find_potion(potion_name: String) -> Potion:
+	for potion in load_potions():
+		if potion.potion_name == potion_name:
+			return potion
+	return null
+
+
+# A dropped enchant: 1 random enchant to choose from, plus 1 more per
+# Enchant Choice (the Enchanter's second stage). No repeats.
+func roll_enchant_choices() -> Array[Enchant]:
+	var choices: Array[Enchant] = []
+	var pool := load_enchants().duplicate()
+	for i in 1 + town_bonus(TownBuilding.ENCHANT_CHOICE):
+		var enchant := Enchant.pick_random(pool)
+		if enchant == null:
+			break
+		choices.append(enchant)
+		pool.erase(enchant)
+	return choices
+
+
+# The cards in your deck that this enchant can go on this run (by deck
+# index): not Vanished, not already enchanted, and the enchant fits.
+func enchantable_cards(enchant: Enchant) -> Array[int]:
+	var found: Array[int] = []
+	for i in deck.size():
+		if not vanished.has(i) and not run_enchants.has(i) and enchant.fits(leveled(deck[i])):
+			found.append(i)
+	return found
+
+
+func enchant_card(deck_index: int, enchant: Enchant) -> void:
+	run_enchants[deck_index] = enchant
 
 
 # Your max HP in a fight: your class's, plus Heavy Pack (+Amount for every
@@ -619,6 +770,9 @@ func save_game() -> void:
 		"bonus_talent_points": bonus_talent_points,
 		"cleared_areas": cleared_areas,
 		"unlocked_rooms": unlocked_rooms,
+		"town": town_stages,
+		"pending_enchants": pending_enchants,
+		"pending_potions": pending_potions,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -651,6 +805,10 @@ func load_game() -> bool:
 	cleared_areas.assign(data.get("cleared_areas", []))
 	var saved_rooms = data.get("unlocked_rooms", {})
 	unlocked_rooms = saved_rooms if saved_rooms is Dictionary else {}
+	var saved_town = data.get("town", {})
+	town_stages = _whole_numbers(saved_town) if saved_town is Dictionary else {}
+	pending_enchants.assign(data.get("pending_enchants", []))
+	pending_potions.assign(data.get("pending_potions", []))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()

@@ -14,7 +14,11 @@
 extends Control
 
 const BATTLE_SCENE := "res://scenes/battle.tscn"
-const SHOP_SCENE := "res://scenes/shop.tscn"
+const TOWN_SCENE := "res://scenes/town.tscn"
+const CARD_SCENE := preload("res://scenes/card.tscn")
+const ENCHANT_ICON := preload("res://art/potions/enchant.svg")
+const SACK_ICON := preload("res://art/potions/sack.svg")
+const POTION_ICON := preload("res://art/potions/potion.svg")
 
 const SQUARE_SIZE := Vector2(108, 108)
 const GAP := 6
@@ -58,6 +62,12 @@ var dungeon: DungeonRun
 var squares := {}  # Vector2i -> the Button drawn for that square.
 var reach := {}  # Where you can step to: dungeon.reachable(), worked out once per refresh().
 var _boxes := {}  # Square styles we've already made, so a redraw reuses them.
+# The Save Sack, Found and enchant/potion rows in the side panel (built in code).
+var sack_row: HBoxContainer
+var found_row: HFlowContainer
+var enchant_button: Button
+var potion_row: HBoxContainer
+var picker: ColorRect  # The "put an enchant on a card" screen, while it's open.
 
 
 func _ready() -> void:
@@ -74,6 +84,7 @@ func _ready() -> void:
 			grid.add_child(button)
 			squares[square] = button
 	build_legend()
+	build_sack_panel()
 	popup.hide()
 	refresh()
 	# Back from beating a Mini Boss: its room is a campfire now. Offer it
@@ -163,7 +174,6 @@ func refresh() -> void:
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
 	lines.append("[color=%s]Danger %d[/color]  (enemies +%d Strength; +1 more in %d steps)" % [
 		danger_color, dungeon.danger(), dungeon.danger(), dungeon.steps_to_next_danger()])
-	lines.append("Found: %s" % dungeon.loot_text())
 	lines.append("Rooms left in the deck: %d" % dungeon.deck.size())
 	if dungeon.boss_unlocked:
 		lines.append("[color=#ff6060]The Boss is somewhere in the deck![/color]")
@@ -173,12 +183,13 @@ func refresh() -> void:
 	stats_label.tooltip_text = "\n".join([
 		"HP: carries over from fight to fight. Resting at a campfire heals %d%%." % roundi(DungeonRun.REST_HEAL * 100),
 		"Keys: fights drop a small key %d%% of the time. A key opens one Locked Chest." % DungeonRun.KEY_CHANCE,
-		"Danger: every %d steps since your last rest, every enemy gets +1 Strength. Resting resets it." % DungeonRun.STEPS_PER_DANGER,
+		"Danger: every %d steps since your last rest, every enemy gets +1 Strength. Resting resets it." % dungeon.steps_per_danger(),
 		"Found: only yours once you get out (Leave at a campfire, or beat the Boss). Die and it's lost.",
 		"Rooms left: blank squares draw from this deck. When it's empty, the rest are dead ends until you rest.",
 	])
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
+	refresh_sack()
 
 
 func draw_square(square: Vector2i) -> void:
@@ -329,7 +340,7 @@ func _on_square_hovered(square: Vector2i) -> void:
 
 
 func _on_square_pressed(square: Vector2i) -> void:
-	if popup.visible:
+	if popup.visible or picker:
 		return
 	var what := "chest" if square == dungeon.position else dungeon.move_to(square)
 	if square == dungeon.position and dungeon.rooms[square].campfire:
@@ -405,7 +416,7 @@ func _on_rest() -> void:
 func _on_leave() -> void:
 	dungeon.leave()
 	dungeon.claim_loot()
-	get_tree().change_scene_to_file(SHOP_SCENE)
+	get_tree().change_scene_to_file(TOWN_SCENE)
 
 
 # --- The popup ----------------------------------------------------------------
@@ -429,4 +440,246 @@ func show_popup(heading: String, text: String, choices: Array) -> void:
 
 func close_popup() -> void:
 	popup.hide()
+	refresh()
+
+
+# --- Save Sack, Found loot, enchants and potions --------------------------------
+# The side panel shows what you've found as little chips. Drag one into a
+# Save Sack slot (or just click it) to keep it safe if you die; click a sack
+# slot to take it back out. The rules are in dungeon_run.gd (put_in_sack...).
+
+func build_sack_panel() -> void:
+	var box := info_label.get_parent()
+	var at := info_label.get_index() + 1
+	var nodes: Array[Control] = []
+
+	var sack_title := HBoxContainer.new()
+	var sack_picture := TextureRect.new()
+	sack_picture.texture = SACK_ICON
+	sack_picture.custom_minimum_size = Vector2(24, 24)
+	sack_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	sack_title.add_child(sack_picture)
+	sack_title.add_child(make_small_label("Save Sack: kept even if you die", Color(1, 0.85, 0.5)))
+	sack_title.tooltip_text = "Drag what you've found into a slot (or click it). If you die, you keep what's in the sack.\nEach slot holds a pack, a card, or up to %d gold. The Tailor in town makes it bigger." % GameState.gold_stack()
+	nodes.append(sack_title)
+	sack_row = HBoxContainer.new()
+	sack_row.add_theme_constant_override("separation", 6)
+	nodes.append(sack_row)
+
+	nodes.append(make_small_label("Found (lost if you die):", Color(0.85, 0.82, 0.76)))
+	found_row = HFlowContainer.new()
+	found_row.add_theme_constant_override("h_separation", 6)
+	found_row.add_theme_constant_override("v_separation", 4)
+	nodes.append(found_row)
+
+	var gear := HBoxContainer.new()
+	gear.add_theme_constant_override("separation", 8)
+	enchant_button = Button.new()
+	enchant_button.icon = ENCHANT_ICON
+	enchant_button.expand_icon = true
+	enchant_button.custom_minimum_size = Vector2(190, 40)
+	enchant_button.pressed.connect(show_enchant_picker)
+	enchant_button.tooltip_text = "Put an enchant on a card in your deck. It lasts for this run, and each card holds one."
+	gear.add_child(enchant_button)
+	potion_row = HBoxContainer.new()
+	potion_row.add_theme_constant_override("separation", 2)
+	gear.add_child(potion_row)
+	nodes.append(gear)
+
+	for node in nodes:
+		box.add_child(node)
+		box.move_child(node, at)
+		at += 1
+
+
+func make_small_label(text: String, color: Color) -> Label:
+	var label := Label.new()
+	label.text = text
+	label.add_theme_font_size_override("font_size", 15)
+	label.add_theme_color_override("font_color", color)
+	return label
+
+
+func refresh_sack() -> void:
+	if sack_row == null:
+		return
+	for old in sack_row.get_children() + found_row.get_children() + potion_row.get_children():
+		old.queue_free()
+	# The sack's slots: filled ones (click to take out) and empty ones.
+	for i in GameState.sack_slots():
+		var slot := Button.new()
+		slot.custom_minimum_size = Vector2(120, 34)
+		slot.add_theme_font_size_override("font_size", 14)
+		slot.focus_mode = Control.FOCUS_NONE
+		slot.clip_text = true
+		if i < dungeon.sack.size():
+			slot.text = DungeonRun.sack_item_text(dungeon.sack[i])
+			slot.tooltip_text = "Click to take it out of the sack."
+			slot.pressed.connect(_on_sack_slot_pressed.bind(i))
+		else:
+			slot.text = "(empty)"
+			slot.modulate.a = 0.6
+			slot.tooltip_text = "Drag something you found here."
+		# set_drag_forwarding(): this slot accepts drops (the chips below are
+		# what you drag). Callable() = "nothing" for the part we don't need.
+		slot.set_drag_forwarding(Callable(), _can_drop_in_sack, _drop_in_sack)
+		sack_row.add_child(slot)
+	# What you've found, as chips you can drag.
+	if dungeon.found_gold > 0:
+		found_row.add_child(make_chip("%d gold" % dungeon.found_gold, {"kind": "gold"},
+			"Drag into the sack: a slot holds up to %d gold." % GameState.gold_stack()))
+	if dungeon.found_packs > 0:
+		found_row.add_child(make_chip("Booster Pack x%d" % dungeon.found_packs, {"kind": "pack"}, ""))
+	for card in dungeon.found_cards:
+		found_row.add_child(make_chip(card.card_name, {"kind": "card", "card": card}, ""))
+	if found_row.get_child_count() == 0:
+		found_row.add_child(make_small_label("nothing yet", Color(1, 1, 1, 0.5)))
+	# Enchants waiting, and potions.
+	enchant_button.text = "Use Enchant (%d)" % dungeon.enchant_drops.size()
+	enchant_button.disabled = dungeon.enchant_drops.is_empty()
+	for potion in dungeon.potions:
+		var bottle := TextureRect.new()
+		bottle.texture = POTION_ICON
+		bottle.self_modulate = potion.color
+		bottle.custom_minimum_size = Vector2(34, 34)
+		bottle.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		bottle.tooltip_text = "%s: %s\nDrink it during a fight." % [potion.potion_name, potion.effect_text()]
+		potion_row.add_child(bottle)
+	var free_slots := GameState.potion_slots() - dungeon.potions.size()
+	if free_slots > 0:
+		potion_row.add_child(make_small_label("+%d" % free_slots, Color(1, 1, 1, 0.4)))
+
+
+# A found thing you can drag into the sack (or click).
+func make_chip(text: String, data: Dictionary, tip: String) -> Button:
+	var chip := Button.new()
+	chip.text = text
+	chip.add_theme_font_size_override("font_size", 14)
+	chip.focus_mode = Control.FOCUS_NONE
+	chip.tooltip_text = tip if not tip.is_empty() else "Drag into the Save Sack (or click)."
+	chip.pressed.connect(_put_in_sack.bind(data))
+	chip.set_drag_forwarding(func(_at: Vector2) -> Variant:
+		var preview := Label.new()
+		preview.text = text
+		preview.add_theme_font_size_override("font_size", 16)
+		chip.set_drag_preview(preview)
+		return data, Callable(), Callable())
+	return chip
+
+
+func _can_drop_in_sack(_at: Vector2, data: Variant) -> bool:
+	return data is Dictionary and data.has("kind") and dungeon.sack.size() < GameState.sack_slots()
+
+
+func _drop_in_sack(_at: Vector2, data: Variant) -> void:
+	_put_in_sack(data)
+
+
+func _put_in_sack(data: Dictionary) -> void:
+	if dungeon.put_in_sack(data.kind, data.get("card")):
+		info_label.text = "Into the Save Sack: safe even if you die."
+	else:
+		info_label.text = "The Save Sack is full. Click a slot to take something out."
+	refresh_sack()
+
+
+func _on_sack_slot_pressed(slot: int) -> void:
+	dungeon.take_out_of_sack(slot)
+	refresh_sack()
+
+
+# --- Putting an enchant on a card -------------------------------------------------
+
+func show_enchant_picker() -> void:
+	if dungeon.enchant_drops.is_empty() or popup.visible:
+		return
+	var choices: Array = dungeon.enchant_drops[0]
+	if choices.size() == 1:
+		pick_card_for(choices[0])
+		return
+	# The Enchanter's upgrade: choose which enchant first.
+	var buttons := []
+	var lines: Array[String] = []
+	for enchant: Enchant in choices:
+		buttons.append([enchant.enchant_name, func() -> void:
+			close_popup()
+			pick_card_for(enchant)])
+		lines.append("%s: %s" % [enchant.enchant_name, enchant.description])
+	show_popup("Choose an enchant", "\n".join(lines), buttons)
+
+
+# A full-screen list of the cards this enchant can go on. Click one.
+func pick_card_for(enchant: Enchant) -> void:
+	picker = ColorRect.new()
+	picker.color = Color(0, 0, 0, 0.85)
+	picker.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(picker)
+	var layout := VBoxContainer.new()
+	layout.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	layout.offset_left = 40
+	layout.offset_right = -40
+	layout.offset_top = 24
+	layout.offset_bottom = -24
+	layout.add_theme_constant_override("separation", 10)
+	picker.add_child(layout)
+	var heading := Label.new()
+	heading.text = "Enchant: %s" % enchant.enchant_name
+	heading.add_theme_font_size_override("font_size", 30)
+	heading.add_theme_color_override("font_color", enchant.color)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	layout.add_child(heading)
+	var about := Label.new()
+	about.text = "%s\nClick a card to put it on (for this run; each card holds one enchant)." % enchant.description
+	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	layout.add_child(about)
+
+	var scroll := ScrollContainer.new()
+	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	layout.add_child(scroll)
+	var cards := GridContainer.new()
+	cards.columns = 7
+	cards.add_theme_constant_override("h_separation", 12)
+	cards.add_theme_constant_override("v_separation", 12)
+	cards.size_flags_horizontal = Control.SIZE_SHRINK_CENTER | Control.SIZE_EXPAND
+	scroll.add_child(cards)
+	var fits := GameState.enchantable_cards(enchant)
+	for i in fits:
+		var card: Card = CARD_SCENE.instantiate()
+		cards.add_child(card)
+		card.setup(GameState.leveled(GameState.deck[i]))
+		card.clicked.connect(_on_enchant_card_chosen.bind(i, enchant))
+	if fits.is_empty():
+		about.text += "\n\nNo card in your deck can take this enchant (it needs a card with dice, or one that deals damage)."
+
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 12)
+	var later := Button.new()
+	later.text = "Later"
+	later.custom_minimum_size = Vector2(150, 44)
+	later.pressed.connect(close_picker)
+	buttons.add_child(later)
+	var drop := Button.new()
+	drop.text = "Throw it away"
+	drop.custom_minimum_size = Vector2(170, 44)
+	drop.pressed.connect(func() -> void:
+		dungeon.enchant_drops.pop_front()
+		dungeon.add_log("You throw away the %s enchant." % enchant.enchant_name)
+		close_picker())
+	buttons.add_child(drop)
+	layout.add_child(buttons)
+
+
+func _on_enchant_card_chosen(_card_data: CardData, deck_index: int, enchant: Enchant) -> void:
+	GameState.enchant_card(deck_index, enchant)
+	dungeon.enchant_drops.pop_front()
+	dungeon.add_log("%s is enchanted: %s." % [GameState.deck[deck_index].card_name, enchant.enchant_name])
+	close_picker()
+
+
+func close_picker() -> void:
+	if picker:
+		picker.queue_free()
+		picker = null
 	refresh()
