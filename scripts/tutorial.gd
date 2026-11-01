@@ -5,8 +5,8 @@
 # starts when the first Adventurer arrives (after the Inn is built).
 #   Stage 1, Attack: Strikes (dice on cards, a guaranteed Critical), then on
 #                    turn 2 Punch, Kick and Reroll (card Schools, rerolls)
-#   Stage 2, Block:  Full Guard, Master of None, Fortify (Wild cards,
-#                    "+ next roll" bonuses, Armor)
+#   Stage 2, Block:  turn 1 Full Guard (Wild cards), turn 2 Master of None
+#                    and Fortify ("+ next roll" bonuses, Armor)
 #   Stage 3, Heal:   Bandage and Insight (healing, Advantage, Vanish)
 # Each stage draws its cards in a set order ("draw"), and can fix one die
 # ("rig") so the lesson always shows up. At the end: the NEW CARDS screen
@@ -67,16 +67,20 @@ const STAGES := [
 		"tips": {
 			1: [
 				"This dummy will Attack 6 (see under its name). Block soaks up damage before your HP.",
-				"Fortify (Wisdom, purple) rolls 2d6 Block. One die rolled a 5... play MASTER OF NONE first: its +1 goes on EVERY die of your next roll, so that 5 becomes a 6: a CRITICAL!",
-				"Fortify's Critical gives you +1 ARMOR for this fight. Armor keeps that much of your leftover Block at the start of each turn (the Adventurer has 3).",
+				"Full Guard is WILD: it doesn't roll when drawn, it rolls when you PLAY it (d6 Block). Riskier, but its Crit gives you 1 Energy back.",
 			],
 			2: [
-				"Full Guard is WILD: it doesn't roll when drawn, it rolls when you PLAY it (d6 Block). Riskier, but its Crit gives you 1 Energy back.",
+				"Fortify (Wisdom, purple) rolls d6 Block. It rolled a 5... play MASTER OF NONE first: its +1 goes on your next roll, so that 5 becomes a 6: a CRITICAL!",
+				"Fortify's Critical gives you +1 ARMOR for this fight. Armor keeps that much of your leftover Block at the start of each turn (the Adventurer has 3).",
+			],
+			3: [
 				"Your Block from last turn mostly faded, but your Armor kept some of it. Check the Block number next to your HP.",
 			],
 		},
-		"deck": {"Master of None": 1, "Fortify": 2, "Full Guard": 3},
-		"draw": ["Master of None", "Fortify", "Full Guard", "Full Guard", "Fortify", "Full Guard"],
+		# Turn 1: only Full Guards. Turn 2: Master of None and Fortify arrive together.
+		"deck": {"Master of None": 1, "Fortify": 2, "Full Guard": 7},
+		"draw": ["Full Guard", "Full Guard", "Full Guard", "Full Guard", "Full Guard",
+			"Master of None", "Fortify", "Fortify", "Full Guard", "Full Guard"],
 		"rig": {"Fortify": 5},
 		"enemies": ["Sparring Dummy"],
 		"hp": -1,

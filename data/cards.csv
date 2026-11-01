@@ -17,4 +17,4 @@ Wild Swing,1,Wild Swing,2,Strength,Attack,,Rare,FALSE,This Attack Gains DISADVAN
 Tentacles,1,Tentacles,2,Agility,Ability,,Uncommon,FALSE,,d3,-1,d3,-1,d3,-1,0,0,FALSE,0,0,0,0,0,,TRUE,FALSE,FALSE,FALSE,FALSE,0,Single
 Sweep,1,Sweep,1,Neutral,Attack,,Common,FALSE,,d3,0,,0,,0,0,0,FALSE,0,0,0,0,0,+1 Damage,FALSE,FALSE,FALSE,FALSE,FALSE,0,All
 Reroll,1,Reroll,1,Neutral,Ability,Adventurer,Common,TRUE,Choose a non-Wild card in your hand and roll its dice again,,0,,0,,0,0,0,FALSE,0,0,0,0,0,-,FALSE,FALSE,FALSE,FALSE,FALSE,1,Single
-Fortify,1,Fortify,2,Wisdom,Defense,,Uncommon,TRUE,,,0,2d6,0,,0,0,0,FALSE,0,0,0,0,0,+1 Armor,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single
+Fortify,1,Fortify,2,Wisdom,Defense,,Uncommon,TRUE,,,0,d6,0,,0,0,0,FALSE,0,0,0,0,0,+1 Armor,FALSE,FALSE,FALSE,FALSE,FALSE,0,Single

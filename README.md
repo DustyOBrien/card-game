@@ -228,9 +228,10 @@ fighting at first: Character Select and the Deck Builder stay hidden.
    - **Attack**: only Strikes. Dice roll when drawn, and a die that rolls its top
      number is a **crit** (one Strike is rigged to really roll a 3). Turn 2 draws
      Punch (Strength), Kick (Agility) and Reroll: **schools** and **rerolls**.
-   - **Block**: Master of None (+1 to the next roll), Fortify (2d6 Block; a crit
-     gives +1 **Armor**) and Full Guard (**Wild**: rolls when played). The rigged
-     Fortify rolls a 5, and Master of None's +1 makes it a crit.
+   - **Block**: turn 1 is only Full Guards (**Wild**: rolls when played).
+     Turn 2 brings Master of None (+1 to the next roll) and Fortify (d6 Block;
+     a crit gives +1 **Armor**). The rigged Fortify rolls a 5, and Master of
+     None's +1 makes it a crit.
    - **Heal**: Bandage and Insight (**Advantage**: roll twice, keep the best),
      and **Vanish**.
    Then a **NEW CARDS UNLOCKED!** splash gives you your first cards (the
