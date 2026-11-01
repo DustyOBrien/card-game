@@ -206,12 +206,14 @@ func start_fresh() -> void:
 
 
 # The starter cards (cards.csv Unlocked = TRUE, as many as Copies), given
-# once at the end of the training. Returns them for the NEW CARDS screen.
+# at the end of the training. Returns them all for the NEW CARDS screen,
+# even ones you already had (so the screen is never empty). If you already
+# own more copies than the starter amount, you keep them.
 func give_starter_cards() -> Array[CardData]:
 	var given: Array[CardData] = []
 	for card in load_all_cards():
-		if card.unlocked and owned(card) == 0:
-			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
+		if card.unlocked:
+			collection[card.card_name] = maxi(owned(card), clampi(card.copies, 1, MAX_COPIES))
 			given.append(card)
 	return given
 
@@ -1093,7 +1095,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 3  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn.
+const SAVE_VERSION := 4  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training.
 
 
 func save_game() -> void:

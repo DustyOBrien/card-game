@@ -89,12 +89,24 @@ func _show_step() -> void:
 	# kept on screen.
 	var box_rect := target_rect()
 	var screen := get_viewport_rect().size
-	var where := Vector2(box_rect.position.x, box_rect.end.y + 14)
-	if where.y + panel.size.y > screen.y - 10:
-		where.y = box_rect.position.y - panel.size.y - 14
-	if where.y < 10:  # A tall target: sit inside it, at the top.
-		where.y = box_rect.position.y + 20
-	where.x = clampf(where.x, 10, screen.x - panel.size.x - 10)
+	# Try below the box, then above it, then to its right, then its left.
+	# If none fits (a huge box), sit inside it, at the top.
+	var size := panel.size
+	var places := [
+		Vector2(box_rect.get_center().x - size.x / 2, box_rect.end.y + 14),
+		Vector2(box_rect.get_center().x - size.x / 2, box_rect.position.y - size.y - 14),
+		Vector2(box_rect.end.x + 14, box_rect.position.y),
+		Vector2(box_rect.position.x - size.x - 14, box_rect.position.y),
+	]
+	var where := Vector2(box_rect.position.x, box_rect.position.y + 20)
+	for place: Vector2 in places:
+		place.x = clampf(place.x, 10, screen.x - size.x - 10)
+		place.y = clampf(place.y, 10, maxf(10, screen.y - size.y - 10))
+		# It fits if it's on screen and doesn't cover the box.
+		if not Rect2(place, size).intersects(box_rect) and place.y + size.y <= screen.y - 10:
+			where = place
+			break
+	where.x = clampf(where.x, 10, screen.x - size.x - 10)
 	panel.position = where
 	create_tween().tween_property(panel, "modulate:a", 1.0, 0.2)
 	queue_redraw()
@@ -107,10 +119,10 @@ func target_rect() -> Rect2:
 
 
 func _on_next() -> void:
-	step += 1
-	if step >= steps.size():
+	if step + 1 >= steps.size():
 		_finish()
 	else:
+		step += 1
 		_show_step()
 
 

@@ -234,8 +234,8 @@ fighting at first: Character Select and the Deck Builder stay hidden.
    - **Heal**: Bandage and Insight (**Advantage**: roll twice, keep the best),
      and **Vanish**.
    Then a **NEW CARDS UNLOCKED!** splash gives you your first cards (the
-   Unlocked cards, see below), you pick a **Spec** (only Jack of All Trades is
-   open; the others show 🔒 Locked), and the Deck Builder's Guide explains the
+   Unlocked cards, see below), you pick a **Spec** (a Guide first explains what specs are; only Jack of
+   All Trades is open, the others show 🔒 Locked), and the Deck Builder's Guide explains the
    screen. **Skip Tutorial** jumps to the splash, and Character Select's
    **Tutorial** button replays the fights.
 4. **Clear the Slimes**: bring home 5 Green Ooze (Green Slimes drop it). Gives the
@@ -354,7 +354,7 @@ card-game/
 │   ├── town_building.gd One building (a row group of town.csv)
 │   ├── quest.gd         One quest (a row of quests.csv)
 │   ├── unlock_banner.gd The big "You unlocked something!" banner
-│   ├── screen_guide.gd  The step-by-step Guide round a screen (deck builder)
+│   ├── screen_guide.gd  The step-by-step Guide round a screen (spec screen, deck builder)
 │   ├── material_info.gd One material (a row of materials.csv)
 │   ├── tutorial.gd      The three training-dummy fights
 │   ├── enchant.gd       An enchant, and how it changes a card in a fight

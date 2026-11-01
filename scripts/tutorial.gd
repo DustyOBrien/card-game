@@ -381,7 +381,7 @@ func show_new_cards() -> void:
 	GameState.save_game()
 	var row := HFlowContainer.new()
 	row.alignment = FlowContainer.ALIGNMENT_CENTER
-	row.add_theme_constant_override("h_separation", 8)
+	row.add_theme_constant_override("h_separation", 10)
 	row.add_theme_constant_override("v_separation", 8)
 	var delay := 0.9
 	for card in given:
@@ -394,7 +394,7 @@ func show_new_cards() -> void:
 
 # One small card for the NEW CARDS screen, with "x3" under it. It pops in after `delay`.
 func _mini_card(card: CardData, delay: float) -> Control:
-	const SCALE := 0.5
+	const SCALE := 0.62
 	var holder := VBoxContainer.new()
 	holder.add_theme_constant_override("separation", 0)
 	var frame := Control.new()  # A Card is big: scale it down inside a fixed-size frame.

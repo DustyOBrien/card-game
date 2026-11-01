@@ -23,9 +23,37 @@ func _ready() -> void:
 	var character_class := GameState.character_class
 	title_label.text = "Choose Your %s Spec" % character_class.display_name
 	back_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(CHARACTER_SELECT_SCENE))
+	var panels: Array[Control] = []
 	for spec in GameState.specs_for(character_class):
-		spec_list.add_child(make_spec_panel(character_class, spec))
+		var panel := make_spec_panel(character_class, spec)
+		spec_list.add_child(panel)
+		panels.append(panel)
 	add_explanation()
+	start_guide(panels)
+
+
+# The first visit (right after the Adventurer's training): a step-by-step
+# Guide round the screen that explains what a spec is before you pick one.
+# Shows once (screen_guide.gd).
+func start_guide(panels: Array[Control]) -> void:
+	var specs := GameState.specs_for(GameState.character_class)
+	var open_panel: Control = null
+	var locked_panel: Control = null
+	for i in specs.size():
+		if GameState.is_spec_open(specs[i]):
+			open_panel = panels[i] if open_panel == null else open_panel
+		elif locked_panel == null:
+			locked_panel = panels[i]
+	var steps := [
+		{"target": $Margin/Layout/HelpLabel, "text": "Time to pick a SPECIALIZATION (a spec for short).\n\nA spec is a free bonus that changes your class's RULES: which cards are allowed in its deck, and sometimes how they play. Each class has its own specs, and you have ONE at a time."},
+		{"target": $Margin/Layout/HelpLabel, "text": "Specs matter most for SCHOOLS. Remember Punch (Strength), Kick (Agility), Insight (Intellect) and Fortify (Wisdom)? Without a spec, an Adventurer can only use Neutral cards. Your spec decides which school cards fit."},
+	]
+	if open_panel:
+		steps.append({"target": open_panel, "text": "JACK OF ALL TRADES: your deck can hold 1 card from EACH school. That's how your school cards get into your deck: one Strength, one Agility, one Intellect and one Wisdom card, plus all the Neutral cards you like."})
+	if locked_panel:
+		steps.append({"target": locked_panel, "text": "The other specs are LOCKED for now. You'll unlock them later in your adventure, and each one builds a very different deck (only Neutral cards, or a huge deck with 1 copy of each card)."})
+	steps.append({"target": open_panel if open_panel else spec_list, "text": "You can change spec any time with CHANGE SPEC in the Deck Builder, so you can't pick wrong. Later, each spec gets its own TALENT TREE too.\n\nPick Jack of All Trades to build your first deck!"})
+	ScreenGuide.start(self, "spec_select", steps)
 
 
 # A box under the title saying what a spec is (the first time it's a big deal).
