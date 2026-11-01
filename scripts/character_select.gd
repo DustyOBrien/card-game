@@ -196,5 +196,5 @@ func _on_talents_pressed(character_class: CharacterClass) -> void:
 func _on_class_chosen(character_class: CharacterClass) -> void:
 	GameState.choose_class(character_class)  # Also gives you that class's starter deck.
 	# Next, pick a spec, if the class has any (data/talents/specs.csv).
-	var has_specs := GameState.talents_open() and not GameState.specs_for(character_class).is_empty()
+	var has_specs := GameState.specs_open() and not GameState.specs_for(character_class).is_empty()
 	get_tree().change_scene_to_file(SPEC_SCENE if has_specs else DECK_BUILDER_SCENE)

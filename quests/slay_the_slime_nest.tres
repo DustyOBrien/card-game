@@ -6,7 +6,7 @@
 script = ExtResource("1_xvvbg")
 quest_name = "Slay the Slime Nest"
 giver = "The Innkeeper"
-text = "\"Something BIG is growing in the Plains. I've marked its nest on your map.\" The Big Slime Nest is now in the Plains room deck for good. Beat it, rest at its campfire, and Tier 2 opens."
+text = "\"Something BIG is growing in the Plains. I've marked its nest on your map.\" The Big Slime Nest is now in the Plains room deck for good. Beat it, then Go Deeper at its campfire to reach Tier 2."
 objective = "clear room"
 target = "Big Slime Nest"
 start_gift = "Room Plains: Big Slime Nest"

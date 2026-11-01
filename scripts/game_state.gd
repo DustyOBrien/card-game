@@ -155,6 +155,7 @@ var quest_seen := false  # false = town shows the quest's story popup.
 var quests_done: Array[String] = []
 # Parts of the game a quest has opened up ("Unlock Talents" reward), e.g. ["Talents"].
 var unlocked_features: Array[String] = []
+var seen_guides: Array[String] = []  # Screen guides you've seen (screen_guide.gd): each shows once.
 const TALENTS_FEATURE := "Talents"
 var _materials: Array[MaterialInfo] = []
 var _quests: Array[Quest] = []
@@ -190,18 +191,39 @@ func start_fresh() -> void:
 	blueprints.clear()
 	quests_done.clear()
 	unlocked_features.clear()
+	seen_guides.clear()
 	active_quest = ""
 	start_quest(first_quest_name())  # The King's letter: 5 Lumber and the Inn blueprint.
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
 	start_run()
-	for card in load_all_cards():
-		if card.unlocked:
-			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
+	# Your first cards come at the end of the Adventurer's training
+	# (give_starter_cards(), called by tutorial.gd).
 	# Every class starts at level 1, so it gets its level 1 class cards now.
 	for character_class in load_classes():
 		_give_level_cards(character_class, 1)
+
+
+# The starter cards (cards.csv Unlocked = TRUE, as many as Copies), given
+# once at the end of the training. Returns them for the NEW CARDS screen.
+func give_starter_cards() -> Array[CardData]:
+	var given: Array[CardData] = []
+	for card in load_all_cards():
+		if card.unlocked and owned(card) == 0:
+			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
+			given.append(card)
+	return given
+
+
+# Specs with Unlocked = No in specs.csv open with an "Unlock <spec name>" reward.
+func is_spec_open(spec: Talent) -> bool:
+	return not spec.spec_locked or unlocked_features.has(spec.talent_name)
+
+
+# Specs open once the training is done; talent TREES wait for a quest.
+func specs_open() -> bool:
+	return tutorial_done
 
 
 # How many copies of this card do you own? (0 = you haven't found it yet.)
@@ -1104,6 +1126,7 @@ func save_game() -> void:
 		"quest_seen": quest_seen,
 		"quests_done": quests_done,
 		"unlocked_features": unlocked_features,
+		"seen_guides": seen_guides,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -1160,13 +1183,14 @@ func load_game() -> bool:
 	quest_seen = bool(data.get("quest_seen", true))
 	quests_done.assign(data.get("quests_done", []))
 	unlocked_features.assign(data.get("unlocked_features", []))
+	seen_guides.assign(data.get("seen_guides", []))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
 	# A card added to the spreadsheet as Unlocked after you saved still
-	# shows up in your collection.
+	# shows up in your collection (once you've had your starter cards).
 	for card in load_all_cards():
-		if card.unlocked and owned(card) == 0:
+		if tutorial_done and card.unlocked and owned(card) == 0:
 			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
 	return true
 

@@ -16,6 +16,7 @@ heal = "d3"
 heal_modifier = -1
 wild = true
 rarity = 1
+unlocked = false
 class_only = PackedStringArray()
 effect = "Wild. Deal d3-1 damage. Gain d3-1 Block. Heal d3-1 HP."
 color = Color(0.25, 0.5, 0.3, 1)

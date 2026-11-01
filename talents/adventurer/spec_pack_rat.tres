@@ -9,6 +9,7 @@ class_display_name = "Adventurer"
 tree = "Pack Rat"
 tree_index = 2
 is_spec = true
+spec_locked = true
 needs = PackedStringArray()
 locks_out = PackedStringArray()
 effect = "max deck size"

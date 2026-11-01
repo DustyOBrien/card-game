@@ -352,6 +352,9 @@ static func _import_specs(class_names: Dictionary) -> Dictionary:
 		spec.tree = spec_name
 		spec.tree_index = result[class_key].order.size()
 		spec.rules = _cell(row, columns, "description")
+		# Unlocked = No: shown on the Spec screen, but locked until a quest's
+		# "Unlock <spec name>" reward opens it (GameState.is_spec_open()).
+		spec.spec_locked = not _parse_yes_no(_cell(row, columns, "unlocked"), true)
 		spec.effect = _read_talent_effect(_cell(row, columns, "effect"), spec_name)
 		spec.school = _cell(row, columns, "school").to_lower()
 		spec.amounts = _read_amounts(_cell(row, columns, "amount"))

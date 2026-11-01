@@ -105,6 +105,27 @@ func _ready() -> void:
 	build_pool()
 	sort_pool()
 	refresh()
+	start_guide()
+
+
+# The first visit: a step-by-step guide around the screen (screen_guide.gd).
+func start_guide() -> void:
+	ScreenGuide.start(self, "deck_builder", [
+		{"target": title_label.get_parent(), "text": "This is your DECK BUILDER. Up top: your class, its spec, HP, Armor and how many cards a deck needs. The bar fills with Exp as your class levels up."},
+		{"target": filter_bar, "text": "These tabs filter your cards by SCHOOL. Jack of All Trades lets the Adventurer take 1 card of each school."},
+		{"target": _panel_of(pool_grid), "text": "YOUR CARDS: everything you own. Click a card to add a copy to your deck (the dots show how many you own). Booster packs from the Shop bring more."},
+		{"target": _panel_of(deck_list), "text": "YOUR DECK: what you'll fight with. The bar shows the deck size, then the schools, the Energy cost curve and the card types. Click a card in the list to take it out."},
+		{"target": default_button, "text": "Lost? Starter Deck builds a good deck for you. Clear empties it."},
+		{"target": start_button, "text": "When your deck is ready, head out! (The Innkeeper has your first job: check the Quest button in town.)"},
+	])
+
+
+# The nearest panel around a node (the box it sits in on screen).
+func _panel_of(node: Node) -> Control:
+	var at := node
+	while at and not at is PanelContainer:
+		at = at.get_parent()
+	return at if at else node
 
 
 # ---------------------------------------------------------------------------
@@ -590,8 +611,19 @@ func _on_start_pressed() -> void:
 # A Talents button next to Back. Talents can change which cards you may use,
 # so it's handy to hop over and come straight back.
 func add_talents_button() -> void:
-	if not GameState.talents_open():
-		return  # Talents are hidden until a quest unlocks them.
+	if GameState.talents_open():  # Talents are hidden until a quest unlocks them.
+		_add_talents_button()
+	# And a Spec button, if this class has specs (open once the training is done).
+	if GameState.specs_open() and not GameState.specs_for(GameState.character_class).is_empty():
+		var spec_button := Button.new()
+		spec_button.text = "Change Spec"
+		spec_button.pressed.connect(func() -> void:
+			GameState.save_game()
+			get_tree().change_scene_to_file(SPEC_SCENE))
+		back_button.add_sibling(spec_button)
+
+
+func _add_talents_button() -> void:
 	var button := Button.new()
 	var points := GameState.talent_points_left(GameState.character_class)
 	button.text = "Talents"
@@ -603,14 +635,6 @@ func add_talents_button() -> void:
 		GameState.talents_return_scene = scene_file_path
 		get_tree().change_scene_to_file(TALENTS_SCENE))
 	back_button.add_sibling(button)
-	# And a Spec button, if this class has specs.
-	if not GameState.specs_for(GameState.character_class).is_empty():
-		var spec_button := Button.new()
-		spec_button.text = "Change Spec"
-		spec_button.pressed.connect(func() -> void:
-			GameState.save_game()
-			get_tree().change_scene_to_file(SPEC_SCENE))
-		back_button.add_sibling(spec_button)
 
 
 # Back to Character Select to pick a different class.

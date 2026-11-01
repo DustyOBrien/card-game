@@ -10,7 +10,6 @@ schools = 2
 attack = PackedStringArray("d4")
 critical = "+2 Damage"
 rarity = 1
-unlocked = false
 class_only = PackedStringArray()
 effect = "Deal d4 damage. Critical: +2 Damage."
 color = Color(0.25, 0.5, 0.3, 1)

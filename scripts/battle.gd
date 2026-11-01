@@ -173,7 +173,7 @@ func refresh_flask() -> void:
 	flask_button.disabled = busy or game_over or dungeon.flask_charges <= 0
 	flask_button.tooltip_text = "%s  (%d / %d charges)\n%s\n%s" % [dungeon.flask.flask_name,
 		dungeon.flask_charges, max_charges, Flask.effect_text(dungeon.flask_stats),
-		"Click to drink." if dungeon.flask_charges > 0 else "Empty: Rest at a campfire to refill it."]
+		"Click to drink." if dungeon.flask_charges > 0 else "Empty: it refills on your next run."]
 
 
 # Take a sip: roll the heal die (plus its bonus) and/or gain Energy.
@@ -312,6 +312,8 @@ func start_battle() -> void:
 				super_card.set_meta("deck_index", index)
 				draw_pile.append(super_card)
 	draw_pile.shuffle()
+	if tutorial:
+		tutorial.arrange_draw_pile(draw_pile)  # The training draws its cards in a set order.
 	dice_tray.hide()
 	# The fight happens in the area you picked on the map.
 	area_background.texture = GameState.current_area.background
@@ -610,6 +612,8 @@ func draw_cards(amount: int) -> void:
 		if card.rolls_on_draw():
 			# A card with its own Advantage / Disadvantage uses it right away.
 			card.roll_result = CardRoller.roll(card, CardRoller.mode_for(card, false))
+			if tutorial:
+				tutorial.rig_roll(card)  # The training can fix a die (a sure Critical).
 		hand.append(card)
 		var view := add_card_view(card)
 		update_ui()
@@ -804,6 +808,9 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 	if result.heal > 0:
 		player.heal(result.heal)
 		battle_log.add("You heal %d (HP %d/%d)" % [result.heal, player.hp, player.max_hp])
+	if result.armor > 0:  # A crit like Fortify's: more Armor for the rest of this fight.
+		player.armor += result.armor
+		battle_log.add("Critical! Your Armor goes up to %d for this fight" % player.armor)
 	energy += card.energy + result.energy
 	if card.energy + result.energy > 0:
 		battle_log.add("You gain %d energy" % (card.energy + result.energy))

@@ -10,6 +10,7 @@ attack = PackedStringArray()
 block = "d3"
 critical = "+1 Block"
 copies = 2
+unlocked = false
 class_only = PackedStringArray()
 effect = "Gain d3 Block"
 color = Color(0.4, 0.4, 0.42, 1)

@@ -90,6 +90,10 @@ Then you're on the **deck builder**, holding your class's starter deck:
 - **Your Deck** shows a size bar (red until the deck is big enough), your cards per school, a **cost curve** (how many cards cost 0, 1, 2 and 3+), and how many Attack / Defense / Ability cards you have.
 - **Clear** empties the deck; **Starter Deck** puts back the suggested deck (each card times its Copies number, but never more than your class allows).
 - When the deck is big enough, click **To the Map**. **Change Class** goes back to Character Select.
+- The first time you open it, a **Guide** walks you round the screen: it dims
+  everything except one part, draws a glowing gold box round it, and explains it
+  (`scripts/screen_guide.gd`, 6 steps in `start_guide()` in `deck_builder.gd`).
+  Each guide shows once (`GameState.seen_guides`, saved); **Skip guide** ends it.
 
 **The map.** Pick where your run happens. The **Plains** are open from the
 start. The **Forest** opens once you beat the Plains boss (finish a run there),
@@ -162,13 +166,13 @@ of squares, and you start in the middle. Every other square is hidden.
 - **Keys and chests.** Fights drop a **small key** 25% of the time. A key opens one
   Locked Chest (gold, a card, a pack, or a **Map**). A Map unlocks a new room card
   for that area for good, so the area gets richer the more you play it.
-- **Campfires**: **Rest** heals 30% of your max HP, brings back your Vanished
-  cards, and **shuffles every room back into the deck**: the map goes blank and you
-  explore it again from where you are. Or **Leave** the dungeon, keeping
-  everything you found. Each campfire can be used once.
-- **The Mini Boss.** Beating it lights a campfire where it fell. Resting there
-  (now, or later with **Not now**) adds the next **tier**'s harder (and richer)
-  rooms to the deck. After the last tier's Mini Boss, resting shuffles in the
+- **Campfires** (for now) only take you home: **Return to Town**, keeping
+  everything you found. **Not now** keeps exploring. (The old Rest, which healed
+  and reshuffled the map, is still in `DungeonRun.rest()` for later.)
+- **The Mini Boss.** Beating it lights a campfire where it fell. Its campfire
+  also has **Go Deeper** (now, or later with **Not now**): it adds the next
+  **tier**'s harder (and richer) rooms to the deck and reshuffles the map, but
+  doesn't heal. After the last tier's Mini Boss, resting shuffles in the
   **Boss** room instead. The Plains and the Forest have **3 tiers**. Beating the
   final Boss shows the **Victory** screen and opens the next area on the map.
 - **Events.** A **Mystery** room is a little story with choices: a strange
@@ -196,11 +200,11 @@ of squares, and you start in the middle. Every other square is hidden.
 - **Your flask.** You take ONE flask into each run (pick it with the Flask button in
   town). It's like a potion you never lose: it has charges (1 to start), you drink it
   from the bottle at the bottom-left of a fight (a healing flask can also be drunk on
-  the dungeon map: click it in the side panel), and Resting at a campfire refills it.
+  the dungeon map: click it in the side panel). Its charges refill at the start of every run.
   The **Health Flask** (heal d3) is yours from the start; the **Energy Flask** (+1
   Energy) is unlocked for gold. Both are upgraded at the Alchemist (bigger die, more
   charges, +roll, 2 Energy, a chance to keep the charge).
-- If the room deck runs out, the other squares become dead ends until you rest.
+- If the room deck runs out, the other squares become dead ends.
 
 Your HP carries over from one fight to the next (the top of the battle screen
 shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
@@ -218,16 +222,29 @@ fighting at first: Character Select and the Deck Builder stay hidden.
    greyed out until you have the Stone. Then build the **Inn**.
    Finding a key or a chest, and unlocking a chest, are animated.
 3. The Inn brings the first **Adventurer** (a big unlock banner). Character
-   Select and the Deck Builder open, and the Adventurer's training starts: three
-   quick fights against Training Dummies (kill them, block, heal). **Skip
-   Tutorial** jumps past it, and Character Select's **Tutorial** button replays it.
+   Select and the Deck Builder open, and the Adventurer's training starts, three
+   fights against dummies (`scripts/tutorial.gd`). A "NEW THIS TURN" box explains
+   each new thing as it shows up:
+   - **Attack**: only Strikes. Dice roll when drawn, and a die that rolls its top
+     number is a **crit** (one Strike is rigged to really roll a 3). Turn 2 draws
+     Punch (Strength), Kick (Agility) and Reroll: **schools** and **rerolls**.
+   - **Block**: Master of None (+1 to the next roll), Fortify (2d6 Block; a crit
+     gives +1 **Armor**) and Full Guard (**Wild**: rolls when played). The rigged
+     Fortify rolls a 5, and Master of None's +1 makes it a crit.
+   - **Heal**: Bandage and Insight (**Advantage**: roll twice, keep the best),
+     and **Vanish**.
+   Then a **NEW CARDS UNLOCKED!** splash gives you your first cards (the
+   Unlocked cards, see below), you pick a **Spec** (only Jack of All Trades is
+   open; the others show 🔒 Locked), and the Deck Builder's Guide explains the
+   screen. **Skip Tutorial** jumps to the splash, and Character Select's
+   **Tutorial** button replays the fights.
 4. **Clear the Slimes**: bring home 5 Green Ooze (Green Slimes drop it). Gives the
    Alchemist blueprint and adds the Blue Slime rooms to the Plains.
 5. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
    Health Flask there (3 Green Ooze). Gives the Shop blueprint.
 6. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
-   the Plains deck for good. Beat it and rest at its campfire to reach Tier 2.
-   Handing it in unlocks **Talents** (and specs), with a banner explaining them.
+   the Plains deck for good. Beat it and Go Deeper at its campfire to reach Tier 2.
+   Handing it in unlocks **Talents**, with a banner explaining them.
 
 One quest at a time: the **Quest** button at the bottom of town (or the Inn's
 Quest Board) shows it, and **Hand In** gives its rewards and starts the next.
@@ -258,8 +275,10 @@ In the **Shop**:
 - Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Pack odds: `PACK_ODDS` in `game_state.gd`. Price: `PACKS` in `shop.gd`.)
 - **Back to Town** returns to the town. A new run starts at full HP, and your unspent gold is kept.
 
-**Your card collection.** You start owning every card marked **Unlocked** in
-the spreadsheet, as many copies as its **Copies** column (your starter deck);
+**Your card collection.** At the end of the training you get every card marked
+**Unlocked** in the spreadsheet, as many copies as its **Copies** column
+(`GameState.give_starter_cards()`): 3 Strike, 3 Full Guard, 3 Bandage, Reroll,
+Master of None, Punch, Kick, Fortify and Insight;
 every other card has to come from a booster pack. You can own up to **3** of a
 card. The deck builder only shows cards you own, and a deck can't hold more
 copies than you own (or than your class allows). The whole collection is shared
@@ -335,6 +354,7 @@ card-game/
 │   ├── town_building.gd One building (a row group of town.csv)
 │   ├── quest.gd         One quest (a row of quests.csv)
 │   ├── unlock_banner.gd The big "You unlocked something!" banner
+│   ├── screen_guide.gd  The step-by-step Guide round a screen (deck builder)
 │   ├── material_info.gd One material (a row of materials.csv)
 │   ├── tutorial.gd      The three training-dummy fights
 │   ├── enchant.gd       An enchant, and how it changes a card in a fight
@@ -639,7 +659,7 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | Next Defense Bonus | 3 | Added to your next Defense card's Block |
 | Energy | 1 | Energy gained |
 | Lose HP | 2 | HP lost (Block doesn't stop it) |
-| Critical Effect | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1` (or `Draw a Card`), `Gain 1 Energy`, `Gain Advantage`, `Dont Vanish`. Blank or `-` = none. (A column called just **Critical** works too) |
+| Critical Effect | Draw 1 | What happens for each die that crits. Use these phrases, separated by commas: `+1 Damage`, `+1 Block`, `+1 Heal`, `Draw 1` (or `Draw a Card`), `Gain 1 Energy`, `Gain Advantage`, `Dont Vanish`, `+1 Armor` (Armor for the rest of the fight). Blank or `-` = none. (A column called just **Critical** works too) |
 | Wild | TRUE | TRUE = the dice roll when played, not when drawn. (Or a **Roll** column with `Play` / `Draw`.) Blank = FALSE |
 | Vanish | TRUE | TRUE = gone for the rest of the run once played. Blank = FALSE |
 | Flawless | TRUE | TRUE = every die on the card is a Critical, whatever it rolls. Blank = FALSE |
@@ -699,6 +719,9 @@ always-on set of rules for how the class builds its deck. Specs come from
 | Class | Spec | Description | Effect | School | Amount | Effect 2 | School 2 | Amount 2 |
 |---|---|---|---|---|---|---|---|---|
 | Adventurer | Pack Rat | Plays huge decks... | Max Deck Size | | 10 | Copy Limit | | 1 | (plus Effect 3: First Play Flawless) |
+
+The **Unlocked** column (after Spec): **No** = the spec shows 🔒 Locked on the
+Spec screen and can't be picked yet (for now only Jack of All Trades is open).
 
 Each spec has the talent tree with the same name, and that tree's tab comes
 first. Changing spec gives back every talent point. Points can go in any tree

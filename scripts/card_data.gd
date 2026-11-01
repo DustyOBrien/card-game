@@ -154,7 +154,7 @@ var dropped_dice: Dictionary = {}
 # "Draw a Card" -> {"draw": 1}, "Gain Advantage" -> {"advantage": 1}, "Dont Vanish" -> {"keep": 1}
 const CRITICAL_WORDS := {"damage": "damage", "block": "block", "heal": "heal", "hp": "heal",
 	"draw": "draw", "card": "draw", "cards": "draw", "energy": "energy", "advantage": "advantage",
-	"vanish": "keep"}
+	"vanish": "keep", "armor": "armor"}
 
 
 # Does this card roll any dice?

@@ -1,4 +1,4 @@
-Class,Spec,Description,Effect,School,Amount,Effect 2,School 2,Amount 2,Effect 3,School 3,Amount 3
-Adventurer,Jack of All Trades,"Plays cards from every school. Your deck can include 1 Strength, 1 Agility, 1 Intellect and 1 Wisdom card.",School Limit,All,1,,,,,,
-Adventurer,Master of None,"Plays Neutral cards only. If your deck contains only Neutral cards, gain +1 Energy.",Energy If Only Neutral,,1,,,,,,
-Adventurer,Pack Rat,"Plays huge decks. Your deck can hold 10 more cards, but only 1 copy of each card. The first time you play each card in a fight, it is Flawless: every die is a Critical.",Max Deck Size,,10,Copy Limit,,1,First Play Flawless,,1
+Class,Spec,Description,Unlocked,Effect,School,Amount,Effect 2,School 2,Amount 2,Effect 3,School 3,Amount 3
+Adventurer,Jack of All Trades,"Plays cards from every school. Your deck can include 1 Strength, 1 Agility, 1 Intellect and 1 Wisdom card.",Yes,School Limit,All,1,,,,,,
+Adventurer,Master of None,"Plays Neutral cards only. If your deck contains only Neutral cards, gain +1 Energy.",No,Energy If Only Neutral,,1,,,,,,
+Adventurer,Pack Rat,"Plays huge decks. Your deck can hold 10 more cards, but only 1 copy of each card. The first time you play each card in a fight, it is Flawless: every die is a Critical.",No,Max Deck Size,,10,Copy Limit,,1,First Play Flawless,,1

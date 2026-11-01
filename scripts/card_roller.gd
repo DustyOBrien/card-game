@@ -105,7 +105,7 @@ static func fixed_roll(card: CardData, highest: bool) -> Dictionary:
 #   rolls:  the same working as data, for the dice tray (dice_tray.gd), one per roll:
 #           {name, sides, dice, dropped, crit_dice, modifier, crit_bonus, total, crits}
 static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dictionary:
-	var result := {"hits": [], "block": 0, "heal": 0, "draw": 0, "energy": 0, "crits": 0,
+	var result := {"hits": [], "block": 0, "heal": 0, "draw": 0, "energy": 0, "crits": 0, "armor": 0,
 		"roll_bonus": 0, "advantage": 0, "keep": 0, "lines": [], "rolls": []}
 	var crit_effects := card.get_critical_effects()
 	var formulas := card.get_formulas()
@@ -148,6 +148,7 @@ static func resolve(card: CardData, raw: Dictionary, bonuses: Dictionary) -> Dic
 		result.energy += crits * crit_effects.get("energy", 0)
 		result.advantage += crits * crit_effects.get("advantage", 0)  # "Gain Advantage"
 		result.keep += crits * crit_effects.get("keep", 0)  # "Dont Vanish"
+		result.armor += crits * crit_effects.get("armor", 0)  # "+1 Armor" (Fortify): for this fight
 		if kind != "block":
 			result.block += crits * crit_effects.get("block", 0)
 		if kind != "heal":

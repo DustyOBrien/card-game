@@ -50,6 +50,7 @@ const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, CO
 
 @export_group("Learning")
 @export var is_spec: bool = false  # A spec talent: free, and you pick only one spec per class.
+@export var spec_locked: bool = false  # specs.csv Unlocked = No: needs an "Unlock <spec>" quest reward.
 @export var cost: int = 1  # Talent points per rank.
 @export var max_ranks: int = 1
 @export var needs: PackedStringArray = []  # Talents you must have first (at least 1 rank).

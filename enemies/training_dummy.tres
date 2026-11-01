@@ -11,7 +11,7 @@ move_name = "Stand Still"
 [resource]
 script = ExtResource("2_ycym8")
 display_name = "Training Dummy"
-max_hp = 8
+max_hp = 16
 texture = ExtResource("3_df3m5")
 sprite_size = Vector2(110, 150)
 name_color = Color(0.8862745, 0.76862746, 0.41568628, 1)

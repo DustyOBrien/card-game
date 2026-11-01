@@ -216,7 +216,7 @@ func _reveal(square: Vector2i) -> void:
 				var other := Vector2i(x, y)
 				if not rooms.has(other):
 					walls[other] = true
-		add_log("The room deck is empty. The other paths are blocked until you rest.")
+		add_log("The room deck is empty. The other paths are dead ends.")
 
 
 func _enter(square: Vector2i) -> String:
@@ -454,14 +454,19 @@ func open_chest(square: Vector2i) -> String:
 # that are done (a beaten Mini Boss, an opened chest) stay gone. If a Mini
 # Boss was just beaten, the next tier's cards (or the Boss) go in too.
 # The room you're in stays (its fire burns out); the rest of the map goes blank.
-func rest() -> int:
+#
+# GO DEEPER (heal = false) is the same move without the resting: no healing,
+# Vanished cards stay gone, the flask stays as it is. For now campfires only
+# offer Return to Town, plus Go Deeper after a Mini Boss (Dusty, 2026-11-01).
+func rest(heal := true) -> int:
 	var max_hp := GameState.player_max_hp()
 	var hp_before := GameState.run_hp if GameState.run_hp > 0 else max_hp
-	var hp_after := mini(hp_before + ceili(max_hp * REST_HEAL), max_hp)
+	var hp_after := mini(hp_before + ceili(max_hp * REST_HEAL), max_hp) if heal else hp_before
 	GameState.run_hp = hp_after
-	GameState.vanished.clear()
-	if flask:
-		flask_charges = flask_stats[Flask.CHARGES]  # The flask refills.
+	if heal:
+		GameState.vanished.clear()
+		if flask:
+			flask_charges = flask_stats[Flask.CHARGES]  # The flask refills.
 	for square: Vector2i in rooms.keys():
 		var room: Dictionary = rooms[square]
 		if square == position:
@@ -479,7 +484,10 @@ func rest() -> int:
 	here.cleared = true
 	here.campfire = false  # The fire burns out: each campfire is used once.
 	steps = 0
-	add_log("You rest: HP %d → %d. Vanished cards are back. The rooms shift..." % [hp_before, hp_after])
+	if heal:
+		add_log("You rest: HP %d → %d. Vanished cards are back. The rooms shift..." % [hp_before, hp_after])
+	else:
+		add_log("You head deeper. The rooms shift...")
 	if tier_up_waiting:
 		tier_up_waiting = false
 		if tier < max_tier:

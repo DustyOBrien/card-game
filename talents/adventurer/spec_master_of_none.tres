@@ -9,6 +9,7 @@ class_display_name = "Adventurer"
 tree = "Master of None"
 tree_index = 1
 is_spec = true
+spec_locked = true
 needs = PackedStringArray()
 locks_out = PackedStringArray()
 effect = "energy if only neutral"

@@ -25,6 +25,17 @@ func _ready() -> void:
 	back_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(CHARACTER_SELECT_SCENE))
 	for spec in GameState.specs_for(character_class):
 		spec_list.add_child(make_spec_panel(character_class, spec))
+	add_explanation()
+
+
+# A box under the title saying what a spec is (the first time it's a big deal).
+func add_explanation() -> void:
+	var label: Label = $Margin/Layout/HelpLabel
+	label.add_theme_color_override("font_color", Color(1, 0.9, 0.65))
+	label.text = "A SPECIALIZATION is a free bonus that sets how your %s plays and builds its deck. You can change it any time from the Deck Builder.%s" % [
+		GameState.character_class.display_name,
+		"" if GameState.talents_open() else " (Talent trees for each spec come later.)"]
+
 
 
 func make_spec_panel(character_class: CharacterClass, spec: Talent) -> Control:
@@ -71,12 +82,24 @@ func make_spec_panel(character_class: CharacterClass, spec: Talent) -> Control:
 	var button := Button.new()
 	button.custom_minimum_size = Vector2(0, 44)
 	button.add_theme_font_size_override("font_size", 20)
-	button.text = "Keep %s" % spec.talent_name if is_current else "Choose"
-	button.pressed.connect(_on_spec_chosen.bind(character_class, spec))
+	if not GameState.is_spec_open(spec):
+		# Locked (specs.csv Unlocked = No): greyed out with a padlock line.
+		button.text = "🔒 Locked"
+		button.disabled = true
+		button.tooltip_text = "Unlocked later in your adventure."
+		panel.modulate = Color(0.6, 0.6, 0.6)
+	else:
+		button.text = "Keep %s" % spec.talent_name if is_current else "Choose"
+		button.theme_type_variation = &"PrimaryButton" if not is_current else &""
+		button.pressed.connect(_on_spec_chosen.bind(character_class, spec))
 	box.add_child(button)
 	return panel
 
 
 func _on_spec_chosen(character_class: CharacterClass, spec: Talent) -> void:
 	GameState.set_spec(character_class, spec.tree)  # Gives talent points back if it changed.
+	# Too small to play (your very first deck, before you had a spec)? Build
+	# the starter deck again, now the spec says which school cards fit.
+	if GameState.deck.size() < character_class.min_deck_size:
+		GameState.deck = GameState.make_starter_deck()
 	get_tree().change_scene_to_file(DECK_BUILDER_SCENE)

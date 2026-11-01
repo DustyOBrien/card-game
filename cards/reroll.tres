@@ -1,0 +1,13 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_pwk66"]
+
+[resource]
+script = ExtResource("1_pwk66")
+card_name = "Reroll"
+types = 4
+attack = PackedStringArray()
+reroll = 1
+class_only = PackedStringArray("Adventurer")
+effect = "Choose a non-Wild card in your hand and roll its dice again"
+color = Color(0.4, 0.4, 0.42, 1)

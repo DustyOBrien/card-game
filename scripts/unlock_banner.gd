@@ -25,21 +25,26 @@ var glow := 0.0  # 0 -> 1 as the banner appears.
 
 # Make the banner, add it on top of `parent`, and play the animation.
 # `on_done` runs when the button is pressed (after the banner is removed).
+# `extra` (optional) goes above the button, e.g. a row of cards. With an
+# extra and no picture, there's no star: the words move up to make room.
 static func show_in(parent: Node, title: String, subtitle: String, picture: Texture2D,
-		text: String, button_text: String, on_done: Callable) -> UnlockBanner:
+		text: String, button_text: String, on_done: Callable, extra: Control = null) -> UnlockBanner:
 	var banner := UnlockBanner.new()
 	parent.add_child(banner)
-	banner._build(title, subtitle, picture, text, button_text, on_done)
+	banner._build(title, subtitle, picture, text, button_text, on_done, extra)
 	return banner
 
 
 func _build(title: String, subtitle: String, picture: Texture2D, text: String,
-		button_text: String, on_done: Callable) -> void:
+		button_text: String, on_done: Callable, extra: Control) -> void:
 	color = Color(0, 0, 0, 0)
 	set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	mouse_filter = Control.MOUSE_FILTER_STOP  # Nothing behind it can be clicked.
 	var screen := get_viewport_rect().size
 	picture_center = Vector2(screen.x / 2, 250)
+	var no_art := picture == null and extra != null
+	if no_art:
+		picture_center.y = 90  # The light shines behind the title instead.
 
 	# The picture: the class emblem, or a big star if there's no picture.
 	var art: Control
@@ -61,6 +66,7 @@ func _build(title: String, subtitle: String, picture: Texture2D, text: String,
 	art.position = picture_center - art.size / 2
 	art.pivot_offset = art.size / 2
 	art.scale = Vector2.ZERO
+	art.visible = not no_art
 	add_child(art)
 
 	# Sparkles: lots of little gold dots bursting out at once.
@@ -84,7 +90,7 @@ func _build(title: String, subtitle: String, picture: Texture2D, text: String,
 	# The words, in a column under the picture.
 	var column := VBoxContainer.new()
 	column.add_theme_constant_override("separation", 10)
-	column.position = Vector2(screen.x / 2 - 360, picture_center.y + PICTURE_SIZE / 2 + 16)
+	column.position = Vector2(screen.x / 2 - 360, 40 if no_art else picture_center.y + PICTURE_SIZE / 2 + 16)
 	column.custom_minimum_size = Vector2(720, 0)
 	column.modulate.a = 0
 	add_child(column)
@@ -95,6 +101,8 @@ func _build(title: String, subtitle: String, picture: Texture2D, text: String,
 	if not subtitle.is_empty():
 		column.add_child(_label(subtitle, 24, Color.WHITE))
 	column.add_child(_label(text, 17, Color(1, 1, 1, 0.85)))
+	if extra:
+		column.add_child(extra)
 	var button := Button.new()
 	button.text = button_text
 	button.theme_type_variation = &"PrimaryButton"

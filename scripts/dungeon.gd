@@ -192,7 +192,7 @@ func refresh() -> void:
 	if dungeon.boss_unlocked:
 		lines.append("[color=#ff6060]The Boss is somewhere in the deck![/color]")
 	elif dungeon.tier_up_waiting:
-		lines.append("[color=#ffd75a]Rest at a campfire to go deeper.[/color]")
+		lines.append("[color=#ffd75a]Go Deeper at the campfire.[/color]")
 	stats_label.text = "\n".join(lines)
 	stats_label.tooltip_text = "\n".join([
 		"HP: carries over from fight to fight. Resting at a campfire heals %d%%." % roundi(DungeonRun.REST_HEAL * 100),
@@ -267,7 +267,7 @@ func draw_square(square: Vector2i) -> void:
 # The tooltip for a square: what it is and what you can do with it.
 func describe_square(square: Vector2i) -> String:
 	if dungeon.walls.has(square):
-		return "Dead end: the room deck ran out.\nRest at a campfire to shuffle the rooms back in."
+		return "Dead end: the room deck ran out."
 	if not dungeon.is_explored(square):
 		var distance: int = reach[square].steps if reach.has(square) else -1
 		if distance > 0:
@@ -472,7 +472,7 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 # The guided run's campfire: Return to Town is the only choice, greyed out
 # until you have the Stone.
 func show_guided_campfire() -> void:
-	var text := "Campfires let you return to town with everything you found. (Later, you'll also be able to rest at them.)"
+	var text := "Campfires let you return to town with everything you found."
 	var blocked := ""
 	if dungeon.guide_goal_met():
 		text += "\nYou have the Stone. Time to go home and build the Inn!"
@@ -556,13 +556,23 @@ func show_campfire() -> void:
 	if dungeon.guided:
 		show_guided_campfire()
 		return
-	var text := "Rest: heal %d%% HP, get your Vanished cards back, refill your flask, and the rooms shift (the map goes blank and every room goes back in the deck)." % roundi(DungeonRun.REST_HEAL * 100)
+	# For now a campfire is the way home. (Rest is switched off: see rest() in
+	# dungeon_run.gd.) After a Mini Boss it can also take you deeper.
+	var text := "Return to Town with what you found (%s)." % dungeon.loot_text()
+	var choices := [["Return to Town", _on_leave]]
 	if dungeon.tier_up_waiting:
-		text += "\nThe Mini Boss is beaten: resting takes you deeper (Tier %d)." % (dungeon.tier + 1) \
-			if dungeon.tier < dungeon.max_tier else "\nThe Mini Boss is beaten: resting opens the way to the Boss."
-	text += "\nLeave: go home with what you found (%s)." % dungeon.loot_text()
-	var choices := [["Rest", _on_rest], ["Leave the dungeon", _on_leave], ["Not now", close_popup]]
-	show_popup("Campfire", text, choices)
+		text = ("The Mini Boss is beaten! Go Deeper to Tier %d: harder rooms, better loot. (No healing: the map goes blank and the rooms shift.)" % (dungeon.tier + 1)
+			if dungeon.tier < dungeon.max_tier else "The Mini Boss is beaten! Go Deeper to find the way to the Boss. (No healing: the map goes blank.)") + "\nOr " + text
+		choices.push_front(["Go Deeper", _on_go_deeper])
+	choices.append(["Not now", close_popup])
+	show_popup("Campfire", text, choices, ICONS[RoomCard.Type.CAMPFIRE], "pop")
+
+
+func _on_go_deeper() -> void:
+	dungeon.rest(false)
+	close_popup()
+	refresh()
+	info_label.text = "Tier %d! New rooms are in the deck." % dungeon.tier if not dungeon.boss_unlocked else "The Boss is somewhere in the deck now!"
 
 
 func _on_rest() -> void:
@@ -867,7 +877,7 @@ func refresh_sack() -> void:
 		flask_icon.disabled = not dungeon.can_sip_on_map()
 		var how := "Click to drink it now, or in a fight." if dungeon.flask_stats[Flask.HEAL_DIE] > 0 else "Drink it during a fight."
 		if dungeon.flask_charges <= 0:
-			how = "Empty: Rest at a campfire to refill it."
+			how = "Empty: it refills on your next run."
 		flask_icon.tooltip_text = "%s (%d / %d charges): %s\n%s" % [dungeon.flask.flask_name, dungeon.flask_charges,
 			dungeon.flask_stats[Flask.CHARGES], Flask.effect_text(dungeon.flask_stats), how]
 		flask_icon.pressed.connect(_on_flask_pressed)

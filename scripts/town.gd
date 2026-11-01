@@ -312,7 +312,7 @@ func build_flask_screen() -> void:
 	layout.add_theme_constant_override("separation", 12)
 	center.add_child(layout)
 	layout.add_child(make_label("Flasks", 34, Color.WHITE))
-	var note := "Take one flask into each run. Its charges refill when you Rest at a campfire."
+	var note := "Take one flask into each run. Its charges refill at the start of every run."
 	if not GameState.alchemist_open():
 		note += "\nRestore the Alchemist to unlock and upgrade flasks."
 	layout.add_child(make_label(note, 15, Color(1, 1, 1, 0.75)))
@@ -555,7 +555,7 @@ func _on_hand_in() -> void:
 		return
 	if GameState.talents_open() and not talents_before:
 		UnlockBanner.show_in(self, "TALENTS UNLOCKED!", "Your adventurers can grow", null,
-			"Every class levels up from the Exp it earns in fights. Each level gives a TALENT POINT: spend it in the class's talent trees for lasting bonuses. You also pick a SPEC: a free starting talent that sets your playstyle (the Adventurer's specs decide which card schools it can use).\n\nFind the Talents button on Character Select and in the Deck Builder.",
+			"Every class levels up from the Exp it earns in fights. Each level gives a TALENT POINT: spend it in your spec's talent tree (or the others) for lasting bonuses.\n\nFind the Talents button on Character Select and in the Deck Builder.",
 			"Got it!", _show_quest_complete.bind(finished, lines))
 		return
 	_show_quest_complete(finished, lines)
