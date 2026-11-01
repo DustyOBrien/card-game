@@ -18,6 +18,7 @@ extends Control
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const TOWN_SCENE := "res://scenes/town.tscn"  # Where you go when the run is over.
 const POTION_ICON := preload("res://art/potions/potion.svg")
+const FLASK_ICON := preload("res://art/potions/flask.svg")
 const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 
 const HAND_SIZE := 5  # Cards drawn at the start of each turn (before talents).
@@ -105,12 +106,18 @@ func _ready() -> void:
 	continue_button.add_sibling(exp_bar)
 	exp_bar.get_parent().move_child(exp_bar, continue_button.get_index())
 	set_process(false)  # _process() is only needed while dragging an attack.
-	# Your potions, bottom-left. Built in code; refreshed in update_ui().
+	# Your flask and potions, bottom-left. Built in code; refreshed in update_ui().
+	var item_bar := HBoxContainer.new()
+	item_bar.add_theme_constant_override("separation", 14)
+	item_bar.position = Vector2(32, 600)
+	add_child(item_bar)
+	item_bar.get_parent().move_child(item_bar, game_over_screen.get_index())  # Under the end screen.
+	flask_button = make_flask_button()
+	if flask_button:
+		item_bar.add_child(flask_button)
 	potion_bar = HBoxContainer.new()
 	potion_bar.add_theme_constant_override("separation", 6)
-	potion_bar.position = Vector2(32, 600)
-	add_child(potion_bar)
-	potion_bar.get_parent().move_child(potion_bar, game_over_screen.get_index())  # Under the end screen.
+	item_bar.add_child(potion_bar)
 
 	start_battle()
 
@@ -121,6 +128,71 @@ func _ready() -> void:
 
 var potion_bar: HBoxContainer
 var _potion_count := -1  # How many potion buttons are showing (rebuild only when it changes).
+var flask_button: Button  # null if you have no flask (pressing F6 on this scene).
+var flask_charge_label: Label
+
+
+# The flask button: a bottle tinted the flask's colour, with its charges
+# ("1/2") in a little badge at the bottom-right.
+func make_flask_button() -> Button:
+	var dungeon := GameState.dungeon
+	if dungeon == null or dungeon.flask == null:
+		return null
+	var button := Button.new()
+	button.icon = FLASK_ICON
+	button.expand_icon = true
+	button.custom_minimum_size = Vector2(64, 64)
+	for state in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
+		button.add_theme_color_override(state, dungeon.flask.color)
+	button.pressed.connect(drink_flask)
+	flask_charge_label = Label.new()
+	flask_charge_label.add_theme_font_size_override("font_size", 14)
+	flask_charge_label.add_theme_constant_override("outline_size", 4)
+	flask_charge_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	flask_charge_label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_RIGHT)
+	flask_charge_label.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	flask_charge_label.grow_vertical = Control.GROW_DIRECTION_BEGIN
+	flask_charge_label.position -= Vector2(4, 0)
+	button.add_child(flask_charge_label)
+	return button
+
+
+func refresh_flask() -> void:
+	if flask_button == null:
+		return
+	var dungeon := GameState.dungeon
+	var max_charges: int = dungeon.flask_stats[Flask.CHARGES]
+	flask_charge_label.text = "%d/%d" % [dungeon.flask_charges, max_charges]
+	flask_button.disabled = busy or game_over or dungeon.flask_charges <= 0
+	flask_button.tooltip_text = "%s  (%d / %d charges)\n%s\n%s" % [dungeon.flask.flask_name,
+		dungeon.flask_charges, max_charges, Flask.effect_text(dungeon.flask_stats),
+		"Click to drink." if dungeon.flask_charges > 0 else "Empty: Rest at a campfire to refill it."]
+
+
+# Take a sip: roll the heal die (plus its bonus) and/or gain Energy.
+func drink_flask() -> void:
+	var dungeon := GameState.dungeon
+	if busy or game_over or dungeon == null or dungeon.flask == null or dungeon.flask_charges <= 0:
+		return
+	var stats := dungeon.flask_stats
+	battle_log.add("You drink from your %s" % dungeon.flask.flask_name, BattleLog.PLAYER_COLOR)
+	if stats[Flask.HEAL_DIE] > 0:
+		var roll := randi_range(1, stats[Flask.HEAL_DIE])
+		var amount: int = roll + stats[Flask.ROLL_BONUS]
+		player.heal(amount)
+		var bonus_text := (" + %d" % stats[Flask.ROLL_BONUS]) if stats[Flask.ROLL_BONUS] > 0 else ""
+		battle_log.add("d%d rolled %d%s: you heal %d (HP %d/%d)" % [stats[Flask.HEAL_DIE], roll, bonus_text,
+			amount, player.hp, player.max_hp])
+	if stats[Flask.ENERGY] > 0:
+		energy += stats[Flask.ENERGY]
+		battle_log.add("You gain %d energy" % stats[Flask.ENERGY])
+	# The charge is used up, unless the "keep it" chance comes up.
+	if stats[Flask.SAVE_CHANCE] > 0 and randi_range(1, 100) <= stats[Flask.SAVE_CHANCE]:
+		battle_log.add("Lucky! The flask is still full (%d%% chance)" % stats[Flask.SAVE_CHANCE])
+	else:
+		dungeon.flask_charges -= 1
+	refresh_hand()
+	queue_update_ui()
 
 
 func refresh_potions() -> void:
@@ -1073,6 +1145,7 @@ func _run_queued_update() -> void:
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
 	refresh_potions()
+	refresh_flask()
 	gold_label.text = "Gold %d" % GameState.gold
 	if GameState.dungeon and GameState.dungeon.found_gold > 0:
 		gold_label.text += " (+%d found)" % GameState.dungeon.found_gold

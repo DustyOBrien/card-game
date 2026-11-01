@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A round-bottomed flask. White, so the game can tint it any colour. -->
+  <rect x="26" y="4" width="12" height="5" rx="2" fill="#ffffff" opacity="0.7"/>
+  <path d="M27 9 h10 v14 c10 4 17 13 17 23 c0 10 -10 15 -22 15 c-12 0 -22 -5 -22 -15 c0 -10 7 -19 17 -23 z" fill="#ffffff" opacity="0.35" stroke="#ffffff" stroke-width="2.5"/>
+  <path d="M12 44 c6 -3 14 3 20 0 c6 -3 14 -3 20 0 c0 9 -9 13 -20 13 c-11 0 -20 -4 -20 -13 z" fill="#ffffff"/>
+  <circle cx="22" cy="38" r="2.5" fill="#ffffff" opacity="0.8"/>
+  <circle cx="38" cy="33" r="1.8" fill="#ffffff" opacity="0.6"/>
+</svg>

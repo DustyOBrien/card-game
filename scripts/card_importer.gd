@@ -44,11 +44,12 @@ const ENEMIES_FOLDER := "res://enemies/"
 const ENEMY_ART_FOLDER := "res://art/enemies/"
 const AREAS_FOLDER := "res://areas/"
 const ROOMS_SHEET := "res://data/dungeons/rooms.csv"
-const PROGRESSION_FOLDER := "res://data/progression/"  # enchants.csv, potions.csv, town.csv
+const PROGRESSION_FOLDER := "res://data/progression/"  # enchants.csv, potions.csv, town.csv, flasks.csv
 const ENCHANTS_FOLDER := "res://enchants/"
 const POTIONS_FOLDER := "res://potions/"
 const TOWN_FOLDER := "res://town/"
 const TOWN_ART_FOLDER := "res://art/town/"
+const FLASKS_FOLDER := "res://flasks/"
 
 
 # Reads every sheet and writes the files. Returns how many level 1 cards were made.
@@ -791,6 +792,39 @@ static func _import_progression() -> void:
 		building.amounts.append(_to_int(row.get("amount", ""), 1))
 		building.stage_texts.append(row.get("stage text", ""))
 	_save_all(order, TOWN_FOLDER, func(b: TownBuilding) -> String: return b.building_name)
+
+	# flasks.csv: one row per stage, like town.csv (see flask.gd).
+	var flasks := {}  # "health flask" -> Flask
+	var flask_order: Array[Resource] = []
+	for row in _read_sheet(PROGRESSION_FOLDER + "flasks.csv"):
+		var key: String = row.get("flask", "").to_lower()
+		if key.is_empty():
+			continue
+		var upgrade: String = row.get("upgrade", "").strip_edges()
+		if upgrade.is_empty() or upgrade.to_lower() == "base":
+			upgrade = Flask.BASE
+		if not flasks.has(key):
+			var new_flask := Flask.new()
+			new_flask.flask_name = row.get("flask", "")
+			new_flask.sort_order = flasks.size()
+			new_flask.unlock_cost = _to_int(row.get("cost", ""))  # The first row's Cost = unlocking it.
+			flasks[key] = new_flask
+			flask_order.append(new_flask)
+		var flask: Flask = flasks[key]
+		if not row.get("description", "").is_empty():
+			flask.description = row.description
+		if not row.get("color", "").is_empty():
+			flask.color = Color.from_string(row.color, flask.color)
+		var effect: String = row.get("effect", "").to_lower()
+		if not effect in Flask.EFFECTS:
+			push_warning("flasks.csv: %s %s has Effect '%s'. Use one of: %s" % [flask.flask_name, upgrade,
+				row.get("effect", ""), ", ".join(Flask.EFFECTS)])
+		flask.upgrade_names.append(upgrade)
+		flask.costs.append(0 if upgrade == Flask.BASE else _to_int(row.get("cost", "")))
+		flask.effects.append(effect)
+		flask.amounts.append(_to_int(row.get("amount", ""), 1))
+		flask.stage_texts.append(row.get("stage text", ""))
+	_save_all(flask_order, FLASKS_FOLDER, func(f: Flask) -> String: return f.flask_name)
 
 
 # Save each resource as folder/<its name>.tres, and delete files for rows

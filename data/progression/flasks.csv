@@ -1,0 +1,13 @@
+Flask,Upgrade,Stage,Cost,Effect,Amount,Color,Description,Stage Text
+Health Flask,Base,,0,Heal Die,3,#e74c3c,You start with this one. A sip heals a die of HP.,Heal d3
+Health Flask,Base,,,Charges,1,,,1 charge
+Health Flask,Bigger Die,1,40,Heal Die,6,,,Heal d6
+Health Flask,Bigger Die,2,80,Heal Die,8,,,Heal d8
+Health Flask,Extra Charge,1,60,Charges,1,,,+1 charge
+Health Flask,Steady Hand,1,30,Roll Bonus,1,,,+1 to the heal roll
+Health Flask,Steady Hand,2,60,Roll Bonus,1,,,+2 to the heal roll
+Energy Flask,Base,,50,Energy,1,#f1c40f,Unlock it at the Alchemist. A sip gives you Energy.,Gain 1 Energy
+Energy Flask,Base,,,Charges,1,,,1 charge
+Energy Flask,Stronger Brew,1,80,Energy,1,,,Gain 2 Energy
+Energy Flask,Extra Charge,1,60,Charges,1,,,+1 charge
+Energy Flask,Bottomless,1,40,Save Chance,10,,,10% chance a sip doesn't use a charge

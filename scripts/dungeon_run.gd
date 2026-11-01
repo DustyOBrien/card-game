@@ -70,6 +70,11 @@ var sack: Array[Dictionary] = []
 # (usually 1; the Enchanter's upgrade makes it 2): pick one, then a card.
 var enchant_drops: Array = []
 var potions: Array[Potion] = []  # Potions you carry (drink them in a fight).
+# Your flask (flask.gd), set by GameState.start_run(). Its charges come back
+# when you Rest at a campfire.
+var flask: Flask = null
+var flask_stats := {}  # What it does this run (Flask.stats()).
+var flask_charges := 0
 
 var fights_won := 0
 var result := ""  # "" while in the dungeon, then "left", "won" or "died".
@@ -321,6 +326,8 @@ func rest() -> int:
 	var hp_after := mini(hp_before + ceili(max_hp * REST_HEAL), max_hp)
 	GameState.run_hp = hp_after
 	GameState.vanished.clear()
+	if flask:
+		flask_charges = flask_stats[Flask.CHARGES]  # The flask refills.
 	for square: Vector2i in rooms.keys():
 		var room: Dictionary = rooms[square]
 		if square == position:

@@ -183,6 +183,12 @@ of squares, and you start in the middle. Every other square is hidden.
   "Enchant: Sharpened" at the bottom.
 - **Potions.** Fights sometimes drop a potion (25% / 35% / 50%). You can carry 3. In a
   fight, click one (bottom left) to drink it: heal, Block, Energy, draw, damage...
+- **Your flask.** You take ONE flask into each run (pick it with the Flask button in
+  town). It's like a potion you never lose: it has charges (1 to start), you drink it
+  from the bottle at the bottom-left of a fight, and Resting at a campfire refills it.
+  The **Health Flask** (heal d3) is yours from the start; the **Energy Flask** (+1
+  Energy) is unlocked for gold. Both are upgraded at the Alchemist (bigger die, more
+  charges, +roll, 2 Energy, a chance to keep the charge).
 - If the room deck runs out, the other squares become dead ends until you rest.
 
 Your HP carries over from one fight to the next (the top of the battle screen
@@ -286,6 +292,7 @@ card-game/
 │   ├── town_building.gd One building (a row group of town.csv)
 │   ├── enchant.gd       An enchant, and how it changes a card in a fight
 │   ├── potion.gd        A potion you drink in a fight
+│   ├── flask.gd         Your flask: charges, upgrades (flasks.csv)
 │   ├── shop.gd          The shop: pack list, buying, opening packs
 │   └── card_importer.gd Turns the spreadsheet into card files
 ├── tools/
@@ -866,6 +873,20 @@ Enchants that change dice only go on cards with dice; Leech only on cards that d
 
 **`potions.csv`**: Name, Rarity, Heal, Block, Energy, Draw, Damage (to every enemy),
 Advantage, Roll Bonus (next roll), Color (the bottle's colour), Description.
+
+**`flasks.csv`**: one row per **stage**, like town.csv (see `scripts/flask.gd`).
+
+| Column | Example | What it means |
+|---|---|---|
+| Flask | Health Flask | Rows with the same Flask are one flask |
+| Upgrade | Bigger Die | `Base` = what it does before upgrades. Rows with the same Upgrade are its stages, bought in order |
+| Stage | 1 | Just for you to read (the row order is what counts) |
+| Cost | 40 | Gold for that stage. On the flask's FIRST Base row: the unlock cost (0 = you start with it) |
+| Effect | Heal Die | Heal Die (a bigger one replaces the old one), Energy, Charges, Roll Bonus (+ to the heal roll), Save Chance (% to keep the charge) |
+| Amount | 6 | How much (Heal Die 6 = d6). Everything but Heal Die adds up |
+| Color | #e74c3c | The liquid's colour (first row) |
+| Description | | One line about it (first row) |
+| Stage Text | Heal d6 | What the stage says in town |
 
 **`town.csv`**: one row per **stage** of a building, in order.
 

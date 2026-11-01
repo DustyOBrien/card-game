@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Flask" format=3]
+
+[ext_resource type="Script" path="res://scripts/flask.gd" id="1_gipbj"]
+
+[resource]
+script = ExtResource("1_gipbj")
+flask_name = "Health Flask"
+description = "You start with this one. A sip heals a die of HP."
+color = Color(0.90588236, 0.29803923, 0.23529412, 1)
+upgrade_names = PackedStringArray("Base", "Base", "Bigger Die", "Bigger Die", "Extra Charge", "Steady Hand", "Steady Hand")
+costs = Array[int]([0, 0, 40, 80, 60, 30, 60])
+effects = PackedStringArray("heal die", "charges", "heal die", "heal die", "charges", "roll bonus", "roll bonus")
+amounts = Array[int]([3, 1, 6, 8, 1, 1, 1])
+stage_texts = PackedStringArray("Heal d3", "1 charge", "Heal d6", "Heal d8", "+1 charge", "+1 to the heal roll", "+2 to the heal roll")

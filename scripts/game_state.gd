@@ -50,6 +50,7 @@ var booster_packs := {}
 const TOWN_FOLDER := "res://town/"
 const ENCHANTS_FOLDER := "res://enchants/"
 const POTIONS_FOLDER := "res://potions/"
+const FLASKS_FOLDER := "res://flasks/"
 const BASE_SACK_SLOTS := 2  # Save Sack slots before the Tailor.
 const BASE_GOLD_STACK := 5  # Gold one Save Sack slot holds before the Tailor.
 const BASE_POTION_SLOTS := 3  # Potions you can carry before the Alchemist.
@@ -60,6 +61,13 @@ var town_stages := {}  # Building name -> stage restored: {"Tailor": 2}
 # Bought in town for your next run (names): they go into the dungeon when it starts.
 var pending_enchants: Array[String] = []
 var pending_potions: Array[String] = []
+# Flasks (flask.gd): which ones you've unlocked (ones that cost 0 are always
+# unlocked), the upgrade stages you've bought per flask, and the one you're
+# taking into your next run. All saved.
+var unlocked_flasks: Array[String] = []
+var flask_upgrades := {}  # "Health Flask" -> {"Bigger Die": 1}
+var chosen_flask := ""  # "" = the first unlocked one (the Health Flask).
+var _flasks: Array[Flask] = []
 # Enchants on your deck this run: deck index -> Enchant (each card holds one).
 var run_enchants := {}
 var _town: Array[TownBuilding] = []
@@ -153,6 +161,9 @@ func start_fresh() -> void:
 	town_stages.clear()
 	pending_enchants.clear()
 	pending_potions.clear()
+	unlocked_flasks.clear()
+	flask_upgrades.clear()
+	chosen_flask = ""
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -343,6 +354,11 @@ func start_run() -> void:
 			var potion := find_potion(potion_name)
 			if potion:
 				dungeon.add_potion(potion)
+		# Your flask, full of charges.
+		dungeon.flask = current_flask()
+		if dungeon.flask:
+			dungeon.flask_stats = flask_stats(dungeon.flask)
+			dungeon.flask_charges = dungeon.flask_stats[Flask.CHARGES]
 		if not pending_enchants.is_empty() or not pending_potions.is_empty():
 			pending_enchants.clear()
 			pending_potions.clear()
@@ -399,6 +415,75 @@ func gold_stack() -> int:
 
 func potion_slots() -> int:
 	return BASE_POTION_SLOTS + town_bonus(TownBuilding.POTION_SLOTS)
+
+
+# --- Flasks ------------------------------------------------------------------------
+
+func load_flasks() -> Array[Flask]:
+	if _flasks.is_empty():
+		for file_name in ResourceLoader.list_directory(FLASKS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_flasks.append(load(FLASKS_FOLDER + file_name))
+		_flasks.sort_custom(func(a: Flask, b: Flask) -> bool: return a.sort_order < b.sort_order)
+	return _flasks
+
+
+func is_flask_unlocked(flask: Flask) -> bool:
+	return flask.unlock_cost == 0 or unlocked_flasks.has(flask.flask_name)
+
+
+# The flask you'll take on your next run: the one you chose, or else the
+# first unlocked one. null only if flasks/ is empty.
+func current_flask() -> Flask:
+	var first: Flask = null
+	for flask in load_flasks():
+		if is_flask_unlocked(flask):
+			if flask.flask_name == chosen_flask:
+				return flask
+			if first == null:
+				first = flask
+	return first
+
+
+# How many stages of one upgrade you've bought (0 = none).
+func flask_upgrade_stage(flask: Flask, upgrade: String) -> int:
+	return int(flask_upgrades.get(flask.flask_name, {}).get(upgrade, 0))
+
+
+# What the flask does with your upgrades (see Flask.stats()).
+func flask_stats(flask: Flask) -> Dictionary:
+	return flask.stats(flask_upgrades.get(flask.flask_name, {}))
+
+
+# Flasks are unlocked and upgraded at the Alchemist, so it has to be open.
+func alchemist_open() -> bool:
+	return town_bonus(TownBuilding.ALCHEMIST) > 0
+
+
+func unlock_flask(flask: Flask) -> bool:
+	if is_flask_unlocked(flask) or not alchemist_open() or gold < flask.unlock_cost:
+		return false
+	gold -= flask.unlock_cost
+	unlocked_flasks.append(flask.flask_name)
+	save_game()
+	return true
+
+
+# Buy the next stage of one upgrade. Returns false if you can't.
+func buy_flask_upgrade(flask: Flask, upgrade: String) -> bool:
+	var stages := flask.stages_of(upgrade)
+	var stage := flask_upgrade_stage(flask, upgrade)
+	if not is_flask_unlocked(flask) or not alchemist_open() or stage >= stages.size():
+		return false
+	var cost: int = flask.costs[stages[stage]]
+	if gold < cost:
+		return false
+	gold -= cost
+	if not flask_upgrades.has(flask.flask_name):
+		flask_upgrades[flask.flask_name] = {}
+	flask_upgrades[flask.flask_name][upgrade] = stage + 1
+	save_game()
+	return true
 
 
 # --- Enchants and potions ---------------------------------------------------------
@@ -773,6 +858,9 @@ func save_game() -> void:
 		"town": town_stages,
 		"pending_enchants": pending_enchants,
 		"pending_potions": pending_potions,
+		"unlocked_flasks": unlocked_flasks,
+		"flask_upgrades": flask_upgrades,
+		"chosen_flask": chosen_flask,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -809,6 +897,14 @@ func load_game() -> bool:
 	town_stages = _whole_numbers(saved_town) if saved_town is Dictionary else {}
 	pending_enchants.assign(data.get("pending_enchants", []))
 	pending_potions.assign(data.get("pending_potions", []))
+	unlocked_flasks.assign(data.get("unlocked_flasks", []))
+	flask_upgrades.clear()
+	var saved_flasks = data.get("flask_upgrades", {})
+	if saved_flasks is Dictionary:
+		for flask_name in saved_flasks:
+			if saved_flasks[flask_name] is Dictionary:
+				flask_upgrades[flask_name] = _whole_numbers(saved_flasks[flask_name])
+	chosen_flask = str(data.get("chosen_flask", ""))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()

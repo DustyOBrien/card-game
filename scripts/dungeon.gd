@@ -19,6 +19,7 @@ const CARD_SCENE := preload("res://scenes/card.tscn")
 const ENCHANT_ICON := preload("res://art/potions/enchant.svg")
 const SACK_ICON := preload("res://art/potions/sack.svg")
 const POTION_ICON := preload("res://art/potions/potion.svg")
+const FLASK_ICON := preload("res://art/potions/flask.svg")
 
 const SQUARE_SIZE := Vector2(108, 108)
 const GAP := 6
@@ -397,7 +398,7 @@ func _on_open_chest() -> void:
 
 
 func show_campfire() -> void:
-	var text := "Rest: heal %d%% HP, get your Vanished cards back, and the rooms shift (the map goes blank and every room goes back in the deck)." % roundi(DungeonRun.REST_HEAL * 100)
+	var text := "Rest: heal %d%% HP, get your Vanished cards back, refill your flask, and the rooms shift (the map goes blank and every room goes back in the deck)." % roundi(DungeonRun.REST_HEAL * 100)
 	if dungeon.tier_up_waiting:
 		text += "\nThe Mini Boss is beaten: resting takes you deeper (Tier %d)." % (dungeon.tier + 1) \
 			if dungeon.tier < dungeon.max_tier else "\nThe Mini Boss is beaten: resting opens the way to the Boss."
@@ -410,7 +411,7 @@ func _on_rest() -> void:
 	var healed := dungeon.rest()
 	close_popup()
 	refresh()
-	info_label.text = "You rest and heal %d HP." % healed
+	info_label.text = "You rest and heal %d HP.%s" % [healed, " Your flask is full again." if dungeon.flask else ""]
 
 
 func _on_leave() -> void:
@@ -537,6 +538,18 @@ func refresh_sack() -> void:
 	# Enchants waiting, and potions.
 	enchant_button.text = "Use Enchant (%d)" % dungeon.enchant_drops.size()
 	enchant_button.disabled = dungeon.enchant_drops.is_empty()
+	if dungeon.flask:  # Your flask first, with its charges left.
+		var flask_icon := TextureRect.new()
+		flask_icon.texture = FLASK_ICON
+		flask_icon.self_modulate = dungeon.flask.color
+		flask_icon.custom_minimum_size = Vector2(34, 34)
+		flask_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		flask_icon.tooltip_text = "%s (%d / %d charges): %s\nDrink it during a fight. Resting refills it." % [
+			dungeon.flask.flask_name, dungeon.flask_charges, dungeon.flask_stats[Flask.CHARGES],
+			Flask.effect_text(dungeon.flask_stats)]
+		potion_row.add_child(flask_icon)
+		potion_row.add_child(make_small_label("%d/%d" % [dungeon.flask_charges, dungeon.flask_stats[Flask.CHARGES]],
+			Color(1, 1, 1, 0.8) if dungeon.flask_charges > 0 else Color(1, 1, 1, 0.35)))
 	for potion in dungeon.potions:
 		var bottle := TextureRect.new()
 		bottle.texture = POTION_ICON

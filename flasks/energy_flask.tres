@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="Flask" format=3]
+
+[ext_resource type="Script" path="res://scripts/flask.gd" id="1_wgt3a"]
+
+[resource]
+script = ExtResource("1_wgt3a")
+flask_name = "Energy Flask"
+description = "Unlock it at the Alchemist. A sip gives you Energy."
+color = Color(0.94509804, 0.76862746, 0.05882353, 1)
+sort_order = 1
+unlock_cost = 50
+upgrade_names = PackedStringArray("Base", "Base", "Stronger Brew", "Extra Charge", "Bottomless")
+costs = Array[int]([0, 0, 80, 60, 40])
+effects = PackedStringArray("energy", "charges", "energy", "charges", "save chance")
+amounts = Array[int]([1, 1, 1, 1, 10])
+stage_texts = PackedStringArray("Gain 1 Energy", "1 charge", "Gain 2 Energy", "+1 charge", "10% chance a sip doesn\'t use a charge")
