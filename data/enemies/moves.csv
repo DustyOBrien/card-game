@@ -28,3 +28,5 @@ Dire Wolf,Howl,1,1,,,,,,,1,,,Every enemy gets +1 Strength
 Thorn Treant,Thorn Lash,3,,4-6,,,,,,,,,
 Thorn Treant,Bramble Wall,1,1,,,6,,,3,,,,Block for itself and its friends
 Thorn Treant,Take Root,1,1,,,,,5,,,,,Heals 5
+Training Dummy,Stand Still,1,,,,,,,,,,,Tutorial: does nothing
+Sparring Dummy,Swing,1,,6,,,,,,,,,Tutorial: always hits for 6

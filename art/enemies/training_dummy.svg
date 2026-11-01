@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="190" viewBox="0 0 140 190">
+  <!-- A Training Dummy: a straw sack on a wooden post, with a painted target. -->
+  <ellipse cx="70" cy="182" rx="44" ry="7" fill="#000000" opacity="0.3"/>
+  <!-- Post and stand -->
+  <rect x="64" y="100" width="12" height="80" fill="#8a5a2c" stroke="#3e2410" stroke-width="3"/>
+  <path d="M40 182 L70 160 L100 182" fill="none" stroke="#3e2410" stroke-width="8" stroke-linecap="round"/>
+  <path d="M40 182 L70 160 L100 182" fill="none" stroke="#8a5a2c" stroke-width="4" stroke-linecap="round"/>
+  <!-- Arms: a crossbar -->
+  <rect x="14" y="66" width="112" height="12" rx="4" fill="#8a5a2c" stroke="#3e2410" stroke-width="3"/>
+  <!-- Straw body -->
+  <path d="M38 52 C38 40 102 40 102 52 L106 118 C106 132 34 132 34 118 Z" fill="#e2c46a" stroke="#7a5a1a" stroke-width="4" stroke-linejoin="round"/>
+  <path d="M48 60 L46 120 M62 56 L60 124 M78 56 L80 124 M92 60 L94 120" stroke="#b8963a" stroke-width="2"/>
+  <!-- Rope belts -->
+  <path d="M36 74 C60 80 80 80 104 74" fill="none" stroke="#7a4a1a" stroke-width="4"/>
+  <path d="M35 108 C60 114 80 114 105 108" fill="none" stroke="#7a4a1a" stroke-width="4"/>
+  <!-- Target -->
+  <circle cx="70" cy="92" r="14" fill="#ffffff" stroke="#c83030" stroke-width="5"/>
+  <circle cx="70" cy="92" r="5" fill="#c83030"/>
+  <!-- Head -->
+  <circle cx="70" cy="28" r="20" fill="#e8cc78" stroke="#7a5a1a" stroke-width="4"/>
+  <path d="M60 24 L66 30 M66 24 L60 30 M74 24 L80 30 M80 24 L74 30" stroke="#5a3a10" stroke-width="3" stroke-linecap="round"/>
+  <path d="M62 38 Q70 34 78 38" fill="none" stroke="#5a3a10" stroke-width="3" stroke-linecap="round"/>
+</svg>

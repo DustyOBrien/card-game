@@ -92,6 +92,7 @@ var _ui_update_queued := false  # See queue_update_ui().
 @onready var area_background: TextureRect = %AreaBackground  # The picture of the area you're in.
 
 var exp_bar: ExpBar  # Your class's Exp bar on the victory panel (made in _ready).
+var tutorial: Tutorial = null  # The tutorial's panel, while the tutorial runs (tutorial.gd).
 
 
 func _ready() -> void:
@@ -120,6 +121,10 @@ func _ready() -> void:
 	potion_bar.add_theme_constant_override("separation", 6)
 	item_bar.add_child(potion_bar)
 
+	if GameState.tutorial_stage > 0:
+		tutorial = Tutorial.new()
+		tutorial.battle = self
+		add_child(tutorial)
 	start_battle()
 
 
@@ -314,6 +319,8 @@ func start_battle() -> void:
 	var dungeon := GameState.dungeon
 	fight_label.text = "%s  ·  Tier %d  ·  Danger %d" % [GameState.current_area.display_name,
 		dungeon.tier, dungeon.danger()]
+	if tutorial:
+		fight_label.text = "Training Grounds"
 	battle_log.clear()
 	message_label.text = "%s appear%s!" % [enemy_names(), "s" if enemy_views.size() == 1 else ""]
 	var enemy_list: Array[String] = []
@@ -389,7 +396,13 @@ func enemy_names() -> String:
 	for view in enemy_views:
 		names.append(view.data.display_name)
 	if names.size() > 1 and names.count(names[0]) == names.size():
-		return "%d %ss" % [names.size(), names[0]]
+		# "Dummy" -> "Dummies", "Slime" -> "Slimes", "Wolf" -> "Wolves".
+		var plural := names[0] + "s"
+		if names[0].ends_with("y"):
+			plural = names[0].trim_suffix("y") + "ies"
+		elif names[0].ends_with("f"):
+			plural = names[0].trim_suffix("f") + "ves"
+		return "%d %s" % [names.size(), plural]
 	if names.size() == 1:
 		if enemy_views[0].data.is_boss:
 			return "The boss, the " + names[0] + ","  # "The boss, the Slime King, appears!"
@@ -438,10 +451,13 @@ func _on_end_turn_pressed() -> void:
 
 	busy = true  # Nothing can be played (or End Turn pressed again) during the enemy's turn.
 	var my_fight := fight_id
+	var hp_before := player.hp
 	await enemy_turn()  # `await` waits for enemy_turn() to finish.
 	if my_fight != fight_id:
 		return
 	busy = false
+	if tutorial:
+		tutorial.after_enemy_turn(hp_before - player.hp)
 	if not game_over:
 		start_player_turn()
 
@@ -1192,6 +1208,10 @@ func update_ui() -> void:
 
 # While a card is being dragged, show "before -> after" on the numbers it
 # would change, in gold, so you can see what will happen before you drop it.
+	if tutorial:
+		tutorial.refresh()
+
+
 func show_drag_preview() -> void:
 	var labels: Array[Label] = [player_hp_label, player_block_label, energy_label]
 	for label in labels:
@@ -1226,6 +1246,9 @@ func show_drag_preview() -> void:
 # One enemy is defeated. It drops some gold; once they're ALL down, you win.
 func _on_enemy_died(view: EnemyView) -> void:
 	view.show_defeated()
+	if tutorial:
+		tutorial.enemy_died()  # No gold or Exp from dummies.
+		return
 	# Loot Hound talents add Bonus Gold to every enemy.
 	# Bosses drop their Bonus Gold on top.
 	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX) + view.data.bonus_gold \
@@ -1306,6 +1329,9 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 
 
 func _on_player_died() -> void:
+	if tutorial:
+		tutorial.player_died()
+		return
 	var dungeon := GameState.dungeon
 	var lost := dungeon.loot_text()
 	var saved := dungeon.die()

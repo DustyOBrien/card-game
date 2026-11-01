@@ -140,6 +140,11 @@ const ENEMIES_FOLDER := "res://enemies/"
 var cleared_areas: Array[String] = []
 # The last final-Boss win, for the Victory screen (victory.gd): area, boss, opened areas, exp.
 var last_victory := {}
+# The tutorial (tutorial.gd): which stage is running (0 = none), whether it's
+# been finished or skipped (saved), and your real setup while it runs.
+var tutorial_stage := 0
+var tutorial_done := false
+var tutorial_backup := {}
 
 
 func _ready() -> void:
@@ -167,6 +172,7 @@ func start_fresh() -> void:
 	unlocked_flasks.clear()
 	flask_upgrades.clear()
 	chosen_flask = ""
+	tutorial_done = false  # A new player sees the tutorial again.
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -864,6 +870,7 @@ func save_game() -> void:
 		"unlocked_flasks": unlocked_flasks,
 		"flask_upgrades": flask_upgrades,
 		"chosen_flask": chosen_flask,
+		"tutorial_done": tutorial_done,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -908,6 +915,7 @@ func load_game() -> bool:
 			if saved_flasks[flask_name] is Dictionary:
 				flask_upgrades[flask_name] = _whole_numbers(saved_flasks[flask_name])
 	chosen_flask = str(data.get("chosen_flask", ""))
+	tutorial_done = bool(data.get("tutorial_done", false))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()

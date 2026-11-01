@@ -27,6 +27,30 @@ func _ready() -> void:
 	for character_class in GameState.load_classes():
 		class_list.add_child(make_class_panel(character_class, all_cards))
 	add_reset_button()
+	add_tutorial_button()
+	# A brand new player gets the tutorial first (they can Skip it).
+	if not GameState.tutorial_done:
+		start_tutorial.call_deferred()
+
+
+const BATTLE_SCENE := "res://scenes/battle.tscn"
+
+
+func start_tutorial() -> void:
+	Tutorial.begin(1)
+	get_tree().change_scene_to_file(BATTLE_SCENE)
+
+
+# "Tutorial" next to Reset Save: play the quick tutorial again.
+func add_tutorial_button() -> void:
+	var button := Button.new()
+	button.text = "Tutorial"
+	button.tooltip_text = "Play the quick tutorial: Training Dummies, 3 short stages."
+	button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
+	button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	button.position.x -= 150  # Left of Reset Save.
+	button.pressed.connect(start_tutorial)
+	add_child(button)
 
 
 # The Reset Save button in the top corner, for testing from the start.
