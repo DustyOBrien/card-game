@@ -175,22 +175,18 @@ func drink_flask() -> void:
 	if busy or game_over or dungeon == null or dungeon.flask == null or dungeon.flask_charges <= 0:
 		return
 	var stats := dungeon.flask_stats
+	var sip := dungeon.sip_flask()  # Rolls the heal and uses the charge (see dungeon_run.gd).
 	battle_log.add("You drink from your %s" % dungeon.flask.flask_name, BattleLog.PLAYER_COLOR)
-	if stats[Flask.HEAL_DIE] > 0:
-		var roll := randi_range(1, stats[Flask.HEAL_DIE])
-		var amount: int = roll + stats[Flask.ROLL_BONUS]
-		player.heal(amount)
+	if sip.heal > 0:
+		player.heal(sip.heal)
 		var bonus_text := (" + %d" % stats[Flask.ROLL_BONUS]) if stats[Flask.ROLL_BONUS] > 0 else ""
-		battle_log.add("d%d rolled %d%s: you heal %d (HP %d/%d)" % [stats[Flask.HEAL_DIE], roll, bonus_text,
-			amount, player.hp, player.max_hp])
-	if stats[Flask.ENERGY] > 0:
-		energy += stats[Flask.ENERGY]
-		battle_log.add("You gain %d energy" % stats[Flask.ENERGY])
-	# The charge is used up, unless the "keep it" chance comes up.
-	if stats[Flask.SAVE_CHANCE] > 0 and randi_range(1, 100) <= stats[Flask.SAVE_CHANCE]:
+		battle_log.add("d%d rolled %d%s: you heal %d (HP %d/%d)" % [stats[Flask.HEAL_DIE], sip.roll, bonus_text,
+			sip.heal, player.hp, player.max_hp])
+	if sip.energy > 0:
+		energy += sip.energy
+		battle_log.add("You gain %d energy" % sip.energy)
+	if sip.kept:
 		battle_log.add("Lucky! The flask is still full (%d%% chance)" % stats[Flask.SAVE_CHANCE])
-	else:
-		dungeon.flask_charges -= 1
 	refresh_hand()
 	queue_update_ui()
 

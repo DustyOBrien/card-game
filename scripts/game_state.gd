@@ -980,13 +980,15 @@ func find_enemy(enemy_name: String) -> EnemyData:
 
 
 # Every area, loaded from the areas/ folder, in their sort_order (the order along the road).
+# Read once, then remembered (like the cards). Returns a copy, so callers can add to it.
+var _areas: Array[Area] = []
 func load_areas() -> Array[Area]:
-	var areas: Array[Area] = []
-	for file_name in ResourceLoader.list_directory(AREAS_FOLDER):
-		if file_name.ends_with(".tres"):
-			areas.append(load(AREAS_FOLDER + file_name))
-	areas.sort_custom(func(a: Area, b: Area) -> bool: return a.sort_order < b.sort_order)
-	return areas
+	if _areas.is_empty():
+		for file_name in ResourceLoader.list_directory(AREAS_FOLDER):
+			if file_name.ends_with(".tres"):
+				_areas.append(load(AREAS_FOLDER + file_name))
+		_areas.sort_custom(func(a: Area, b: Area) -> bool: return a.sort_order < b.sort_order)
+	return _areas.duplicate()
 
 
 # Every card in the game (one of each), loaded from the cards/ folder.

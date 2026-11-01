@@ -185,7 +185,8 @@ of squares, and you start in the middle. Every other square is hidden.
   fight, click one (bottom left) to drink it: heal, Block, Energy, draw, damage...
 - **Your flask.** You take ONE flask into each run (pick it with the Flask button in
   town). It's like a potion you never lose: it has charges (1 to start), you drink it
-  from the bottle at the bottom-left of a fight, and Resting at a campfire refills it.
+  from the bottle at the bottom-left of a fight (a healing flask can also be drunk on
+  the dungeon map: click it in the side panel), and Resting at a campfire refills it.
   The **Health Flask** (heal d3) is yours from the start; the **Energy Flask** (+1
   Energy) is unlocked for gold. Both are upgraded at the Alchemist (bigger die, more
   charges, +roll, 2 Energy, a chance to keep the charge).

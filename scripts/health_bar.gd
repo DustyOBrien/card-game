@@ -33,6 +33,10 @@ var preview_text := ""  # e.g. "17 → 12–15"
 var trail_tween: Tween
 
 
+func _ready() -> void:
+	set_process(false)  # Only redraw every frame while something moves (see _process).
+
+
 # Update the numbers. Losing HP starts the yellow trail animation.
 func set_values(new_value: int, new_max: int, new_block: int) -> void:
 	var lost := new_value < value
@@ -49,6 +53,7 @@ func set_values(new_value: int, new_max: int, new_block: int) -> void:
 		trail_tween.tween_interval(0.25)
 		trail_tween.tween_property(self, "trail_value", float(value), 0.4)
 		trail_tween.tween_callback(queue_redraw)
+		set_process(true)
 	queue_redraw()
 
 
@@ -58,6 +63,7 @@ func set_preview(low: int, high: int, text: String) -> void:
 	preview_low = low
 	preview_high = high
 	preview_text = text
+	set_process(true)  # The preview blinks.
 	queue_redraw()
 
 
@@ -73,6 +79,8 @@ func _process(_delta: float) -> void:
 	# Keep redrawing while something moves: the blinking preview or the trail.
 	if preview_low != -1 or trail_value > value:
 		queue_redraw()
+	else:
+		set_process(false)  # Nothing moving: stop until the next hit or preview.
 
 
 func _draw() -> void:

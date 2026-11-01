@@ -414,6 +414,23 @@ func _on_rest() -> void:
 	info_label.text = "You rest and heal %d HP.%s" % [healed, " Your flask is full again." if dungeon.flask else ""]
 
 
+# Drink the flask between fights: heal your run HP.
+func _on_flask_pressed() -> void:
+	if not dungeon.can_sip_on_map():
+		return
+	var max_hp := GameState.player_max_hp()
+	var hp_before := GameState.run_hp if GameState.run_hp > 0 else max_hp
+	var sip := dungeon.sip_flask()
+	GameState.run_hp = mini(hp_before + sip.heal, max_hp)
+	var text := "You drink from your %s: d%d rolled %d, heal %d (HP %d/%d)." % [dungeon.flask.flask_name,
+		dungeon.flask_stats[Flask.HEAL_DIE], sip.roll, GameState.run_hp - hp_before, GameState.run_hp, max_hp]
+	if sip.kept:
+		text += " Lucky, the flask is still full!"
+	dungeon.add_log(text)
+	refresh()
+	info_label.text = text  # After refresh(), which sets its own hint.
+
+
 func _on_leave() -> void:
 	dungeon.leave()
 	dungeon.claim_loot()
@@ -538,15 +555,21 @@ func refresh_sack() -> void:
 	# Enchants waiting, and potions.
 	enchant_button.text = "Use Enchant (%d)" % dungeon.enchant_drops.size()
 	enchant_button.disabled = dungeon.enchant_drops.is_empty()
-	if dungeon.flask:  # Your flask first, with its charges left.
-		var flask_icon := TextureRect.new()
-		flask_icon.texture = FLASK_ICON
-		flask_icon.self_modulate = dungeon.flask.color
-		flask_icon.custom_minimum_size = Vector2(34, 34)
-		flask_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		flask_icon.tooltip_text = "%s (%d / %d charges): %s\nDrink it during a fight. Resting refills it." % [
-			dungeon.flask.flask_name, dungeon.flask_charges, dungeon.flask_stats[Flask.CHARGES],
-			Flask.effect_text(dungeon.flask_stats)]
+	if dungeon.flask:  # Your flask first, with its charges left. A healing flask can be drunk right here.
+		var flask_icon := Button.new()
+		flask_icon.icon = FLASK_ICON
+		flask_icon.add_theme_constant_override("icon_max_width", 30)  # The svg is 64px: shrink it to fit.
+		flask_icon.flat = true
+		for state in ["icon_normal_color", "icon_hover_color", "icon_pressed_color", "icon_focus_color"]:
+			flask_icon.add_theme_color_override(state, dungeon.flask.color)
+		flask_icon.custom_minimum_size = Vector2(36, 36)
+		flask_icon.disabled = not dungeon.can_sip_on_map()
+		var how := "Click to drink it now, or in a fight." if dungeon.flask_stats[Flask.HEAL_DIE] > 0 else "Drink it during a fight."
+		if dungeon.flask_charges <= 0:
+			how = "Empty: Rest at a campfire to refill it."
+		flask_icon.tooltip_text = "%s (%d / %d charges): %s\n%s" % [dungeon.flask.flask_name, dungeon.flask_charges,
+			dungeon.flask_stats[Flask.CHARGES], Flask.effect_text(dungeon.flask_stats), how]
+		flask_icon.pressed.connect(_on_flask_pressed)
 		potion_row.add_child(flask_icon)
 		potion_row.add_child(make_small_label("%d/%d" % [dungeon.flask_charges, dungeon.flask_stats[Flask.CHARGES]],
 			Color(1, 1, 1, 0.8) if dungeon.flask_charges > 0 else Color(1, 1, 1, 0.35)))

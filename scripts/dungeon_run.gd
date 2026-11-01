@@ -524,5 +524,27 @@ func loot_text() -> String:
 	return ", ".join(parts) if not parts.is_empty() else "nothing"
 
 
+# Take one sip of your flask: uses a charge (unless the Save Chance comes
+# up) and rolls the heal. Battle and the dungeon screen both use this, then
+# do the healing / Energy themselves (they keep HP in different places).
+# Returns {} if it's empty, else {"roll": 2, "heal": 3, "energy": 0, "kept": false}.
+func sip_flask() -> Dictionary:
+	if flask == null or flask_charges <= 0:
+		return {}
+	var sip := {"roll": 0, "heal": 0, "energy": flask_stats[Flask.ENERGY], "kept": false}
+	if flask_stats[Flask.HEAL_DIE] > 0:
+		sip.roll = randi_range(1, flask_stats[Flask.HEAL_DIE])
+		sip.heal = sip.roll + flask_stats[Flask.ROLL_BONUS]
+	sip.kept = flask_stats[Flask.SAVE_CHANCE] > 0 and randi_range(1, 100) <= flask_stats[Flask.SAVE_CHANCE]
+	if not sip.kept:
+		flask_charges -= 1
+	return sip
+
+
+# Can you drink it on the dungeon map? Only if it heals (Energy is for fights).
+func can_sip_on_map() -> bool:
+	return flask != null and flask_charges > 0 and flask_stats[Flask.HEAL_DIE] > 0 and result.is_empty()
+
+
 func add_log(line: String) -> void:
 	history.append(line)
