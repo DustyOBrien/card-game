@@ -150,7 +150,25 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	return panel
 
 
-# Open the first pack you own and show its cards one by one.
+# ---------------------------------------------------------------------------
+# Opening a pack
+# ---------------------------------------------------------------------------
+# The show, step by step (each step is a Tween: a little animation):
+#   1. The sealed pack drops in, glows and shakes.
+#   2. It bursts: a white flash, sparkles, and the pack is gone.
+#   3. The cards fly out face down to their places.
+#   4. They flip over one at a time. Rarer cards glow (blue Uncommon, gold
+#      Rare), and a Rare one gets a bigger burst and a little screen shake.
+# Click anywhere to hurry it up (every card flips at once).
+
+const CARD_SIZE := Vector2(140, 226)  # Every card in a pack is drawn this size.
+const CARD_GAP := 36  # Pixels between the cards.
+const BACK_COLOR := Color(0.22, 0.16, 0.38)  # The back of a card.
+
+var _skip := false  # Clicked to hurry up the reveal.
+
+
+# Open the first pack you own and show its cards.
 func open_pack() -> void:
 	if GameState.booster_packs.is_empty():
 		return
@@ -160,53 +178,200 @@ func open_pack() -> void:
 		GameState.booster_packs.erase(pack_name)  # None of that pack left.
 	refresh()
 	var opened := GameState.open_pack()
+	var pack: Dictionary = PACKS[0]
+	for each in PACKS:
+		if each.name == pack_name:
+			pack = each
+	var color: Color = CardData.SCHOOL_COLORS.get(pack.school, CardData.NEUTRAL_COLOR)
+	_skip = false
 
-	# A dark layer over the whole shop, with the cards in a row in the middle.
+	# A dark layer over the whole shop. Clicking it hurries the reveal.
 	reveal_layer = ColorRect.new()
-	reveal_layer.color = Color(0, 0, 0, 0.8)
+	reveal_layer.color = Color(0, 0, 0, 0.0)
 	reveal_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	reveal_layer.gui_input.connect(func(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			_skip = true)
 	add_child(reveal_layer)
-	var center := CenterContainer.new()
-	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	reveal_layer.add_child(center)
-	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 20)
-	center.add_child(layout)
+	create_tween().tween_property(reveal_layer, "color:a", 0.85, 0.25)
+	var middle := reveal_layer.size / 2 if reveal_layer.size.x > 0 else get_viewport_rect().size / 2
+
 	var title := Label.new()
 	title.text = pack_name
-	title.add_theme_font_size_override("font_size", 32)
+	title.add_theme_font_size_override("font_size", 34)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	layout.add_child(title)
-	var row := HBoxContainer.new()
-	row.add_theme_constant_override("separation", 28)
-	row.alignment = BoxContainer.ALIGNMENT_CENTER
-	layout.add_child(row)
+	title.size = Vector2(600, 50)
+	title.position = Vector2(middle.x - 300, 70)
+	reveal_layer.add_child(title)
+
+	# 1. The sealed pack drops in and shakes.
+	var sealed := _make_sealed_pack(color)
+	sealed.position = middle - sealed.size / 2 + Vector2(0, -300)
+	sealed.pivot_offset = sealed.size / 2
+	reveal_layer.add_child(sealed)
+	var drop := create_tween()
+	drop.tween_property(sealed, "position:y", middle.y - sealed.size.y / 2, 0.35) \
+		.set_trans(Tween.TRANS_BOUNCE).set_ease(Tween.EASE_OUT)
+	await drop.finished
+	var shake := create_tween()
+	for i in 6:
+		var amount := 0.06 + i * 0.025  # Shakes harder and harder...
+		shake.tween_property(sealed, "rotation", amount if i % 2 == 0 else -amount, 0.06)
+	shake.parallel().tween_property(sealed, "scale", Vector2(1.12, 1.12), 0.36)
+	shake.tween_property(sealed, "rotation", 0.0, 0.04)
+	if not _skip:
+		await shake.finished
+
+	# 2. Burst: flash, sparkles, the pack swells and fades away.
+	_flash(Color(1, 1, 1, 0.8), 0.35)
+	_sparkles(middle, color.lightened(0.4), 40, 260.0)
+	var burst := create_tween().set_parallel()
+	burst.tween_property(sealed, "scale", Vector2(1.8, 1.8), 0.25)
+	burst.tween_property(sealed, "modulate:a", 0.0, 0.25)
+	burst.chain().tween_callback(sealed.queue_free)
+
+	# 3. The cards fly out face down to their places in a row.
+	var slots: Array[Control] = []
+	var row_width := opened.size() * CARD_SIZE.x + (opened.size() - 1) * CARD_GAP
+	for i in opened.size():
+		var slot := _make_slot(opened[i])
+		slot.position = middle - CARD_SIZE / 2
+		slot.scale = Vector2(0.3, 0.3)
+		slot.rotation = randf_range(-1.5, 1.5)
+		slots.append(slot)
+		var target := Vector2(middle.x - row_width / 2 + i * (CARD_SIZE.x + CARD_GAP), middle.y - CARD_SIZE.y / 2 - 20)
+		var fly := create_tween().set_parallel().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		fly.tween_property(slot, "position", target, 0.45).set_delay(i * 0.08)
+		fly.tween_property(slot, "scale", Vector2.ONE, 0.45).set_delay(i * 0.08)
+		fly.tween_property(slot, "rotation", 0.0, 0.45).set_delay(i * 0.08)
+	await get_tree().create_timer(0.45 + opened.size() * 0.08).timeout
+	if not is_instance_valid(reveal_layer):
+		return
+
+	# 4. Flip them over, one at a time (rarest last is more exciting, but
+	# left to right is easier to follow).
+	for i in slots.size():
+		if not _skip:
+			await get_tree().create_timer(REVEAL_GAP).timeout
+		if not is_instance_valid(slots[i]):
+			return  # The reveal was closed early.
+		await _flip(slots[i], opened[i])
+
 	var done := Button.new()
 	done.text = "Done"
 	done.custom_minimum_size = Vector2(160, 44)
-	done.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	done.disabled = true  # Until every card is shown.
+	done.size = done.custom_minimum_size
+	done.position = Vector2(middle.x - 80, middle.y + CARD_SIZE.y / 2 + 90)
 	done.pressed.connect(reveal_layer.queue_free)
-	layout.add_child(done)
-
-	for item: Dictionary in opened:
-		await get_tree().create_timer(REVEAL_GAP).timeout
-		_add_reveal(item, row)
-	done.disabled = false
+	reveal_layer.add_child(done)
 
 
-# One card from a pack: the card itself, with "NEW!" or how many you own under it.
-func _add_reveal(item: Dictionary, row: HBoxContainer) -> void:
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 8)
-	row.add_child(box)  # In the scene first, so the card's @onready labels exist for setup().
-	var note := Label.new()
-	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	note.add_theme_font_size_override("font_size", 20)
+# The sealed pack: a coloured packet with a shiny edge and a big "?".
+func _make_sealed_pack(color: Color) -> PanelContainer:
+	var packet := PanelContainer.new()
+	packet.size = Vector2(170, 240)
+	var style := StyleBoxFlat.new()
+	style.bg_color = color
+	style.set_corner_radius_all(12)
+	style.border_color = color.lightened(0.5)
+	style.set_border_width_all(4)
+	style.border_width_top = 14  # The sealed edge.
+	style.shadow_color = color.lightened(0.3)
+	style.shadow_size = 24  # A glow around it.
+	packet.add_theme_stylebox_override("panel", style)
+	var mark := Label.new()
+	mark.text = "?"
+	mark.add_theme_font_size_override("font_size", 96)
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	packet.add_child(mark)
+	return packet
+
+
+# One card's place: a glow (hidden until it flips), the card back, and the
+# card itself (hidden). Everything is CARD_SIZE, so every card is the same size.
+func _make_slot(item: Dictionary) -> Control:
+	var slot := Control.new()
+	slot.size = CARD_SIZE
+	slot.custom_minimum_size = CARD_SIZE
+	slot.pivot_offset = CARD_SIZE / 2  # Spin and flip around the middle.
+	reveal_layer.add_child(slot)  # In the scene first, so the card's labels exist for setup().
+
+	var glow := Panel.new()
+	glow.name = "Glow"
+	glow.size = CARD_SIZE
+	var glow_style := StyleBoxFlat.new()
+	glow_style.bg_color = Color(0, 0, 0, 0)
+	glow_style.set_corner_radius_all(12)
+	glow_style.shadow_color = CardData.RARITY_COLORS[item.card.rarity]
+	glow_style.shadow_size = 0 if item.card.rarity == CardData.Rarity.COMMON else (18 if item.card.rarity == CardData.Rarity.UNCOMMON else 30)
+	glow.add_theme_stylebox_override("panel", glow_style)
+	glow.visible = false
+	slot.add_child(glow)
+
 	var card: Card = CARD_SCENE.instantiate()
-	box.add_child(card)
+	card.name = "Face"
+	slot.add_child(card)
 	card.setup(GameState.leveled(item.card))  # Its level 2 or 3 version, if it has one.
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Just for looking at.
+	# Force the exact size: some cards have more on them than others, and
+	# without this a busy card grows a little bigger than its neighbours.
+	card.custom_minimum_size = CARD_SIZE
+	card.size = CARD_SIZE
+	card.clip_contents = true
+	card.visible = false
+
+	var back := Panel.new()
+	back.name = "Back"
+	back.size = CARD_SIZE
+	var back_style := StyleBoxFlat.new()
+	back_style.bg_color = BACK_COLOR
+	back_style.border_color = Color(0.85, 0.7, 0.35)
+	back_style.set_border_width_all(4)
+	back_style.set_corner_radius_all(10)
+	back.add_theme_stylebox_override("panel", back_style)
+	var star := Label.new()
+	star.text = "★"
+	star.add_theme_font_size_override("font_size", 64)
+	star.add_theme_color_override("font_color", Color(0.85, 0.7, 0.35))
+	star.size = CARD_SIZE
+	star.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	star.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	back.add_child(star)
+	slot.add_child(back)
+	return slot
+
+
+# Turn one card over: squash it flat, swap the back for the face, stretch it
+# back out. Then its glow, its note ("NEW!") and, for rarer cards, a burst.
+func _flip(slot: Control, item: Dictionary) -> void:
+	var speed := 0.06 if _skip else 0.12
+	var squash := create_tween()
+	squash.tween_property(slot, "scale:x", 0.0, speed).set_ease(Tween.EASE_IN)
+	await squash.finished
+	slot.get_node("Back").visible = false
+	slot.get_node("Face").visible = true
+	slot.get_node("Glow").visible = true
+	var grow := create_tween()
+	grow.tween_property(slot, "scale", Vector2(1.15, 1.15), speed).set_ease(Tween.EASE_OUT)
+	grow.tween_property(slot, "scale", Vector2.ONE, 0.15)
+
+	var rarity: CardData.Rarity = item.card.rarity
+	var color: Color = CardData.RARITY_COLORS[rarity]
+	var centre := slot.position + CARD_SIZE / 2
+	if rarity == CardData.Rarity.RARE:
+		_sparkles(centre, color, 50, 300.0)
+		_flash(Color(1, 0.85, 0.4, 0.45), 0.4)
+		_shake_screen()
+	elif rarity == CardData.Rarity.UNCOMMON:
+		_sparkles(centre, color, 24, 200.0)
+	if rarity != CardData.Rarity.COMMON:
+		# The glow breathes in and out.
+		var pulse := create_tween().set_loops()
+		pulse.bind_node(slot)  # Stops when the slot is freed.
+		pulse.tween_property(slot.get_node("Glow"), "modulate:a", 0.45, 0.6)
+		pulse.tween_property(slot.get_node("Glow"), "modulate:a", 1.0, 0.6)
+
 	# e.g. "NEW!  Rare" or "Owned 2 / 3  Common", in the rarity's colour.
 	# A card you already own 3 of gives it Exp instead: "+1 Exp (2 / 3)".
 	var owned_text := "Owned %d / %d" % [item.owned, GameState.MAX_COPIES]
@@ -216,16 +381,72 @@ func _add_reveal(item: Dictionary, row: HBoxContainer) -> void:
 		owned_text = "LEVEL UP! Lv %d" % item.level
 	elif item.exp:
 		owned_text = "+1 Exp  (%s)" % item.exp_text.trim_prefix("Exp ")
+	var note := Label.new()
 	note.text = "%s\n%s" % [owned_text, item.card.get_rarity_text()]
-	note.add_theme_color_override("font_color", CardData.RARITY_COLORS[item.card.rarity])
-	box.add_child(note)
-	# Pop in: start big and see-through, settle to normal.
-	card.pivot_offset = card.custom_minimum_size / 2
-	card.scale = Vector2(1.3, 1.3)
-	card.modulate.a = 0.0
-	var tween := create_tween().set_parallel()
-	tween.tween_property(card, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK)
-	tween.tween_property(card, "modulate:a", 1.0, 0.2)
+	note.add_theme_font_size_override("font_size", 18)
+	note.add_theme_color_override("font_color", color)
+	note.add_theme_color_override("font_outline_color", Color.BLACK)
+	note.add_theme_constant_override("outline_size", 6)
+	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	note.size = Vector2(CARD_SIZE.x + CARD_GAP, 50)
+	note.position = Vector2(slot.position.x - CARD_GAP / 2.0, slot.position.y + CARD_SIZE.y + 12)
+	note.pivot_offset = note.size / 2
+	note.scale = Vector2(0.4, 0.4)
+	reveal_layer.add_child(note)
+	create_tween().tween_property(note, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	if item.new:
+		# "NEW!" bobs up and down.
+		var bob := create_tween().set_loops()
+		bob.bind_node(note)
+		bob.tween_property(note, "position:y", note.position.y - 5, 0.4)
+		bob.tween_property(note, "position:y", note.position.y, 0.4)
+	await grow.finished
+
+
+# A quick full-screen flash of colour that fades away.
+func _flash(color: Color, time: float) -> void:
+	var flash := ColorRect.new()
+	flash.color = color
+	flash.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	flash.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	reveal_layer.add_child(flash)
+	var fade := create_tween()
+	fade.tween_property(flash, "color:a", 0.0, time)
+	fade.tween_callback(flash.queue_free)
+
+
+# A burst of little sparks flying out from a point. CPUParticles2D makes
+# lots of tiny squares; one_shot = one burst, then it's done.
+func _sparkles(at: Vector2, color: Color, amount: int, speed: float) -> void:
+	var sparks := CPUParticles2D.new()
+	sparks.position = at
+	sparks.one_shot = true
+	sparks.explosiveness = 0.95  # All at once, not a trickle.
+	sparks.amount = amount
+	sparks.lifetime = 0.8
+	sparks.direction = Vector2.UP
+	sparks.spread = 180.0  # Every direction.
+	sparks.initial_velocity_min = speed * 0.5
+	sparks.initial_velocity_max = speed
+	sparks.gravity = Vector2(0, 300)
+	sparks.scale_amount_min = 3.0
+	sparks.scale_amount_max = 6.0
+	sparks.color = color
+	var fade := Gradient.new()  # Fade out as they fall.
+	fade.set_color(0, color)
+	fade.set_color(1, Color(color, 0.0))
+	sparks.color_ramp = fade
+	reveal_layer.add_child(sparks)
+	sparks.emitting = true
+	get_tree().create_timer(1.2).timeout.connect(sparks.queue_free)
+
+
+# Rattle the reveal for a moment (for Rare cards).
+func _shake_screen() -> void:
+	var shake := create_tween()
+	for i in 6:
+		shake.tween_property(reveal_layer, "position", Vector2(randf_range(-8, 8), randf_range(-6, 6)), 0.04)
+	shake.tween_property(reveal_layer, "position", Vector2.ZERO, 0.04)
 
 
 func _on_edit_deck_pressed() -> void:
