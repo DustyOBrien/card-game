@@ -19,6 +19,15 @@ const CARD_SCENE := preload("res://scenes/card.tscn")
 const TOWN_SCENE := "res://scenes/town.tscn"  # Where you go when the run is over.
 const POTION_ICON := preload("res://art/potions/potion.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
+# The player bar's icons (HP, Block, Energy, Gold, draw pile, discard pile).
+const BAR_ICONS := {
+	"hp": preload("res://icons/hp.svg"),
+	"block": preload("res://icons/block.svg"),
+	"energy": preload("res://icons/energy.svg"),
+	"gold": preload("res://icons/gold.svg"),
+	"draw": preload("res://icons/draw.svg"),
+	"discard": preload("res://icons/discard.svg"),
+}
 const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 const VICTORY_SCENE := "res://scenes/victory.tscn"  # The WIN screen after a final Boss.
 
@@ -109,6 +118,7 @@ func _ready() -> void:
 	continue_button.add_sibling(exp_bar)
 	exp_bar.get_parent().move_child(exp_bar, continue_button.get_index())
 	set_process(false)  # _process() is only needed while dragging an attack.
+	build_player_bar()
 	# Your flask and potions, bottom-left. Built in code; refreshed in update_ui().
 	var item_bar := HBoxContainer.new()
 	item_bar.add_theme_constant_override("separation", 14)
@@ -1173,31 +1183,109 @@ func _run_queued_update() -> void:
 	update_ui()
 
 
+# --- The player bar ------------------------------------------------------------
+# The row above your hand: HP, Block, Energy, Gold, buffs, draw/discard piles
+# and End Turn. Each number sits next to an icon in a box of FIXED width, and
+# the buff text (the one that can get long) is cut off with "..." instead of
+# growing. That way nothing can ever push End Turn off the screen.
+# (The labels themselves are in battle.tscn; this moves each into its box.)
+
+var armor_label: Label  # "Armor 3", small, next to your Block.
+var buffs_label: Label  # "Atk +2 · Def +1 · Roll +1 · Adv"
+var discard_label: Label  # The discard pile's count (piles_label is the draw pile's).
+
+
+func build_player_bar() -> void:
+	var bar: HBoxContainer = end_turn_button.get_parent()
+	bar.add_theme_constant_override("separation", 14)
+	var stat_box := func(label: Label, icon: String, width: float, tip: String) -> HBoxContainer:
+		var box := HBoxContainer.new()
+		box.add_theme_constant_override("separation", 6)
+		box.custom_minimum_size = Vector2(width, 0)
+		box.tooltip_text = tip
+		box.mouse_filter = Control.MOUSE_FILTER_PASS
+		var picture := TextureRect.new()
+		picture.texture = BAR_ICONS[icon]
+		picture.custom_minimum_size = Vector2(30, 30)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		var index := label.get_index()
+		bar.add_child(box)
+		bar.move_child(box, index)
+		label.reparent(box)
+		box.add_child(picture)
+		box.move_child(picture, 0)
+		# The label fills the rest of the box and cuts off anything too long.
+		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		label.clip_text = true
+		label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		return box
+	stat_box.call(player_hp_label, "hp", 150, "Your HP. At 0 the run is over.")
+	var block_box: HBoxContainer = stat_box.call(player_block_label, "block", 175,
+		"Block: stops that much damage. It goes back to your Armor at the start of each turn.")
+	stat_box.call(energy_label, "energy", 120, "Energy: playing a card costs its number.")
+	stat_box.call(gold_label, "gold", 130, "Gold you have (+ what you've found this run).")
+	# Armor, small and grey, under... well, beside the Block number.
+	armor_label = Label.new()
+	armor_label.add_theme_font_size_override("font_size", 14)
+	armor_label.add_theme_color_override("font_color", Color(0.75, 0.82, 0.95, 0.8))
+	armor_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	block_box.add_child(armor_label)
+	# Buffs: the only part that grows, and it can't push anything (clipped).
+	buffs_label = Label.new()
+	buffs_label.add_theme_font_size_override("font_size", 17)
+	buffs_label.add_theme_color_override("font_color", Color(1, 0.85, 0.45))
+	buffs_label.add_theme_color_override("font_outline_color", Color(0.05, 0.05, 0.08))
+	buffs_label.add_theme_constant_override("outline_size", 6)
+	buffs_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	buffs_label.custom_minimum_size = Vector2(40, 0)
+	buffs_label.clip_text = true
+	buffs_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+	buffs_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	bar.add_child(buffs_label)
+	bar.move_child(buffs_label, piles_label.get_index())
+	# Draw pile and discard pile: one small box each.
+	stat_box.call(piles_label, "draw", 72, "Cards in your draw pile.")
+	discard_label = piles_label.duplicate()
+	piles_label.get_parent().add_sibling(discard_label)
+	stat_box.call(discard_label, "discard", 72, "Cards in your discard pile. It's shuffled back into the draw pile when that runs out.")
+	end_turn_button.custom_minimum_size.x = 150
+
+
 # Copy all the numbers into the labels. Called whenever something changes.
 func update_ui() -> void:
 	refresh_potions()
 	refresh_flask()
-	gold_label.text = "Gold %d" % GameState.gold
+	gold_label.text = "%d" % GameState.gold
 	if GameState.dungeon and GameState.dungeon.found_gold > 0:
-		gold_label.text += " (+%d found)" % GameState.dungeon.found_gold
+		gold_label.text += " +%d" % GameState.dungeon.found_gold
 	for view in enemy_views:
 		view.refresh()
 
-	player_hp_label.text = "HP %d / %d" % [player.hp, player.max_hp]
-	player_block_label.text = "Block %d" % player.block
-	if player.armor > 0:
-		player_block_label.text += "  (Armor %d)" % player.armor
-	# Show waiting Rage / Brace bonuses next to your Block.
+	player_hp_label.text = "%d/%d" % [player.hp, player.max_hp]
+	player_block_label.text = "%d" % player.block
+	armor_label.text = "Armor %d" % player.armor if player.armor > 0 else ""
+	# Waiting Rage / Brace / roll bonuses, short. The tooltip spells them out.
+	var short: Array[String] = []
+	var long: Array[String] = []
 	if next_attack_bonus > 0:
-		player_block_label.text += "   Next Attack +%d" % next_attack_bonus
+		short.append("Atk +%d" % next_attack_bonus)
+		long.append("Your next Attack does +%d" % next_attack_bonus)
 	if next_defense_bonus > 0:
-		player_block_label.text += "   Next Defense +%d" % next_defense_bonus
+		short.append("Def +%d" % next_defense_bonus)
+		long.append("Your next Defense gives +%d Block" % next_defense_bonus)
 	if next_roll_bonus > 0:
-		player_block_label.text += "   Next roll +%d" % next_roll_bonus
+		short.append("Roll +%d" % next_roll_bonus)
+		long.append("Your next roll gets +%d" % next_roll_bonus)
 	if next_roll_advantage:
-		player_block_label.text += "   Advantage"
-	energy_label.text = "Energy %d / %d" % [energy, max_energy]
-	piles_label.text = "Draw pile %d   Discard %d" % [draw_pile.size(), discard_pile.size()]
+		short.append("Adv")
+		long.append("Your next roll has Advantage (roll twice, keep the best)")
+	buffs_label.text = " · ".join(short)
+	buffs_label.tooltip_text = "\n".join(long)
+	energy_label.text = "%d/%d" % [energy, max_energy]
+	piles_label.text = "%d" % draw_pile.size()
+	discard_label.text = "%d" % discard_pile.size()
 
 	# Grey out cards you can't afford, and tell each card what it would do.
 	# (queue_free()d cards wait until the end of the frame, so skip those.)
@@ -1240,15 +1328,15 @@ func show_drag_preview() -> void:
 		var heal := outcome_range(outcomes, "heal")
 		var low := maxi(mini(player.hp + heal.x, player.max_hp) - card.lose_hp, 0)
 		var high := maxi(mini(player.hp + heal.y, player.max_hp) - card.lose_hp, 0)
-		player_hp_label.text = "HP %d → %s / %d" % [player.hp, range_text(Vector2i(low, high)), player.max_hp]
+		player_hp_label.text = "%d → %s" % [player.hp, range_text(Vector2i(low, high))]
 		player_hp_label.modulate = PREVIEW_COLOR
 	if outcomes[1].block > 0:
 		var block := outcome_range(outcomes, "block")
-		player_block_label.text = "Block %d → %s" % [player.block, range_text(Vector2i(player.block + block.x, player.block + block.y))]
+		player_block_label.text = "%d → %s" % [player.block, range_text(Vector2i(player.block + block.x, player.block + block.y))]
 		player_block_label.modulate = PREVIEW_COLOR
 	var energy_after := energy - card.cost + card.energy
 	if energy_after != energy:
-		energy_label.text = "Energy %d → %d / %d" % [energy, energy_after, max_energy]
+		energy_label.text = "%d → %d" % [energy, energy_after]
 		energy_label.modulate = PREVIEW_COLOR
 
 

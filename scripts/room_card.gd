@@ -50,6 +50,9 @@ const GUIDE_TIER := -1
 # Chests and Treasure always have loot. A fight's loot is a bonus for winning.
 # Words the game knows: Gold N-M, Card, Pack, Map, Key.
 @export var loot: PackedStringArray = []
+# Events only: the event this room always is (the sheet's Encounters column),
+# e.g. "Locked in a Chest". Empty = a random event, like "Mystery".
+@export var event_name: String = ""
 
 
 func is_fight() -> bool:

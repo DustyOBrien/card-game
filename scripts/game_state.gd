@@ -65,6 +65,10 @@ var pending_potions: Array[String] = []
 # unlocked), the upgrade stages you've bought per flask, and the one you're
 # taking into your next run. All saved.
 var unlocked_flasks: Array[String] = []
+# Potions you've unlocked at the Alchemist (they can drop in the dungeon), and
+# the upgrades you've bought for them: "Stone Skin" -> {"Stronger": 1}.
+var unlocked_potions: Array[String] = []
+var potion_upgrades := {}
 var flask_upgrades := {}  # "Health Flask" -> {"Bigger Die": 1}
 var chosen_flask := ""  # "" = the first unlocked one (the Health Flask).
 var _flasks: Array[Flask] = []
@@ -192,6 +196,8 @@ func start_fresh() -> void:
 	pending_potions.clear()
 	unlocked_flasks.clear()
 	flask_upgrades.clear()
+	unlocked_potions.clear()
+	potion_upgrades.clear()
 	chosen_flask = ""
 	tutorial_done = false  # A new player sees the tutorial again.
 	materials.clear()
@@ -669,7 +675,11 @@ func _start_quests_after(done_name: String) -> void:
 
 
 # "Gold 20; Pack 1; Material Lumber 5; Blueprint Alchemist; Room Plains: Big Slime Nest"
-func give_rewards(text: String) -> Array[String]:
+# unlocks_only = true skips gold, packs and materials and only hands out
+# blueprints, rooms and unlocks. load_game() uses that to catch an old save up
+# when a quest it already finished gets a new reward in quests.csv (giving
+# those twice is harmless; giving gold twice would not be).
+func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 	var lines: Array[String] = []
 	for part in text.split(";", false):
 		var reward := part.strip_edges()
@@ -677,6 +687,8 @@ func give_rewards(text: String) -> Array[String]:
 		if words.is_empty():
 			continue
 		var rest := reward.substr(words[0].length()).strip_edges()
+		if unlocks_only and not words[0].to_lower() in ["blueprint", "room", "unlock"]:
+			continue
 		match words[0].to_lower():
 			"gold":
 				gold += rest.to_int()
@@ -845,6 +857,135 @@ func load_potions() -> Array[Potion]:
 			if file_name.ends_with(".tres"):
 				_potions.append(load(POTIONS_FOLDER + file_name))
 	return _potions
+
+
+# --- Potions at the Alchemist -----------------------------------------------------
+#
+# Potions only drop in the dungeon once the Alchemist is built. Building it
+# unlocks the STARTER_POTION for free; the rest you unlock there for gold and
+# Green Ooze. An unlocked potion has two upgrades, each with 2 stages:
+#   Stronger    - its numbers x1.5, then x2 (see strengthened()).
+#   More Common - it drops 2x as often, then 3x (see roll_dropped_potion()).
+
+const STARTER_POTION := "Healing Potion"
+const STRONGER := "Stronger"
+const MORE_COMMON := "More Common"
+# What unlocking a potion costs, by rarity: [gold, Green Ooze].
+const POTION_UNLOCK_COSTS := {
+	CardData.Rarity.COMMON: [15, 2],
+	CardData.Rarity.UNCOMMON: [30, 4],
+	CardData.Rarity.RARE: [50, 6],
+}
+const POTION_UNLOCK_MATERIAL := "Green Ooze"
+# Gold for each stage of each upgrade (stage 1, stage 2).
+const POTION_UPGRADES := {STRONGER: [25, 50], MORE_COMMON: [20, 40]}
+
+
+func potions_open() -> bool:
+	return alchemist_open()
+
+
+func is_potion_unlocked(potion: Potion) -> bool:
+	return potions_open() and (potion.potion_name == STARTER_POTION or unlocked_potions.has(potion.potion_name))
+
+
+func unlocked_potion_list() -> Array[Potion]:
+	var result: Array[Potion] = []
+	for potion in load_potions():
+		if is_potion_unlocked(potion):
+			result.append(potion)
+	return result
+
+
+# {"Green Ooze": 4} etc: the materials part of a potion's unlock cost.
+func potion_unlock_materials(potion: Potion) -> Dictionary:
+	return {POTION_UNLOCK_MATERIAL: POTION_UNLOCK_COSTS[potion.rarity][1]}
+
+
+func potion_unlock_gold(potion: Potion) -> int:
+	return POTION_UNLOCK_COSTS[potion.rarity][0]
+
+
+func can_unlock_potion(potion: Potion) -> bool:
+	return potions_open() and not is_potion_unlocked(potion) \
+		and gold >= potion_unlock_gold(potion) and has_materials(potion_unlock_materials(potion))
+
+
+func unlock_potion(potion: Potion) -> bool:
+	if not can_unlock_potion(potion):
+		return false
+	gold -= potion_unlock_gold(potion)
+	spend_materials(potion_unlock_materials(potion))
+	unlocked_potions.append(potion.potion_name)
+	save_game()
+	return true
+
+
+func potion_upgrade_stage(potion: Potion, upgrade: String) -> int:
+	return int(potion_upgrades.get(potion.potion_name, {}).get(upgrade, 0))
+
+
+# Gold for the next stage of an upgrade, or -1 if it's maxed out.
+func potion_upgrade_cost(potion: Potion, upgrade: String) -> int:
+	var stage := potion_upgrade_stage(potion, upgrade)
+	var costs: Array = POTION_UPGRADES[upgrade]
+	return costs[stage] if stage < costs.size() else -1
+
+
+func buy_potion_upgrade(potion: Potion, upgrade: String) -> bool:
+	var cost := potion_upgrade_cost(potion, upgrade)
+	if not is_potion_unlocked(potion) or cost < 0 or gold < cost:
+		return false
+	gold -= cost
+	if not potion_upgrades.has(potion.potion_name):
+		potion_upgrades[potion.potion_name] = {}
+	potion_upgrades[potion.potion_name][upgrade] = potion_upgrade_stage(potion, upgrade) + 1
+	save_game()
+	return true
+
+
+# A copy of the potion with your Stronger upgrade applied. The original
+# (loaded from potions/) is shared, so we never change it: duplicate() makes
+# a new one just for this drop. Heal/Block/Damage go x1.5 then x2 (rounded
+# up); at stage 2 Energy, Draw and Roll Bonus also get +1.
+func strengthened(potion: Potion, stage: int = -1) -> Potion:
+	if stage < 0:
+		stage = potion_upgrade_stage(potion, STRONGER)
+	if stage == 0:
+		return potion
+	var copy: Potion = potion.duplicate()
+	var factor := 1.0 + 0.5 * stage
+	copy.heal = ceili(potion.heal * factor)
+	copy.block = ceili(potion.block * factor)
+	copy.damage = ceili(potion.damage * factor)
+	if stage >= 2:
+		for stat in ["energy", "draw", "roll_bonus"]:
+			if potion.get(stat) > 0:
+				copy.set(stat, potion.get(stat) + 1)
+	return copy
+
+
+# How often a potion drops compared to others: its rarity weight (Common 60,
+# Uncommon 30, Rare 10) times 1 + its More Common stage.
+func potion_drop_weight(potion: Potion) -> int:
+	return Enchant.RARITY_WEIGHTS[potion.rarity] * (1 + potion_upgrade_stage(potion, MORE_COMMON))
+
+
+# Pick a random unlocked potion (weighted), already strengthened.
+# null if the Alchemist isn't built yet.
+func roll_dropped_potion() -> Potion:
+	var choices := unlocked_potion_list()
+	if choices.is_empty():
+		return null
+	var total := 0
+	for potion in choices:
+		total += potion_drop_weight(potion)
+	var roll := randi_range(1, total)
+	for potion in choices:
+		roll -= potion_drop_weight(potion)
+		if roll <= 0:
+			return strengthened(potion)
+	return strengthened(choices[-1])
 
 
 func find_enchant(enchant_name: String) -> Enchant:
@@ -1203,6 +1344,8 @@ func save_game() -> void:
 		"pending_enchants": pending_enchants,
 		"pending_potions": pending_potions,
 		"unlocked_flasks": unlocked_flasks,
+		"unlocked_potions": unlocked_potions,
+		"potion_upgrades": potion_upgrades,
 		"flask_upgrades": flask_upgrades,
 		"chosen_flask": chosen_flask,
 		"tutorial_done": tutorial_done,
@@ -1261,6 +1404,13 @@ func load_game() -> bool:
 			if saved_flasks[flask_name] is Dictionary:
 				flask_upgrades[flask_name] = _whole_numbers(saved_flasks[flask_name])
 	chosen_flask = str(data.get("chosen_flask", ""))
+	unlocked_potions.assign(data.get("unlocked_potions", []))
+	potion_upgrades.clear()
+	var saved_potions = data.get("potion_upgrades", {})
+	if saved_potions is Dictionary:
+		for potion_name in saved_potions:
+			if saved_potions[potion_name] is Dictionary:
+				potion_upgrades[potion_name] = _whole_numbers(saved_potions[potion_name])
 	tutorial_done = bool(data.get("tutorial_done", false))
 	var saved_materials = data.get("materials", {})
 	materials = _whole_numbers(saved_materials) if saved_materials is Dictionary else {}
@@ -1285,6 +1435,11 @@ func load_game() -> bool:
 	for done_name in quests_done:
 		_start_quests_after(done_name)
 	unlocked_features.assign(data.get("unlocked_features", []))
+	# ...and new blueprint/room/unlock rewards on quests you already handed in
+	# (e.g. the Flask quest now also gives the Tailor blueprint).
+	for quest in load_quests():
+		if quests_done.has(quest.quest_name):
+			give_rewards(quest.rewards, true)
 	seen_guides.assign(data.get("seen_guides", []))
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
@@ -1410,6 +1565,13 @@ func load_events() -> Array[DungeonEvent]:
 			if file_name.ends_with(".tres"):
 				_events.append(load(CardImporter.EVENTS_FOLDER + file_name))
 	return _events
+
+
+func find_event(event_name: String) -> DungeonEvent:
+	for event in load_events():
+		if event.event_name == event_name:
+			return event
+	return null
 
 
 # The run-only Super cards (data/super_cards.csv -> cards/super/). Not in packs or the collection.

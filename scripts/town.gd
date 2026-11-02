@@ -18,6 +18,7 @@ const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CHARACTER_SCENE := "res://scenes/character_select.tscn"
 const RUINS := preload("res://art/town/ruins.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
+const POTION_ICON := preload("res://art/potions/potion.svg")
 const BOOSTER_ICON := preload("res://icons/booster.svg")
 const GOLD_COLOR := Color(1, 0.84, 0.35)
 const DONE_COLOR := Color(0.55, 0.95, 0.55)
@@ -35,7 +36,8 @@ var quest_button: Button  # "The King's Letter": the quest button before the Inn
 var packs_button: Button  # "Your Packs (3)": open them (at the Shop, or before it's built).
 var road: TownRoad  # The road out of town, with its "To the Map" sign (town_road.gd).
 var overlay: Control  # The quest panel or the Bank while it's open.
-var flask_layer: Control  # The flask screen while it's open (null when closed).
+var flask_layer: Control  # The Alchemist screen while it's open (null when closed).
+var alchemist_tab := "Flasks"  # Which tab of the Alchemist screen: "Flasks" or "Potions".
 
 
 func _ready() -> void:
@@ -51,7 +53,7 @@ func _ready() -> void:
 	flask_button.icon = FLASK_ICON
 	flask_button.add_theme_constant_override("icon_max_width", 30)  # The svg is 64px: shrink it to fit.
 	flask_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
-	flask_button.pressed.connect(open_flasks)
+	flask_button.pressed.connect(open_alchemist.bind("Flasks"))
 	deck_button.add_sibling(flask_button)
 	quest_button = Button.new()
 	quest_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
@@ -128,7 +130,7 @@ func refresh() -> void:
 		flask_button.text = "Flask: none yet"
 		flask_button.tooltip_text = "Brew your first flask at the Alchemist."
 	if flask_layer:
-		build_flask_screen()
+		build_alchemist_screen()
 	pending_label.text = ("Ready for your next run:  " + "   ·   ".join(ready_for_run)) if not ready_for_run.is_empty() else ""
 
 
@@ -235,10 +237,9 @@ func make_action(building: TownBuilding, stage: int) -> Button:
 		button.disabled = GameState.gold < GameState.ENCHANT_PRICE
 		button.pressed.connect(_buy_enchant)
 	elif building.bonus(TownBuilding.ALCHEMIST, stage) > 0:
-		button.text = "Buy a Potion  (%d gold)" % GameState.POTION_PRICE
-		button.tooltip_text = "A random potion for your next run (you can carry %d)." % GameState.potion_slots()
-		button.disabled = GameState.gold < GameState.POTION_PRICE or GameState.pending_potions.size() >= GameState.potion_slots()
-		button.pressed.connect(_buy_potion)
+		button.text = "Enter the Alchemist"
+		button.tooltip_text = "Brew and upgrade flasks, and unlock potions so they drop in the dungeon."
+		button.pressed.connect(open_alchemist.bind("Flasks"))
 	elif building.bonus(TownBuilding.MAPMAKER, stage) > 0:
 		button.text = "Buy a Map  (%d gold)" % GameState.MAP_PRICE
 		button.tooltip_text = "Unlocks a new room card in a dungeon you can visit."
@@ -281,17 +282,6 @@ func _buy_enchant() -> void:
 	refresh()
 
 
-func _buy_potion() -> void:
-	var potion := Potion.pick_random(GameState.load_potions())
-	if potion == null or GameState.gold < GameState.POTION_PRICE:
-		return
-	GameState.gold -= GameState.POTION_PRICE
-	GameState.pending_potions.append(potion.potion_name)
-	GameState.save_game()
-	message_label.text = "The Alchemist brews a %s: %s" % [potion.potion_name, potion.effect_text()]
-	refresh()
-
-
 # The area a map is for: the one you were last in, or any other open area
 # that still has locked rooms. null if there's none.
 func map_area() -> Area:
@@ -314,51 +304,210 @@ func _buy_map() -> void:
 	refresh()
 
 
-# --- Flasks ------------------------------------------------------------------
-# A screen on top of the town: one panel per flask (flasks/*.tres). Pick the
-# one you take on your next run; unlock and upgrade them with gold once the
-# Alchemist is restored.
+# --- The Alchemist -------------------------------------------------------------
+# A screen on top of the town with two tabs:
+#   Flasks  - one panel per flask (flasks/*.tres). Pick the one you take on
+#             your next run, brew the ones you don't have, upgrade the rest.
+#   Potions - one panel per potion (potions/*.tres). Unlock a potion so it
+#             can drop in the dungeon, then make it Stronger or More Common.
+# The town's Flask button opens it on the Flasks tab too.
 
-func open_flasks() -> void:
+func open_alchemist(tab: String = "Flasks") -> void:
+	alchemist_tab = tab
 	flask_layer = ColorRect.new()
-	flask_layer.color = Color(0, 0, 0, 0.8)
+	flask_layer.color = Color(0, 0, 0, 0.85)
 	flask_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	add_child(flask_layer)
-	build_flask_screen()
+	build_alchemist_screen()
 
 
-func close_flasks() -> void:
+func close_alchemist() -> void:
 	flask_layer.queue_free()
 	flask_layer = null
 
 
-func build_flask_screen() -> void:
+func build_alchemist_screen() -> void:
 	for old in flask_layer.get_children():
 		old.queue_free()
 	var center := CenterContainer.new()
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	flask_layer.add_child(center)
 	var layout := VBoxContainer.new()
-	layout.add_theme_constant_override("separation", 12)
+	layout.add_theme_constant_override("separation", 10)
 	center.add_child(layout)
-	layout.add_child(make_label("Flasks", 34, Color.WHITE))
-	var note := "Take one flask into each run. Its charges refill at the start of every run."
+	layout.add_child(make_label("The Alchemist", 32, Color.WHITE))
+
+	# The two tabs: plain buttons, the open one gold and pressed in.
+	var tabs := HBoxContainer.new()
+	tabs.alignment = BoxContainer.ALIGNMENT_CENTER
+	tabs.add_theme_constant_override("separation", 10)
+	layout.add_child(tabs)
+	for tab in ["Flasks", "Potions"]:
+		var tab_button := Button.new()
+		tab_button.text = tab
+		tab_button.icon = FLASK_ICON if tab == "Flasks" else POTION_ICON
+		tab_button.add_theme_constant_override("icon_max_width", 24)
+		tab_button.custom_minimum_size = Vector2(170, 42)
+		if tab == alchemist_tab:
+			tab_button.theme_type_variation = &"PrimaryButton"
+		tab_button.pressed.connect(func() -> void:
+			alchemist_tab = tab
+			build_alchemist_screen())
+		tabs.add_child(tab_button)
+
+	var wallet := "Gold %d" % GameState.gold
+	if GameState.material_count(GameState.POTION_UNLOCK_MATERIAL) > 0 or alchemist_tab == "Potions":
+		wallet += "   ·   %s %d" % [GameState.POTION_UNLOCK_MATERIAL, GameState.material_count(GameState.POTION_UNLOCK_MATERIAL)]
+	layout.add_child(make_label(wallet, 18, GOLD_COLOR))
+	if alchemist_tab == "Flasks":
+		build_flasks_tab(layout)
+	else:
+		build_potions_tab(layout)
+
+	var close := Button.new()
+	close.text = "Done"
+	close.custom_minimum_size = Vector2(160, 44)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.pressed.connect(close_alchemist)
+	layout.add_child(close)
+
+
+func build_flasks_tab(layout: VBoxContainer) -> void:
+	var note := "Here you brew flasks you don't have, or upgrade the ones you do.\nTake one flask into each run: its charges refill when you Rest at a campfire."
 	if not GameState.alchemist_open():
-		note += "\nRestore the Alchemist to unlock and upgrade flasks."
+		note += "\nBuild the Alchemist to brew and upgrade flasks."
 	layout.add_child(make_label(note, 15, Color(1, 1, 1, 0.75)))
-	layout.add_child(make_label("Gold %d" % GameState.gold, 18, GOLD_COLOR))
 	var row := HBoxContainer.new()
 	row.add_theme_constant_override("separation", 16)
 	row.alignment = BoxContainer.ALIGNMENT_CENTER
 	layout.add_child(row)
 	for flask in GameState.load_flasks():
 		row.add_child(make_flask_panel(flask))
-	var close := Button.new()
-	close.text = "Done"
-	close.custom_minimum_size = Vector2(160, 44)
-	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	close.pressed.connect(close_flasks)
-	layout.add_child(close)
+
+
+func build_potions_tab(layout: VBoxContainer) -> void:
+	var note := "Unlock a potion and it can drop in the dungeon. Then make it Stronger, or More Common so it drops more often."
+	if not GameState.potions_open():
+		note = "Build the Alchemist first: no potions drop in the dungeon until then."
+	layout.add_child(make_label(note, 15, Color(1, 1, 1, 0.75)))
+	# 7 potions: 4 on the first row, 3 on the second.
+	var grid := GridContainer.new()
+	grid.columns = 4
+	grid.add_theme_constant_override("h_separation", 12)
+	grid.add_theme_constant_override("v_separation", 12)
+	var holder := CenterContainer.new()
+	holder.add_child(grid)
+	layout.add_child(holder)
+	var total_weight := 0  # For "drops X% of the time".
+	for potion in GameState.unlocked_potion_list():
+		total_weight += GameState.potion_drop_weight(potion)
+	var potions := GameState.load_potions().duplicate()
+	potions.sort_custom(func(a: Potion, b: Potion) -> bool:
+		return a.rarity < b.rarity if a.rarity != b.rarity else a.potion_name < b.potion_name)
+	for potion in potions:
+		grid.add_child(make_potion_panel(potion, total_weight))
+
+
+func make_potion_panel(potion: Potion, total_weight: int) -> PanelContainer:
+	var unlocked := GameState.is_potion_unlocked(potion)
+	var panel := PanelContainer.new()
+	panel.custom_minimum_size = Vector2(290, 0)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.12, 0.1, 0.09, 0.97)
+	style.border_color = potion.color.darkened(0.2) if unlocked else Color(0.35, 0.32, 0.3)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(10)
+	style.set_content_margin_all(10)
+	panel.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 4)
+	panel.add_child(box)
+
+	# Bottle + name + rarity in one line, to keep the panel short.
+	var top := HBoxContainer.new()
+	top.add_theme_constant_override("separation", 8)
+	box.add_child(top)
+	var picture := TextureRect.new()
+	picture.texture = POTION_ICON
+	picture.self_modulate = potion.color if unlocked else Color(0.4, 0.4, 0.4)
+	picture.custom_minimum_size = Vector2(40, 40)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	top.add_child(picture)
+	var names := VBoxContainer.new()
+	names.add_theme_constant_override("separation", 0)
+	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	top.add_child(names)
+	var title := make_label(potion.potion_name, 18, Color.WHITE if unlocked else Color(1, 1, 1, 0.6))
+	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	names.add_child(title)
+	var rarity_name: String = CardData.Rarity.keys()[potion.rarity].capitalize()
+	var rarity := make_label(rarity_name + ("" if unlocked else "  ·  Locked"), 12, CardData.RARITY_COLORS.get(potion.rarity, Color.WHITE))
+	rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+	names.add_child(rarity)
+
+	# What it does right now (with your Stronger upgrade).
+	box.add_child(make_label(GameState.strengthened(potion).effect_text(), 15, potion.color.lightened(0.4)))
+
+	if not unlocked:
+		var unlock := Button.new()
+		unlock.custom_minimum_size = Vector2(0, 36)
+		unlock.text = "Unlock  (%d gold, %s)" % [GameState.potion_unlock_gold(potion),
+			MaterialInfo.costs_text(GameState.potion_unlock_materials(potion))]
+		unlock.theme_type_variation = &"PrimaryButton"
+		unlock.disabled = not GameState.can_unlock_potion(potion)
+		if not GameState.potions_open():
+			unlock.tooltip_text = "Build the Alchemist first."
+		elif not GameState.has_materials(GameState.potion_unlock_materials(potion)):
+			unlock.tooltip_text = "Green Slimes drop Green Ooze."
+		else:
+			unlock.tooltip_text = "Once unlocked, it can drop in the dungeon."
+		unlock.pressed.connect(_unlock_potion.bind(potion))
+		box.add_child(unlock)
+		return panel
+
+	var chance := 100.0 * GameState.potion_drop_weight(potion) / maxf(total_weight, 1)
+	box.add_child(make_label("%d%% of potion drops" % roundi(chance), 13, Color(1, 1, 1, 0.65)))
+	# The two upgrades, one line each.
+	for upgrade in [GameState.STRONGER, GameState.MORE_COMMON]:
+		var stage := GameState.potion_upgrade_stage(potion, upgrade)
+		var cost := GameState.potion_upgrade_cost(potion, upgrade)
+		var stages: int = GameState.POTION_UPGRADES[upgrade].size()
+		var line := HBoxContainer.new()
+		line.add_theme_constant_override("separation", 6)
+		var text := make_label("", 13, DONE_COLOR if cost < 0 else Color.WHITE)
+		text.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
+		text.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+		var buy := Button.new()
+		buy.custom_minimum_size = Vector2(84, 30)
+		if cost < 0:
+			text.text = "✓ %s (%d/%d)" % [upgrade, stage, stages]
+			buy.text = "Done"
+			buy.disabled = true
+		else:
+			# What the next stage gives: "Stronger (0/2): Heal 12".
+			var next := GameState.strengthened(potion, stage + 1).effect_text() if upgrade == GameState.STRONGER \
+				else "drops %dx as often" % (stage + 2)
+			text.text = "%s (%d/%d): %s" % [upgrade, stage, stages, next]
+			buy.text = "%d gold" % cost
+			buy.disabled = GameState.gold < cost
+			buy.pressed.connect(_buy_potion_upgrade.bind(potion, upgrade))
+		line.add_child(text)
+		line.add_child(buy)
+		box.add_child(line)
+	return panel
+
+
+func _unlock_potion(potion: Potion) -> void:
+	if GameState.unlock_potion(potion):
+		message_label.text = "%s unlocked: it can drop in the dungeon now!" % potion.potion_name
+	refresh()
+
+
+func _buy_potion_upgrade(potion: Potion, upgrade: String) -> void:
+	if GameState.buy_potion_upgrade(potion, upgrade):
+		message_label.text = "%s upgraded: %s" % [potion.potion_name, upgrade]
+	refresh()
 
 
 func make_flask_panel(flask: Flask) -> PanelContainer:

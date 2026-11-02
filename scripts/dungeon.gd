@@ -500,15 +500,31 @@ func show_event() -> void:
 			label += " (%d%%)" % event.chances[i]
 		var blocked := dungeon.choice_blocked(event, i)
 		choices.append([label, _on_event_choice.bind(i), blocked])
-	show_popup(event.event_name, event.text, choices)
+	var picture := event_picture(event)
+	show_popup(event.event_name, event.text, choices, picture[0], picture[1])
+
+
+# The picture (and animation) an event shows, from its Picture column:
+# [texture, animation], or [null, ""] for none.
+func event_picture(event: DungeonEvent) -> Array:
+	match event.picture.to_lower():
+		"wiggling chest":  # Someone's stuck inside: it wiggles and shouts.
+			return [ICONS[RoomCard.Type.LOCKED_CHEST], "help"]
+	return [null, ""]
 
 
 func _on_event_choice(index: int) -> void:
 	var event: DungeonEvent = dungeon.rooms[dungeon.position].event
-	if not dungeon.choice_blocked(event, index).is_empty():
-		return  # Greyed out (not enough gold...).
+	if dungeon.choice_hidden(event, index) or not dungeon.choice_blocked(event, index).is_empty():
+		return  # Not shown, or greyed out (not enough gold...).
 	var outcome := dungeon.choose(index)
 	refresh()
+	if not str(outcome.blueprint).is_empty():
+		# Someone gave you a blueprint (the trapped Enchanter): they jump out!
+		var art := "res://art/town/%s.svg" % str(outcome.blueprint).to_snake_case()
+		var picture: Texture2D = load(art) if ResourceLoader.exists(art) else ICONS[RoomCard.Type.TREASURE]
+		show_popup(event.event_name, outcome.text, [["OK", close_popup]], picture, "jump")
+		return
 	if outcome.fight:
 		show_popup(event.event_name, outcome.text + "\n" + enemy_list(dungeon.fight_enemies), [["Fight!", start_fight]])
 	else:
@@ -645,6 +661,8 @@ func close_popup() -> void:
 #   "chest"  drops in and bounces
 #   "unlock" rattles, then swaps to an open chest with a burst (and the loot pops out)
 #   "pop"    grows in with a little bounce
+#   "help"   a chest that keeps wiggling, with "Help!" floating up out of it
+#   "jump"   leaps up out of the picture's box and lands with a sparkle
 
 const PICTURE_SIZE := Vector2(110, 110)
 
@@ -739,10 +757,48 @@ func play_picture(picture: Texture2D, animation: String) -> void:
 			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 			# ...and the loot jumps out and floats up.
 			popup_tween.tween_callback(_pop_out_loot)
+		"help":
+			# Wiggle, pause, wiggle... forever (until the popup closes:
+			# close_popup() kills the tween). Each wiggle lets out a "Help!".
+			popup_tween.set_loops()
+			popup_tween.tween_callback(_shout_help)
+			for i in 4:
+				popup_tween.tween_property(popup_picture, "rotation", 0.15, 0.05)
+				popup_tween.tween_property(popup_picture, "rotation", -0.15, 0.05)
+			popup_tween.tween_property(popup_picture, "rotation", 0.0, 0.05)
+			popup_tween.tween_interval(0.9)
+		"jump":
+			var rest_y := popup_picture.position.y
+			popup_picture.scale = Vector2(1.2, 0.6)  # Squashed, ready to spring.
+			popup_tween.tween_property(popup_picture, "scale", Vector2(0.85, 1.2), 0.12)
+			popup_tween.parallel().tween_property(popup_picture, "position:y", rest_y - 50, 0.25).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+			popup_tween.tween_property(popup_picture, "position:y", rest_y, 0.25).set_ease(Tween.EASE_IN).set_trans(Tween.TRANS_QUAD)
+			popup_tween.tween_callback(func() -> void: popup_sparkles.restart())
+			popup_tween.tween_property(popup_picture, "scale", Vector2(1.15, 0.85), 0.08)
+			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
 		_:  # "pop"
 			popup_picture.scale = Vector2.ZERO
 			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 			popup_tween.tween_callback(func() -> void: popup_sparkles.restart())
+
+
+# A little "Help!" floats up out of the wiggling chest and fades.
+func _shout_help() -> void:
+	var shout := Label.new()
+	shout.text = "Help!"
+	shout.add_theme_font_size_override("font_size", 20)
+	shout.add_theme_color_override("font_color", Color(1, 0.95, 0.7))
+	shout.add_theme_color_override("font_outline_color", Color.BLACK)
+	shout.add_theme_constant_override("outline_size", 5)
+	shout.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	# Alternate sides, so it looks like it's coming from inside the chest.
+	var side := 1.0 if randf() < 0.5 else -1.0
+	shout.position = popup_picture.position + Vector2(PICTURE_SIZE.x / 2 + side * 46 - 24, 40)
+	popup_holder.add_child(shout)
+	var tween := shout.create_tween()
+	tween.tween_property(shout, "position:y", shout.position.y - 40, 1.0).set_ease(Tween.EASE_OUT)
+	tween.parallel().tween_property(shout, "modulate:a", 0.0, 1.0).set_delay(0.4)
+	tween.tween_callback(shout.queue_free)
 
 
 # The loot's picture jumps out of the opened chest and fades away.

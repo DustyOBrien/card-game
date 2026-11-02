@@ -116,13 +116,25 @@ func _init(for_area: Area) -> void:
 func _add_tier(number: int) -> void:
 	tier = number
 	for card in area.rooms:
-		if card.tier == number and GameState.is_room_unlocked(area, card):
+		if card.tier == number and GameState.is_room_unlocked(area, card) and not _event_finished(card):
 			for i in maxi(card.copies, 1):
 				deck.append(card)
 	if number == RoomCard.GUIDE_TIER:
 		deck.reverse()  # Draw them in the sheet's order (the deck is drawn from the end).
 	else:
 		deck.shuffle()
+
+
+# A room whose event gives a blueprint you already have (the trapped
+# Enchanter, once you've freed them) never comes back.
+func _event_finished(card: RoomCard) -> bool:
+	if card.event_name.is_empty():
+		return false
+	var event := GameState.find_event(card.event_name)
+	if event == null:
+		return false
+	var names := event.blueprints()
+	return not names.is_empty() and names.all(func(n: String) -> bool: return GameState.blueprints.has(n))
 
 
 func _add_boss() -> void:
@@ -242,7 +254,7 @@ func _enter(square: Vector2i) -> String:
 			if room.done:
 				return "walk"
 			if not room.has("event"):
-				room.event = pick_event()
+				room.event = GameState.find_event(card.event_name) if not card.event_name.is_empty() else pick_event()
 			if room.event == null:
 				room.cleared = true  # No events in the sheet: just an empty room.
 				room.done = true
@@ -275,9 +287,16 @@ func pick_event() -> DungeonEvent:
 
 # Is this choice left out completely? (Enchants, before the Enchanter is built.)
 func choice_hidden(event: DungeonEvent, index: int) -> bool:
+	var words: Array[String] = []
 	for effect in DungeonEvent.split_effects(event.effects[index]):
-		if effect.strip_edges().to_lower().begins_with("enchant") and not GameState.enchants_open():
-			return true
+		words.append(effect.strip_edges().to_lower().get_slice(" ", 0))
+	if words.has("enchant") and not GameState.enchants_open():
+		return true
+	# A choice that only buys a potion ("Pay 10; Potion") is hidden until the
+	# Alchemist is built. If something else happens too (like the Toothy
+	# Chest's gold), it stays; the Potion part just gives nothing.
+	if words.has("potion") and not GameState.potions_open():
+		return words.all(func(w: String) -> bool: return w == "potion" or w == "pay")
 	return false
 
 
@@ -290,6 +309,9 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 				var cost := words[1].to_int() if words.size() > 1 else 0
 				if found_gold < cost:
 					return "Needs %d found gold (you have %d)" % [cost, found_gold]
+			"use":  # "Use Key"
+				if keys <= 0:
+					return "You need a small key"
 			"flask":
 				if flask == null:
 					return "You have no flask"
@@ -319,13 +341,17 @@ func choose(index: int) -> Dictionary:
 	if outcome.fight:
 		room.cleared = false  # Blocks the way until you win.
 		fight_square = position
-	return {"text": text, "fight": outcome.fight}
+	if outcome.come_back:
+		room.done = false  # Back into the room deck when you rest (rest() re-adds rooms that aren't done).
+	return {"text": text, "fight": outcome.fight, "blueprint": outcome.blueprint}
 
 
 # Do a list of effects (see dungeon_event.gd). Returns {"lines": what happened, "fight": bool}.
 func apply_effects(list: Array[String]) -> Dictionary:
 	var lines: Array[String] = []
 	var fight := false
+	var come_back := false
+	var blueprint := ""  # The building whose blueprint you got, if any.
 	var max_hp := GameState.player_max_hp()
 	for effect in list:
 		var words := effect.split(" ", false)
@@ -353,6 +379,16 @@ func apply_effects(list: Array[String]) -> Dictionary:
 			"calm":
 				steps = 0
 				lines.append("Danger back to 0")
+			"use":  # "Use Key"
+				keys = maxi(keys - 1, 0)
+				lines.append("Used a small key (%d left)" % keys)
+			"blueprint":  # Yours right away: rescuing someone isn't loot you can lose.
+				blueprint = effect.substr(10).strip_edges()
+				GameState.give_rewards("Blueprint " + blueprint)
+				GameState.save_game()
+				lines.append("Blueprint: %s! Build it back in town." % blueprint)
+			"come":  # "Come Back"
+				come_back = true  # (The event's Result text says so.)
 			"fight":
 				fight_enemies.clear()
 				for enemy_name in effect.substr(5).split(",", false):
@@ -367,7 +403,7 @@ func apply_effects(list: Array[String]) -> Dictionary:
 				var loot_card := RoomCard.new()
 				loot_card.loot = PackedStringArray([effect])
 				lines.append("You get " + take_loot(loot_card))
-	return {"lines": lines, "fight": fight}
+	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint}
 
 
 # Step back out of a fight you don't want yet, to the square you came from.
@@ -426,7 +462,7 @@ func win_fight() -> String:
 		add_log("You found a small key!")
 	if GameState.enchants_open() and randi_range(1, 100) <= ENCHANT_CHANCE.get(card.type, 0):
 		add_log("An enchant! %s" % _drop_enchant())
-	if randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
+	if GameState.potions_open() and randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
 		add_log("A potion! %s" % _drop_potion())
 	if randi_range(1, 100) <= SUPER_CARD_CHANCE.get(card.type, 0):
 		add_log("★ A SUPER CARD! %s" % _drop_super_card())
@@ -537,9 +573,14 @@ func die() -> String:
 func take_loot(card: RoomCard) -> String:
 	if card == null or card.loot.is_empty():
 		return "nothing"
-	# No enchants (or their loot) until the Enchanter is built.
+	# No enchants until the Enchanter is built, no potions until the Alchemist.
 	var entries := Array(card.loot).filter(func(e: String) -> bool:
-		return GameState.enchants_open() or not e.strip_edges().to_lower().begins_with("enchant"))
+		var word := e.strip_edges().to_lower()
+		if word.begins_with("enchant"):
+			return GameState.enchants_open()
+		if word.begins_with("potion"):
+			return GameState.potions_open()
+		return true)
 	if entries.is_empty():
 		return "nothing"
 	var entry: String = entries.pick_random()
@@ -609,7 +650,7 @@ func _drop_super_card() -> String:
 
 
 func _drop_potion() -> String:
-	var potion := Potion.pick_random(GameState.load_potions())
+	var potion := GameState.roll_dropped_potion()  # Only unlocked potions, with your upgrades.
 	if potion == null:
 		return "nothing"
 	if add_potion(potion):

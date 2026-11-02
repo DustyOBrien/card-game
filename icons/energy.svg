@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Energy: a lightning bolt. -->
+  <path d="M38 3 L12 36 L29 36 L23 61 L52 25 L34 25 Z"
+        fill="#ffd84a" stroke="#1c160a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M34 12 L20 31 L28 31" fill="none" stroke="#fff3b8" stroke-width="3" stroke-linecap="round"/>
+</svg>

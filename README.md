@@ -131,6 +131,7 @@ In the battle:
 - **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
 - **Flawless** cards (marked *Flawless*) crit on every die, whatever they roll. The Pack Rat spec makes the FIRST play of each card in a fight Flawless too.
 - **Empowered** cards roll every die one size bigger: d3 → d6 → d8 → d10 → d12 → d20 (the top). Bigger dice hit harder, but a crit still needs the top number, so they crit less often.
+- The bar above your hand shows each number next to an icon: ❤ HP, 🛡 Block (and your Armor), ⚡ Energy, gold (+ found this run), your waiting bonuses (Atk +2 · Def +1 · Roll +1 · Adv; hover for what they mean), then the draw pile and discard pile. Every box has a fixed width, so long text gets cut off with "..." instead of pushing End Turn off the screen.
 - When you're out of energy or cards, click **End Turn**.
 - **Several enemies:** a fight can have up to three enemies side by side, each with its own health bar and attack. To hit one with an attack, **drop the card on that enemy** (it lights up). With only one enemy left, you can drop attacks anywhere.
 - **AoE and Random attacks:** a card's **Target** decides who it hits. **AoE** cards (marked *AoE*, like Sweep) hit **every** enemy, and **Random** cards send each hit to a random enemy. Drop them anywhere. While you drag, the health bars of the enemies it would hit show the damage.
@@ -197,7 +198,9 @@ of squares, and you start in the middle. Every other square is hidden.
   always for a Mini Boss). Press **Use Enchant** and click a card in your deck: it
   gets the enchant **for this run** (one per card). Enchanted cards say
   "Enchant: Sharpened" at the bottom.
-- **Potions.** Fights sometimes drop a potion (25% / 35% / 50%). You can carry 3. In a
+- **Potions** (only once the **Alchemist** is built; building it unlocks the Healing
+  Potion). Fights sometimes drop a potion (25% / 35% / 50%), picked from the potions
+  you've unlocked at the Alchemist. You can carry 3. In a
   fight, click one (bottom left) to drink it: heal, Block, Energy, draw, damage...
 - **Your flask.** You take ONE flask into each run (pick it with the Flask button in
   town). It's like a potion you never lose: it has charges (1 to start), you drink it
@@ -244,7 +247,9 @@ fighting at first: Character Select and the Deck Builder stay hidden.
 4. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Tier 1 has the weaker **Small Slime** (14 HP, hits 1-4); the old Slime (20 HP, hits 2-5) lives in Tier 2 and up. Gives the
    Alchemist blueprint and adds the Blue Slime rooms to the Plains.
 5. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
-   Health Flask there (3 Green Ooze). Gives the Shop blueprint.
+   Health Flask there (3 Green Ooze). Gives the Shop and **Tailor** blueprints, and
+   adds **Bunny Warrior** rooms to the Plains (Bunny Burrow, Bunny Ambush). Bunny
+   Warriors (16 HP, Carrot Kick 2-4, Hop Back for 4 Block) always drop **Animal Hair**.
 6. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
    the Plains deck for good. Beat it and Go Deeper at its campfire to reach Tier 2.
    Handing it in unlocks **Talents**, with a banner explaining them.
@@ -256,6 +261,13 @@ quests and **Side** quests that start when the Adventurer arrives:
 - **Kill Enemies 1 / 2 / 3** (Side): defeat 10, then 20, then 30 enemies of any
   kind (the training dummies don't count). Rewards: 1 Small, 2 Medium, then 1
   Large Plains Booster Pack.
+- **A Bag for the Road** (Side, from the Alchemist; starts after the Flask quest):
+  build the Tailor (5 Animal Hair). Reward: 1 Small pack, and the **Trapped Chest**
+  room joins the Plains: someone is locked in a chest that wiggles and shouts
+  "Help!". Use a small key (always works) or try to break it open (25%). If it
+  fails, or you leave, the room goes back into the deck when you rest, so you
+  can find it again. Freeing them: the **Enchanter** jumps out and gives you
+  their blueprint (and the room never comes back).
 
 **Click the Inn** (or its **Quests** button) for the quest screen: every quest
 you're on, grouped Story / Adventurer / Side, each with its objective, a
@@ -273,14 +285,20 @@ The other buildings, once you have their blueprint (hover the button to see what
 the next stage does):
 
 - **Shop**: booster packs. Stage 2: packs cost 1 less.
-- **Tailor**: sews your **Save Sack** (2 slots), then 10 more gold per slot, then +1 slot.
+- **Tailor** (5 Animal Hair): sews your **Save Sack** (2 slots), then 10 more gold per slot, then +1 slot.
 - **Enchanter**: turns on enchants (drops, chests, events), and sells a random enchant (15 gold) to take into your next run.
   Stage 2: when an enchant drops, choose from 2.
-- **Alchemist**: brew flasks, and buy a random potion (8 gold) for your next run. Stage 2: carry 1 more.
+- **Alchemist**: **Enter the Alchemist** for a screen with two tabs. **Flasks**: brew
+  flasks you don't have and upgrade the ones you do (the town's Flask button opens
+  this tab too). **Potions**: unlock potions so they can drop in the dungeon
+  (Common 15 gold + 2 Green Ooze, Uncommon 30 + 4, Rare 50 + 6), then upgrade an
+  unlocked one: **Stronger** (its numbers x1.5, then x2; 25 / 50 gold) and **More
+  Common** (drops 2x, then 3x as often; 20 / 40 gold). Each potion shows what %
+  of potion drops it is. Stage 2: carry 1 more potion.
 - **Mapmaker**: buy a map (25 gold) that unlocks a new room card. Stage 2: danger
   rises every 8 steps instead of 6.
 
-The Tailor, Enchanter and Mapmaker have no quest giving their blueprints yet.
+The Mapmaker has no quest giving its blueprint yet.
 
 What you buy for your next run is listed at the bottom of the town. The **road**
 at the bottom-right, with its **To the Map** signpost (`town_road.gd`, drawn with
@@ -927,11 +945,11 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Area | Plains | Which area's deck it goes in |
 | Tier | 1 | **1** = in the deck from the start. **2** = shuffled in when you rest after the Tier 1 Mini Boss, and so on. **Boss** = the Boss room, shuffled in after the last tier's Mini Boss |
 | Room | Slime Patch | The room's name, shown on the square |
-| Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss**, **Event** (a random event from events.csv) or **Empty** |
+| Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss**, **Event** (a random event from events.csv, or the one named in Encounters) or **Empty** |
 | Copies | 6 | How many of this card go in the deck |
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
 | Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
-| Encounters | Slime \| Slimeling, Slimeling | Fights only: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right |
+| Encounters | Slime \| Slimeling, Slimeling | Fights: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right. **Event** rooms: the name of the event it always is (blank = random) |
 | Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Small Plains Booster Pack), **Key**, **Map**, **Enchant**, **Potion**, **Super Card** |
 | Notes | | Anything you like; the game ignores it |
 
@@ -943,12 +961,13 @@ One row per **choice**; rows with the same Event are one event (see
 | Column | Example | What it means |
 |---|---|---|
 | Event | Strange Fountain | The event's name (and the popup's title) |
-| Area | Any | `Any`, or one area's name (first row only) |
+| Area | Any | `Any`, one area's name, or `Room` = never random, only from a room card that names it (first row only) |
 | Min Tier | 1 | Only found in this tier or deeper (first row only) |
 | Text | A stone fountain... | The story (first row only) |
 | Choice | Drink deeply | The button |
 | Chance | 65 | % that the Effect happens; otherwise the Fail Effect does. 100 = always |
-| Effect | Heal 8 | What happens, several split by `;`: **Heal N**, **Lose HP N** (never below 1), **Gold N-M**, **Pay N** (costs found gold; greyed out without it), **Key**, **Potion**, **Enchant**, **Card**, **Pack**, **Super Card**, **Flask** (+1 charge), **Danger N**, **Calm** (danger to 0), **Fight Wolf, Wolf** (a fight, no backing off) |
+| Effect | Heal 8 | What happens, several split by `;`: **Heal N**, **Lose HP N** (never below 1), **Gold N-M**, **Pay N** (costs found gold; greyed out without it), **Key**, **Potion**, **Enchant**, **Card**, **Pack**, **Super Card**, **Flask** (+1 charge), **Danger N**, **Calm** (danger to 0), **Fight Wolf, Wolf** (a fight, no backing off), **Use Key** (needs a small key; greyed out without one), **Blueprint Enchanter** (yours right away), **Come Back** (the room goes back into the deck at your next rest) |
+| Picture | Wiggling Chest | Optional picture above the text (first row only). `Wiggling Chest` = a locked chest that wiggles and shouts "Help!" |
 | Fail Effect | Lose HP 4 | What happens when the Chance misses |
 | Result / Fail Result | Cool and sweet. | The text shown afterwards |
 
@@ -1041,7 +1060,8 @@ Unlocked = `Quest` only joins the room deck through a quest reward. Rows with
 Tier = `Guide` are the guided first run (before the Inn): no shuffle, drawn in
 the sheet's order. Room Loot can name a material too: `Stone 2` or `Stone 1-3`.
 
-The prices (enchant 15, potion 8, map 25) and the Save Sack (0 slots until the
+Potion unlock and upgrade prices are `POTION_UNLOCK_COSTS` and `POTION_UPGRADES` in
+`game_state.gd`. The prices (enchant 15, map 25) and the Save Sack (0 slots until the
 Tailor; 5 gold a slot) and potion slots (3) are at the top of `game_state.gd`. Drop chances are
 `ENCHANT_CHANCE` and `POTION_CHANCE` in `dungeon_run.gd`, and room Loot can also
 say **Enchant** or **Potion**.

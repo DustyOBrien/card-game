@@ -1,0 +1,30 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_t0qlg"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_klnu4"]
+[ext_resource type="Texture2D" path="res://art/enemies/bunny_warrior.svg" id="3_gc43x"]
+
+[sub_resource type="Resource" id="Resource_eitjd"]
+script = ExtResource("1_t0qlg")
+move_name = "Carrot Kick"
+weight = 3
+attack_min = 2
+attack_max = 4
+
+[sub_resource type="Resource" id="Resource_be1ax"]
+script = ExtResource("1_t0qlg")
+move_name = "Hop Back"
+max_in_a_row = 1
+attack_min = 1
+attack_max = 1
+block = 4
+
+[resource]
+script = ExtResource("2_klnu4")
+display_name = "Bunny Warrior"
+max_hp = 16
+texture = ExtResource("3_gc43x")
+sprite_size = Vector2(120, 150)
+name_color = Color(0.8784314, 0.6901961, 0.47843137, 1)
+moves = Array[ExtResource("1_t0qlg")]([SubResource("Resource_eitjd"), SubResource("Resource_be1ax")])
+drops = PackedStringArray("Animal Hair 100")

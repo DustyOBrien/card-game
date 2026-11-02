@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Gold: a coin. -->
+  <circle cx="32" cy="32" r="27" fill="#f2c14e" stroke="#2a1d06" stroke-width="3"/>
+  <circle cx="32" cy="32" r="19" fill="none" stroke="#b8862a" stroke-width="3"/>
+  <path d="M32 20 L32 44 M25 26 C25 22 39 22 39 27 C39 32 25 31 25 37 C25 42 39 42 39 38"
+        fill="none" stroke="#8a5d14" stroke-width="4" stroke-linecap="round"/>
+</svg>

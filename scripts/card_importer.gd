@@ -526,7 +526,10 @@ static func _import_rooms(known: Dictionary) -> void:
 		card.quest_only = row.get("unlocked", "").strip_edges().to_lower() == "quest"
 		card.unlocked = false if card.quest_only else _parse_yes_no(row.get("unlocked", ""), true)
 		card.ambush = _parse_yes_no(row.get("ambush", ""), false)
-		for group_text in row.get("encounters", "").split("|", false):
+		# An Event room's Encounters column names its event (blank = random).
+		if card.type == RoomCard.Type.EVENT:
+			card.event_name = row.get("encounters", "").strip_edges()
+		for group_text in ([] if card.type == RoomCard.Type.EVENT else row.get("encounters", "").split("|", false)):
 			var encounter := Encounter.new()
 			for enemy_name in _parse_list(group_text.replace("|", "")):
 				if known.get(enemy_name.to_lower()) is EnemyData:
@@ -897,6 +900,7 @@ static func _import_progression() -> void:
 			new_event.area = row.get("area", "")
 			new_event.min_tier = maxi(_to_int(row.get("min tier", ""), 1), 1)
 			new_event.text = row.get("text", "")
+			new_event.picture = row.get("picture", "")
 			events[key] = new_event
 			event_order.append(new_event)
 		var event: DungeonEvent = events[key]

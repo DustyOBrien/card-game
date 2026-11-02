@@ -6,12 +6,12 @@
 [resource]
 script = ExtResource("2_1pv1p")
 building_name = "Alchemist"
-description = "Brews potions."
+description = "Brews flasks and potions."
 icon = ExtResource("1_gktxp")
 sort_order = 5
 costs = Array[int]([0, 60])
 effects = PackedStringArray("alchemist", "potion slots")
 amounts = Array[int]([1, 1])
-stage_texts = PackedStringArray("Brew potions and flasks", "Carry 1 more potion")
+stage_texts = PackedStringArray("Brew flasks, and potions start dropping (Healing Potion unlocked)", "Carry 1 more potion")
 material_costs = PackedStringArray("Green Ooze 5", "")
 needs_blueprint = true

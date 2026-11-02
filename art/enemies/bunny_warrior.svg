@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="200" viewBox="0 0 160 200">
+  <!-- A Bunny Warrior: a fluffy brown rabbit with a red headband and a little wooden shield. -->
+  <ellipse cx="80" cy="190" rx="52" ry="8" fill="#000" opacity="0.28"/>
+  <!-- Ears -->
+  <path d="M56 70 C44 30 46 6 58 6 C70 6 72 34 68 70 Z" fill="#b68457" stroke="#5a3a1e" stroke-width="4"/>
+  <path d="M56 62 C50 34 52 16 58 16 C64 16 64 36 63 62 Z" fill="#f2b8c0"/>
+  <path d="M92 70 C96 32 104 8 114 10 C124 12 118 40 104 72 Z" fill="#b68457" stroke="#5a3a1e" stroke-width="4"/>
+  <path d="M96 64 C100 38 106 20 112 20 C117 22 112 42 102 66 Z" fill="#f2b8c0"/>
+  <!-- Body -->
+  <ellipse cx="80" cy="150" rx="42" ry="38" fill="#b68457" stroke="#5a3a1e" stroke-width="4"/>
+  <ellipse cx="80" cy="158" rx="24" ry="22" fill="#ecd9c0"/>
+  <!-- Feet -->
+  <ellipse cx="56" cy="184" rx="18" ry="7" fill="#9a6c43" stroke="#5a3a1e" stroke-width="3"/>
+  <ellipse cx="104" cy="184" rx="18" ry="7" fill="#9a6c43" stroke="#5a3a1e" stroke-width="3"/>
+  <!-- Head -->
+  <circle cx="80" cy="92" r="34" fill="#c4925f" stroke="#5a3a1e" stroke-width="4"/>
+  <!-- Headband -->
+  <path d="M47 82 Q80 70 113 82 L113 92 Q80 80 47 92 Z" fill="#d23c3c" stroke="#7a1d1d" stroke-width="2"/>
+  <path d="M112 86 L130 78 L126 92 L136 98 L114 94 Z" fill="#d23c3c" stroke="#7a1d1d" stroke-width="2"/>
+  <!-- Eyes (determined) -->
+  <ellipse cx="68" cy="101" rx="6" ry="7" fill="#1b1b24"/>
+  <ellipse cx="92" cy="101" rx="6" ry="7" fill="#1b1b24"/>
+  <circle cx="70" cy="99" r="2" fill="#fff"/>
+  <circle cx="94" cy="99" r="2" fill="#fff"/>
+  <path d="M60 94 L74 97" stroke="#5a3a1e" stroke-width="3" stroke-linecap="round"/>
+  <path d="M100 94 L86 97" stroke="#5a3a1e" stroke-width="3" stroke-linecap="round"/>
+  <!-- Nose and mouth -->
+  <path d="M76 110 L84 110 L80 115 Z" fill="#e57a8a"/>
+  <path d="M80 115 Q74 121 70 117 M80 115 Q86 121 90 117" fill="none" stroke="#5a3a1e" stroke-width="2.5" stroke-linecap="round"/>
+  <!-- Shield -->
+  <path d="M112 130 L146 126 L144 160 Q130 176 116 162 Z" fill="#a8743f" stroke="#5a3a1e" stroke-width="4" stroke-linejoin="round"/>
+  <circle cx="129" cy="146" r="6" fill="#d9b25a" stroke="#5a3a1e" stroke-width="2"/>
+  <!-- Paw holding a carrot sword -->
+  <path d="M28 150 L12 112" stroke="#e8822a" stroke-width="9" stroke-linecap="round"/>
+  <path d="M12 112 L6 98 M12 112 L18 99 M12 112 L12 96" stroke="#4caf50" stroke-width="4" stroke-linecap="round"/>
+  <circle cx="30" cy="152" r="10" fill="#c4925f" stroke="#5a3a1e" stroke-width="3"/>
+</svg>

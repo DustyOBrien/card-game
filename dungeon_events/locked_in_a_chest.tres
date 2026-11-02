@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_07fn5"]
+
+[resource]
+script = ExtResource("1_07fn5")
+event_name = "Locked in a Chest"
+area = "Room"
+text = "Something thumps inside a big locked chest. A muffled voice: \"Help! Get me out! I'm an Enchanter, I can make it worth your while!\""
+picture = "Wiggling Chest"
+choice_labels = PackedStringArray("Use a small key", "Break it open", "Leave for now")
+chances = Array[int]([100, 25, 100])
+effects = PackedStringArray("Use Key; Blueprint Enchanter", "Blueprint Enchanter", "Come Back")
+fail_effects = PackedStringArray("", "Come Back", "")
+results = PackedStringArray("Click! The lid flies open and a dusty Enchanter tumbles out. \"Free at last! Here, my plans. Build me a workshop in your town and I\'ll enchant your cards.\"", "CRACK! The lock gives way and a dusty Enchanter tumbles out. \"Free at last! Here, my plans. Build me a workshop in your town and I\'ll enchant your cards.\"", "\"Don\'t forget me!\" You\'ll find this chest again after you rest.")
+fail_results = PackedStringArray("", "The lock holds. While you catch your breath, the chest wobbles off into the grass. \"Come back with a key!\" You\'ll have to find it again.", "")
