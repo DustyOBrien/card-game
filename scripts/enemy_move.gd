@@ -46,3 +46,25 @@ func kind() -> String:
 	if not summon.is_empty():
 		return "summon"
 	return "buff"
+
+
+# The move written out with its ranges, for the Dojo's monster book:
+# "Attack 5-7 x2 + Block 3". (In a fight, enemy_view.gd shows the exact roll.)
+func describe() -> String:
+	var parts: Array[String] = []
+	if attacks():
+		var damage := str(attack_min) if attack_min == attack_max else "%d-%d" % [attack_min, attack_max]
+		parts.append("Attack " + damage + (" x%d" % hits if hits > 1 else ""))
+	if block > 0:
+		parts.append("Block %d" % block)
+	if ally_block > 0:
+		parts.append("Shield allies %d" % ally_block)
+	if strength > 0:
+		parts.append("Strength +%d" % strength)
+	if ally_strength > 0:
+		parts.append("All Strength +%d" % ally_strength)
+	if heal > 0:
+		parts.append("Heal %d" % heal)
+	if not summon.is_empty():
+		parts.append("Summon %s" % summon + (" x%d" % summon_count if summon_count > 1 else ""))
+	return " + ".join(parts) if not parts.is_empty() else "Does nothing"

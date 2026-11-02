@@ -13,5 +13,5 @@ costs = Array[int]([15, 60])
 effects = PackedStringArray("shop", "pack discount")
 amounts = Array[int]([1, 1])
 stage_texts = PackedStringArray("Open for business: buy booster packs", "Packs cost 1 gold less")
-material_costs = PackedStringArray("", "")
+material_costs = PackedStringArray("Stone 5", "Stone 10")
 needs_blueprint = true

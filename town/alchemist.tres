@@ -13,5 +13,5 @@ costs = Array[int]([0, 60])
 effects = PackedStringArray("alchemist", "potion slots")
 amounts = Array[int]([1, 1])
 stage_texts = PackedStringArray("Brew flasks, and potions start dropping (Healing Potion unlocked)", "Carry 1 more potion")
-material_costs = PackedStringArray("Stone 5; Green Ooze 5", "")
+material_costs = PackedStringArray("Stone 5; Green Ooze 5", "Stone 10")
 needs_blueprint = true

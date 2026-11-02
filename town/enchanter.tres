@@ -13,5 +13,5 @@ costs = Array[int]([40, 70])
 effects = PackedStringArray("enchanter", "enchant choice")
 amounts = Array[int]([1, 1])
 stage_texts = PackedStringArray("Buy enchants to take into your next run", "When an enchant drops, choose from 2")
-material_costs = PackedStringArray("", "")
+material_costs = PackedStringArray("Stone 5", "Stone 10")
 needs_blueprint = true

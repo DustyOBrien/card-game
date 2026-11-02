@@ -195,6 +195,15 @@ func drink_flask() -> void:
 	var sip := dungeon.sip_flask()  # Rolls the heal and uses the charge (see dungeon_run.gd).
 	battle_log.add("You drink from your %s" % dungeon.flask.flask_name, BattleLog.PLAYER_COLOR)
 	if sip.heal > 0:
+		# Show the roll: the flask's die tumbles in the dice tray like a card's.
+		# (The number was already rolled in sip_flask(); this just shows it.)
+		busy = true
+		var sides: int = stats[Flask.HEAL_DIE]
+		await dice_tray.play(dungeon.flask.flask_name, [{
+			"name": "Heal", "kind": "heal", "sides": sides, "dice": [sip.roll],
+			"crit_dice": [false], "dropped": [], "modifier": stats[Flask.ROLL_BONUS],
+			"crit_bonus": 0, "total": sip.heal, "crits": 0}], true)
+		busy = false
 		player.heal(sip.heal)
 		var bonus_text := (" + %d" % stats[Flask.ROLL_BONUS]) if stats[Flask.ROLL_BONUS] > 0 else ""
 		battle_log.add("d%d rolled %d%s: you heal %d (HP %d/%d)" % [stats[Flask.HEAL_DIE], sip.roll, bonus_text,
@@ -334,6 +343,8 @@ func start_battle() -> void:
 		dungeon.tier, dungeon.danger()]
 	if tutorial:
 		fight_label.text = "Training Grounds"
+	elif not GameState.duel.is_empty():
+		fight_label.text = "Training Grounds  ·  A duel with the %s" % GameState.duel
 	battle_log.clear()
 	message_label.text = "%s appear%s!" % [enemy_names(), "s" if enemy_views.size() == 1 else ""]
 	var enemy_list: Array[String] = []
@@ -348,6 +359,15 @@ func start_battle() -> void:
 	if not GameState.vanished.is_empty():
 		battle_log.add("%d card(s) have Vanished this run" % GameState.vanished.size(), BattleLog.DIM_COLOR)
 	start_player_turn()
+
+
+# Where this fight is, for the monster book: "Plains, Tier 2" or "Training Grounds".
+func fight_place() -> String:
+	if not GameState.duel.is_empty():
+		return "Training Grounds (a duel)"
+	if GameState.dungeon == null:
+		return GameState.current_area.display_name
+	return "%s, Tier %d" % [GameState.current_area.display_name, GameState.dungeon.tier]
 
 
 # Make the enemies for this fight: the area's encounter for this fight number,
@@ -374,6 +394,10 @@ func add_enemy(enemy_data: EnemyData, hp: int = 0, at: int = -1) -> EnemyView:
 	var view := EnemyView.new()
 	enemy_row.add_child(view)
 	view.setup(enemy_data, hp)
+	# The Dojo's monster book remembers every monster you meet, and where
+	# (not the training dummies).
+	if not tutorial:
+		GameState.see_monster(enemy_data.display_name, fight_place())
 	# Danger: the longer you wander the dungeon without resting, the stronger they are.
 	view.combatant.strength = GameState.dungeon.danger() if GameState.dungeon else 0
 	if at >= 0:
@@ -1351,6 +1375,16 @@ func _on_enemy_died(view: EnemyView) -> void:
 	if tutorial:
 		tutorial.enemy_died()  # No gold or Exp from dummies.
 		return
+	GameState.monsters_slain += 1
+	GameState.kill_monster(view.data.display_name)  # Monster Exp in the Dojo's book.
+	if not GameState.duel.is_empty():
+		# A duel (the Old Master): no gold, loot or Exp, just the win for your quest.
+		GameState.record_for_quest(Quest.DEFEAT, view.data.display_name)
+		if living_enemies().is_empty():
+			exp_bar.hide()
+			end_battle("You beat the %s!" % GameState.duel,
+				"\"Ha! Well fought. You've earned my respect.\"\nHand in the quest at the Inn.", "Back to Town →")
+		return
 	# Loot Hound talents add Bonus Gold to every enemy.
 	# Bosses drop their Bonus Gold on top.
 	var loot := randi_range(GameState.GOLD_MIN, GameState.GOLD_MAX) + view.data.bonus_gold \
@@ -1445,6 +1479,12 @@ func _on_player_died() -> void:
 	if tutorial:
 		tutorial.player_died()
 		return
+	if not GameState.duel.is_empty():
+		# Losing a duel costs nothing: try again whenever you like.
+		exp_bar.hide()
+		end_battle("The %s wins..." % GameState.duel,
+			"\"Not bad. Not good enough, either. Come back when you're ready.\"\nYou lost nothing. Challenge him again any time from town.", "Back to Town →")
+		return
 	var dungeon := GameState.dungeon
 	var lost := dungeon.loot_text()
 	var saved := dungeon.die()
@@ -1457,6 +1497,10 @@ func _on_player_died() -> void:
 
 # The button on the end-of-fight panel: back to the dungeon, or to town once the run is over.
 func _on_continue_pressed() -> void:
+	if not GameState.duel.is_empty():
+		GameState.end_duel()  # Your real run comes back.
+		get_tree().change_scene_to_file(TOWN_SCENE)
+		return
 	if GameState.dungeon.result.is_empty():
 		get_tree().change_scene_to_file(DUNGEON_SCENE)
 	elif GameState.dungeon.result == "won":

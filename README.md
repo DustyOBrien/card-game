@@ -208,7 +208,8 @@ of squares, and you start in the middle. Every other square is hidden.
   the dungeon map: click it in the side panel). Its charges refill at the start of every run.
   The **Health Flask** (heal d3) is yours from the start; the **Energy Flask** (+1
   Energy) is unlocked for gold. Both are upgraded at the Alchemist (bigger die, more
-  charges, +roll, 2 Energy, a chance to keep the charge).
+  charges, +roll, 2 Energy, a chance to keep the charge). Drinking a flask rolls
+  its die in the dice tray (on the map too), so you see what you got.
 - If the room deck runs out, the other squares become dead ends.
 
 Your HP carries over from one fight to the next (the top of the battle screen
@@ -274,7 +275,18 @@ stay hidden. The start is a few one-time **story beats** (`play_story()` in
    Warriors (16 HP, Carrot Kick 2-4, Hop Back for 4 Block) always drop **Animal Hair**.
 8. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
    the Plains deck for good. Beat it and Go Deeper at its campfire to reach Tier 2.
-   Handing it in unlocks **Talents**, with a banner explaining them.
+   Reward: 4 Small packs.
+9. **The Old Master** (starts at your first class level up): an old man turns up at
+   the edge of town, impressed by how many monsters you've slain. Click him (right
+   side of town) to **duel** him in the Training Grounds: 45 HP, Measured Strike
+   (5-7), Iron Stance (Block 8) and Teach a Lesson (3 damage, +1 Strength). You
+   bring your deck and flask at full HP, and losing costs nothing. Beat him, hand it
+   in: a Large pack, the **Dojo** blueprint, the **Talent System** ("TALENT SYSTEM
+   UNLOCKED!", then the Talents screen with a guide) and 1 **Legacy Talent Point**.
+
+**Talent points** come in two kinds. **Class** points: 1 per level after level 1,
+for that class only. **Legacy** points: from quests, and EVERY class gets all of
+them (2 Legacy points = 2 for the Adventurer AND 2 for the Knight).
 
 **Several quests run at once**: the **Story** quest above, plus **Adventurer**
 quests and **Side** quests that start with the Innkeeper's slime news:
@@ -308,6 +320,9 @@ Save Sack (once the Tailor makes you one) to keep them if you die. The **Guild H
 The other buildings, once you have their blueprint (hover the button to see what
 the next stage does):
 
+Every building costs **Stone** on top of its own materials: 5 for stage 1, 10 for
+stage 2, 15 for stage 3 (first pass; town.csv's Materials column).
+
 - **Shop**: booster packs. Stage 2: packs cost 1 less.
 - **Tailor** (5 Animal Hair): sews your **Save Sack** (2 slots), then 10 more gold per slot, then +1 slot.
 - **Enchanter**: turns on enchants (drops, chests, events), and sells a random enchant (15 gold) to take into your next run.
@@ -319,6 +334,12 @@ the next stage does):
   unlocked one: **Stronger** (its numbers x1.5, then x2; 25 / 50 gold) and **More
   Common** (drops 2x, then 3x as often; 20 / 40 gold). Each potion shows what %
   of potion drops it is. Stage 2: carry 1 more potion.
+- **Dojo** (10 Stone, from the Old Master): your talent points (and a button to the
+  Talents screen), plus the **Monster Book**. Every monster you meet in a fight goes
+  in it: its picture, HP, moves, drops, **where you saw it** ("Plains, Tier 2"), how
+  many you've beaten, and its **Monster Exp** (+1 per kill; Monster Level 2 at 5,
+  3 at 15, 4 at 30...). Monster Levels don't do anything yet. Monsters you haven't
+  met are "???" silhouettes. Saved in `GameState.bestiary`; `scripts/dojo.gd`.
 - **Mapmaker**: buy a map (25 gold) that unlocks a new room card. Stage 2: danger
   rises every 8 steps instead of 6.
 

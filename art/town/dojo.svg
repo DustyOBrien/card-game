@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- The Dojo: a training hall with a curved red roof and a sign. -->
+  <ellipse cx="64" cy="116" rx="52" ry="6" fill="#000" opacity="0.25"/>
+  <!-- Walls -->
+  <rect x="24" y="58" width="80" height="54" fill="#e8dcc0" stroke="#4a3520" stroke-width="3"/>
+  <!-- Pillars -->
+  <rect x="24" y="58" width="8" height="54" fill="#8a2f2f" stroke="#3a1414" stroke-width="2"/>
+  <rect x="96" y="58" width="8" height="54" fill="#8a2f2f" stroke="#3a1414" stroke-width="2"/>
+  <!-- Door -->
+  <rect x="52" y="78" width="24" height="34" fill="#6b4a2a" stroke="#3b2614" stroke-width="2.5"/>
+  <path d="M64 78 V112" stroke="#3b2614" stroke-width="2"/>
+  <!-- Roof: curved ends -->
+  <path d="M6 58 Q20 56 28 42 L100 42 Q108 56 122 58 Z" fill="#b83a3a" stroke="#3a1414" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M22 42 Q36 40 42 26 L86 26 Q92 40 106 42 Z" fill="#c94444" stroke="#3a1414" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Sign with a fist mark -->
+  <rect x="50" y="46" width="28" height="10" rx="2" fill="#e2c46a" stroke="#6b5414" stroke-width="2"/>
+  <circle cx="64" cy="51" r="3" fill="#6b5414"/>
+</svg>

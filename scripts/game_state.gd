@@ -129,7 +129,9 @@ var class_specs := {}
 # false: once you have a spec, points can go in ANY tree (Classic WoW style).
 # true: points only go in your spec's tree (modern WoW style).
 const SPEC_TREE_ONLY := false
-var bonus_talent_points := 0  # Extra points every class gets (none yet).
+# LEGACY TALENT POINTS: earned from quests (the Old Master's duel...), and
+# EVERY class gets them, on top of its own points from leveling up.
+var legacy_talent_points := 0
 var _bonus_cache := {}  # Remembered talent_bonus() totals (see there).
 var talents_return_scene := "res://scenes/character_select.tscn"  # Where the Talents screen's Back goes.
 
@@ -179,6 +181,24 @@ const ADVENTURER_FEATURE := "Adventurer"
 # Milestones (quests.csv "Starts After" can name one of these instead of a quest).
 const INN_BUILT := "Inn Built"  # The Innkeeper has thanked you: the first quests.
 const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the training + deck builder.
+const FIRST_LEVEL_UP := "First Level Up"  # Any class reached level 2: the Old Master appears.
+# Monsters you've beaten in the dungeons (not the training dummies). Saved.
+# The Old Master is impressed by it.
+var monsters_slain := 0
+# THE DOJO'S MONSTER BOOK. Every monster you've met, by name:
+#   {"seen": ["Plains, Tier 1", ...], "kills": 3}
+# "seen" lists the places you've fought it. Each kill is worth MONSTER_EXP_PER_KILL
+# Monster Exp for that monster (nothing uses the levels yet, it's the start of
+# the feature). Saved.
+var bestiary := {}
+const MONSTER_EXP_PER_KILL := 1
+# Monster Exp needed for each Monster Level: level 2 at 5, level 3 at 15...
+const MONSTER_LEVELS: Array[int] = [5, 15, 30, 50, 75, 100]
+# A DUEL: a one-off fight from town (the Old Master), not part of a dungeon
+# run. The enemy's name while it's on ("" = none). Losing costs nothing.
+# start_duel() keeps your real run here, end_duel() puts it back.
+var duel := ""
+var duel_backup := {}
 var _materials: Array[MaterialInfo] = []
 var _quests: Array[Quest] = []
 
@@ -222,7 +242,10 @@ func start_fresh() -> void:
 	unseen_quests.clear()
 	# No quests at the start: they only appear once the Inn is built (the
 	# town's welcome, in town.gd, hands you the Inn blueprint first).
-	bonus_talent_points = 0
+	legacy_talent_points = 0
+	monsters_slain = 0
+	bestiary.clear()
+	duel = ""
 	character_class = null
 	deck.clear()
 	start_run()
@@ -411,8 +434,46 @@ func add_class_exp(amount: int) -> Array[Dictionary]:
 	class_exp[character_class.display_name] = class_exp.get(character_class.display_name, 0) + amount
 	for level in range(level_before + 1, class_level(character_class) + 1):
 		level_ups.append({"level": level, "cards": _give_level_cards(character_class, level)})
+	if not level_ups.is_empty():
+		reach_milestone(FIRST_LEVEL_UP)  # The first time: the Old Master's quest (only once).
 	save_game()
 	return level_ups
+
+
+# --- Duels ------------------------------------------------------------------------
+
+# Fight one enemy straight from town (the Old Master), with your current class
+# and deck at full HP. Then change to the battle scene.
+func start_duel(enemy_name: String) -> void:
+	ensure_ready()
+	duel_backup = {"dungeon": dungeon, "run_hp": run_hp, "vanished": vanished.duplicate(),
+		"enchants": run_enchants.duplicate()}
+	duel = enemy_name
+	run_hp = -1
+	vanished.clear()
+	run_enchants.clear()
+	var fight := DungeonRun.new(current_area)
+	var enemy := find_enemy(enemy_name)
+	if enemy:
+		fight.fight_enemies.append(enemy)
+	# Bring your flask, full (no potions: those are for the dungeon).
+	fight.flask = current_flask()
+	if fight.flask:
+		fight.flask_stats = flask_stats(fight.flask)
+		fight.flask_charges = fight.flask_stats[Flask.CHARGES]
+	dungeon = fight
+
+
+# The duel is over (won or lost): put your real run back.
+func end_duel() -> void:
+	if not duel_backup.is_empty():
+		dungeon = duel_backup.dungeon
+		run_hp = duel_backup.run_hp
+		vanished = duel_backup.vanished
+		run_enchants = duel_backup.enchants
+	duel_backup = {}
+	duel = ""
+	save_game()
 
 
 # Add the class cards a class gets at `level` to your collection.
@@ -749,10 +810,14 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 				if not unlocked_rooms[area_name].has(room_name):
 					unlocked_rooms[area_name].append(room_name)
 				lines.append("New room in the %s: %s" % [area_name, room_name])
+			"legacy":  # "Legacy Point 1": Legacy Talent Points, for every class.
+				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
+				legacy_talent_points += points
+				lines.append("%d Legacy Talent Point%s" % [points, "s" if points > 1 else ""])
 			"unlock":  # "Unlock Talents": opens up a part of the game.
 				if not unlocked_features.has(rest):
 					unlocked_features.append(rest)
-				lines.append("%s unlocked!" % rest)
+				lines.append("%s unlocked!" % ("Talent System" if rest == TALENTS_FEATURE else rest))
 			_:
 				push_warning("quests.csv: unknown reward '%s'" % reward)
 	return lines
@@ -1185,9 +1250,15 @@ func set_spec(for_class: CharacterClass, tree_name: String) -> void:
 	reset_talents(for_class)  # Also saves, and fixes the deck for the new rules.
 
 
-# Points: 1 per level after level 1, plus bonus points, minus what's spent.
+# Points: 1 per level after level 1 (the CLASS's own talent points), plus every
+# Legacy Talent Point (from quests, shared by all classes), minus what's spent.
 func talent_points_earned(for_class: CharacterClass) -> int:
-	return class_level(for_class) - 1 + bonus_talent_points
+	return class_talent_points(for_class) + legacy_talent_points
+
+
+# A class's own talent points: 1 for each level after level 1.
+func class_talent_points(for_class: CharacterClass) -> int:
+	return class_level(for_class) - 1
 
 
 # Points spent in this class's talents. Pass a tree (and a tier) to count only those.
@@ -1370,7 +1441,9 @@ func save_game() -> void:
 		"decks": saved_decks,
 		"talents": talent_ranks,
 		"specs": class_specs,
-		"bonus_talent_points": bonus_talent_points,
+		"legacy_talent_points": legacy_talent_points,
+		"monsters_slain": monsters_slain,
+		"bestiary": bestiary,
 		"cleared_areas": cleared_areas,
 		"unlocked_rooms": unlocked_rooms,
 		"town": town_stages,
@@ -1422,7 +1495,16 @@ func load_game() -> bool:
 	var saved_talents: Dictionary = data.get("talents", {})
 	for class_name_key in saved_talents:
 		talent_ranks[class_name_key] = _whole_numbers(saved_talents[class_name_key])
-	bonus_talent_points = int(data.get("bonus_talent_points", 0))
+	legacy_talent_points = int(data.get("legacy_talent_points", data.get("bonus_talent_points", 0)))
+	monsters_slain = int(data.get("monsters_slain", 0))
+	bestiary.clear()
+	var saved_book = data.get("bestiary", {})
+	if saved_book is Dictionary:
+		for monster in saved_book:
+			var entry: Dictionary = saved_book[monster]
+			var seen: Array[String] = []
+			seen.assign(entry.get("seen", []))
+			bestiary[monster] = {"seen": seen, "kills": int(entry.get("kills", 0))}
 	cleared_areas.assign(data.get("cleared_areas", []))
 	var saved_rooms = data.get("unlocked_rooms", {})
 	unlocked_rooms = saved_rooms if saved_rooms is Dictionary else {}
@@ -1572,6 +1654,48 @@ func clear_area(area: Area) -> Array[Area]:
 
 
 # An enemy by name ("Slimeling"), for summons and splits. null if there's none.
+# --- The monster book (the Dojo) ---------------------------------------------
+
+# You met this monster at `place` ("Plains, Tier 1"): it goes in the book.
+func see_monster(monster: String, place: String) -> void:
+	var seen: Array[String] = book_entry(monster).seen
+	if not place.is_empty() and not seen.has(place):
+		seen.append(place)
+
+
+# You beat one: +1 kill, and its Monster Exp.
+func kill_monster(monster: String) -> void:
+	book_entry(monster).kills += 1
+
+
+# The monster's page in the book (a new, empty one the first time).
+func book_entry(monster: String) -> Dictionary:
+	if not bestiary.has(monster):
+		var seen: Array[String] = []
+		bestiary[monster] = {"seen": seen, "kills": 0}
+	return bestiary[monster]
+
+
+func monster_exp(monster: String) -> int:
+	return int(bestiary.get(monster, {}).get("kills", 0)) * MONSTER_EXP_PER_KILL
+
+
+# Monster Level 1 to MONSTER_LEVELS.size() + 1.
+func monster_level(monster: String) -> int:
+	var total := monster_exp(monster)
+	var level := 1
+	for needed in MONSTER_LEVELS:
+		if total >= needed:
+			level += 1
+	return level
+
+
+# Monster Exp needed for the next Monster Level (-1 = max level).
+func monster_next_level_exp(monster: String) -> int:
+	var level := monster_level(monster)
+	return MONSTER_LEVELS[level - 1] if level - 1 < MONSTER_LEVELS.size() else -1
+
+
 func find_enemy(enemy_name: String) -> EnemyData:
 	if _enemies_by_name.is_empty():
 		for file_name in ResourceLoader.list_directory(ENEMIES_FOLDER):

@@ -614,6 +614,8 @@ func _on_flask_pressed() -> void:
 	var hp_before := GameState.run_hp if GameState.run_hp > 0 else max_hp
 	var sip := dungeon.sip_flask()
 	GameState.run_hp = mini(hp_before + sip.heal, max_hp)
+	refresh()  # The flask button shows the charge is used straight away...
+	await roll_flask_die(dungeon.flask_stats[Flask.HEAL_DIE], sip.roll, sip.heal)  # ...then the die tumbles.
 	var text := "You drink from your %s: d%d rolled %d, heal %d (HP %d/%d)." % [dungeon.flask.flask_name,
 		dungeon.flask_stats[Flask.HEAL_DIE], sip.roll, GameState.run_hp - hp_before, GameState.run_hp, max_hp]
 	if sip.kept:
@@ -621,6 +623,46 @@ func _on_flask_pressed() -> void:
 	dungeon.add_log(text)
 	refresh()
 	info_label.text = text  # After refresh(), which sets its own hint.
+
+
+# The flask's die tumbles in the middle of the screen and lands on its roll,
+# then "+3 HP" floats up. (Like the dice tray in battle, just on its own.)
+func roll_flask_die(sides: int, value: int, heal: int) -> void:
+	var holder := VBoxContainer.new()
+	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	holder.alignment = BoxContainer.ALIGNMENT_CENTER
+	add_child(holder)
+	var die := DieView.new(110)
+	die.sides = sides
+	die.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	holder.add_child(die)
+	var label := Label.new()
+	label.text = "+%d HP" % heal
+	label.add_theme_font_size_override("font_size", 40)
+	label.add_theme_color_override("font_color", Color(0.5, 0.95, 0.55))
+	label.add_theme_color_override("font_outline_color", Color.BLACK)
+	label.add_theme_constant_override("outline_size", 8)
+	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.modulate.a = 0
+	holder.add_child(label)
+	holder.reset_size()
+	holder.position = (get_viewport_rect().size - holder.size) / 2
+	# Tumble: random faces, tilted, then land with a bounce.
+	for step in 10:
+		die.show_value(randi_range(1, sides))
+		die.rotation = randf_range(-0.7, 0.7)
+		await get_tree().create_timer(0.05).timeout
+	die.rotation = 0.0
+	die.show_value(value, value == sides)
+	die.pivot_offset = die.size / 2
+	die.scale = Vector2.ONE * 1.3
+	var tween := create_tween()
+	tween.tween_property(die, "scale", Vector2.ONE, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(label, "modulate:a", 1.0, 0.2)
+	tween.tween_interval(0.8)
+	tween.tween_property(holder, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(holder.queue_free)
+	await tween.finished
 
 
 func _on_leave() -> void:

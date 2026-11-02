@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="1_kqfq3"]
+
+[resource]
+script = ExtResource("1_kqfq3")
+quest_name = "The Old Master"
+giver = "The Old Master"
+text = "\"So YOU are the one thinning out the monsters around here. I've been watching. Impressive... for a beginner.\" He taps his staff. \"Show me what you've learned. Beat me in a duel, and I'll teach you the deeper arts.\" Click the Old Master in town to fight him. Losing costs you nothing: try as often as you like."
+objective = "defeat"
+target = "Old Master"
+rewards = "Pack Large 1; Blueprint Dojo; Unlock Talents; Legacy Point 1"
+starts_after = "First Level Up"
+sort_order = 10

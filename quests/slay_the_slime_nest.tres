@@ -10,5 +10,5 @@ text = "\"Something BIG is growing in the Plains. I've marked its nest on your m
 objective = "clear room"
 target = "Big Slime Nest"
 start_gift = "Room Plains: Big Slime Nest"
-rewards = "Pack Small 3; Unlock Talents"
+rewards = "Pack Small 4"
 sort_order = 4

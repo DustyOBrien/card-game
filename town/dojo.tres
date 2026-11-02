@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="TownBuilding" format=3]
+
+[ext_resource type="Texture2D" path="res://art/town/dojo.svg" id="1_4efkh"]
+[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_bcjok"]
+
+[resource]
+script = ExtResource("2_bcjok")
+building_name = "Dojo"
+description = "A training hall where the Old Master teaches. Your talents and the Monster Book live here."
+icon = ExtResource("1_4efkh")
+sort_order = 7
+costs = Array[int]([20])
+effects = PackedStringArray("dojo")
+amounts = Array[int]([1])
+stage_texts = PackedStringArray("Talents + the Monster Book (every monster you meet)")
+material_costs = PackedStringArray("Stone 10")
+needs_blueprint = true

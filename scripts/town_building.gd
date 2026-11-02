@@ -25,8 +25,9 @@ const MAPMAKER := "mapmaker"  # Buy maps that unlock room cards.
 const DANGER_STEPS := "danger steps"  # Steps per danger level go up by this much.
 const INN := "inn"  # Opens quests, the map and adventuring.
 const BANK := "bank"  # The Guild Hall's Bank: see your materials.
+const DOJO := "dojo"  # The Old Master's Dojo: the Talents screen, from town.
 const EFFECTS := [SHOP, PACK_DISCOUNT, SACK_SLOTS, GOLD_STACK, ENCHANTER, ENCHANT_CHOICE,
-	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS, INN, BANK]
+	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS, INN, BANK, DOJO]
 
 @export var building_name: String = "Building"
 @export_multiline var description: String = ""

@@ -13,5 +13,5 @@ costs = Array[int]([40, 70])
 effects = PackedStringArray("mapmaker", "danger steps")
 amounts = Array[int]([1, 2])
 stage_texts = PackedStringArray("Buy maps that unlock new room cards", "Danger rises every 2 more steps")
-material_costs = PackedStringArray("", "")
+material_costs = PackedStringArray("Stone 5", "Stone 10")
 needs_blueprint = true

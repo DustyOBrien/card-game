@@ -1,0 +1,38 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_1yia5"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_ikabx"]
+[ext_resource type="Texture2D" path="res://art/enemies/old_master.svg" id="3_epyno"]
+
+[sub_resource type="Resource" id="Resource_wbv3l"]
+script = ExtResource("1_1yia5")
+move_name = "Measured Strike"
+weight = 3
+attack_min = 5
+attack_max = 7
+
+[sub_resource type="Resource" id="Resource_yf0n2"]
+script = ExtResource("1_1yia5")
+move_name = "Iron Stance"
+weight = 2
+max_in_a_row = 1
+block = 8
+
+[sub_resource type="Resource" id="Resource_sfdvx"]
+script = ExtResource("1_1yia5")
+move_name = "Teach a Lesson"
+max_in_a_row = 1
+attack_min = 3
+attack_max = 3
+strength = 1
+
+[resource]
+script = ExtResource("2_ikabx")
+display_name = "Old Master"
+max_hp = 45
+texture = ExtResource("3_epyno")
+sprite_size = Vector2(140, 190)
+name_color = Color(0.9098039, 0.8509804, 0.6901961, 1)
+moves = Array[ExtResource("1_1yia5")]([SubResource("Resource_wbv3l"), SubResource("Resource_yf0n2"), SubResource("Resource_sfdvx")])
+exp = 0
+drops = PackedStringArray()

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="190" viewBox="0 0 140 190">
+  <!-- The Old Master: a calm old fighter in a long robe, white beard, leaning on a staff. -->
+  <!-- Shadow -->
+  <ellipse cx="70" cy="182" rx="46" ry="7" fill="#000" opacity="0.25"/>
+  <!-- Staff -->
+  <rect x="108" y="30" width="7" height="152" rx="3" fill="#7a5230" stroke="#3b2614" stroke-width="2.5"/>
+  <circle cx="111.5" cy="28" r="7" fill="#9b6b3e" stroke="#3b2614" stroke-width="2.5"/>
+  <!-- Robe -->
+  <path d="M40 78 Q70 66 100 78 L112 178 Q70 186 28 178 Z" fill="#8a2f2f" stroke="#3a1414" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Robe front fold and belt -->
+  <path d="M70 80 L64 178" stroke="#5e1f1f" stroke-width="3"/>
+  <rect x="38" y="118" width="64" height="10" rx="3" fill="#e2c46a" stroke="#6b5414" stroke-width="2"/>
+  <!-- Sleeves and hands: one on the staff -->
+  <path d="M42 84 Q26 110 36 128 L48 124 Q42 108 52 92 Z" fill="#a33b3b" stroke="#3a1414" stroke-width="2.5"/>
+  <path d="M96 84 Q112 96 108 112 L98 112 Q100 100 90 92 Z" fill="#a33b3b" stroke="#3a1414" stroke-width="2.5"/>
+  <circle cx="42" cy="130" r="6" fill="#e9c39a" stroke="#5a3a20" stroke-width="2"/>
+  <circle cx="110" cy="112" r="7" fill="#e9c39a" stroke="#5a3a20" stroke-width="2"/>
+  <!-- Head -->
+  <circle cx="70" cy="52" r="20" fill="#e9c39a" stroke="#5a3a20" stroke-width="2.5"/>
+  <!-- Bald head shine, white eyebrows, closed calm eyes -->
+  <path d="M60 38 Q66 34 72 36" stroke="#fff" stroke-width="2" opacity="0.6" fill="none"/>
+  <path d="M56 47 Q61 43 66 47 M74 47 Q79 43 84 47" stroke="#f4f4f4" stroke-width="3.5" stroke-linecap="round" fill="none"/>
+  <path d="M58 52 Q61 54 64 52 M76 52 Q79 54 82 52" stroke="#3a2614" stroke-width="2" stroke-linecap="round" fill="none"/>
+  <!-- Long white beard and moustache -->
+  <path d="M54 58 Q56 92 70 104 Q84 92 86 58 Q78 66 70 64 Q62 66 54 58 Z" fill="#f4f4f4" stroke="#9a9a9a" stroke-width="2"/>
+  <path d="M60 62 Q70 56 80 62" stroke="#d8d8d8" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

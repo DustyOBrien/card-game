@@ -23,6 +23,8 @@
 #                   tutorial, then his first two quests (Gather Stone, Need Hops).
 #   4. Adventurer Trained   Back from the Adventurer's training and the deck
 #                   builder: the Innkeeper's slime news, and the next quests.
+#   5. Old Master   After your first level up: the Old Master appears at the
+#                   edge of town (click him to duel), with his quest.
 extends Control
 
 const SHOP_SCENE := "res://scenes/shop.tscn"
@@ -38,6 +40,13 @@ const QUEST_ICON := preload("res://art/town/quest.svg")
 const GUILD_HALL_ICON := preload("res://art/town/guild_hall.svg")
 const INN_ICON := preload("res://art/town/inn.svg")
 const SLIME_ART := preload("res://art/enemies/slime.svg")
+const OLD_MASTER_ART := preload("res://art/enemies/old_master.svg")
+const BATTLE_SCENE := "res://scenes/battle.tscn"
+const TALENTS_SCENE := "res://scenes/talents.tscn"
+const DOJO_SCENE := "res://scenes/dojo.tscn"
+const OLD_MASTER := "Old Master"  # The enemy you duel.
+const OLD_MASTER_QUEST := "The Old Master"
+const MASTER_MET := "Old Master Met"  # Story beat: his arrival banner has played.
 # Story beats (see the top of this file). The milestones live in GameState
 # because quests.csv can name them in Starts After.
 const WELCOME := "Welcome"
@@ -57,6 +66,7 @@ const DONE_COLOR := Color(0.55, 0.95, 0.55)
 var flask_button: Button  # "Flask: Health Flask", next to Edit Deck.
 var packs_button: Button  # "Your Packs (3)": open them (at the Shop, or before it's built).
 var road: TownRoad  # The road out of town, with its "To the Map" sign (town_road.gd).
+var master_button: Button  # The Old Master, waiting at the edge of town for your duel.
 var overlay: Control  # The quest panel or the Guild Hall while it's open.
 var panels := {}  # Building name -> its panel on the street (for guides to point at).
 # Parts of the Guild Hall screen, for its first-visit guide.
@@ -90,6 +100,7 @@ func _ready() -> void:
 	packs_button.tooltip_text = "Open your booster packs."
 	packs_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
 	flask_button.add_sibling(packs_button)
+	make_old_master()
 	summary_label.text = run_summary()
 	message_label.text = ""
 	refresh()
@@ -138,6 +149,10 @@ func refresh() -> void:
 	# No adventurer yet: you're running the town, so there's no deck or flask to look at.
 	deck_button.visible = GameState.adventurers_here()
 	flask_button.visible = GameState.adventurers_here()
+	# The Old Master waits at the edge of town while his quest is on and not yet won.
+	var master_quest := GameState.find_quest(OLD_MASTER_QUEST)
+	master_button.visible = master_quest != null and GameState.active_quests.has(OLD_MASTER_QUEST) \
+		and not GameState.quest_ready(master_quest) and GameState.story_beats.has(MASTER_MET)
 	packs_button.visible = GameState.pack_count() > 0
 	packs_button.text = "Open Packs (%d)" % GameState.pack_count()
 	packs_button.theme_type_variation = &"PrimaryButton"  # Gold: there's something to open!
@@ -279,6 +294,10 @@ func make_action(building: TownBuilding, stage: int) -> Button:
 		button.text = "Enter the Alchemist"
 		button.tooltip_text = "Brew and upgrade flasks, and unlock potions so they drop in the dungeon."
 		button.pressed.connect(open_alchemist.bind("Flasks"))
+	elif building.bonus(TownBuilding.DOJO, stage) > 0:
+		button.text = "Enter the Dojo"
+		button.tooltip_text = "Your talent points, and the Monster Book: every monster you've met."
+		button.pressed.connect(func() -> void: get_tree().change_scene_to_file(DOJO_SCENE))
 	elif building.bonus(TownBuilding.MAPMAKER, stage) > 0:
 		button.text = "Buy a Map  (%d gold)" % GameState.MAP_PRICE
 		button.tooltip_text = "Unlocks a new room card in a dungeon you can visit."
@@ -893,7 +912,10 @@ func quest_reward_text(text: String) -> String:
 				var pack := GameState.find_pack(rest.get_slice(" ", 0))
 				parts.append("%d %s%s" % [count, pack.name, "s" if count > 1 else ""])
 			"gold": parts.append("%s gold" % rest)
-			"unlock": parts.append("%s unlocked" % rest)
+			"unlock": parts.append(("Talent System" if rest == "Talents" else rest) + " unlocked")
+			"legacy":
+				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
+				parts.append("%d Legacy Talent Point%s" % [points, "s" if points > 1 else ""])
 			_: parts.append(reward)
 	return ", ".join(parts)
 
@@ -915,9 +937,11 @@ func _on_hand_in(quest: Quest) -> void:
 			"Meet the Adventurer", func() -> void: get_tree().change_scene_to_file(CHARACTER_SCENE))
 		return
 	if GameState.talents_open() and not talents_before:
-		UnlockBanner.show_in(self, "TALENTS UNLOCKED!", "Your adventurers can grow", null,
-			"Every class levels up from the Exp it earns in fights. Each level gives a TALENT POINT: spend it in your spec's talent tree (or the others) for lasting bonuses.\n\nFind the Talents button on Character Select and in the Deck Builder.",
-			"Got it!", _show_quest_complete.bind(quest.quest_name, lines))
+		# The Old Master's reward: the Talent System. Straight to the Talents
+		# screen, where a guide explains the two kinds of points.
+		UnlockBanner.show_in(self, "TALENT SYSTEM UNLOCKED!", "The Old Master will teach you", OLD_MASTER_ART,
+			"\"You fight well. Now learn to grow.\" Your adventurers can learn TALENTS: lasting bonuses, paid for with talent points.\n\nQuest rewards: %s" % ", ".join(lines),
+			"Show me the Talents", open_talents)
 		return
 	# A quest reward opened a new spec (Pack Rat...).
 	for feature in GameState.unlocked_features:
@@ -1146,6 +1170,8 @@ func play_story() -> void:
 		show_innkeeper_thanks()
 	elif GameState.adventurers_here() and GameState.tutorial_done and not GameState.story_beats.has(GameState.ADVENTURER_TRAINED):
 		show_slime_news()
+	elif GameState.story_beats.has(GameState.FIRST_LEVEL_UP) and not GameState.story_beats.has(MASTER_MET):
+		show_old_master_arrives()
 	elif inn_waiting():
 		message_label.text = "Click the Guild Hall to build the Inn."
 		show_next_story(false)
@@ -1230,3 +1256,95 @@ func announce_quests(back_to_board: bool) -> void:
 	var title := "NEW QUEST!" if fresh.size() == 1 else "%d NEW QUESTS!" % fresh.size()
 	UnlockBanner.show_in(self, title, "Find them at the Inn any time", QUEST_ICON,
 		"\n".join(lines), "Read them" if fresh.size() > 1 else "Read it", show_next_story.bind(back_to_board))
+
+
+# --- The Old Master ------------------------------------------------------------------
+
+# He stands at the right edge of town: his picture and a "Duel!" sign.
+func make_old_master() -> void:
+	master_button = Button.new()
+	master_button.icon = OLD_MASTER_ART
+	master_button.expand_icon = true
+	master_button.flat = true
+	master_button.text = "The Old Master\nClick to duel!"
+	master_button.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	master_button.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	master_button.add_theme_color_override("font_color", GOLD_COLOR)
+	master_button.add_theme_color_override("font_hover_color", Color.WHITE)
+	master_button.add_theme_color_override("font_outline_color", Color.BLACK)
+	master_button.add_theme_constant_override("outline_size", 6)
+	master_button.add_theme_font_size_override("font_size", 16)
+	master_button.tooltip_text = "Duel the Old Master. Losing costs nothing."
+	master_button.custom_minimum_size = Vector2(150, 250)
+	master_button.size = master_button.custom_minimum_size
+	# Right edge of town, above the road out.
+	# Anchored to the top-right corner; the offsets count back from that edge,
+	# so he stays in the corner whatever size the window is.
+	master_button.set_anchors_preset(Control.PRESET_TOP_RIGHT)
+	master_button.offset_left = -175
+	master_button.offset_right = -25
+	master_button.offset_top = 300
+	master_button.offset_bottom = 550
+	master_button.pressed.connect(ask_duel)
+	master_button.visible = false
+	add_child(master_button)
+	# He sways a little, like he's breathing.
+	master_button.pivot_offset = Vector2(75, 250)
+	var tween := master_button.create_tween().set_loops()
+	tween.tween_property(master_button, "rotation", 0.03, 1.4).set_trans(Tween.TRANS_SINE)
+	tween.tween_property(master_button, "rotation", -0.03, 1.4).set_trans(Tween.TRANS_SINE)
+
+
+# STORY BEAT 5: your first level up brings the Old Master to town.
+func show_old_master_arrives() -> void:
+	var slain := GameState.monsters_slain
+	var praise := "%d monsters already? " % slain if slain > 1 else ""
+	UnlockBanner.show_in(self, "THE OLD MASTER!", "A stranger watches from the edge of town", OLD_MASTER_ART,
+		"An old man with a long white beard steps out of the shadows.\n\n\"%sI've been watching you, young one. Impressive... for a beginner. Let's see what you're really made of.\"" % praise,
+		"Who are you?", func() -> void:
+			GameState.story_beats.append(MASTER_MET)
+			GameState.save_game()
+			refresh()
+			pop_in(master_button)
+			announce_quests(false))
+
+
+# Click the Old Master: start the duel?
+func ask_duel() -> void:
+	GameState.ensure_ready()
+	var box := open_overlay()
+	box.add_child(make_label("The Old Master", 30, GOLD_COLOR))
+	var picture := TextureRect.new()
+	picture.texture = OLD_MASTER_ART
+	picture.custom_minimum_size = Vector2(0, 150)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	box.add_child(picture)
+	box.add_child(make_label("\"Ready, %s? Don't hold back. I won't.\"" % GameState.character_class.display_name, 18, Color.WHITE))
+	box.add_child(make_label("You fight with your %s and its deck (%d cards), at full HP. He has 45 HP, hits hard, blocks, and gets stronger as the fight goes on. Losing costs you nothing." % [
+		GameState.character_class.display_name, GameState.deck.size()], 15, Color(1, 1, 1, 0.75)))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	box.add_child(row)
+	var fight := Button.new()
+	fight.text = "Duel!"
+	fight.theme_type_variation = &"PrimaryButton"
+	fight.custom_minimum_size = Vector2(160, 46)
+	fight.pressed.connect(func() -> void:
+		GameState.start_duel(OLD_MASTER)
+		get_tree().change_scene_to_file(BATTLE_SCENE))
+	row.add_child(fight)
+	var later := Button.new()
+	later.text = "Not yet"
+	later.custom_minimum_size = Vector2(140, 46)
+	later.pressed.connect(close_overlay)
+	row.add_child(later)
+
+
+# The Talents screen (from the Dojo, or after the Old Master's reward). Its
+# Back button comes back to town.
+func open_talents() -> void:
+	GameState.ensure_ready()
+	GameState.talents_return_scene = scene_file_path
+	get_tree().change_scene_to_file(TALENTS_SCENE)

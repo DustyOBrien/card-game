@@ -51,6 +51,7 @@ func _ready() -> void:
 	build_tabs()
 	build_tree()
 	refresh()
+	start_guide.call_deferred()
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +206,10 @@ func row_y(tier: int) -> float:
 
 func refresh() -> void:
 	var points := GameState.talent_points_left(character_class)
-	points_label.text = "Talent points: %d" % points
+	# Two kinds of points: the class's own (from leveling) and Legacy ones (from
+	# quests, every class gets them). They're spent the same way.
+	points_label.text = "Talent points to spend: %d   (%s: %d from levels  ·  Legacy: %d)" % [points,
+		character_class.display_name, GameState.class_talent_points(character_class), GameState.legacy_talent_points]
 	# Each tab shows the points spent in it, e.g. "Pack Rat  (3)".
 	for tree_name: String in tab_buttons:
 		var star := "★ " if tree_name == GameState.spec_of(character_class) else ""  # Your spec's tree.
@@ -334,3 +338,16 @@ func _on_reset_pressed() -> void:
 # Back to wherever you came from (Character Select or the deck builder).
 func _on_back_pressed() -> void:
 	get_tree().change_scene_to_file(GameState.talents_return_scene)
+
+
+# The first visit: a guide explains talents and the two kinds of points
+# (screen_guide.gd). Shows once.
+func start_guide() -> void:
+	var steps := [
+		{"target": tree_area, "text": "These are TALENTS: lasting bonuses for this class. Click one to learn it (it costs a point). Lower rows open up as you put points into the tree above."},
+		{"target": points_label, "text": "TALENT POINTS come in two kinds. Your class earns its own: 1 every time it levels up, and only that class can use them."},
+		{"target": points_label, "text": "LEGACY TALENT POINTS come from quests (the Old Master just gave you one!). EVERY class gets them, so each class can spend them."},
+		{"target": tree_tabs, "text": "Each tab is a talent tree. The ★ one belongs to your Spec, but your points can go in any tree."},
+		{"target": reset_button, "text": "Changed your mind? Reset gives all of this class's points back."},
+	]
+	ScreenGuide.start(self, "talents", steps)
