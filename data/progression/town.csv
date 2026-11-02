@@ -3,7 +3,7 @@ Guild Hall,1,0,Bank,1,guild_hall.svg,Your home base. Its Bank keeps your materia
 Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,"Opens quests, the Plains and the Adventurer",Stone 5,Yes
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,,
-Tailor,1,30,Sack Slots,1,tailor.svg,Sews a bigger Save Sack.,Save Sack +1 slot,,Yes
+Tailor,1,30,Sack Slots,2,tailor.svg,Sews you a Save Sack: what's in it is kept even if you die.,A Save Sack with 2 slots,,Yes
 Tailor,2,50,Gold Stack,10,,,Each Save Sack slot holds 10 more gold,,
 Tailor,3,90,Sack Slots,1,,,Save Sack +1 slot,,
 Enchanter,1,40,Enchanter,1,enchanter.svg,Enchants for your next run.,Buy enchants to take into your next run,,Yes

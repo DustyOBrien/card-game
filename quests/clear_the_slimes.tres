@@ -6,7 +6,7 @@
 script = ExtResource("1_xd7kw")
 quest_name = "Clear the Slimes"
 giver = "The Innkeeper"
-text = "\"Welcome! An Adventurer just checked in, and you've got a town to run, so leave the fighting to them. First job: Green Slimes are oozing all over the Plains road. Bring me back 5 Green Ooze.\" Pick the Adventurer on Character Select. Green Slimes drop Green Ooze. Like gold, it's only yours once you get home (or if it's in your Save Sack)."
+text = "\"Welcome! An Adventurer just checked in, and you've got a town to run, so leave the fighting to them. First job: Green Slimes are oozing all over the Plains road. Bring me back 5 Green Ooze.\" Pick the Adventurer on Character Select. Green Slimes drop Green Ooze. Like gold, it's only yours once you get home."
 objective = "have"
 target = "Green Ooze"
 amount = 5

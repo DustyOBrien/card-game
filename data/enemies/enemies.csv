@@ -1,7 +1,8 @@
 Name,HP,Armor,Art,Width,Height,Name Color,Move Order,Split Into,Split Count,Boss,Exp,Bonus Gold,Drops
+Small Slime,14,0,slime.svg,130,98,#8cf28c,Random,,,No,10,0,Green Ooze 100%
 Slime,20,0,slime.svg,160,120,#8cf28c,Random,,,No,10,0,Green Ooze 100%
 Slimeling,8,0,slimeling.svg,110,82,#99d1ff,Random,,,No,10,0,
-Big Slime,28,0,big_slime.svg,190,143,#5fd16a,Random,Slime,2,No,15,0,Green Ooze 100%
+Big Slime,28,0,big_slime.svg,190,143,#5fd16a,Random,Small Slime,2,No,15,0,Green Ooze 100%
 Slime King,55,0,slime_king.svg,190,165,#ffd34d,In Order,,,Yes,60,20,
 Wolf,13,0,wolf.svg,170,120,#d6d0c4,Random,,,No,10,0,
 Mushroom,14,0,mushroom.svg,120,130,#f09a9a,Random,,,No,10,0,

@@ -127,7 +127,7 @@ In the battle:
 - **Advantage / Disadvantage:** roll each die twice and keep the higher (Advantage) or the lower (Disadvantage). The dice tray shows the die that was thrown away, small and faded. Having both cancels out. Insight gives your next roll Advantage; if that card already rolled when you drew it, it rolls a second set when you play it and keeps the higher dice.
 - **Gamble** asks you to click a card in your hand (one that already rolled, not a Wild one) and rolls its dice again.
 - **Criticals:** a die that lands on its top number (a 3 on a d3, a 6 on a d6) is a **Critical**, and the card's Crit effect happens (e.g. "Crit: Draw 1"). Bonuses count: with Master of None's +1, a 2 on a d3 becomes 3, which is a crit. Every die checks on its own, so Multi Strike (two d3s) can crit twice.
-- **Armor** saves leftover Block, and it's part of your class (the Adventurer has 3). Normally your Block drops to 0 at the start of your turn. With Armor 3, up to 3 of it stays: gain 10 Block, take a 5 hit, and the 5 left over becomes 3 next turn (2 left over would stay 2). Armor never gives you Block on its own. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`. Enemies can have Armor too: click an enemy in `enemies/` and set **Armor** in the Inspector (the Slime has 0).
+- **Armor** saves leftover Block, and it's part of your class (the Adventurer has 3). Normally your Block drops to 0 at the start of your turn. With Armor 3, up to 3 of it stays: gain 10 Block, take a 5 hit, and the 5 left over becomes 3 next turn (2 left over would stay 2). Armor never gives you Block on its own. It's shown next to your Block: `Block 5  (Armor 3)`. Change a class's Armor in its `.tres` file in `classes/`. Enemies can have Armor too: click an enemy in `enemies/` and set **Armor** in the Inspector (the Small Slime has 0).
 - **Vanish** cards (marked *Vanish* at the bottom) disappear once you play them, for the rest of the run: they don't go to the discard pile, and they're left out of the next fights too. A new run brings them back. This stops healing cards from being played over and over.
 - **Flawless** cards (marked *Flawless*) crit on every die, whatever they roll. The Pack Rat spec makes the FIRST play of each card in a fight Flawless too.
 - **Empowered** cards roll every die one size bigger: d3 → d6 → d8 → d10 → d12 → d20 (the top). Bigger dice hit harder, but a crit still needs the top number, so they crit less often.
@@ -186,12 +186,14 @@ of squares, and you start in the middle. Every other square is hidden.
   from `data/super_cards.csv` (same columns as cards.csv, Rarity = Super).
 - Gold, cards and packs you find are only **yours once you get out**: Leave at a
   campfire or beat the Boss. Die, and the dungeon keeps them (you keep your Exp),
-  except what's in your **Save Sack**.
-- **Save Sack.** The side panel lists what you've Found as little buttons. Drag one
+  except what's in your **Save Sack** (once you have one).
+- **Save Sack** (only once the **Tailor** is built: its first stage sews a
+  2-slot sack). The side panel lists what you've Found as little buttons. Drag one
   into a Save Sack slot (or click it) and it's safe even if you die; click a slot
-  to take it back out. You start with **2 slots**; a slot holds a pack, a card, or
-  up to **5 gold**. The Tailor in town adds slots and gold.
-- **Enchants.** Fights sometimes drop an enchant (35% for a Fight, 60% Hard Fight,
+  to take it back out. A slot holds a pack, a card, or up to **5 gold**. The
+  Tailor's later stages add gold per slot and another slot.
+- **Enchants** (only once the **Enchanter** is built; until then they don't drop,
+  chests skip them, and event choices that give one are hidden). Fights sometimes drop an enchant (35% for a Fight, 60% Hard Fight,
   always for a Mini Boss). Press **Use Enchant** and click a card in your deck: it
   gets the enchant **for this run** (one per card). Enchanted cards say
   "Enchant: Sharpened" at the bottom.
@@ -239,7 +241,7 @@ fighting at first: Character Select and the Deck Builder stay hidden.
    All Trades is open, the others show 🔒 Locked), and the Deck Builder's Guide explains the
    screen. **Skip Tutorial** jumps to the splash, and Character Select's
    **Tutorial** button replays the fights.
-4. **Clear the Slimes**: bring home 5 Green Ooze (Green Slimes drop it). Gives the
+4. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Tier 1 has the weaker **Small Slime** (14 HP, hits 1-4); the old Slime (20 HP, hits 2-5) lives in Tier 2 and up. Gives the
    Alchemist blueprint and adds the Blue Slime rooms to the Plains.
 5. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
    Health Flask there (3 Green Ooze). Gives the Shop blueprint.
@@ -265,14 +267,14 @@ once, when it starts. Before the Inn exists, the King's quests are on the
 **Materials** drop from enemies and turn up in rooms: Stone is the Plains'
 building material, Green Ooze comes from Green Slimes, and Lumber from the
 Forest's trees. Like gold, they're only yours once you get home; put them in the
-Save Sack to keep them if you die. The **Guild Hall**'s **Bank** shows them all.
+Save Sack (once the Tailor makes you one) to keep them if you die. The **Guild Hall**'s **Bank** shows them all.
 
 The other buildings, once you have their blueprint (hover the button to see what
 the next stage does):
 
 - **Shop**: booster packs. Stage 2: packs cost 1 less.
-- **Tailor**: a bigger Save Sack (+1 slot, then 10 more gold per slot, then +1 slot).
-- **Enchanter**: buy a random enchant (15 gold) to take into your next run.
+- **Tailor**: sews your **Save Sack** (2 slots), then 10 more gold per slot, then +1 slot.
+- **Enchanter**: turns on enchants (drops, chests, events), and sells a random enchant (15 gold) to take into your next run.
   Stage 2: when an enchant drops, choose from 2.
 - **Alchemist**: brew flasks, and buy a random potion (8 gold) for your next run. Stage 2: carry 1 more.
 - **Mapmaker**: buy a map (25 gold) that unlocks a new room card. Stage 2: danger
@@ -884,7 +886,7 @@ after changing them (it does cards, talents and enemies). The folder has a
 | Width, Height | 190, 143 | How big the picture is drawn, in pixels |
 | Name Color | #5fd16a | The colour of its name |
 | Move Order | Random | **Random**: picks a move by Weight each turn. **In Order**: move 1, 2, 3, then back to 1 (bosses, so you can learn the pattern) |
-| Split Into | Slime | Blank = never splits. Otherwise, at half HP it splits on its turn into Split Count of these, each with the HP it had left |
+| Split Into | Small Slime | Blank = never splits. Otherwise, at half HP it splits on its turn into Split Count of these, each with the HP it had left |
 | Split Count | 2 | How many it splits into |
 | Boss | Yes | A boss. Beating it in an area's Boss room opens the areas that Unlock After it |
 | Exp | 15 | Class Exp for beating it |
@@ -1039,8 +1041,8 @@ Unlocked = `Quest` only joins the room deck through a quest reward. Rows with
 Tier = `Guide` are the guided first run (before the Inn): no shuffle, drawn in
 the sheet's order. Room Loot can name a material too: `Stone 2` or `Stone 1-3`.
 
-The prices (enchant 15, potion 8, map 25) and the starting Save Sack (2 slots,
-5 gold) and potion slots (3) are at the top of `game_state.gd`. Drop chances are
+The prices (enchant 15, potion 8, map 25) and the Save Sack (0 slots until the
+Tailor; 5 gold a slot) and potion slots (3) are at the top of `game_state.gd`. Drop chances are
 `ENCHANT_CHANCE` and `POTION_CHANCE` in `dungeon_run.gd`, and room Loot can also
 say **Enchant** or **Potion**.
 

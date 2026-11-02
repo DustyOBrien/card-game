@@ -27,6 +27,6 @@ texture = ExtResource("3_aufsw")
 sprite_size = Vector2(190, 143)
 name_color = Color(0.37254903, 0.81960785, 0.41568628, 1)
 moves = Array[ExtResource("1_6wunj")]([SubResource("Resource_p6yv6"), SubResource("Resource_h2wp3")])
-split_into = "Slime"
+split_into = "Small Slime"
 exp = 15
 drops = PackedStringArray("Green Ooze 100")

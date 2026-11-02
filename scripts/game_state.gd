@@ -51,7 +51,7 @@ const TOWN_FOLDER := "res://town/"
 const ENCHANTS_FOLDER := "res://enchants/"
 const POTIONS_FOLDER := "res://potions/"
 const FLASKS_FOLDER := "res://flasks/"
-const BASE_SACK_SLOTS := 2  # Save Sack slots before the Tailor.
+const BASE_SACK_SLOTS := 0  # No Save Sack until the Tailor is built (town.csv: its stage 1 gives 2 slots).
 const BASE_GOLD_STACK := 5  # Gold one Save Sack slot holds before the Tailor.
 const BASE_POTION_SLOTS := 3  # Potions you can carry before the Alchemist.
 const ENCHANT_PRICE := 15  # At the Enchanter.
@@ -731,6 +731,16 @@ func town_bonus(effect: String) -> int:
 
 func sack_slots() -> int:
 	return BASE_SACK_SLOTS + town_bonus(TownBuilding.SACK_SLOTS)
+
+
+# The Save Sack only exists once the Tailor has sewn it.
+func sack_open() -> bool:
+	return sack_slots() > 0
+
+
+# Enchants only drop (and show up in events) once the Enchanter is built.
+func enchants_open() -> bool:
+	return town_bonus(TownBuilding.ENCHANTER) > 0
 
 
 func gold_stack() -> int:

@@ -17,6 +17,7 @@ const BATTLE_SCENE := "res://scenes/battle.tscn"
 const TOWN_SCENE := "res://scenes/town.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const ENCHANT_ICON := preload("res://art/potions/enchant.svg")
+const PACK_ICON := preload("res://icons/booster.svg")
 const SACK_ICON := preload("res://art/potions/sack.svg")
 const POTION_ICON := preload("res://art/potions/potion.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
@@ -450,7 +451,7 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 			if card and card.loot.has("Key"):
 				tip = "A small key! Each key opens one Locked Chest. You can walk back through rooms you've explored for free."
 			else:
-				tip = "Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it, except what's in your Save Sack. Try dragging the Stone into the sack."
+				tip = "Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
 		"chest":
 			tip = "A Locked Chest. Open it with a key." if dungeon.keys > 0 \
 				else "A Locked Chest, and no key yet. Keep exploring, then come back: chests wait for you."
@@ -489,6 +490,8 @@ func show_event() -> void:
 	var event: DungeonEvent = dungeon.rooms[dungeon.position].event
 	var choices := []
 	for i in event.choice_labels.size():
+		if dungeon.choice_hidden(event, i):
+			continue  # Not open yet (enchants before the Enchanter).
 		var label := event.choice_labels[i]
 		for effect in DungeonEvent.split_effects(event.effects[i]):
 			if effect.to_lower().begins_with("pay "):
@@ -780,10 +783,12 @@ func build_sack_panel() -> void:
 	sack_title.add_child(sack_picture)
 	sack_title.add_child(make_small_label("Save Sack: kept even if you die", Color(1, 0.85, 0.5)))
 	sack_title.tooltip_text = "Drag what you've found into a slot (or click it). If you die, you keep what's in the sack.\nEach slot holds a pack, a card, or up to %d gold. The Tailor in town makes it bigger." % GameState.gold_stack()
-	nodes.append(sack_title)
 	sack_row = HBoxContainer.new()
 	sack_row.add_theme_constant_override("separation", 6)
-	nodes.append(sack_row)
+	# No Save Sack until the Tailor sews one: then the title and slots show.
+	if GameState.sack_open():
+		nodes.append(sack_title)
+		nodes.append(sack_row)
 
 	nodes.append(make_small_label("Found (lost if you die):", Color(0.85, 0.82, 0.76)))
 	found_row = HFlowContainer.new()
@@ -799,6 +804,7 @@ func build_sack_panel() -> void:
 	enchant_button.custom_minimum_size = Vector2(190, 40)
 	enchant_button.pressed.connect(show_enchant_picker)
 	enchant_button.tooltip_text = "Put an enchant on a card in your deck. It lasts for this run, and each card holds one."
+	enchant_button.visible = GameState.enchants_open()  # Enchants come with the Enchanter.
 	gear.add_child(enchant_button)
 	potion_row = HBoxContainer.new()
 	potion_row.add_theme_constant_override("separation", 2)
@@ -848,7 +854,11 @@ func refresh_sack() -> void:
 		found_row.add_child(make_chip("%d gold" % dungeon.found_gold, {"kind": "gold"},
 			"Drag into the sack: a slot holds up to %d gold." % GameState.gold_stack()))
 	if dungeon.found_packs > 0:
-		found_row.add_child(make_chip("Small Plains Pack x%d" % dungeon.found_packs, {"kind": "pack"}, ""))
+		var pack_chip := make_chip("x%d" % dungeon.found_packs, {"kind": "pack"}, "")
+		pack_chip.icon = PACK_ICON  # A Small Plains Booster Pack.
+		pack_chip.add_theme_constant_override("icon_max_width", 22)
+		pack_chip.tooltip_text = "%d %s. " % [dungeon.found_packs, DungeonRun.PACK_NAME] + pack_chip.tooltip_text
+		found_row.add_child(pack_chip)
 	for card in dungeon.found_cards:
 		found_row.add_child(make_chip(card.card_name, {"kind": "card", "card": card}, ""))
 	for material_name in dungeon.found_materials:
@@ -903,6 +913,10 @@ func make_chip(text: String, data: Dictionary, tip: String) -> Button:
 	chip.text = text
 	chip.add_theme_font_size_override("font_size", 14)
 	chip.focus_mode = Control.FOCUS_NONE
+	if not GameState.sack_open():  # No Save Sack yet: just something you found.
+		chip.tooltip_text = "Bring it home to keep it."
+		chip.mouse_filter = Control.MOUSE_FILTER_PASS
+		return chip
 	chip.tooltip_text = tip if not tip.is_empty() else "Drag into the Save Sack (or click)."
 	chip.pressed.connect(_put_in_sack.bind(data))
 	chip.set_drag_forwarding(func(_at: Vector2) -> Variant:

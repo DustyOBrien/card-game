@@ -1,0 +1,28 @@
+[gd_resource type="Resource" script_class="EnemyData" format=3]
+
+[ext_resource type="Script" path="res://scripts/enemy_move.gd" id="1_3ot7t"]
+[ext_resource type="Script" path="res://scripts/enemy_data.gd" id="2_lmsuf"]
+[ext_resource type="Texture2D" path="res://art/enemies/slime.svg" id="3_r5m4l"]
+
+[sub_resource type="Resource" id="Resource_kdqtx"]
+script = ExtResource("1_3ot7t")
+move_name = "Tackle"
+weight = 3
+attack_min = 1
+attack_max = 4
+
+[sub_resource type="Resource" id="Resource_tsf13"]
+script = ExtResource("1_3ot7t")
+move_name = "Harden"
+max_in_a_row = 1
+block = 4
+
+[resource]
+script = ExtResource("2_lmsuf")
+display_name = "Small Slime"
+max_hp = 14
+texture = ExtResource("3_r5m4l")
+sprite_size = Vector2(130, 98)
+name_color = Color(0.54901963, 0.9490196, 0.54901963, 1)
+moves = Array[ExtResource("1_3ot7t")]([SubResource("Resource_kdqtx"), SubResource("Resource_tsf13")])
+drops = PackedStringArray("Green Ooze 100")

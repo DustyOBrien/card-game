@@ -7,10 +7,10 @@ Plains,Guide,Quiet Meadow,Empty,1,Yes,,,,
 Plains,Guide,Stone Pile,Treasure,1,Yes,,,Stone 1,
 Plains,Guide,Shiny Key,Treasure,1,Yes,,,Key,
 Plains,Guide,Medium Chest,Locked Chest,1,Yes,,,Stone 2,
-Plains,1,Slime Patch,Fight,3,Yes,,"Slime | Slime | Slime, Slime",,Green Slimes only (they drop Green Ooze)
-Plains,1,Slime Ambush,Fight,2,Yes,Yes,"Slime | Slime, Slime",,Ambush: no backing off
-Plains,1,Blue Slime Patch,Fight,3,Quest,,"Slimeling, Slimeling | Slimeling, Slime | Slimeling, Slimeling, Slimeling",,Unlocked by the quest Clear the Slimes
-Plains,1,Blue Slime Ambush,Fight,1,Quest,Yes,"Slimeling, Slimeling | Slimeling, Slime",,Unlocked by the quest Clear the Slimes
+Plains,1,Slime Patch,Fight,3,Yes,,"Small Slime | Small Slime | Small Slime, Small Slime",,Green Slimes only (they drop Green Ooze)
+Plains,1,Slime Ambush,Fight,2,Yes,Yes,"Small Slime | Small Slime, Small Slime",,Ambush: no backing off
+Plains,1,Blue Slime Patch,Fight,3,Quest,,"Slimeling, Slimeling | Slimeling, Small Slime | Slimeling, Slimeling, Slimeling",,Unlocked by the quest Clear the Slimes
+Plains,1,Blue Slime Ambush,Fight,1,Quest,Yes,"Slimeling, Slimeling | Slimeling, Small Slime",,Unlocked by the quest Clear the Slimes
 Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 10-20 | Card | Pack | Map | Enchant | Potion | Stone 2-3,Needs a small key
 Plains,1,Shiny Rock,Treasure,1,Yes,,,Gold 5-12 | Key | Map | Potion | Stone 1-2 | Stone 1-2,
 Plains,1,Campfire,Campfire,1,Yes,,,,Rest or Leave
@@ -23,7 +23,7 @@ Plains,2,Mossy Chest,Locked Chest,1,Yes,,,Card | Pack | Map | Enchant | Potion,
 Plains,2,Lost Satchel,Treasure,1,Yes,,,Gold 10-20 | Card | Potion,
 Plains,2,Mystery,Event,1,Yes,,,,A random event (events.csv)
 Plains,2,Twin Giants,Mini Boss,1,Yes,,"Big Slime, Big Slime",Card | Pack,Beating it opens Tier 3
-Plains,1,Slime Den,Hard Fight,1,No,,"Big Slime, Slime",Pack | Card,Unlocked by a Map
+Plains,1,Slime Den,Hard Fight,1,No,,"Big Slime, Small Slime",Pack | Card,Unlocked by a Map
 Plains,1,Hidden Cache,Treasure,1,No,,,Pack | Card | Gold 15-25 | Potion,Unlocked by a Map
 Plains,2,Golden Glade,Campfire,1,No,,,,Unlocked by a Map
 Plains,3,Acid Pools,Fight,3,Yes,,"Acid Slime | Acid Slime, Slimeling | Slime, Acid Slime",Gold 5-10,

@@ -273,6 +273,14 @@ func pick_event() -> DungeonEvent:
 	return event
 
 
+# Is this choice left out completely? (Enchants, before the Enchanter is built.)
+func choice_hidden(event: DungeonEvent, index: int) -> bool:
+	for effect in DungeonEvent.split_effects(event.effects[index]):
+		if effect.strip_edges().to_lower().begins_with("enchant") and not GameState.enchants_open():
+			return true
+	return false
+
+
 # Can you pick this choice? "" = yes, otherwise why not ("Needs 10 gold").
 func choice_blocked(event: DungeonEvent, index: int) -> String:
 	for effect in DungeonEvent.split_effects(event.effects[index]):
@@ -416,7 +424,7 @@ func win_fight() -> String:
 	if randi_range(1, 100) <= KEY_CHANCE:
 		keys += 1
 		add_log("You found a small key!")
-	if randi_range(1, 100) <= ENCHANT_CHANCE.get(card.type, 0):
+	if GameState.enchants_open() and randi_range(1, 100) <= ENCHANT_CHANCE.get(card.type, 0):
 		add_log("An enchant! %s" % _drop_enchant())
 	if randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
 		add_log("A potion! %s" % _drop_potion())
@@ -518,7 +526,7 @@ func die() -> String:
 	_empty_sack()  # The sack's contents become the only thing "found"...
 	var saved := loot_text()
 	claim_loot()  # ...and you take them home.
-	add_log("You were defeated. Your Save Sack kept: %s." % saved)
+	add_log("You were defeated. Your Save Sack kept: %s." % saved if GameState.sack_open() else "You were defeated, and lost what you found.")
 	return saved
 
 
@@ -529,7 +537,12 @@ func die() -> String:
 func take_loot(card: RoomCard) -> String:
 	if card == null or card.loot.is_empty():
 		return "nothing"
-	var entry: String = Array(card.loot).pick_random()
+	# No enchants (or their loot) until the Enchanter is built.
+	var entries := Array(card.loot).filter(func(e: String) -> bool:
+		return GameState.enchants_open() or not e.strip_edges().to_lower().begins_with("enchant"))
+	if entries.is_empty():
+		return "nothing"
+	var entry: String = entries.pick_random()
 	var words := entry.strip_edges().split(" ", false)
 	match words[0].to_lower():
 		"gold":

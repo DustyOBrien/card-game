@@ -1356,7 +1356,10 @@ func _on_player_died() -> void:
 	var lost := dungeon.loot_text()
 	var saved := dungeon.die()
 	exp_bar.hide()  # No Exp for losing (you kept the Exp from the fights you won).
-	end_battle("Defeat...", "You won %d fight(s). The dungeon keeps what you found (%s).\nYour Save Sack kept: %s." % [dungeon.fights_won, lost, saved], "Back to Town →")
+	var text := "You won %d fight(s). The dungeon keeps what you found (%s)." % [dungeon.fights_won, lost]
+	if GameState.sack_open():
+		text += "\nYour Save Sack kept: %s." % saved
+	end_battle("Defeat...", text, "Back to Town →")
 
 
 # The button on the end-of-fight panel: back to the dungeon, or to town once the run is over.

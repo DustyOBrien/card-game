@@ -83,6 +83,8 @@ func run_summary() -> String:
 		"left":
 			return "You left the %s after %d fight(s), with %s." % [area_name, dungeon.fights_won, dungeon.loot_text()]
 		"died":
+			if not GameState.sack_open():
+				return "You fell after %d fight(s), and lost what you found." % dungeon.fights_won
 			return "You fell after %d fight(s). Your Save Sack brought home %s." % [dungeon.fights_won, dungeon.loot_text()]
 	return "Build up the town with the gold and materials you bring home from the dungeons."
 
@@ -746,7 +748,7 @@ func _show_quest_complete(finished: String, lines: Array[String]) -> void:
 func show_bank() -> void:
 	var box := open_overlay()
 	box.add_child(make_label("The Bank", 30, GOLD_COLOR))
-	box.add_child(make_label("What you've brought home is safe here. Materials you find in the dungeon only count once you get out (or if they're in your Save Sack).", 15, Color(1, 1, 1, 0.75)))
+	box.add_child(make_label("What you've brought home is safe here. Materials you find in the dungeon only count once you get out alive.", 15, Color(1, 1, 1, 0.75)))
 	var any := false
 	for info in GameState.load_materials():
 		var count := GameState.material_count(info.material_name)

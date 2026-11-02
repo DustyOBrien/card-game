@@ -19,6 +19,7 @@ const REVEAL_GAP := 0.35  # Seconds between the cards of a pack appearing.
 # The packs (names, card counts, prices) are GameState.PACKS, and the odds
 # are GameState.PACK_ODDS: edit them there.
 const PLAINS_COLOR := Color(0.36, 0.58, 0.27)  # Plains packs are grassy green.
+const PACK_ICON := preload("res://icons/booster.svg")  # A Plains booster pack.
 
 @onready var gold_label: Label = %GoldLabel
 @onready var summary_label: Label = %SummaryLabel
@@ -70,7 +71,10 @@ func refresh() -> void:
 		if count <= 0:
 			continue
 		var button := Button.new()
-		button.text = "Open %s  (x%d)" % [pack.name, count]
+		button.icon = PACK_ICON
+		button.add_theme_constant_override("icon_max_width", 30)
+		button.text = "Open %s  x%d" % [pack.size, count]
+		button.tooltip_text = pack.name
 		button.theme_type_variation = &"PrimaryButton"
 		button.custom_minimum_size = Vector2(0, 44)
 		button.pressed.connect(open_pack.bind(pack.name))
@@ -121,26 +125,20 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_theme_constant_override("separation", 10)
 	panel.add_child(box)
 
-	# The "packet": a coloured block with a big question mark, like a sealed pack.
-	var packet := PanelContainer.new()
-	packet.custom_minimum_size = Vector2(0, 100 + pack.cards * 8)  # Bigger packs look bigger.
-	var packet_style := StyleBoxFlat.new()
-	packet_style.bg_color = color
-	packet_style.set_corner_radius_all(8)
-	packet_style.border_color = Color(1, 1, 1, 0.5)
-	packet_style.border_width_top = 6  # The packet's sealed edge.
-	packet.add_theme_stylebox_override("panel", packet_style)
-	var mark := Label.new()
-	mark.text = "?"
-	mark.add_theme_font_size_override("font_size", 64)
-	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	packet.add_child(mark)
-	box.add_child(packet)
+	# The pack's picture (icons/booster.svg): bigger packs are drawn bigger.
+	var picture := TextureRect.new()
+	picture.texture = PACK_ICON
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.custom_minimum_size = Vector2(0, 70 + pack.cards * 12)
+	picture.tooltip_text = pack.name
+	box.add_child(picture)
 
 	var name_label := Label.new()
-	name_label.text = pack.name
-	name_label.add_theme_font_size_override("font_size", 20)
+	name_label.text = pack.size  # "Small": the picture says it's a Plains pack.
+	name_label.tooltip_text = pack.name
+	name_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	name_label.add_theme_font_size_override("font_size", 24)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	box.add_child(name_label)
 
@@ -291,12 +289,11 @@ func _make_sealed_pack(color: Color) -> PanelContainer:
 	style.shadow_color = color.lightened(0.3)
 	style.shadow_size = 24  # A glow around it.
 	packet.add_theme_stylebox_override("panel", style)
-	var mark := Label.new()
-	mark.text = "?"
-	mark.add_theme_font_size_override("font_size", 96)
-	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	packet.add_child(mark)
+	var picture := TextureRect.new()  # The Plains pack's picture on the front.
+	picture.texture = PACK_ICON
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	packet.add_child(picture)
 	return packet
 
 
