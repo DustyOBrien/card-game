@@ -264,7 +264,7 @@ stay hidden. The start is a few one-time **story beats** (`play_story()` in
    new quests gets that banner, so they're hard to miss.
 6. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Tier 1 has the weaker **Small Slime** (14 HP, hits 1-4); the old Slime (20 HP, hits 2-5) lives in Tier 2 and up. Gives 2 Small
    packs and adds the Blue Slime rooms to the Plains.
-7. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
+7. **Make your first Flask**: build the Alchemist (5 Stone and 5 Green Ooze), then brew the
    Health Flask there (3 Green Ooze). Gives the Shop and **Tailor** blueprints, and
    adds **Bunny Warrior** rooms to the Plains (Bunny Burrow, Bunny Ambush). Bunny
    Warriors (16 HP, Carrot Kick 2-4, Hop Back for 4 Block) always drop **Animal Hair**.
