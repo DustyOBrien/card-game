@@ -449,6 +449,8 @@ func start_player_turn() -> void:
 	if not game_over:
 		end_turn_button.disabled = false
 	update_ui()
+	if tutorial:
+		tutorial.turn_ready()  # The training points things out on the new hand.
 
 
 func _on_end_turn_pressed() -> void:
@@ -741,6 +743,7 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 
 	# Check this BEFORE healing, otherwise healing could fill you up first.
 	var was_at_full_hp := player.hp == player.max_hp
+	var had_advantage := next_roll_advantage and card.has_dice()  # For the training's ADVANTAGE! pop-up.
 
 	# Dice cards: roll now, unless the card already rolled when it was drawn.
 	# Wild cards roll here, so their dice tumble in the dice tray. Cards that
@@ -865,6 +868,8 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 	put_away(card, result.keep > 0)
 	busy = false
 	refresh_hand()
+	if tutorial:
+		tutorial.card_played(card, result, had_advantage)  # CRITICAL!, WILD!... the first time.
 
 
 # Who does one hit of this card land on?

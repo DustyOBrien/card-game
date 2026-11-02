@@ -242,8 +242,12 @@ stay hidden. The start is a few one-time **story beats** (`play_story()` in
    **Return to Town**, greyed out until you have it all. Hops is only for this.
 4. Handing in Need Hops brings the first **Adventurer** (a big unlock banner). Character
    Select and the Deck Builder open, and the Adventurer's training starts, three
-   fights against dummies (`scripts/tutorial.gd`). A "NEW THIS TURN" box explains
-   each new thing as it shows up:
+   fights against dummies (`scripts/tutorial.gd`). Each stage opens with a big
+   **STAGE 1: ATTACK!** banner. Then **spotlights** dim the screen and point at the
+   real thing (a card, its dice, your Energy, End Turn, the enemy's attack) with a
+   line of text and Next. The first time something special happens, a **keyword
+   pop-up** slams in (CRITICAL!, REROLL!, WILD!, ARMOR UP!, ADVANTAGE!, VANISH!),
+   and each stage ends with a **STAGE COMPLETE!** banner:
    - **Attack**: only Strikes. Dice roll when drawn, and a die that rolls its top
      number is a **crit** (one Strike is rigged to really roll a 3). Turn 2 draws
      Punch (Strength), Kick (Agility) and Reroll: **schools** and **rerolls**.

@@ -8,6 +8,10 @@
 #   Stage 2, Block:  turn 1 Full Guard (Wild cards), turn 2 Master of None
 #                    and Fortify ("+ next roll" bonuses, Armor)
 #   Stage 3, Heal:   Bandage and Insight (healing, Advantage, Vanish)
+# Each stage opens with a big intro banner (unlock_banner.gd), then SPOTLIGHTS
+# (screen_guide.gd) dim the screen and point at the real thing each turn:
+# a card, its dice, your Energy, End Turn... The first time something special
+# happens (a Critical, a Wild roll, Armor...), a KEYWORD POP-UP celebrates it.
 # Each stage draws its cards in a set order ("draw"), and can fix one die
 # ("rig") so the lesson always shows up. At the end: the NEW CARDS screen
 # (your first cards), then the Spec screen and the Deck Builder.
@@ -32,27 +36,37 @@ const CLEAN_TURNS_NEEDED := 2  # Stage 2: enemy turns in a row with no damage.
 const HEAL_NEEDED := 6  # Stage 3.
 const GOLD := Color(1, 0.84, 0.35)
 
-# Each stage: its title and goal, tips for each turn ("tips": turn -> lines;
-# later turns keep the last ones), the practice deck, the order you draw it
-# in ("draw", first card first; the rest come after, shuffled), dice to fix
-# ("rig": card name -> the first die's number, for the first copy drawn),
-# the enemies, and the HP you start with (-1 = full).
+# Each stage: its title, goal and intro banner (icon, text), the SPOTLIGHTS
+# for each turn ("spots": turn -> steps; see show_spots()), what it taught
+# ("learned", for the Stage Complete banner), the practice deck, the order you
+# draw it in ("draw", first card first; the rest come after, shuffled), dice
+# to fix ("rig": card name -> the first die's number for the first copy drawn,
+# or a list of numbers for the first few copies), the enemies, and the HP you start with (-1 = full).
+#
+# A spotlight step is {"at": what to point at, "text": what to say}. "at" can be:
+#   "enemy"         the first enemy        "energy"   your Energy
+#   "card:Strike"   that card in your hand  "end turn" the End Turn button
+#   "dice:Strike"   that card's dice (the   "block"    your Block (and Armor)
+#                   rigged copy if there is) "hp"       your HP
 const STAGES := [
 	{
 		"title": "Stage 1: Attack!",
 		"goal": "Defeat the Training Dummy.",
-		"tips": {
+		"icon": "res://icons/attack.svg",
+		"intro": "Time to learn how a fight works: play cards, roll dice, hit hard. Knock down the Training Dummy!",
+		"learned": "Energy, dice, Criticals, card Schools and Reroll.",
+		"spots": {
 			1: [
-				"Drag a Strike onto the dummy to attack. Each card costs Energy (top-left number). You get 3 every turn.",
-				"Dice cards ROLL when you draw them: the number on the die is what the card will do. Strike rolls a d3 (1 to 3).",
-				"A die that lands on its TOP number is a CRITICAL! One of your Strikes rolled a 3: it adds its Crit effect (+1 Damage). Look for the gold die.",
-				"Out of Energy? Press End Turn.",
+				{"at": "enemy", "text": "This is a Training Dummy. Bring its HP down to 0 to win. It won't hit back... yet."},
+				{"at": "card:Strike", "text": "This is STRIKE, an Attack card. To play it, DRAG it onto the dummy."},
+				{"at": "energy", "text": "Every card costs ENERGY: the number in its top-left corner. You get 3 Energy every turn."},
+				{"at": "dice:Strike", "text": "Dice cards ROLL when you draw them. This Strike rolled a 3, the top number of its d3: a CRITICAL! It deals +1 Damage. Play it first!"},
+				{"at": "end turn", "text": "Out of Energy? Press END TURN. The enemy takes its turn, then you draw a fresh hand."},
 			],
 			2: [
-				"New cards! Each card belongs to a SCHOOL: Punch is Strength (red), Kick is Agility (green). Neutral cards (grey) fit any deck.",
-				"Each school plays differently. Strength hits hard with big dice; Agility is quick and cheap.",
-				"REROLL (an Adventurer class card) lets you roll a card in your hand again. Don't like Punch's number? Play Reroll, then click Punch.",
-				"Crits on Punch and Kick add +2 Damage.",
+				{"at": "card:Punch", "text": "New cards! Every card has a SCHOOL. PUNCH is Strength (red): big dice, big hits."},
+				{"at": "card:Kick", "text": "KICK is Agility (green): quick and cheap. Neutral cards (grey) fit any deck."},
+				{"at": "card:Reroll", "text": "Don't like a roll? Play REROLL, then click a card in your hand to roll its dice again."},
 			],
 		},
 		"deck": {"Strike": 7, "Punch": 1, "Kick": 1, "Reroll": 1},
@@ -64,35 +78,44 @@ const STAGES := [
 	{
 		"title": "Stage 2: Block!",
 		"goal": "Take NO damage for 2 enemy turns in a row.",
-		"tips": {
+		"icon": "res://icons/block.svg",
+		"intro": "This dummy hits back! Learn to Block its attacks and soak up the damage.",
+		"learned": "Block, Wild cards, roll bonuses and Armor.",
+		"spots": {
 			1: [
-				"This dummy will Attack 6 (see under its name). Block soaks up damage before your HP.",
-				"Full Guard is WILD: it doesn't roll when drawn, it rolls when you PLAY it (d6 Block). Riskier, but its Crit gives you 1 Energy back.",
+				{"at": "enemy", "text": "Look under the dummy's name: it will ATTACK 6 this turn. Enemies always show you what they're about to do."},
+				{"at": "card:Full Guard", "text": "FULL GUARD gives you Block. It's WILD: its die rolls when you PLAY it, not when you draw it. Riskier, but its Crit gives you 1 Energy back."},
+				{"at": "block", "text": "Your BLOCK shows here. Block soaks up damage before your HP does. Get it to 6 before you End Turn!"},
 			],
 			2: [
-				"Fortify (Wisdom, purple) rolls d6 Block. It rolled a 5... play MASTER OF NONE first: its +1 goes on your next roll, so that 5 becomes a 6: a CRITICAL!",
-				"Fortify's Critical gives you +1 ARMOR for this fight. Armor keeps that much of your leftover Block at the start of each turn (the Adventurer has 3).",
+				{"at": "card:Master of None", "text": "MASTER OF NONE costs 0 and gives +1 to your NEXT roll."},
+				{"at": "dice:Fortify", "text": "This Fortify rolled a 5 on its d6. Play Master of None first: +1 turns that 5 into a 6, a CRITICAL! Fortify's crit gives you +1 ARMOR."},
 			],
 			3: [
-				"Your Block from last turn mostly faded, but your Armor kept some of it. Check the Block number next to your HP.",
+				{"at": "block", "text": "Your Block fades at the start of each turn, but your ARMOR keeps that much of it. That's why you still have some!"},
 			],
 		},
 		# Turn 1: only Full Guards. Turn 2: Master of None and Fortify arrive together.
 		"deck": {"Master of None": 1, "Fortify": 2, "Full Guard": 7},
 		"draw": ["Full Guard", "Full Guard", "Full Guard", "Full Guard", "Full Guard",
 			"Master of None", "Fortify", "Fortify", "Full Guard", "Full Guard"],
-		"rig": {"Fortify": 5},
+		# The first Fortify rolls 5 (a crit with Master of None), the second a
+		# plain 3, so the lesson isn't spoiled by a lucky natural 6.
+		"rig": {"Fortify": [5, 3]},
 		"enemies": ["Sparring Dummy"],
 		"hp": -1,
 	},
 	{
 		"title": "Stage 3: Heal!",
 		"goal": "Heal 6 HP.",
-		"tips": {
+		"icon": "res://icons/heal.svg",
+		"intro": "Ouch, you're hurt! Patch yourself up, and learn how to make every heal count.",
+		"learned": "Healing, Advantage and Vanish.",
+		"spots": {
 			1: [
-				"You're hurt (look at your HP). Bandage heals d3: drag it into the middle of the screen.",
-				"INSIGHT (Intellect, blue) gives your next roll ADVANTAGE: roll the dice twice and keep the better one. Play Insight, then a Bandage.",
-				"Bandage and Insight VANISH: once played, they're gone for the rest of the run (not just this fight). Healing is precious!",
+				{"at": "hp", "text": "You're down to 13 HP. Heal 6 to finish the training."},
+				{"at": "card:Insight", "text": "INSIGHT gives your next roll ADVANTAGE: it rolls twice and keeps the better one. Play it first!"},
+				{"at": "card:Bandage", "text": "BANDAGE heals d3. Drag it into the middle of the screen. Careful: it VANISHES once played."},
 			],
 		},
 		"deck": {"Insight": 1, "Bandage": 5},
@@ -103,12 +126,26 @@ const STAGES := [
 	},
 ]
 
+# The KEYWORD POP-UPS: the first time each thing happens in a fight, a big
+# gold word pops up over the battle with a line on what just happened.
+const KEYWORDS := {
+	"crit": ["CRITICAL!", "A die landed on its top number, so the card's Crit effect kicks in too."],
+	"reroll": ["REROLL!", "New dice, new chances. Rerolling can't make things worse than a fresh roll."],
+	"wild": ["WILD!", "Wild cards roll the moment you play them. You never know what you'll get!"],
+	"armor": ["ARMOR UP!", "Armor keeps that much of your Block from fading each turn, for the rest of the fight."],
+	"advantage": ["ADVANTAGE!", "Rolled twice, kept the better one. Great before a big roll."],
+	"vanish": ["VANISH!", "That card is gone for the rest of this RUN, not just this fight. Use Vanish cards wisely."],
+}
+
 var battle: Node  # The battle screen this panel sits on (battle.gd).
 var progress_label: Label
-var popup: PanelContainer
-var tips_box: VBoxContainer
-var tips_turn := -1  # The turn the tips on screen are for.
-var rigged: Array[String] = []  # Cards whose die we already fixed this stage.
+var intro_open := false  # The stage's intro banner is up: spotlights wait for it.
+var spots_waiting := false  # A turn's spotlights wait for the intro banner to close.
+var spotted_turns: Array[int] = []  # Turns whose spotlights already showed.
+var keywords_seen: Array[String] = []  # Keyword pop-ups already shown this stage.
+var keyword_queue: Array[String] = []  # Waiting to pop up (one at a time).
+var keyword_layer: Control  # The keyword pop-up on screen (null when none).
+var rigged := {}  # Card name -> how many copies we've already fixed this stage.
 var clean_turns := 0
 var start_hp := 0
 var won := false
@@ -123,6 +160,11 @@ static func begin(stage: int) -> void:
 			"dungeon": GameState.dungeon, "run_hp": GameState.run_hp, "vanished": GameState.vanished.duplicate(),
 			"enchants": GameState.run_enchants.duplicate()}
 	GameState.tutorial_stage = stage
+	if stage == 1:
+		# Playing the training (again): show every spotlight again. (Restarting a
+		# stage after losing keeps them seen, so they don't repeat.)
+		GameState.seen_guides.assign(GameState.seen_guides.filter(
+			func(guide_name: String) -> bool: return not guide_name.begins_with("training")))
 	var info: Dictionary = STAGES[stage - 1]
 	GameState.character_class = GameState.load_classes()[0]  # The Adventurer.
 	var practice: Array[CardData] = []
@@ -190,14 +232,11 @@ func _ready() -> void:
 	skip.pressed.connect(_on_skip)
 	header.add_child(skip)
 	box.add_child(make_label("Goal: " + info.goal, 16, Color.WHITE))
-	tips_box = VBoxContainer.new()
-	tips_box.add_theme_constant_override("separation", 4)
-	box.add_child(tips_box)
-	show_tips(1)
-	progress_label = make_label("", 16, Color(0.55, 0.95, 0.55))
+	progress_label = make_label("", 18, Color(0.55, 0.95, 0.55))
 	box.add_child(progress_label)
 	start_hp = GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
 	refresh()
+	show_intro.call_deferred()  # Once the battle screen is up.
 
 
 func make_label(text: String, font_size: int, color: Color) -> Label:
@@ -210,25 +249,176 @@ func make_label(text: String, font_size: int, color: Color) -> Label:
 	return label
 
 
-# The tips for this turn (a later turn with no tips of its own keeps the last ones).
-func show_tips(for_turn: int) -> void:
-	var tips: Dictionary = STAGES[GameState.tutorial_stage - 1].tips
-	var best := -1
-	for turn_number: int in tips:
-		if turn_number <= for_turn and turn_number > best:
-			best = turn_number
-	if best == tips_turn or best < 0:
+# --- The intro banner, spotlights and keyword pop-ups ----------------------------
+
+# The stage's big intro banner: "STAGE 1: ATTACK!".
+func show_intro() -> void:
+	var info: Dictionary = STAGES[GameState.tutorial_stage - 1]
+	intro_open = true
+	UnlockBanner.show_in(battle, info.title.to_upper(), "Adventurer training  ·  %d of %d" % [GameState.tutorial_stage, STAGES.size()],
+		load(info.icon), info.intro + "\n\nGoal: " + info.goal, "Let's fight!", func() -> void:
+			intro_open = false
+			if spots_waiting:
+				spots_waiting = false
+				show_spots(battle.turn))
+
+
+# battle.gd: your new hand is dealt and its dice have landed.
+func turn_ready() -> void:
+	if won:
 		return
-	tips_turn = best
-	for old in tips_box.get_children():
-		old.queue_free()
-	if best > 1:
-		tips_box.add_child(make_label("NEW THIS TURN:", 14, GOLD))
-	for tip: String in tips[best]:
-		tips_box.add_child(make_label("•  " + tip, 13, Color(1, 1, 1, 0.85)))
-	# A little flash so the new tips get noticed.
-	tips_box.modulate = Color(1.6, 1.4, 0.8)
-	create_tween().tween_property(tips_box, "modulate", Color.WHITE, 0.8)
+	if intro_open:
+		spots_waiting = true  # After the intro banner.
+	else:
+		show_spots(battle.turn)
+
+
+# This turn's spotlights: the screen dims, a glowing box points at each thing
+# in turn, with a line of text and a Next button (screen_guide.gd).
+func show_spots(turn: int) -> void:
+	var spots: Dictionary = STAGES[GameState.tutorial_stage - 1].spots
+	if not spots.has(turn) or spotted_turns.has(turn):
+		return
+	spotted_turns.append(turn)
+	var steps := []
+	for spot: Dictionary in spots[turn]:
+		var target := spot_target(spot.at)
+		if target:  # (A card you don't have in hand right now is skipped.)
+			steps.append({"target": target, "text": spot.text})
+	ScreenGuide.start(battle, "training %d turn %d" % [GameState.tutorial_stage, turn], steps)
+
+
+# What a spotlight's "at" points at on the battle screen (null = not there).
+func spot_target(at: String) -> Control:
+	match at:
+		"enemy":
+			return battle.enemy_views[0] if not battle.enemy_views.is_empty() else null
+		"energy":
+			return battle.energy_label
+		"end turn":
+			return battle.end_turn_button
+		"block":
+			return battle.player_block_label
+		"hp":
+			return battle.player_hp_label
+	var card_name := at.get_slice(":", 1)
+	var view := hand_card(card_name, at.begins_with("dice:"))
+	if view == null:
+		return null
+	return view.dice_row if at.begins_with("dice:") else view
+
+
+# A card in your hand by name. rigged = prefer the copy whose die we fixed.
+func hand_card(card_name: String, rigged_one: bool) -> Card:
+	var found: Card = null
+	var rig: Dictionary = STAGES[GameState.tutorial_stage - 1].get("rig", {})
+	for view: Card in battle.hand_box.get_children():
+		if view.card_data.card_name != card_name:
+			continue
+		if found == null:
+			found = view
+		if rigged_one and rig.has(card_name) and not view.card_data.roll_result.is_empty():
+			var first: int = rig[card_name][0] if rig[card_name] is Array else rig[card_name]
+			var dice: Array = view.card_data.roll_result.values()[0]
+			if not dice.is_empty() and dice[0] == first:
+				return view
+	return found
+
+
+# battle.gd: a card was just played. Pop up anything special that happened,
+# the first time it happens this stage.
+func card_played(card: CardData, result: Dictionary, had_advantage: bool) -> void:
+	var happened: Array[String] = []
+	if had_advantage:  # First: it explains the roll you just saw.
+		happened.append("advantage")
+	if result.crits > 0:
+		happened.append("crit")
+	if card.reroll > 0:
+		happened.append("reroll")
+	if card.wild and card.has_dice():
+		happened.append("wild")
+	if result.armor > 0:
+		happened.append("armor")
+	if card.vanish and result.keep == 0:
+		happened.append("vanish")
+	for keyword in happened:
+		if not keywords_seen.has(keyword):
+			keywords_seen.append(keyword)
+			keyword_queue.append(keyword)
+	if keyword_layer == null:
+		show_next_keyword()
+
+
+# A big gold word pops in over the battle, with sparkles and a line of text.
+func show_next_keyword() -> void:
+	if keyword_queue.is_empty() or won:
+		return
+	var keyword: String = keyword_queue.pop_front()
+	var words: Array = KEYWORDS[keyword]
+	keyword_layer = ColorRect.new()
+	(keyword_layer as ColorRect).color = Color(0, 0, 0, 0)
+	keyword_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	keyword_layer.mouse_filter = Control.MOUSE_FILTER_STOP  # Read it first.
+	battle.add_child(keyword_layer)
+	keyword_layer.create_tween().tween_property(keyword_layer, "color:a", 0.78, 0.2)
+	var screen: Vector2 = battle.get_viewport_rect().size
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_theme_constant_override("separation", 10)
+	keyword_layer.add_child(box)
+	var word := make_label(words[0], 76, GOLD)
+	word.autowrap_mode = TextServer.AUTOWRAP_OFF
+	word.custom_minimum_size = Vector2.ZERO
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	word.add_theme_color_override("font_outline_color", Color(0.35, 0.18, 0))
+	word.add_theme_constant_override("outline_size", 14)
+	box.add_child(word)
+	var line := make_label(words[1], 20, Color.WHITE)
+	line.custom_minimum_size = Vector2(560, 0)
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.add_theme_color_override("font_outline_color", Color.BLACK)
+	line.add_theme_constant_override("outline_size", 6)
+	box.add_child(line)
+	var ok := Button.new()
+	ok.text = "Got it!"
+	ok.theme_type_variation = &"PrimaryButton"
+	ok.custom_minimum_size = Vector2(160, 44)
+	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	ok.pressed.connect(_close_keyword)
+	box.add_child(ok)
+	box.reset_size()
+	box.position = (screen - box.size) / 2
+	box.pivot_offset = box.size / 2
+	# Slam in: big and see-through, then bounce down to size.
+	box.scale = Vector2(2.2, 2.2)
+	box.modulate.a = 0
+	var tween := box.create_tween().set_parallel()
+	tween.tween_property(box, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(box, "modulate:a", 1.0, 0.2)
+	# A burst of gold sparkles behind the word.
+	var sparkles := CPUParticles2D.new()
+	sparkles.position = screen / 2 - Vector2(0, 40)
+	sparkles.amount = 50
+	sparkles.one_shot = true
+	sparkles.explosiveness = 0.95
+	sparkles.lifetime = 1.2
+	sparkles.spread = 180
+	sparkles.initial_velocity_min = 180
+	sparkles.initial_velocity_max = 420
+	sparkles.gravity = Vector2(0, 300)
+	sparkles.scale_amount_min = 3
+	sparkles.scale_amount_max = 6
+	sparkles.color = GOLD
+	keyword_layer.add_child(sparkles)
+	keyword_layer.move_child(sparkles, 0)  # Behind the words.
+	sparkles.emitting = true
+
+
+func _close_keyword() -> void:
+	if keyword_layer:
+		keyword_layer.queue_free()
+		keyword_layer = null
+	show_next_keyword()
 
 
 # --- What battle.gd tells us ---------------------------------------------------
@@ -253,21 +443,25 @@ func arrange_draw_pile(draw_pile: Array[CardData]) -> void:
 # (only the first copy), so the lesson (a Critical...) always happens.
 func rig_roll(card: CardData) -> void:
 	var rig: Dictionary = STAGES[GameState.tutorial_stage - 1].get("rig", {})
-	if not rig.has(card.card_name) or rigged.has(card.card_name) or card.roll_result.is_empty():
+	if not rig.has(card.card_name) or card.roll_result.is_empty():
 		return
-	rigged.append(card.card_name)
+	# One number = the first copy only; a list = one number per copy, in draw order.
+	var numbers: Array = rig[card.card_name] if rig[card.card_name] is Array else [rig[card.card_name]]
+	var done: int = rigged.get(card.card_name, 0)
+	if done >= numbers.size():
+		return
+	rigged[card.card_name] = done + 1
 	var key: String = card.roll_result.keys()[0]  # "attack 0", "block"...
 	var dice: Array = card.roll_result[key]
 	if not dice.is_empty():
-		dice[0] = rig[card.card_name]
+		dice[0] = numbers[done]
 
 
 # Called whenever the battle screen updates: show progress, check stage 3.
 func refresh() -> void:
 	if battle == null or won:
 		return
-	if battle.turn > 0:
-		show_tips(battle.turn)
+	var before := progress_label.text
 	match GameState.tutorial_stage:
 		1:
 			progress_label.text = "Dummies left: %d" % battle.living_enemies().size()
@@ -278,6 +472,10 @@ func refresh() -> void:
 			progress_label.text = "Healed: %d / %d" % [mini(healed, HEAL_NEEDED), HEAL_NEEDED]
 			if healed >= HEAL_NEEDED and battle.turn > 0:  # (Before turn 1 your HP isn't set yet.)
 				stage_won.call_deferred()  # After the card finishes.
+	# Progress changed: give it a little gold flash.
+	if progress_label.text != before and not before.is_empty():
+		progress_label.modulate = Color(2, 1.7, 0.6)
+		progress_label.create_tween().tween_property(progress_label, "modulate", Color.WHITE, 0.6)
 
 
 func enemy_died() -> void:
@@ -316,40 +514,27 @@ func stage_won() -> void:
 	battle.game_over = true  # Stops cards and End Turn.
 	battle.end_turn_button.disabled = true
 	progress_label.text = "Done!"
+	_close_keyword_now()
+	var info: Dictionary = STAGES[GameState.tutorial_stage - 1]
 	var last := GameState.tutorial_stage >= STAGES.size()
-	popup = PanelContainer.new()
-	var style := StyleBoxFlat.new()
-	style.bg_color = Color(0.1, 0.08, 0.07, 0.96)
-	style.border_color = GOLD
-	style.set_border_width_all(3)
-	style.set_corner_radius_all(12)
-	style.set_content_margin_all(24)
-	style.shadow_color = Color(1, 0.8, 0.3, 0.35)
-	style.shadow_size = 16
-	popup.add_theme_stylebox_override("panel", style)
-	var box := VBoxContainer.new()
-	box.add_theme_constant_override("separation", 12)
-	popup.add_child(box)
-	var heading := make_label("Stage %d complete!" % GameState.tutorial_stage if not last else "Training complete!", 32, GOLD)
-	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(heading)
-	var text := "Nice work." if not last else "You know how to attack, block and heal. Time for a real adventure!"
-	var body := make_label(text, 18, Color.WHITE)
-	body.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	box.add_child(body)
-	var next := Button.new()
-	next.text = "Next Stage →" if not last else "Start Playing →"
-	next.theme_type_variation = &"PrimaryButton"
-	next.custom_minimum_size = Vector2(220, 48)
-	next.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	next.pressed.connect(_on_next)
-	box.add_child(next)
-	battle.add_child(popup)
-	popup.reset_size()
-	popup.position = (battle.size - popup.size) / 2
-	popup.pivot_offset = popup.size / 2
-	popup.scale = Vector2(0.6, 0.6)
-	create_tween().set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT).tween_property(popup, "scale", Vector2.ONE, 0.3)
+	# A short pause so you see the last hit land, then the banner.
+	await get_tree().create_timer(0.6).timeout
+	var title := "STAGE %d COMPLETE!" % GameState.tutorial_stage if not last else "TRAINING COMPLETE!"
+	var text: String = "You learned: " + info.learned
+	if last:
+		text = "You know how to attack, block and heal. Time for a real adventure!\n\n" + text
+	var button := "Next Stage →"
+	if last:
+		button = "Claim your cards →" if not GameState.tutorial_done else "Start Playing →"
+	UnlockBanner.show_in(battle, title, info.title, load(info.icon), text, button, _on_next)
+
+
+# Stage won while a keyword pop-up is up: take it down (the banner is next).
+func _close_keyword_now() -> void:
+	keyword_queue.clear()
+	if keyword_layer:
+		keyword_layer.queue_free()
+		keyword_layer = null
 
 
 func _on_next() -> void:
@@ -357,7 +542,6 @@ func _on_next() -> void:
 		var first_time := not GameState.tutorial_done
 		finish()
 		if first_time:
-			popup.queue_free()
 			show_new_cards()
 		else:
 			get_tree().change_scene_to_file(after_scene())
