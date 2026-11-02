@@ -30,4 +30,4 @@ name_color = Color(0.65882355, 0.84705883, 1, 1)
 moves = Array[ExtResource("1_pbav5")]([SubResource("Resource_ay5sf"), SubResource("Resource_oqtxd")])
 exp = 20
 bonus_gold = 2
-drops = PackedStringArray()
+drops = PackedStringArray("Stone 30")

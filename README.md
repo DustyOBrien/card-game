@@ -215,18 +215,32 @@ Your HP carries over from one fight to the next (the top of the battle screen
 shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
 to the grid. When the run ends (Boss beaten, Leave, or death) you go back to **Town**.
 
-**How a new game starts.** You're the one rebuilding the town, so there's no
-fighting at first: Character Select and the Deck Builder stay hidden.
+**How a new game starts.** You're the King's **Architect**, rebuilding the
+town, so there's no fighting at first: Character Select and the Deck Builder
+stay hidden. The start is a few one-time **story beats** (`play_story()` in
+`scripts/town.gd`, remembered in `GameState.story_beats`):
 
-1. **A Town of Your Own** (the King): his letter gives you 5 Stone and the
-   **Guild Hall** blueprint. Build it: its **Bank** keeps what you bring home.
-2. **Stone for the Inn**: a scripted trip to the Plains with no monsters. 5 Stone
-   in all: 1 each on two Stone Piles, plus a Small Chest (1) and a Medium Chest (2),
-   opened with the 2 keys you find. A Guide box explains each new thing (with
-   "Stone 3 / 5" progress). The campfire's only choice is **Return to Town**,
-   greyed out until you have the Stone. Then build the **Inn**.
-   Finding a key or a chest, and unlocking a chest, are animated.
-3. The Inn brings the first **Adventurer** (a big unlock banner). Character
+1. **Welcome to Town!** A banner: the King names you his Architect. Only the
+   **Guild Hall** stands. Then the **Inn blueprint** pops up like an unlock and
+   explains what blueprints are. **Read Blueprint** shows the Inn's ruins, and a
+   guide explains building (blueprint + materials, sometimes gold) and points at
+   the Guild Hall.
+2. **The Guild Hall** (it glows until the Inn is built): **5 Stone** pops up in
+   its **Bank** (from the King's builders), and a guide shows the **Build list**.
+   All building and upgrading happens in here now. Build the **Inn**.
+3. **The Inn is open!** The Innkeeper thanks you and asks for help, a
+   **Quests Unlocked!** banner explains how quests work, and his first two
+   quests start (no quests before the Inn):
+   - **Gather Stone**: have 5 Stone in your Bank. Reward: 1 Small pack and the
+     **Alchemist** blueprint.
+   - **Need Hops**: bring 3 Hops to the Inn (handing it in gives them away, a
+     **Deliver** quest). Reward: 1 Small pack and the **Adventurer**.
+   Both happen on one scripted Plains trip with no monsters, where YOU explore:
+   5 **Shiny Rocks** (1 Stone each), a Small Chest (1 Hops) and a Medium Chest
+   (2 Hops), opened with the 2 keys you find. A Guide box explains each new thing
+   (with "Stone 3 / 5  Hops 1 / 3" progress). The campfire's only choice is
+   **Return to Town**, greyed out until you have it all. Hops is only for this.
+4. Handing in Need Hops brings the first **Adventurer** (a big unlock banner). Character
    Select and the Deck Builder open, and the Adventurer's training starts, three
    fights against dummies (`scripts/tutorial.gd`). A "NEW THIS TURN" box explains
    each new thing as it shows up:
@@ -244,18 +258,22 @@ fighting at first: Character Select and the Deck Builder stay hidden.
    All Trades is open, the others show 🔒 Locked), and the Deck Builder's Guide explains the
    screen. **Skip Tutorial** jumps to the splash, and Character Select's
    **Tutorial** button replays the fights.
-4. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Tier 1 has the weaker **Small Slime** (14 HP, hits 1-4); the old Slime (20 HP, hits 2-5) lives in Tier 2 and up. Gives the
-   Alchemist blueprint and adds the Blue Slime rooms to the Plains.
-5. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
+5. Back in town after the Deck Builder: **Trouble on the Plains!** The Innkeeper
+   says slimes are taking over, and a **3 New Quests!** banner lists what just
+   started (Clear the Slimes, Open Plains Packs, Kill Enemies 1). Every batch of
+   new quests gets that banner, so they're hard to miss.
+6. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Tier 1 has the weaker **Small Slime** (14 HP, hits 1-4); the old Slime (20 HP, hits 2-5) lives in Tier 2 and up. Gives 2 Small
+   packs and adds the Blue Slime rooms to the Plains.
+7. **Make your first Flask**: build the Alchemist (5 Green Ooze), then brew the
    Health Flask there (3 Green Ooze). Gives the Shop and **Tailor** blueprints, and
    adds **Bunny Warrior** rooms to the Plains (Bunny Burrow, Bunny Ambush). Bunny
    Warriors (16 HP, Carrot Kick 2-4, Hop Back for 4 Block) always drop **Animal Hair**.
-6. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
+8. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
    the Plains deck for good. Beat it and Go Deeper at its campfire to reach Tier 2.
    Handing it in unlocks **Talents**, with a banner explaining them.
 
 **Several quests run at once**: the **Story** quest above, plus **Adventurer**
-quests and **Side** quests that start when the Adventurer arrives:
+quests and **Side** quests that start with the Innkeeper's slime news:
 - **Open Plains Packs** (Adventurer): open 10 Plains Booster Packs (any size).
   Unlocks the **Pack Rat** spec, with a big "NEW SPEC UNLOCKED!" banner.
 - **Kill Enemies 1 / 2 / 3** (Side): defeat 10, then 20, then 30 enemies of any
@@ -273,12 +291,14 @@ quests and **Side** quests that start when the Adventurer arrives:
 you're on, grouped Story / Adventurer / Side, each with its objective, a
 progress bar, its reward and its story. Finished ones go to the top under
 **Ready to Hand In!** with a **Hand In** button. A new quest's story pops up
-once, when it starts. Before the Inn exists, the King's quests are on the
-**The King's Letter** button at the bottom of town.
+once, when it starts.
 
-**Materials** drop from enemies and turn up in rooms: Stone is the Plains'
-building material, Green Ooze comes from Green Slimes, and Lumber from the
-Forest's trees. Like gold, they're only yours once you get home; put them in the
+**Materials** drop from enemies and turn up in rooms. Each area has its own
+(the `material` of `areas/*.tres`): **Stone** in the Plains, **Lumber** in the
+Forest. Exploring a new square that isn't a fight or a chest has a 15% chance of
+1 of it lying on the ground, Shiny Rocks have some, and monsters drop it now and
+then (enemies.csv Drops, e.g. "Green Ooze 100%; Stone 10%"). Chests no longer
+hold Stone. Green Ooze comes from Green Slimes. Like gold, they're only yours once you get home; put them in the
 Save Sack (once the Tailor makes you one) to keep them if you die. The **Guild Hall**'s **Bank** shows them all.
 
 The other buildings, once you have their blueprint (hover the button to see what
@@ -1035,8 +1055,9 @@ Advantage, Roll Bonus (next roll), Color (the bottle's colour), Description.
 Description. Enemies drop them through the **Drops** column of `enemies.csv`:
 `Green Ooze 100%` (several split by `;`).
 
-**`quests.csv`**: one row per quest, in story order (the first row is the
-first quest). Several quests can run at once.
+**`quests.csv`**: one row per quest, in story order. A new game starts with no
+quests: the first ones start at the `Inn Built` milestone (see Starts After).
+Several quests can run at once.
 
 | Column | Example | What it means |
 |---|---|---|
@@ -1044,13 +1065,13 @@ first quest). Several quests can run at once.
 | Type | Story | **Story**, **Adventurer**, **Side** (or any word): groups it on the Inn's quest screen. Blank = Story |
 | Giver | The Innkeeper | Who gives it, shown above the story |
 | Text | | The story, shown when it starts |
-| Objective | Have | Build (a building), Have (materials in the Bank), Brew (a flask), Clear Room, Defeat (an enemy, or **Any** enemy), Open Packs (Target `Plains Booster Pack`), Reach Tier |
+| Objective | Have | Build (a building), Have (materials in the Bank), Deliver (like Have, but handing it in gives them away), Brew (a flask), Clear Room, Defeat (an enemy, or **Any** enemy), Open Packs (Target `Plains Booster Pack`), Reach Tier |
 | Target | Green Ooze | What the objective is about |
 | Amount | 5 | How many |
 | Start Gift | Material Lumber 5; Blueprint Inn | Given when the quest starts |
 | Rewards | Blueprint Alchemist; Room Plains: Blue Slime Patch | Given when you hand it in |
 | Next Quest | Make your first Flask | The quest that starts next (blank = none) |
-| Starts After | Stone for the Inn | This quest also starts when THAT one is handed in (how side quests begin) |
+| Starts After | Adventurer Trained | This quest also starts when THAT one is handed in, or at a milestone: `Inn Built` (the Innkeeper's thanks) or `Adventurer Trained` (his slime news) |
 
 Gifts and rewards can be `Gold 10`, `Pack Small 2` (or `Pack Medium 1`,
 `Pack Large 1`), `Material Green Ooze 3`, `Blueprint Shop`,

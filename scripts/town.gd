@@ -1,15 +1,28 @@
 # town.gd
 #
 # The town (scenes/town.tscn): where you come back to after every run.
-# Its buildings start in ruins. Put gold into one to restore it a stage at a
-# time; each stage opens something new (see town_building.gd and
-# data/progression/town.csv). The Shop is open from the start.
+# Only the GUILD HALL stands when you arrive. The other buildings appear (in
+# ruins) once you have their blueprint, and you build and upgrade them from
+# inside the Guild Hall, with materials and gold (see town_building.gd and
+# data/progression/town.csv). Each stage opens something new.
 #
 # Like the map, the buildings are made here in code, one panel per file in
 # town/, so a new row in the sheet shows up on its own.
 #
 # Click the Inn for the QUEST SCREEN (every quest you're on). The road at the
 # bottom-right (town_road.gd) leads out to the map.
+#
+# THE START OF THE GAME is a few one-time STORY BEATS, played here in order
+# (play_story()). Each is remembered in GameState.story_beats once seen:
+#   1. Welcome      The King's welcome, then the Inn blueprint pops up like
+#                   an unlock. "Read Blueprint" shows the Inn's ruins, and a
+#                   guide explains building and points at the Guild Hall.
+#   2. King's Stone Your first visit to the Guild Hall: 5 Stone pops up in
+#                   the Bank, and a guide shows you how to build the Inn.
+#   3. Inn Built    The Innkeeper thanks you and asks for help: the QUEST
+#                   tutorial, then his first two quests (Gather Stone, Need Hops).
+#   4. Adventurer Trained   Back from the Adventurer's training and the deck
+#                   builder: the Innkeeper's slime news, and the next quests.
 extends Control
 
 const SHOP_SCENE := "res://scenes/shop.tscn"
@@ -20,6 +33,16 @@ const RUINS := preload("res://art/town/ruins.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 const POTION_ICON := preload("res://art/potions/potion.svg")
 const BOOSTER_ICON := preload("res://icons/booster.svg")
+const BLUEPRINT_ICON := preload("res://art/town/blueprint.svg")
+const QUEST_ICON := preload("res://art/town/quest.svg")
+const GUILD_HALL_ICON := preload("res://art/town/guild_hall.svg")
+const INN_ICON := preload("res://art/town/inn.svg")
+const SLIME_ART := preload("res://art/enemies/slime.svg")
+# Story beats (see the top of this file). The milestones live in GameState
+# because quests.csv can name them in Starts After.
+const WELCOME := "Welcome"
+const KINGS_STONE := "King's Stone"
+const KINGS_STONE_AMOUNT := 5
 const GOLD_COLOR := Color(1, 0.84, 0.35)
 const DONE_COLOR := Color(0.55, 0.95, 0.55)
 
@@ -32,10 +55,13 @@ const DONE_COLOR := Color(0.55, 0.95, 0.55)
 @onready var next_run_button: Button = %NextRunButton
 
 var flask_button: Button  # "Flask: Health Flask", next to Edit Deck.
-var quest_button: Button  # "The King's Letter": the quest button before the Inn exists.
 var packs_button: Button  # "Your Packs (3)": open them (at the Shop, or before it's built).
 var road: TownRoad  # The road out of town, with its "To the Map" sign (town_road.gd).
-var overlay: Control  # The quest panel or the Bank while it's open.
+var overlay: Control  # The quest panel or the Guild Hall while it's open.
+var panels := {}  # Building name -> its panel on the street (for guides to point at).
+# Parts of the Guild Hall screen, for its first-visit guide.
+var bank_box: Control
+var build_rows := {}  # Building name -> its row in the Build list.
 var flask_layer: Control  # The Alchemist screen while it's open (null when closed).
 var alchemist_tab := "Flasks"  # Which tab of the Alchemist screen: "Flasks" or "Potions".
 
@@ -55,10 +81,6 @@ func _ready() -> void:
 	flask_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
 	flask_button.pressed.connect(open_alchemist.bind("Flasks"))
 	deck_button.add_sibling(flask_button)
-	quest_button = Button.new()
-	quest_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
-	quest_button.pressed.connect(show_quest_board)
-	flask_button.add_sibling(quest_button)
 	# A booster pack you can click to open your packs (on the Shop screen,
 	# which only opens packs until the Shop is built).
 	packs_button = Button.new()
@@ -67,12 +89,12 @@ func _ready() -> void:
 	packs_button.custom_minimum_size = Vector2(0, deck_button.custom_minimum_size.y)
 	packs_button.tooltip_text = "Open your booster packs."
 	packs_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
-	quest_button.add_sibling(packs_button)
+	flask_button.add_sibling(packs_button)
 	summary_label.text = run_summary()
 	message_label.text = ""
 	refresh()
-	# Quests that just started tell their story once (the King's letter...).
-	show_next_story(false)
+	# The welcome, the Innkeeper... or just any new quests' stories.
+	play_story()
 
 
 # How the last run went (empty if you haven't been on one yet).
@@ -99,19 +121,23 @@ func refresh() -> void:
 			gold_label.text += "   %s %d" % [material_name, GameState.materials[material_name]]
 	for old in building_row.get_children():
 		old.queue_free()
+	panels.clear()
 	for building in GameState.load_town():
 		if GameState.has_blueprint(building):  # The rest stay hidden until a quest gives their blueprint.
-			building_row.add_child(make_building(building))
-	# You can head out once any area is open (before the Inn: the guided Stone run).
+			panels[building.building_name] = make_building(building)
+			building_row.add_child(panels[building.building_name])
+	# While the Inn waits to be built, the Guild Hall glows: go in there!
+	if inn_waiting() and panels.has("Guild Hall"):
+		var glow: Control = panels["Guild Hall"]
+		var tween := glow.create_tween().set_loops()
+		tween.tween_property(glow, "modulate", Color(1.35, 1.25, 0.9), 0.6)
+		tween.tween_property(glow, "modulate", Color.WHITE, 0.6)
+	# You can head out once any area is open (after the Inn: the Architect's guided run first).
 	var can_go := GameState.load_areas().any(func(area: Area) -> bool: return GameState.is_area_unlocked(area))
 	road.set_open(can_go)
 	# No adventurer yet: you're running the town, so there's no deck or flask to look at.
 	deck_button.visible = GameState.adventurers_here()
 	flask_button.visible = GameState.adventurers_here()
-	# Before the Inn: a button for the King's quests. After: quests live at the Inn.
-	quest_button.visible = not GameState.adventurers_here()
-	quest_button.text = "The King's Letter" + ("  ✓ Ready!" if GameState.quests_ready_count() > 0 else "")
-	quest_button.disabled = GameState.quests_active().is_empty()
 	packs_button.visible = GameState.pack_count() > 0
 	packs_button.text = "Open Packs (%d)" % GameState.pack_count()
 	packs_button.theme_type_variation = &"PrimaryButton"  # Gold: there's something to open!
@@ -186,32 +212,43 @@ func make_building(building: TownBuilding) -> PanelContainer:
 	var action := make_action(building, stage)
 	if action:
 		box.add_child(action)
-	# Restore the next stage: gold and/or materials.
+	# Building and upgrading happen inside the Guild Hall: just say what's next.
 	if stage < building.max_stage():
-		var cost := building.cost_of_next(stage)
-		var prices: Array[String] = []
-		if cost > 0:
-			prices.append("%d gold" % cost)
-		var needs := building.materials_for_next(stage)
-		if not needs.is_empty():
-			prices.append(MaterialInfo.costs_text(needs))
-		var restore := Button.new()
-		var verb := ("Build" if building.needs_blueprint else "Restore") if stage == 0 else "Upgrade"
-		restore.text = "%s  (%s)" % [verb, ", ".join(prices) if not prices.is_empty() else "free"]
-		restore.theme_type_variation = &"PrimaryButton"
-		var blocked := GameState.restore_blocked(building)
-		restore.disabled = not blocked.is_empty()
-		restore.tooltip_text = "Next: " + building.stage_texts[stage] + ("\n" + blocked if not blocked.is_empty() else "")
-		restore.pressed.connect(_on_restore_pressed.bind(building))
-		box.add_child(restore)
-	# Click anywhere on the built Inn to see your quests.
+		var verb := "Build" if stage == 0 else "Upgrade"
+		var can := GameState.restore_blocked(building).is_empty()
+		box.add_child(make_label("%s it at the Guild Hall  (%s)" % [verb, price_text(building, stage)], 13,
+			GOLD_COLOR if can else Color(1, 1, 1, 0.5)))
+	# Click anywhere on the built Inn to see your quests, or on the Guild Hall to go in.
+	var on_click := Callable()
 	if stage > 0 and building.bonus(TownBuilding.INN, stage) > 0:
-		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		panel.tooltip_text = "Click the Inn to see your quests."
+		on_click = show_quest_board
+	elif stage > 0 and building.bonus(TownBuilding.BANK, stage) > 0:
+		panel.tooltip_text = "Click the Guild Hall to build, upgrade and see your Bank."
+		on_click = show_guild_hall
+	if on_click.is_valid():
+		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		panel.gui_input.connect(func(event: InputEvent) -> void:
 			if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
-				show_quest_board())
+				on_click.call())
 	return panel
+
+
+# "5 Stone" / "40 gold" / "15 gold, 5 Green Ooze" / "free": the next stage's price.
+func price_text(building: TownBuilding, stage: int) -> String:
+	var prices: Array[String] = []
+	if building.cost_of_next(stage) > 0:
+		prices.append("%d gold" % building.cost_of_next(stage))
+	var needs := building.materials_for_next(stage)
+	if not needs.is_empty():
+		prices.append(MaterialInfo.costs_text(needs))
+	return ", ".join(prices) if not prices.is_empty() else "free"
+
+
+# You have the Inn's blueprint but haven't built it yet.
+func inn_waiting() -> bool:
+	var inn := GameState.find_building("Inn")
+	return inn != null and GameState.has_blueprint(inn) and GameState.town_stage(inn) == 0
 
 
 # The building's own button: Enter the Shop, buy an enchant / potion / map.
@@ -225,9 +262,11 @@ func make_action(building: TownBuilding, stage: int) -> Button:
 			button.theme_type_variation = &"PrimaryButton"
 		button.pressed.connect(show_quest_board)
 	elif building.bonus(TownBuilding.BANK, stage) > 0:
-		button.text = "Open the Bank"
-		button.tooltip_text = "The materials you've brought home."
-		button.pressed.connect(show_bank)
+		button.text = "Enter the Guild Hall"
+		button.tooltip_text = "Build and upgrade the town, and see the materials in your Bank."
+		if inn_waiting():
+			button.theme_type_variation = &"PrimaryButton"
+		button.pressed.connect(show_guild_hall)
 	elif building.bonus(TownBuilding.SHOP, stage) > 0:
 		button.text = "Enter the Shop"
 		button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
@@ -260,15 +299,38 @@ func make_label(text: String, font_size: int, color: Color) -> Label:
 	return label
 
 
+# The Build button in the Guild Hall.
 func _on_restore_pressed(building: TownBuilding) -> void:
-	if GameState.restore(building):
-		var stage := GameState.town_stage(building)
-		message_label.text = "The %s is %s: %s!" % [building.building_name,
-			"built" if stage == 1 and building.needs_blueprint else "restored", building.stage_texts[stage - 1]]
+	if not GameState.restore(building):
+		return
+	var stage := GameState.town_stage(building)
+	message_label.text = "The %s is %s: %s!" % [building.building_name,
+		"built" if stage == 1 and building.needs_blueprint else "upgraded", building.stage_texts[stage - 1]]
+	close_overlay()
 	refresh()
+	# A brand new building pops up on the street.
+	if stage == 1 and panels.has(building.building_name):
+		pop_in(panels[building.building_name])
+	# The Inn: the Innkeeper comes out to thank you (play_story() does the rest).
+	if not GameState.story_beats.has(GameState.INN_BUILT) and building.bonus(TownBuilding.INN, stage) > 0:
+		get_tree().create_timer(0.7).timeout.connect(play_story)
+		return
 	# Building what a quest asked for: straight to the quests, to hand it in.
 	if GameState.quests_active().any(func(q: Quest) -> bool: return q.objective == Quest.BUILD and GameState.quest_ready(q)):
 		show_quest_board()
+	else:
+		show_guild_hall()
+
+
+# Grow a panel in from nothing with a little bounce (a new building!).
+func pop_in(control: Control) -> void:
+	await get_tree().process_frame  # Wait until it has a size, so it grows from its middle.
+	if not is_instance_valid(control):
+		return
+	control.pivot_offset = control.size / 2
+	control.scale = Vector2(0.2, 0.2)
+	control.create_tween().tween_property(control, "scale", Vector2.ONE, 0.5) \
+		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 
 
 func _buy_enchant() -> void:
@@ -795,7 +857,7 @@ func show_next_story(back_to_board: bool) -> void:
 	var box := open_overlay()
 	var kind := "" if quest.quest_type == "Story" else "  (%s quest)" % quest.quest_type
 	if not quest.giver.is_empty():
-		box.add_child(make_label(quest.giver + (" writes:" if not GameState.adventurers_here() else " says:") + kind, 16, Color(1, 1, 1, 0.7)))
+		box.add_child(make_label(quest.giver + (" writes:" if quest.giver == "The King" else " says:") + kind, 16, Color(1, 1, 1, 0.7)))
 	box.add_child(make_label("New quest: " + quest.quest_name, 30, GOLD_COLOR))
 	box.add_child(make_label(quest.text, 16, Color.WHITE))
 	if not quest.start_gift.is_empty():
@@ -843,13 +905,13 @@ func _on_hand_in(quest: Quest) -> void:
 	close_overlay()
 	refresh()
 	# Big moments get the big banner (unlock_banner.gd).
-	# The Inn just opened: the first Adventurer arrives, and Character Select
-	# and the deck builder open up. Off to meet them (and their training, the
-	# tutorial). The new quests' stories show when you're back in town.
-	if GameState.adventurers_here() and not GameState.tutorial_done:
+	# "Unlock Adventurer" (the Need Hops quest): the first Adventurer arrives,
+	# and Character Select and the deck builder open up. Off to meet them (and
+	# their training, the tutorial). Back in town, the Innkeeper has news.
+	if GameState.adventurers_here() and not features_before.has(GameState.ADVENTURER_FEATURE):
 		var adventurer: CharacterClass = GameState.load_classes()[0]
 		UnlockBanner.show_in(self, "A NEW ADVENTURER!", "The %s has arrived" % adventurer.display_name, adventurer.emblem,
-			"Word of your Inn spread, and the first Adventurer has checked in! You've got a town to run, so leave the fighting to them.\n\nNEW: Character Select and the Deck Builder.  Quest rewards: %s" % ", ".join(lines),
+			"The Inn's ale is flowing again, and word has spread: the first Adventurer has checked in! From now on, they do the fighting. You keep building the town.\n\nNEW: Character Select and the Deck Builder.  Quest rewards: %s" % ", ".join(lines),
 			"Meet the Adventurer", func() -> void: get_tree().change_scene_to_file(CHARACTER_SCENE))
 		return
 	if GameState.talents_open() and not talents_before:
@@ -889,40 +951,282 @@ func _show_quest_complete(finished: String, lines: Array[String]) -> void:
 	ok.theme_type_variation = &"PrimaryButton"
 	ok.custom_minimum_size = Vector2(200, 46)
 	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	ok.pressed.connect(show_next_story.bind(GameState.adventurers_here()))
+	ok.pressed.connect(func() -> void:
+		close_overlay()
+		announce_quests(true))
 	box.add_child(ok)
 
 
-# The Guild Hall's Bank: every material you've brought home.
-func show_bank() -> void:
-	var box := open_overlay()
-	box.add_child(make_label("The Bank", 30, GOLD_COLOR))
-	box.add_child(make_label("What you've brought home is safe here. Materials you find in the dungeon only count once you get out alive.", 15, Color(1, 1, 1, 0.75)))
-	var any := false
+# --- The Guild Hall ---------------------------------------------------------------
+# Your home base, standing from the start. Inside: the BANK (every material
+# you've brought home) and the BUILD list (every building you have a
+# blueprint for: build it, or upgrade it to its next stage).
+
+func show_guild_hall() -> void:
+	# Your first visit, with the Inn still to build: the King's Stone arrives.
+	var first_visit := inn_waiting() and not GameState.story_beats.has(KINGS_STONE)
+	if first_visit:
+		GameState.add_material("Stone", KINGS_STONE_AMOUNT)
+		GameState.story_beats.append(KINGS_STONE)
+		GameState.save_game()
+		refresh()
+	var box := open_overlay(780)
+	box.add_child(make_label("The Guild Hall", 32, GOLD_COLOR))
+	box.add_child(make_label("Plan and build the town from here. Its Bank keeps everything you bring home safe.", 15, Color(1, 1, 1, 0.75)))
+
+	# The Bank: one chip per material you have, plus your gold.
+	box.add_child(_left(make_label("The Bank", 20, Color.WHITE)))
+	var chips := HFlowContainer.new()
+	chips.add_theme_constant_override("h_separation", 10)
+	chips.add_theme_constant_override("v_separation", 8)
+	chips.add_child(make_chip(null, "Gold %d" % GameState.gold, GOLD_COLOR, "Gold: from monsters, chests and quests."))
 	for info in GameState.load_materials():
 		var count := GameState.material_count(info.material_name)
-		var row := HBoxContainer.new()
-		row.add_theme_constant_override("separation", 10)
+		if count > 0:
+			chips.add_child(make_chip(info, "%s %d" % [info.material_name, count], info.color, info.description))
+	bank_box = chips
+	box.add_child(chips)
+
+	# The Build list.
+	box.add_child(_left(make_label("Build & Upgrade", 20, Color.WHITE)))
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 300)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var list := VBoxContainer.new()
+	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	list.add_theme_constant_override("separation", 8)
+	scroll.add_child(list)
+	build_rows.clear()
+	for building in GameState.load_town():
+		var stage := GameState.town_stage(building)
+		if GameState.has_blueprint(building) and stage < building.max_stage():
+			build_rows[building.building_name] = make_build_row(building, stage)
+			list.add_child(build_rows[building.building_name])
+	if build_rows.is_empty():
+		list.add_child(make_label("Nothing to build right now. Quests (and the dungeons) give you new blueprints.", 15, Color(1, 1, 1, 0.6)))
+
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(160, 44)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.pressed.connect(func() -> void:
+		close_overlay()
+		refresh())
+	box.add_child(close)
+
+	if first_visit:
+		_kings_stone_arrives()
+
+
+# A material in the Bank: its picture and "Stone 5".
+func make_chip(info: MaterialInfo, text: String, color: Color, tooltip: String) -> PanelContainer:
+	var chip := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0, 0, 0, 0.35)
+	style.border_color = color.darkened(0.3)
+	style.set_border_width_all(1)
+	style.set_corner_radius_all(16)
+	style.content_margin_left = 8
+	style.content_margin_right = 12
+	style.content_margin_top = 4
+	style.content_margin_bottom = 4
+	chip.add_theme_stylebox_override("panel", style)
+	chip.tooltip_text = tooltip
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 6)
+	chip.add_child(row)
+	if info and info.icon:
 		var picture := TextureRect.new()
 		picture.texture = info.icon
-		picture.self_modulate = info.color if info.icon and info.icon.resource_path.ends_with("ooze.svg") else Color.WHITE
-		picture.custom_minimum_size = Vector2(40, 40)
+		picture.self_modulate = info.color if info.icon.resource_path.ends_with("ooze.svg") else Color.WHITE
+		picture.custom_minimum_size = Vector2(28, 28)
 		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
 		row.add_child(picture)
-		var label := make_label("%s:  %d" % [info.material_name, count], 20, info.color if count > 0 else Color(1, 1, 1, 0.4))
-		label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
-		label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-		label.tooltip_text = info.description
-		label.mouse_filter = Control.MOUSE_FILTER_PASS
-		row.add_child(label)
-		box.add_child(row)
-		any = any or count > 0
-	if not any:
-		box.add_child(make_label("Empty for now.", 16, Color(1, 1, 1, 0.6)))
-	var ok := Button.new()
-	ok.text = "Close"
-	ok.custom_minimum_size = Vector2(140, 44)
-	ok.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	ok.pressed.connect(close_overlay)
-	box.add_child(ok)
+	var label := make_label(text, 17, color)
+	label.autowrap_mode = TextServer.AUTOWRAP_OFF  # Short text: keep it on one line.
+	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(label)
+	return chip
+
+
+# One building in the Build list: its picture, what the next stage gives,
+# the price, and the Build / Upgrade button.
+func make_build_row(building: TownBuilding, stage: int) -> PanelContainer:
+	var row_panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.17, 0.13)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(8)
+	row_panel.add_theme_stylebox_override("panel", style)
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 12)
+	row_panel.add_child(row)
+	var picture := TextureRect.new()
+	picture.texture = building.icon
+	picture.custom_minimum_size = Vector2(56, 56)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	if stage == 0:
+		picture.modulate = Color(0.55, 0.52, 0.5)  # Still in ruins.
+	row.add_child(picture)
+	var info := VBoxContainer.new()
+	info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	info.add_theme_constant_override("separation", 2)
+	row.add_child(info)
+	var verb := "Build" if stage == 0 else "Upgrade"
+	info.add_child(_left(make_label(building.building_name + ("" if stage == 0 else "  (stage %d → %d)" % [stage, stage + 1]), 18, GOLD_COLOR)))
+	info.add_child(_left(make_label(building.stage_texts[stage], 14, Color(1, 1, 1, 0.8))))
+	var blocked := GameState.restore_blocked(building)
+	info.add_child(_left(make_label("Costs " + price_text(building, stage) + ("" if blocked.is_empty() else "   ·   " + blocked), 14,
+		DONE_COLOR if blocked.is_empty() else Color(1, 0.6, 0.5))))
+	var button := Button.new()
+	button.text = verb
+	button.custom_minimum_size = Vector2(120, 44)
+	button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	button.theme_type_variation = &"PrimaryButton"
+	button.disabled = not blocked.is_empty()
+	button.tooltip_text = blocked
+	button.pressed.connect(_on_restore_pressed.bind(building))
+	row.add_child(button)
+	return row_panel
+
+
+# STORY BEAT 2: the King's Stone pops up in the Bank, then a guide shows how
+# to build the Inn.
+func _kings_stone_arrives() -> void:
+	var stone := GameState.find_material("Stone")
+	var pop := HBoxContainer.new()
+	pop.alignment = BoxContainer.ALIGNMENT_CENTER
+	pop.add_theme_constant_override("separation", 10)
+	if stone and stone.icon:
+		var picture := TextureRect.new()
+		picture.texture = stone.icon
+		picture.custom_minimum_size = Vector2(96, 96)
+		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		pop.add_child(picture)
+	var amount := make_label("+%d Stone!" % KINGS_STONE_AMOUNT, 54, GOLD_COLOR)
+	amount.autowrap_mode = TextServer.AUTOWRAP_OFF
+	amount.add_theme_color_override("font_outline_color", Color.BLACK)
+	amount.add_theme_constant_override("outline_size", 10)
+	pop.add_child(amount)
+	pop.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(pop)
+	# Centre it on the screen, grow it in, hold, then float it up into the Bank.
+	pop.reset_size()
+	pop.position = (get_viewport_rect().size - pop.size) / 2
+	pop.pivot_offset = pop.size / 2
+	pop.scale = Vector2(0.1, 0.1)
+	var tween := pop.create_tween()
+	tween.tween_property(pop, "scale", Vector2(1.15, 1.15), 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(pop, "scale", Vector2.ONE, 0.15)
+	tween.tween_interval(0.8)
+	tween.tween_property(pop, "position:y", pop.position.y - 160, 0.5)
+	tween.parallel().tween_property(pop, "modulate:a", 0.0, 0.5)
+	tween.tween_callback(pop.queue_free)
+	tween.tween_callback(func() -> void:
+		var steps := [
+			{"target": bank_box, "text": "This is the Guild Hall. Up here is the BANK: everything you bring home is kept safe in it. The King's builders left you 5 Stone to get started."},
+		]
+		if build_rows.has("Inn"):
+			steps.append({"target": build_rows["Inn"], "text": "Down here is the BUILD list: every building you have a blueprint for, and what it costs. The Inn needs 5 Stone, and you have it. Press Build!"})
+		ScreenGuide.start(self, "guild_hall", steps))
+
+
+# --- The start of the game: story beats ------------------------------------------
+
+# Play the next story beat that's due, or else any new quests' stories.
+func play_story() -> void:
+	if not GameState.story_beats.has(WELCOME):
+		show_welcome()
+	elif GameState.town_bonus(TownBuilding.INN) > 0 and not GameState.story_beats.has(GameState.INN_BUILT):
+		show_innkeeper_thanks()
+	elif GameState.adventurers_here() and GameState.tutorial_done and not GameState.story_beats.has(GameState.ADVENTURER_TRAINED):
+		show_slime_news()
+	elif inn_waiting():
+		message_label.text = "Click the Guild Hall to build the Inn."
+		show_next_story(false)
+	else:
+		announce_quests(false)
+
+
+# STORY BEAT 1: welcome to town, and the Inn blueprint.
+func show_welcome() -> void:
+	UnlockBanner.show_in(self, "WELCOME TO TOWN!", "A mission from the King", GUILD_HALL_ICON,
+		"The King has named you his ARCHITECT. Your mission: bring this old town back to its glory.\n\nOnly the Guild Hall still stands. Everything else lies in ruins, but the King gave you something to start with...",
+		"What did he give me?", show_blueprint_unlock)
+
+
+func show_blueprint_unlock() -> void:
+	UnlockBanner.show_in(self, "NEW BLUEPRINT!", "The Inn", BLUEPRINT_ICON,
+		"A BLUEPRINT is the plan for a building. Every building needs one: once you have its blueprint, the building shows up in town (in ruins), ready to be built.\n\nYou'll earn more blueprints from quests, and find some out in the dungeons.",
+		"Read Blueprint", _on_read_blueprint)
+
+
+func _on_read_blueprint() -> void:
+	GameState.give_rewards("Blueprint Inn")
+	GameState.story_beats.append(WELCOME)
+	GameState.save_game()
+	refresh()
+	if panels.has("Inn"):
+		pop_in(panels["Inn"])
+	message_label.text = "Click the Guild Hall to build the Inn."
+	await get_tree().create_timer(0.6).timeout  # Let the Inn finish popping in first.
+	# How building works: point at the Inn's ruins, then at the Guild Hall.
+	var steps := []
+	if panels.has("Inn"):
+		steps.append({"target": panels["Inn"], "text": "The blueprint shows you the Inn's ruins. To BUILD it you need MATERIALS: the Inn takes 5 Stone. Some buildings cost gold too. You find materials in the dungeons, and each area has its own (the Plains have Stone)."})
+	if panels.has("Guild Hall"):
+		steps.append({"target": panels["Guild Hall"], "text": "Everything is built from the GUILD HALL. It also holds your Bank, where your materials are kept. Click the Guild Hall to take a look inside."})
+	ScreenGuide.start(self, "town_building", steps)
+
+
+# STORY BEAT 3: the Innkeeper thanks you, then the quest tutorial, then his
+# first two quests (quests.csv: Starts After "Inn Built").
+func show_innkeeper_thanks() -> void:
+	close_overlay()
+	UnlockBanner.show_in(self, "THE INN IS OPEN!", "The Innkeeper comes out to meet you", INN_ICON,
+		"\"You rebuilt my Inn! I never thought I'd see the day. Thank you, Architect!\"\n\nHe wipes his hands on his apron. \"Truth is, there are still a few things I need help with around here. Could you lend me a hand?\"",
+		"Happy to help!", show_quest_tutorial)
+
+
+func show_quest_tutorial() -> void:
+	UnlockBanner.show_in(self, "QUESTS UNLOCKED!", "How quests work", QUEST_ICON,
+		"People in town will ask you for help. Each QUEST has an objective (bring something home, build something, beat some monsters) and a REWARD.\n\n•  Your quests live at the INN: click it any time to see them, and how far along you are.\n•  When one is done, come back to the Inn and press HAND IN to get the reward.\n•  You can be on several quests at once.",
+		"See the Innkeeper's quests", func() -> void:
+			GameState.reach_milestone(GameState.INN_BUILT)
+			refresh()
+			show_next_story(true))
+
+
+# STORY BEAT 4: back from the Adventurer's training. Slimes!
+func show_slime_news() -> void:
+	UnlockBanner.show_in(self, "TROUBLE ON THE PLAINS!", "The Innkeeper has news", SLIME_ART,
+		"\"Now that we've got a real Adventurer, I can tell you: slimes are taking over the Plains! Folk are too scared to travel, and nobody comes to an Inn that nobody can reach.\"\n\n\"I've put up some new jobs, and your Adventurer has a favour to ask too.\"",
+		"Let's hear it", func() -> void:
+			GameState.reach_milestone(GameState.ADVENTURER_TRAINED)
+			refresh()
+			announce_quests(true))
+
+
+# NEW QUESTS! A big banner listing the quests that just started (so you don't
+# miss them), then each one's story. Nothing new: straight on.
+func announce_quests(back_to_board: bool) -> void:
+	var fresh: Array[Quest] = []
+	for quest_name in GameState.unseen_quests:
+		var quest := GameState.find_quest(quest_name)
+		if quest and GameState.active_quests.has(quest_name):
+			fresh.append(quest)
+	if fresh.is_empty():
+		show_next_story(back_to_board)
+		return
+	var lines: Array[String] = []
+	for quest in fresh:
+		var kind := "" if quest.quest_type == "Story" else "  (%s quest)" % quest.quest_type
+		lines.append("•  %s%s:  %s" % [quest.quest_name, kind, quest.objective_text()])
+	var title := "NEW QUEST!" if fresh.size() == 1 else "%d NEW QUESTS!" % fresh.size()
+	UnlockBanner.show_in(self, title, "Find them at the Inn any time", QUEST_ICON,
+		"\n".join(lines), "Read them" if fresh.size() > 1 else "Read it", show_next_story.bind(back_to_board))

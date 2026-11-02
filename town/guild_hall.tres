@@ -6,11 +6,10 @@
 [resource]
 script = ExtResource("2_g5ejp")
 building_name = "Guild Hall"
-description = "Your home base. Its Bank keeps your materials safe."
+description = "Your home base. Build the town from here, and its Bank keeps your materials safe."
 icon = ExtResource("1_06qh5")
 costs = Array[int]([0])
 effects = PackedStringArray("bank")
 amounts = Array[int]([1])
-stage_texts = PackedStringArray("The Bank: see the materials you brought home")
-material_costs = PackedStringArray("Stone 5")
-needs_blueprint = true
+stage_texts = PackedStringArray("Build and upgrade the town, and the Bank keeps your materials")
+material_costs = PackedStringArray("")

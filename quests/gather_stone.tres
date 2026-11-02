@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="1_r7bxq"]
+
+[resource]
+script = ExtResource("1_r7bxq")
+quest_name = "Gather Stone"
+giver = "The Innkeeper"
+text = "\"This town is going to need a LOT of stone, Architect. The Plains are full of it: bring home 5 and keep it in the Bank, you'll want it.\" Take the road out of town to the Plains. No monsters out there yet: you're the Architect, so you'll explore it yourself. Look for Shiny Rocks."
+objective = "have"
+target = "Stone"
+amount = 5
+rewards = "Pack Small 1; Blueprint Alchemist"
+starts_after = "Inn Built"

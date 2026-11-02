@@ -1,6 +1,6 @@
 Building,Stage,Cost,Effect,Amount,Icon,Description,Stage Text,Materials,Blueprint
-Guild Hall,1,0,Bank,1,guild_hall.svg,Your home base. Its Bank keeps your materials safe.,The Bank: see the materials you brought home,Stone 5,Yes
-Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,"Opens quests, the Plains and the Adventurer",Stone 5,Yes
+Guild Hall,1,0,Bank,1,guild_hall.svg,"Your home base. Build the town from here, and its Bank keeps your materials safe.","Build and upgrade the town, and the Bank keeps your materials",,
+Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,"Opens quests: the Innkeeper needs your help",Stone 5,Yes
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,,
 Tailor,1,0,Sack Slots,2,tailor.svg,Sews you a Save Sack: what's in it is kept even if you die.,A Save Sack with 2 slots,Animal Hair 5,Yes

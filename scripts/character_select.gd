@@ -28,7 +28,7 @@ func _ready() -> void:
 		class_list.add_child(make_class_panel(character_class, all_cards))
 	add_reset_button()
 	add_tutorial_button()
-	# No Inn yet: nobody to play. You're running the town, so go there.
+	# No adventurer yet: nobody to play. You're running the town, so go there.
 	if not GameState.adventurers_here():
 		get_tree().change_scene_to_file.call_deferred(TOWN_SCENE)
 	# The Adventurer just arrived: their training (the tutorial) comes first (they can Skip it).

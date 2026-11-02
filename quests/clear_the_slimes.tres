@@ -6,10 +6,11 @@
 script = ExtResource("1_xd7kw")
 quest_name = "Clear the Slimes"
 giver = "The Innkeeper"
-text = "\"Welcome! An Adventurer just checked in, and you've got a town to run, so leave the fighting to them. First job: Green Slimes are oozing all over the Plains road. Bring me back 5 Green Ooze.\" Pick the Adventurer on Character Select. Green Slimes drop Green Ooze. Like gold, it's only yours once you get home."
+text = "\"Slimes are taking over the Plains road, and travellers won't come near us! Thin them out, and bring me back 5 Green Ooze while you're at it.\" Green Slimes drop Green Ooze. Like everything you find, it's only yours once you get home."
 objective = "have"
 target = "Green Ooze"
 amount = 5
-rewards = "Blueprint Alchemist; Room Plains: Blue Slime Patch; Room Plains: Blue Slime Ambush"
+rewards = "Pack Small 2; Room Plains: Blue Slime Patch; Room Plains: Blue Slime Ambush"
 next_quest = "Make your first Flask"
+starts_after = "Adventurer Trained"
 sort_order = 2

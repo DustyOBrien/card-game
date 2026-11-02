@@ -13,6 +13,10 @@
 class_name ScreenGuide
 extends Control
 
+# Sent when the guide closes (after its last step, or Skip guide), so the
+# screen can carry on with what comes next (the town's welcome does).
+signal finished
+
 const GOLD := Color(1, 0.84, 0.35)
 const PANEL_WIDTH := 400.0
 
@@ -130,6 +134,7 @@ func _finish() -> void:
 	if not GameState.seen_guides.has(guide_name):
 		GameState.seen_guides.append(guide_name)
 		GameState.save_game()
+	finished.emit()
 	queue_free()
 
 

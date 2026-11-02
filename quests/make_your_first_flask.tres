@@ -6,7 +6,7 @@
 script = ExtResource("1_wmlwa")
 quest_name = "Make your first Flask"
 giver = "The Innkeeper"
-text = "\"An old alchemist wants to set up shop. Build a workshop and the Alchemist will brew you a Health Flask from that Ooze.\" Flasks refill at the start of every run. Blue Slimes now live in the Plains too."
+text = "\"Remember that Alchemist blueprint? Build the workshop and the Alchemist will brew you a Health Flask from that Ooze.\" Flasks refill at the start of every run. Blue Slimes now live in the Plains too."
 objective = "brew"
 target = "Health Flask"
 rewards = "Blueprint Shop; Blueprint Tailor; Room Plains: Bunny Burrow; Room Plains: Bunny Ambush; Pack Small 2"

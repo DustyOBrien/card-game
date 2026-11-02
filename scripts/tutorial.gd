@@ -24,7 +24,7 @@ extends PanelContainer
 
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 const AFTER_SCENE := "res://scenes/character_select.tscn"
-const TOWN_SCENE := "res://scenes/town.tscn"  # A new player goes to town next, for the King's letter.
+const TOWN_SCENE := "res://scenes/town.tscn"  # Back to town after the training, for the Innkeeper's news.
 const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")

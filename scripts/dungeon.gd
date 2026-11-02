@@ -181,9 +181,10 @@ func refresh() -> void:
 		draw_square(square)
 	var hp := GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
 	title_label.text = "%s  ·  Tier %d / %d" % [dungeon.area.display_name, dungeon.tier, dungeon.max_tier] \
-		if not dungeon.guided else "%s  ·  Gathering Stone" % dungeon.area.display_name
+		if not dungeon.guided else "%s  ·  The Architect explores" % dungeon.area.display_name
 	var lines: Array[String] = []
-	lines.append("[color=#ff8080]HP %d / %d[/color]" % [hp, GameState.player_max_hp()])
+	if not dungeon.guided:  # The Architect's trip has no fights, so no HP to watch.
+		lines.append("[color=#ff8080]HP %d / %d[/color]" % [hp, GameState.player_max_hp()])
 	lines.append("[color=#ffd75a]Keys: %d[/color]" % dungeon.keys)
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
 	if not dungeon.guided:  # No enemies on the guided run, so no Danger either.
@@ -371,6 +372,8 @@ func _on_square_pressed(square: Vector2i) -> void:
 	refresh()
 	if guide_label:
 		show_guide_tip(what, square)
+	if not dungeon.tile_find.is_empty():
+		info_label.text = "You spot %s lying on the ground, and pick it up!" % dungeon.tile_find
 	match what:
 		"fight", "ambush":
 			var card: RoomCard = dungeon.rooms[square].card
@@ -400,11 +403,13 @@ func _on_square_pressed(square: Vector2i) -> void:
 
 
 # --- The guided first run ------------------------------------------------------
-# Before the Inn, the Plains trip has no enemies: a box under the stats
-# explains each new thing the first time you meet it. Its campfire only offers
-# Return to Town, and only once you have the Stone the Inn needs.
+# Before the first adventurer arrives, YOU (the Architect) explore the Plains
+# for the Innkeeper's first two quests: Stone from Shiny Rocks, and Hops
+# locked in chests (so you learn keys and chests). No enemies: a box under the
+# stats explains each new thing the first time you meet it. Its campfire only
+# offers Return to Town, and only once you have everything the quests need.
 
-const GUIDE_START := "Welcome to the Plains! The grid is the dungeon. Click a ? square next to you to explore it: each new square draws a card from the area's room deck. You need 5 Stone for the Inn."
+const GUIDE_START := "Welcome to the Plains, Architect! The grid is the dungeon. Click a ? square next to you to explore it: each new square draws a card from the area's room deck. The Innkeeper needs 5 Stone (look for Shiny Rocks) and 3 Hops (locked in chests)."
 
 func build_guide() -> void:
 	var panel := PanelContainer.new()
@@ -425,7 +430,7 @@ func build_guide() -> void:
 	box.move_child(panel, info_label.get_index() + 1)
 
 
-# "Stone 3 / 5" for the guide, from what the Inn needs.
+# "Stone 3 / 5  Hops 1 / 3" for the guide, from what the quests need.
 func guide_progress() -> String:
 	var parts: Array[String] = []
 	var needs := dungeon.guide_needs()
@@ -438,8 +443,8 @@ func guide_progress() -> String:
 func guide_goal_text() -> String:
 	var found_fire := dungeon.rooms.values().any(func(room: Dictionary) -> bool:
 		return room.card != null and room.card.type == RoomCard.Type.CAMPFIRE)
-	return "You have all the Stone you need! Walk back to the campfire and Return to Town." if found_fire \
-		else "You have all the Stone you need! Find a campfire to Return to Town."
+	return "You have the Stone and the Hops! Walk back to the campfire and Return to Town." if found_fire \
+		else "You have the Stone and the Hops! Find a campfire to Return to Town."
 
 
 # A tip for what just happened.
@@ -451,7 +456,7 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 			if card and card.loot.has("Key"):
 				tip = "A small key! Each key opens one Locked Chest. You can walk back through rooms you've explored for free."
 			else:
-				tip = "Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
+				tip = "A Shiny Rock: Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
 		"chest":
 			tip = "A Locked Chest. Open it with a key." if dungeon.keys > 0 \
 				else "A Locked Chest, and no key yet. Keep exploring, then come back: chests wait for you."
@@ -460,7 +465,7 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 		"campfire":
 			tip = "A campfire! Campfires are your way back to town." if not dungeon.guide_goal_met() else guide_goal_text()
 		"opened":
-			tip = "The key opened it!"
+			tip = "The key opened it! Chests hold the good stuff: here, the Innkeeper's Hops."
 		"walk":
 			if dungeon.deck.is_empty():
 				tip = "The room deck is empty, so the dark squares are dead ends."
@@ -476,9 +481,9 @@ func show_guided_campfire() -> void:
 	var text := "Campfires let you return to town with everything you found."
 	var blocked := ""
 	if dungeon.guide_goal_met():
-		text += "\nYou have the Stone. Time to go home and build the Inn!"
+		text += "\nYou have everything the Innkeeper asked for. Time to head home!"
 	else:
-		blocked = "You need 5 Stone first (%s)." % guide_progress()
+		blocked = "The Innkeeper is still waiting for some of it (%s)." % guide_progress()
 		text += "\n" + blocked
 	show_popup("Campfire", text, [["Return to Town", _on_leave, blocked], ["Keep exploring", close_popup]],
 		ICONS[RoomCard.Type.CAMPFIRE], "pop")

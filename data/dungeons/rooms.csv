@@ -1,20 +1,23 @@
 Area,Tier,Room,Type,Copies,Unlocked,Ambush,Encounters,Loot,Notes
-Plains,Guide,Stone Pile,Treasure,1,Yes,,,Stone 1,"Guided first run (no Inn yet): drawn in this order, no enemies. 5 Stone in all: 2 on tiles, 1 + 2 in the chests"
+Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,"The Architect's first trip (Inn built, no Adventurer yet): drawn in this order, no enemies. 5 Stone from Shiny Rocks, 3 Hops from the two chests"
 Plains,Guide,Rusty Key,Treasure,1,Yes,,,Key,
-Plains,Guide,Small Chest,Locked Chest,1,Yes,,,Stone 1,
-Plains,Guide,Campfire,Campfire,1,Yes,,,,Return to Town once you have 5 Stone
+Plains,Guide,Small Chest,Locked Chest,1,Yes,,,Hops 1,
+Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
+Plains,Guide,Campfire,Campfire,1,Yes,,,,Return to Town once you have the Stone and the Hops
+Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
 Plains,Guide,Quiet Meadow,Empty,1,Yes,,,,
-Plains,Guide,Stone Pile,Treasure,1,Yes,,,Stone 1,
 Plains,Guide,Shiny Key,Treasure,1,Yes,,,Key,
-Plains,Guide,Medium Chest,Locked Chest,1,Yes,,,Stone 2,
+Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
+Plains,Guide,Medium Chest,Locked Chest,1,Yes,,,Hops 2,
+Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
 Plains,1,Slime Patch,Fight,3,Yes,,"Small Slime | Small Slime | Small Slime, Small Slime",,Green Slimes only (they drop Green Ooze)
 Plains,1,Slime Ambush,Fight,2,Yes,Yes,"Small Slime | Small Slime, Small Slime",,Ambush: no backing off
 Plains,1,Blue Slime Patch,Fight,3,Quest,,"Slimeling, Slimeling | Slimeling, Small Slime | Slimeling, Slimeling, Slimeling",,Unlocked by the quest Clear the Slimes
 Plains,1,Blue Slime Ambush,Fight,1,Quest,Yes,"Slimeling, Slimeling | Slimeling, Small Slime",,Unlocked by the quest Clear the Slimes
 Plains,1,Bunny Burrow,Fight,2,Quest,,"Bunny Warrior | Bunny Warrior, Small Slime",,Unlocked by the quest Make your first Flask (they drop Animal Hair)
 Plains,1,Bunny Ambush,Fight,1,Quest,Yes,"Bunny Warrior | Bunny Warrior, Bunny Warrior",,Unlocked by the quest Make your first Flask
-Plains,1,Trapped Chest,Event,1,Quest,,Locked in a Chest,,"Someone is locked in a chest (events.csv: Locked in a Chest). Unlocked by A Bag for the Road; gone once you have the Enchanter blueprint"
-Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 10-20 | Card | Pack | Map | Enchant | Potion | Stone 2-3,Needs a small key
+Plains,1,Trapped Chest,Event,1,Quest,,Locked in a Chest,,Someone is locked in a chest (events.csv: Locked in a Chest). Unlocked by A Bag for the Road; gone once you have the Enchanter blueprint
+Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 10-20 | Card | Pack | Map | Enchant | Potion,Needs a small key (no Stone in chests: Stone comes from tiles and monsters)
 Plains,1,Shiny Rock,Treasure,1,Yes,,,Gold 5-12 | Key | Map | Potion | Stone 1-2 | Stone 1-2,
 Plains,1,Campfire,Campfire,1,Yes,,,,Rest or Leave
 Plains,1,Mystery,Event,2,Yes,,,,A random event (events.csv)

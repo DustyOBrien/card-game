@@ -12,258 +12,258 @@
 [ext_resource type="Resource" path="res://enemies/dire_wolf.tres" id="8_nvgi8"]
 [ext_resource type="Resource" path="res://enemies/thorn_treant.tres" id="9_mk55n"]
 
-[sub_resource type="Resource" id="Resource_ecosb"]
+[sub_resource type="Resource" id="Resource_nvgi8"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_xifb7"]
+[sub_resource type="Resource" id="Resource_mk55n"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_dxr8m"]
+[sub_resource type="Resource" id="Resource_ecosb"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_dj7rw"]
+[sub_resource type="Resource" id="Resource_xifb7"]
 script = ExtResource("3_ioxcy")
 room_name = "Wolf Trail"
 type = 0
 copies = 3
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_ecosb"), SubResource("Resource_xifb7"), SubResource("Resource_dxr8m")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_nvgi8"), SubResource("Resource_mk55n"), SubResource("Resource_ecosb")])
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_f8j5d"]
+[sub_resource type="Resource" id="Resource_dxr8m"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_sne0c"]
+[sub_resource type="Resource" id="Resource_dj7rw"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_rqlhb"]
+[sub_resource type="Resource" id="Resource_f8j5d"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_mai7g"]
+[sub_resource type="Resource" id="Resource_sne0c"]
 script = ExtResource("3_ioxcy")
 room_name = "Wolf Ambush"
 type = 0
 copies = 3
 ambush = true
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_f8j5d"), SubResource("Resource_sne0c"), SubResource("Resource_rqlhb")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_dxr8m"), SubResource("Resource_dj7rw"), SubResource("Resource_f8j5d")])
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_ac57c"]
+[sub_resource type="Resource" id="Resource_rqlhb"]
 script = ExtResource("3_ioxcy")
 room_name = "Rotten Chest"
 type = 2
 copies = 2
 loot = PackedStringArray("Gold 12-22", "Card", "Pack", "Map", "Enchant", "Potion")
 
-[sub_resource type="Resource" id="Resource_x0887"]
+[sub_resource type="Resource" id="Resource_mai7g"]
 script = ExtResource("3_ioxcy")
 room_name = "Bird Nest"
 type = 3
 loot = PackedStringArray("Gold 6-14", "Key", "Map", "Potion")
 
-[sub_resource type="Resource" id="Resource_oc4qv"]
+[sub_resource type="Resource" id="Resource_ac57c"]
 script = ExtResource("3_ioxcy")
 room_name = "Campfire"
 type = 4
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_mbfpi"]
+[sub_resource type="Resource" id="Resource_x0887"]
 script = ExtResource("3_ioxcy")
 room_name = "Mystery"
 type = 8
 copies = 2
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_dvuvv"]
+[sub_resource type="Resource" id="Resource_oc4qv"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("4_ioxcy"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_ypdmd"]
+[sub_resource type="Resource" id="Resource_mbfpi"]
 script = ExtResource("3_ioxcy")
 room_name = "Wolf Pack"
 type = 5
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_dvuvv")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_oc4qv")])
 loot = PackedStringArray("Card", "Pack")
 
-[sub_resource type="Resource" id="Resource_035hh"]
+[sub_resource type="Resource" id="Resource_dvuvv"]
 script = ExtResource("3_ioxcy")
 room_name = "Quiet Clearing"
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_0441h"]
+[sub_resource type="Resource" id="Resource_ypdmd"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_gn4fi"]
+[sub_resource type="Resource" id="Resource_035hh"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("5_nvgi8"), ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_fc4s1"]
+[sub_resource type="Resource" id="Resource_0441h"]
 script = ExtResource("3_ioxcy")
 room_name = "Deep Woods"
 type = 1
 tier = 2
 copies = 2
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_0441h"), SubResource("Resource_gn4fi")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_ypdmd"), SubResource("Resource_035hh")])
 loot = PackedStringArray("Gold 6-12", "Key")
 
-[sub_resource type="Resource" id="Resource_1c1y3"]
+[sub_resource type="Resource" id="Resource_gn4fi"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_1io8f"]
+[sub_resource type="Resource" id="Resource_fc4s1"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("5_nvgi8"), ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_oifte"]
+[sub_resource type="Resource" id="Resource_1c1y3"]
 script = ExtResource("3_ioxcy")
 room_name = "Thorn Thicket"
 type = 1
 tier = 2
 copies = 2
 ambush = true
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_1c1y3"), SubResource("Resource_1io8f")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_gn4fi"), SubResource("Resource_fc4s1")])
 loot = PackedStringArray("Gold 6-12", "Key")
 
-[sub_resource type="Resource" id="Resource_nqh0w"]
+[sub_resource type="Resource" id="Resource_1io8f"]
 script = ExtResource("3_ioxcy")
 room_name = "Hollow Log"
 type = 2
 tier = 2
 loot = PackedStringArray("Card", "Pack", "Map", "Enchant", "Potion")
 
-[sub_resource type="Resource" id="Resource_b3l45"]
+[sub_resource type="Resource" id="Resource_oifte"]
 script = ExtResource("3_ioxcy")
 room_name = "Hunter's Camp"
 type = 3
 tier = 2
 loot = PackedStringArray("Gold 12-22", "Card", "Potion")
 
-[sub_resource type="Resource" id="Resource_lts0p"]
+[sub_resource type="Resource" id="Resource_nqh0w"]
 script = ExtResource("3_ioxcy")
 room_name = "Mystery"
 type = 8
 tier = 2
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_7faym"]
+[sub_resource type="Resource" id="Resource_b3l45"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("5_nvgi8"), ExtResource("4_ioxcy"), ExtResource("4_ioxcy"), ExtResource("5_nvgi8")])
 
-[sub_resource type="Resource" id="Resource_ws05r"]
+[sub_resource type="Resource" id="Resource_lts0p"]
 script = ExtResource("3_ioxcy")
 room_name = "Mushroom Ring"
 type = 5
 tier = 2
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_7faym")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_b3l45")])
 loot = PackedStringArray("Card", "Pack")
 
-[sub_resource type="Resource" id="Resource_jyjfb"]
+[sub_resource type="Resource" id="Resource_7faym"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_we703"]
+[sub_resource type="Resource" id="Resource_ws05r"]
 script = ExtResource("3_ioxcy")
 room_name = "Wolf Den"
 type = 1
 unlocked = false
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_jyjfb")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_7faym")])
 loot = PackedStringArray("Pack", "Card")
 
-[sub_resource type="Resource" id="Resource_jji5p"]
+[sub_resource type="Resource" id="Resource_jyjfb"]
 script = ExtResource("3_ioxcy")
 room_name = "Fairy Ring"
 type = 3
 unlocked = false
 loot = PackedStringArray("Pack", "Card", "Gold 15-25", "Potion")
 
-[sub_resource type="Resource" id="Resource_6m31w"]
+[sub_resource type="Resource" id="Resource_we703"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("8_nvgi8")])
 
-[sub_resource type="Resource" id="Resource_bavbt"]
+[sub_resource type="Resource" id="Resource_jji5p"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("9_mk55n")])
 
-[sub_resource type="Resource" id="Resource_t7qli"]
+[sub_resource type="Resource" id="Resource_6m31w"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("8_nvgi8")])
 
-[sub_resource type="Resource" id="Resource_ksppv"]
+[sub_resource type="Resource" id="Resource_bavbt"]
 script = ExtResource("3_ioxcy")
 room_name = "Dark Hollow"
 type = 0
 tier = 3
 copies = 3
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_6m31w"), SubResource("Resource_bavbt"), SubResource("Resource_t7qli")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_we703"), SubResource("Resource_jji5p"), SubResource("Resource_6m31w")])
 loot = PackedStringArray("Gold 6-12")
 
-[sub_resource type="Resource" id="Resource_4f6va"]
+[sub_resource type="Resource" id="Resource_t7qli"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("8_nvgi8")])
 
-[sub_resource type="Resource" id="Resource_ht63f"]
+[sub_resource type="Resource" id="Resource_ksppv"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("9_mk55n")])
 
-[sub_resource type="Resource" id="Resource_jrnja"]
+[sub_resource type="Resource" id="Resource_4f6va"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("4_ioxcy"), ExtResource("8_nvgi8")])
 
-[sub_resource type="Resource" id="Resource_okacd"]
+[sub_resource type="Resource" id="Resource_ht63f"]
 script = ExtResource("3_ioxcy")
 room_name = "Bramble Ambush"
 type = 0
 tier = 3
 copies = 2
 ambush = true
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_4f6va"), SubResource("Resource_ht63f"), SubResource("Resource_jrnja")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_t7qli"), SubResource("Resource_ksppv"), SubResource("Resource_4f6va")])
 loot = PackedStringArray("Gold 6-12")
 
-[sub_resource type="Resource" id="Resource_6hk40"]
+[sub_resource type="Resource" id="Resource_jrnja"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("8_nvgi8"), ExtResource("9_mk55n")])
 
-[sub_resource type="Resource" id="Resource_12kpk"]
+[sub_resource type="Resource" id="Resource_okacd"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("9_mk55n"), ExtResource("5_nvgi8"), ExtResource("4_ioxcy")])
 
-[sub_resource type="Resource" id="Resource_hidrf"]
+[sub_resource type="Resource" id="Resource_6hk40"]
 script = ExtResource("3_ioxcy")
 room_name = "Heart of the Woods"
 type = 1
 tier = 3
 copies = 2
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_6hk40"), SubResource("Resource_12kpk")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_jrnja"), SubResource("Resource_okacd")])
 loot = PackedStringArray("Gold 12-18", "Key")
 
-[sub_resource type="Resource" id="Resource_s5q2c"]
+[sub_resource type="Resource" id="Resource_12kpk"]
 script = ExtResource("3_ioxcy")
 room_name = "Mossy Strongbox"
 type = 2
 tier = 3
 loot = PackedStringArray("Gold 22-32", "Enchant", "Potion", "Super Card")
 
-[sub_resource type="Resource" id="Resource_tv85o"]
+[sub_resource type="Resource" id="Resource_hidrf"]
 script = ExtResource("3_ioxcy")
 room_name = "Druid's Cache"
 type = 3
 tier = 3
 loot = PackedStringArray("Gold 15-25", "Potion", "Pack")
 
-[sub_resource type="Resource" id="Resource_ifefy"]
+[sub_resource type="Resource" id="Resource_s5q2c"]
 script = ExtResource("3_ioxcy")
 room_name = "Campfire"
 type = 4
 tier = 3
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_i1ps6"]
+[sub_resource type="Resource" id="Resource_tv85o"]
 script = ExtResource("3_ioxcy")
 room_name = "Mystery"
 type = 8
@@ -271,28 +271,28 @@ tier = 3
 copies = 2
 loot = PackedStringArray()
 
-[sub_resource type="Resource" id="Resource_2wmm3"]
+[sub_resource type="Resource" id="Resource_ifefy"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("8_nvgi8"), ExtResource("8_nvgi8")])
 
-[sub_resource type="Resource" id="Resource_v2l70"]
+[sub_resource type="Resource" id="Resource_i1ps6"]
 script = ExtResource("3_ioxcy")
 room_name = "Alpha Pack"
 type = 5
 tier = 3
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_2wmm3")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_ifefy")])
 loot = PackedStringArray("Card", "Pack")
 
-[sub_resource type="Resource" id="Resource_pcons"]
+[sub_resource type="Resource" id="Resource_2wmm3"]
 script = ExtResource("2_4k5lq")
 enemies = Array[ExtResource("3_eca1p")]([ExtResource("6_mk55n")])
 
-[sub_resource type="Resource" id="Resource_wpqej"]
+[sub_resource type="Resource" id="Resource_v2l70"]
 script = ExtResource("3_ioxcy")
 room_name = "Old Oak's Grove"
 type = 6
 tier = 0
-encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_pcons")])
+encounters = Array[ExtResource("2_4k5lq")]([SubResource("Resource_2wmm3")])
 loot = PackedStringArray("Pack")
 
 [resource]
@@ -300,8 +300,9 @@ script = ExtResource("1_area")
 display_name = "Forest"
 description = "A dark, tangled wood. Wolves hunt here, and the Old Oak is waking up."
 unlock_after = "Plains"
+material = "Lumber"
 sort_order = 1
 icon = ExtResource("2_icon")
 background = ExtResource("3_background")
 map_position = Vector2(640, 380)
-rooms = Array[ExtResource("3_ioxcy")]([SubResource("Resource_dj7rw"), SubResource("Resource_mai7g"), SubResource("Resource_ac57c"), SubResource("Resource_x0887"), SubResource("Resource_oc4qv"), SubResource("Resource_mbfpi"), SubResource("Resource_ypdmd"), SubResource("Resource_035hh"), SubResource("Resource_fc4s1"), SubResource("Resource_oifte"), SubResource("Resource_nqh0w"), SubResource("Resource_b3l45"), SubResource("Resource_lts0p"), SubResource("Resource_ws05r"), SubResource("Resource_we703"), SubResource("Resource_jji5p"), SubResource("Resource_ksppv"), SubResource("Resource_okacd"), SubResource("Resource_hidrf"), SubResource("Resource_s5q2c"), SubResource("Resource_tv85o"), SubResource("Resource_ifefy"), SubResource("Resource_i1ps6"), SubResource("Resource_v2l70"), SubResource("Resource_wpqej")])
+rooms = Array[ExtResource("3_ioxcy")]([SubResource("Resource_xifb7"), SubResource("Resource_sne0c"), SubResource("Resource_rqlhb"), SubResource("Resource_mai7g"), SubResource("Resource_ac57c"), SubResource("Resource_x0887"), SubResource("Resource_mbfpi"), SubResource("Resource_dvuvv"), SubResource("Resource_0441h"), SubResource("Resource_1c1y3"), SubResource("Resource_1io8f"), SubResource("Resource_oifte"), SubResource("Resource_nqh0w"), SubResource("Resource_lts0p"), SubResource("Resource_ws05r"), SubResource("Resource_jyjfb"), SubResource("Resource_bavbt"), SubResource("Resource_ht63f"), SubResource("Resource_6hk40"), SubResource("Resource_12kpk"), SubResource("Resource_hidrf"), SubResource("Resource_s5q2c"), SubResource("Resource_tv85o"), SubResource("Resource_i1ps6"), SubResource("Resource_v2l70")])

@@ -1,16 +1,16 @@
 Name,HP,Armor,Art,Width,Height,Name Color,Move Order,Split Into,Split Count,Boss,Exp,Bonus Gold,Drops
-Small Slime,14,0,slime.svg,130,98,#8cf28c,Random,,,No,10,0,Green Ooze 100%
-Slime,20,0,slime.svg,160,120,#8cf28c,Random,,,No,10,0,Green Ooze 100%
-Slimeling,8,0,slimeling.svg,110,82,#99d1ff,Random,,,No,10,0,
-Bunny Warrior,16,0,bunny_warrior.svg,120,150,#e0b07a,Random,,,No,10,0,Animal Hair 100%
-Big Slime,28,0,big_slime.svg,190,143,#5fd16a,Random,Small Slime,2,No,15,0,Green Ooze 100%
-Slime King,55,0,slime_king.svg,190,165,#ffd34d,In Order,,,Yes,60,20,
-Wolf,13,0,wolf.svg,170,120,#d6d0c4,Random,,,No,10,0,
-Mushroom,14,0,mushroom.svg,120,130,#f09a9a,Random,,,No,10,0,
+Small Slime,14,0,slime.svg,130,98,#8cf28c,Random,,,No,10,0,Green Ooze 100%; Stone 10%
+Slime,20,0,slime.svg,160,120,#8cf28c,Random,,,No,10,0,Green Ooze 100%; Stone 10%
+Slimeling,8,0,slimeling.svg,110,82,#99d1ff,Random,,,No,10,0,Stone 15%
+Bunny Warrior,16,0,bunny_warrior.svg,120,150,#e0b07a,Random,,,No,10,0,Animal Hair 100%; Stone 10%
+Big Slime,28,0,big_slime.svg,190,143,#5fd16a,Random,Small Slime,2,No,15,0,Green Ooze 100%; Stone 25%
+Slime King,55,0,slime_king.svg,190,165,#ffd34d,In Order,,,Yes,60,20,Stone 100%
+Wolf,13,0,wolf.svg,170,120,#d6d0c4,Random,,,No,10,0,Lumber 10%
+Mushroom,14,0,mushroom.svg,120,130,#f09a9a,Random,,,No,10,0,Lumber 10%
 Old Oak,65,2,old_oak.svg,175,185,#d9b77a,In Order,,,Yes,70,25,Lumber 100%
-Acid Slime,24,0,acid_slime.svg,165,124,#e8f060,Random,,,No,15,1,
-Slime Knight,30,2,slime_knight.svg,175,131,#a8d8ff,Random,,,No,20,2,
-Dire Wolf,22,0,dire_wolf.svg,185,130,#c0a8d8,Random,,,No,15,1,
+Acid Slime,24,0,acid_slime.svg,165,124,#e8f060,Random,,,No,15,1,Stone 20%
+Slime Knight,30,2,slime_knight.svg,175,131,#a8d8ff,Random,,,No,20,2,Stone 30%
+Dire Wolf,22,0,dire_wolf.svg,185,130,#c0a8d8,Random,,,No,15,1,Lumber 20%
 Thorn Treant,28,1,thorn_treant.svg,135,160,#9ad070,Random,,,No,20,2,Lumber 100%
 Training Dummy,16,0,training_dummy.svg,110,150,#e2c46a,Random,,,No,0,0,
 Sparring Dummy,99,0,training_dummy.svg,120,163,#ff9a6a,Random,,,No,0,0,

@@ -32,6 +32,11 @@ const ENCHANT_CHANCE := {RoomCard.Type.FIGHT: 35, RoomCard.Type.HARD_FIGHT: 60, 
 const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, RoomCard.Type.MINI_BOSS: 50}
 # % chance a won fight drops a SUPER card (run-only, see card_data.gd). Super rare!
 const SUPER_CARD_CHANCE := {RoomCard.Type.MINI_BOSS: 25}
+# % chance that exploring a new square (not a fight or a chest) turns up 1 of
+# the area's own material lying on the ground (Area.material: Stone in the
+# Plains, Lumber in the Forest). Not on the guided run: there it's Shiny Rocks only.
+const TILE_MATERIAL_CHANCE := 15
+const TILE_MATERIAL_ROOMS := [RoomCard.Type.EMPTY, RoomCard.Type.TREASURE, RoomCard.Type.EVENT, RoomCard.Type.CAMPFIRE]
 const REST_HEAL := 0.3  # Resting heals this much of your max HP.
 const PACK_NAME := "Small Plains Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
 # The four squares next to a square: right, left, down, up.
@@ -39,8 +44,8 @@ const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOW
 
 var area: Area
 var tier := 1  # Which tier's cards are in the deck.
-# The guided first run (before the Inn): only the area's Guide rooms, no
-# enemies, and dungeon.gd shows tips as you go.
+# The Architect's guided run (Inn built, no adventurer yet): only the area's
+# Guide rooms, no enemies, and dungeon.gd shows tips as you go.
 var guided := false
 var max_tier := 1  # The area's last tier.
 var deck: Array[RoomCard] = []  # The room cards still to draw, top = the end.
@@ -85,6 +90,7 @@ var flask: Flask = null
 var flask_stats := {}  # What it does this run (Flask.stats()).
 var flask_charges := 0
 
+var tile_find := ""  # "1 Stone" if the square you just explored had some lying around ("" = no).
 var seen_events: Array[String] = []  # Events met this run (each one only once if there are enough).
 var fights_won := 0
 var result := ""  # "" while in the dungeon, then "left", "won" or "died".
@@ -211,6 +217,7 @@ func move_to(square: Vector2i) -> String:
 	total_steps += reach[square].steps
 	came_from = reach[square].from
 	position = square
+	tile_find = ""
 	if not rooms.has(square):
 		_reveal(square)
 	return _enter(square)
@@ -221,6 +228,13 @@ func _reveal(square: Vector2i) -> void:
 	var card: RoomCard = deck.pop_back()
 	rooms[square] = {"card": card, "cleared": false, "done": false, "campfire": card.type == RoomCard.Type.CAMPFIRE}
 	add_log("You find: %s" % card.room_name)
+	# Sometimes there's a bit of the area's material lying around, too.
+	tile_find = ""
+	if not guided and not area.material.is_empty() and card.type in TILE_MATERIAL_ROOMS \
+			and randi() % 100 < TILE_MATERIAL_CHANCE:
+		add_found_material(area.material, 1)
+		tile_find = "1 " + area.material
+		add_log("There's %s lying here. You pick it up." % tile_find)
 	if deck.is_empty():
 		# No cards left: every other blank square is a dead end until you rest.
 		for y in SIZE:
@@ -759,10 +773,9 @@ func material_total(material_name: String) -> int:
 	return total
 
 
-# The guided run's goal: what the Inn needs ({"Stone": 5}).
+# The guided run's goal: what the Innkeeper's quests need ({"Stone": 5, "Hops": 3}).
 func guide_needs() -> Dictionary:
-	var inn := GameState.find_building("Inn")
-	return inn.materials_for_next(GameState.town_stage(inn)) if inn else {}
+	return GameState.guide_needs()
 
 
 # Do you have it all (counting what's already in the Bank)?

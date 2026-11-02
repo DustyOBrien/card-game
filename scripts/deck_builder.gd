@@ -117,7 +117,7 @@ func start_guide() -> void:
 		{"target": _panel_of(pool_grid), "text": "YOUR CARDS: everything you own. Click a card to add a copy to your deck (the dots show how many you own). Booster packs from the Shop bring more."},
 		{"target": _panel_of(deck_list), "text": "YOUR DECK: what you'll fight with. The bar shows the deck size, then the schools, the Energy cost curve and the card types. Click a card in the list to take it out."},
 		{"target": default_button, "text": "Lost? Starter Deck builds a good deck for you. Clear empties it."},
-		{"target": start_button, "text": "When your deck is ready, go back To Town. Your quests are at the Inn (the Innkeeper has your first job), and the road out of town leads to the map."},
+		{"target": start_button, "text": "When your deck is ready, go back To Town. The Innkeeper has news for you, and the road out of town leads to the map."},
 	])
 
 

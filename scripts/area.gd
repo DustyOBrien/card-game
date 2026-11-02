@@ -15,6 +15,9 @@ extends Resource
 @export var unlocked: bool = false  # Open from the start? Locked areas show on the map but can't be picked.
 # The area whose boss opens this one, e.g. "Plains" for the Forest. Blank = only `unlocked` counts.
 @export var unlock_after: String = ""
+# This area's own material ("Stone"): it turns up on explored squares now
+# and then (see dungeon_run.gd). Monsters can drop it too (enemies.csv Drops).
+@export var material: String = ""
 @export var sort_order: int = 0  # The order along the road: 0 first.
 @export var icon: Texture2D  # The round picture on the map.
 @export var background: Texture2D  # The picture behind the fight.

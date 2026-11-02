@@ -13,5 +13,5 @@ amount = 10
 rewards = "Pack Small 1"
 next_quest = "Kill Enemies 2"
 quest_type = "Side"
-starts_after = "Stone for the Inn"
+starts_after = "Adventurer Trained"
 sort_order = 6

@@ -12,5 +12,5 @@ target = "Plains Booster Pack"
 amount = 10
 rewards = "Unlock Pack Rat"
 quest_type = "Adventurer"
-starts_after = "Stone for the Inn"
+starts_after = "Adventurer Trained"
 sort_order = 5

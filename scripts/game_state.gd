@@ -167,7 +167,18 @@ var quests_done: Array[String] = []
 # Parts of the game a quest has opened up ("Unlock Talents" reward), e.g. ["Talents"].
 var unlocked_features: Array[String] = []
 var seen_guides: Array[String] = []  # Screen guides you've seen (screen_guide.gd): each shows once.
+# STORY BEATS: the one-time moments of the start of the game that have
+# already played (the King's welcome, the Innkeeper's thanks...). See town.gd.
+# Some of them are also MILESTONES that start quests: a quest whose
+# "Starts After" is "Inn Built" starts when that beat happens (reach_milestone()).
+var story_beats: Array[String] = []
 const TALENTS_FEATURE := "Talents"
+# The "Unlock Adventurer" quest reward (the Need Hops quest): the first
+# adventurer moves into the Inn. Until then YOU, the Architect, explore.
+const ADVENTURER_FEATURE := "Adventurer"
+# Milestones (quests.csv "Starts After" can name one of these instead of a quest).
+const INN_BUILT := "Inn Built"  # The Innkeeper has thanked you: the first quests.
+const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the training + deck builder.
 var _materials: Array[MaterialInfo] = []
 var _quests: Array[Quest] = []
 
@@ -205,10 +216,12 @@ func start_fresh() -> void:
 	quests_done.clear()
 	unlocked_features.clear()
 	seen_guides.clear()
+	story_beats.clear()
 	active_quests.clear()
 	quest_progress.clear()
 	unseen_quests.clear()
-	start_quest(first_quest_name())  # The King's letter: 5 Lumber and the Inn blueprint.
+	# No quests at the start: they only appear once the Inn is built (the
+	# town's welcome, in town.gd, hands you the Inn blueprint first).
 	bonus_talent_points = 0
 	character_class = null
 	deck.clear()
@@ -566,10 +579,6 @@ func find_quest(quest_name: String) -> Quest:
 	return null
 
 
-func first_quest_name() -> String:
-	return load_quests()[0].quest_name if not load_quests().is_empty() else ""
-
-
 # The STORY quest you're on (null = none). Side and class quests run
 # alongside it: see quests_active().
 func current_quest() -> Quest:
@@ -614,7 +623,7 @@ func quest_status(quest: Quest) -> Vector2i:
 		Quest.BUILD:
 			var building := find_building(quest.target)
 			return Vector2i(mini(town_stage(building) if building else 0, 1), 1)
-		Quest.HAVE:
+		Quest.HAVE, Quest.DELIVER:
 			return Vector2i(mini(material_count(quest.target), quest.amount), quest.amount)
 		Quest.BREW:
 			var flask := find_flask(quest.target)
@@ -661,6 +670,9 @@ func complete_quest(quest: Quest) -> Array[String]:
 	quest_progress.erase(quest.quest_name)
 	unseen_quests.erase(quest.quest_name)
 	quests_done.append(quest.quest_name)
+	# Deliver: you hand the materials over (Have just checks you've got them).
+	if quest.objective == Quest.DELIVER:
+		spend_materials({quest.target: quest.amount})
 	var lines := give_rewards(quest.rewards)
 	start_quest(quest.next_quest)
 	_start_quests_after(quest.quest_name)
@@ -672,6 +684,27 @@ func _start_quests_after(done_name: String) -> void:
 	for other in load_quests():
 		if other.starts_after == done_name:
 			start_quest(other.quest_name)
+
+
+# A one-time story moment (a STORY BEAT) has happened. Returns false if it
+# already had. Quests whose Starts After names it start now.
+func reach_milestone(beat: String) -> bool:
+	if story_beats.has(beat):
+		return false
+	story_beats.append(beat)
+	_start_quests_after(beat)
+	save_game()
+	return true
+
+
+# What the Architect's guided run is after: every material an active Have
+# or Deliver quest still needs, e.g. {"Stone": 5, "Hops": 3}.
+func guide_needs() -> Dictionary:
+	var needs := {}
+	for quest in quests_active():
+		if quest.objective in [Quest.HAVE, Quest.DELIVER]:
+			needs[quest.target] = needs.get(quest.target, 0) + quest.amount
+	return needs
 
 
 # "Gold 20; Pack 1; Material Lumber 5; Blueprint Alchemist; Room Plains: Big Slime Nest"
@@ -1321,7 +1354,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 4  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training.
+const SAVE_VERSION := 5  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer.
 
 
 func save_game() -> void:
@@ -1357,6 +1390,7 @@ func save_game() -> void:
 		"quests_done": quests_done,
 		"unlocked_features": unlocked_features,
 		"seen_guides": seen_guides,
+		"story_beats": story_beats,
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -1441,6 +1475,10 @@ func load_game() -> bool:
 		if quests_done.has(quest.quest_name):
 			give_rewards(quest.rewards, true)
 	seen_guides.assign(data.get("seen_guides", []))
+	story_beats.assign(data.get("story_beats", []))
+	# Quests whose Starts After is a milestone you've already reached.
+	for beat in story_beats:
+		_start_quests_after(beat)
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
@@ -1488,10 +1526,11 @@ func load_classes() -> Array[CharacterClass]:
 # Is this area open on the map? Open from the start, or its Unlock After
 # area has been cleared (you beat that area's boss).
 func is_area_unlocked(area: Area) -> bool:
-	if town_bonus(TownBuilding.INN) == 0:
-		# No adventurers until the Inn is built. Before that, only the guided
-		# run is open: once you have the Inn's blueprint, you go and get Stone.
-		return blueprints.has("Inn") and has_guide_rooms(area)
+	if not adventurers_here():
+		# No adventurer yet: nothing is open until the Inn is built. Then
+		# the Architect (you) can take the guided trip for the Innkeeper's
+		# first two quests (Stone and Hops).
+		return town_bonus(TownBuilding.INN) > 0 and has_guide_rooms(area)
 	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
 
 
@@ -1500,9 +1539,10 @@ func has_guide_rooms(area: Area) -> bool:
 	return area.rooms.any(func(card: RoomCard) -> bool: return card.tier == RoomCard.GUIDE_TIER)
 
 
-# A run before the Inn is built is the guided one: no enemies, just tips.
+# A run before the first adventurer arrives is the Architect's guided one:
+# no enemies, just tips.
 func is_guided_run(area: Area) -> bool:
-	return town_bonus(TownBuilding.INN) == 0 and has_guide_rooms(area)
+	return not adventurers_here() and has_guide_rooms(area)
 
 
 # Talents and specs stay hidden until a quest unlocks them (after the first boss).
@@ -1510,10 +1550,11 @@ func talents_open() -> bool:
 	return unlocked_features.has(TALENTS_FEATURE)
 
 
-# Has an adventurer come to town yet? The Inn brings them: until it's built,
-# no class is playable and you're busy running the town.
+# Has an adventurer come to town yet? The Need Hops quest brings the first
+# one ("Unlock Adventurer"). Until then no class is playable: you're the
+# Architect, running the town (and exploring the Plains yourself, safely).
 func adventurers_here() -> bool:
-	return town_bonus(TownBuilding.INN) > 0
+	return unlocked_features.has(ADVENTURER_FEATURE)
 
 
 # You beat this area's boss. Returns the areas that just opened because of it.

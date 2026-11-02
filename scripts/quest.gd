@@ -16,6 +16,7 @@
 # Objectives (the Objective column, with Target and Amount):
 #   Build        Inn            the building is restored (stage 1+)
 #   Have         Green Ooze 5   you have this many in the Bank (not used up)
+#   Deliver      Hops 3         like Have, but handing it in gives them away
 #   Brew         Health Flask   the flask is unlocked at the Alchemist
 #   Clear Room   Big Slime Nest beat that room (counted while the quest is active)
 #   Defeat       Slime 10       defeat that many (counted while the quest is active;
@@ -32,12 +33,13 @@ extends Resource
 
 const BUILD := "build"
 const HAVE := "have"
+const DELIVER := "deliver"
 const BREW := "brew"
 const CLEAR_ROOM := "clear room"
 const DEFEAT := "defeat"
 const REACH_TIER := "reach tier"
 const OPEN_PACKS := "open packs"
-const OBJECTIVES := [BUILD, HAVE, BREW, CLEAR_ROOM, DEFEAT, REACH_TIER, OPEN_PACKS]
+const OBJECTIVES := [BUILD, HAVE, DELIVER, BREW, CLEAR_ROOM, DEFEAT, REACH_TIER, OPEN_PACKS]
 const ANY := "any"  # Defeat Any: every monster counts.
 
 @export var quest_name: String = "Quest"
@@ -59,6 +61,7 @@ func objective_text() -> String:
 	match objective:
 		BUILD: return "Build the %s" % target
 		HAVE: return "Have %d %s in your Bank" % [amount, target]
+		DELIVER: return "Bring %d %s to the Inn" % [amount, target]
 		BREW: return "Brew a %s at the Alchemist" % target
 		CLEAR_ROOM: return "Beat the %s" % target
 		DEFEAT: return "Defeat %d %s" % [amount, "enemies" if target.to_lower() == ANY else target]

@@ -12,6 +12,6 @@ sort_order = 1
 costs = Array[int]([0])
 effects = PackedStringArray("inn")
 amounts = Array[int]([1])
-stage_texts = PackedStringArray("Opens quests, the Plains and the Adventurer")
+stage_texts = PackedStringArray("Opens quests: the Innkeeper needs your help")
 material_costs = PackedStringArray("Stone 5")
 needs_blueprint = true
