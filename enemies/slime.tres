@@ -23,4 +23,4 @@ display_name = "Slime"
 texture = ExtResource("3_cw3c2")
 name_color = Color(0.54901963, 0.9490196, 0.54901963, 1)
 moves = Array[ExtResource("1_ugnio")]([SubResource("Resource_35gl0"), SubResource("Resource_kii7o")])
-drops = PackedStringArray("Green Ooze 100", "Stone 10")
+drops = PackedStringArray("Green Ooze 100", "Stone 30")

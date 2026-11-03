@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_c1r2b"]
+
+[resource]
+script = ExtResource("1_c1r2b")
+talent_name = "Master of All"
+class_display_name = "Adventurer"
+tree = "Jack of All Trades"
+tier = 4
+column = 3.5
+needs = PackedStringArray("Strength Might", "Agility Footwork", "Intellect Focus", "Wisdom Grace")
+needs_any = true
+points_in_tree = 8
+locks_out = PackedStringArray()
+effect = "school limit"
+school = "all"
+amounts = Array[int]([1])
+rules = "You may include 1 more card of EVERY school while deck building."
+rank_texts = PackedStringArray("You may include 1 more card of every school while deck building.")

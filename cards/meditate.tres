@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_rtcsj"]
+
+[resource]
+script = ExtResource("1_rtcsj")
+card_name = "Meditate"
+types = 2
+schools = 8
+attack = PackedStringArray()
+block = "d4"
+heal = "d4"
+critical = "+1 Heal"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Gain d4 Block. Heal d4 HP. Critical: +1 Heal."
+color = Color(0.5, 0.4, 0.65, 1)

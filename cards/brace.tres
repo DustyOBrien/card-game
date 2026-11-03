@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_7wgi6"]
+
+[resource]
+script = ExtResource("1_7wgi6")
+card_name = "Brace"
+types = 2
+attack = PackedStringArray()
+block = "d3"
+next_defense_bonus = 2
+critical = "+1 Block"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Gain d3 Block. Next Defense +2. Critical: +1 Block."
+color = Color(0.4, 0.4, 0.42, 1)

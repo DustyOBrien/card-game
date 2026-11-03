@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_wbow1"]
+
+[resource]
+script = ExtResource("1_wbow1")
+talent_name = "Practiced Swings"
+class_display_name = "Adventurer"
+tree = "Master of None"
+tree_index = 1
+tier = 3
+column = 1.5
+max_ranks = 2
+needs = PackedStringArray("Plain Guard")
+points_in_tree = 6
+locks_out = PackedStringArray()
+effect = "crit block"
+school = "neutral"
+amounts = Array[int]([1])
+rules = "Each die of a Neutral card that crits gives you 1 / 2 Block."
+rank_texts = PackedStringArray("Each die of a Neutral card that crits gives you 1 Block.", "Each die of a Neutral card that crits gives you 2 Block.")

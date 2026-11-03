@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_fnuyq"]
+
+[resource]
+script = ExtResource("1_fnuyq")
+card_name = "Whirlwind"
+cost = 2
+types = 1
+attack = PackedStringArray("d3", "d3")
+target = 1
+wild = true
+critical = "+1 Damage"
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Wild · AoE. Deal d3 damage twice to ALL enemies. Critical: +1 Damage."
+color = Color(0.4, 0.4, 0.42, 1)

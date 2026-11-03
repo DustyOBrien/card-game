@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_wdgoh"]
+
+[resource]
+script = ExtResource("1_wdgoh")
+card_name = "Body Slam"
+cost = 2
+types = 3
+schools = 1
+attack = PackedStringArray("d6")
+block = "d6"
+critical = "Gain 1 Energy"
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Deal d6 damage. Gain d6 Block. Critical: Gain 1 Energy."
+color = Color(0.6, 0.22, 0.22, 1)

@@ -10,9 +10,9 @@
 # Tier (row) and Column (left to right) say where its box goes.
 extends Control
 
-const BOX_SIZE := Vector2(156, 72)
+const BOX_SIZE := Vector2(156, 64)
 const COLUMN_SPACING := 176.0  # Pixels from one column to the next.
-const ROW_SPACING := 112.0  # Pixels from one tier to the next.
+const ROW_SPACING := 90.0  # Pixels from one tier to the next (90 so 4 tiers fit on screen).
 const TIER_LABEL_WIDTH := 150.0  # Room on the left for "Tier 2" labels.
 const LEARNED_COLOR := Color(1, 0.82, 0.3)  # Gold border: you have it.
 const OPEN_COLOR := Color(1, 1, 1, 0.85)  # White border: you can learn it now.
@@ -173,7 +173,7 @@ func build_tree() -> void:
 			label.text += "\n%d point(s) in Tier %d" % [tiers[tier][1], tier - 1]
 		label.add_theme_font_size_override("font_size", 15)
 		label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
-		label.position = Vector2(0, row_y(tier) + 16)
+		label.position = Vector2(0, row_y(tier) + 8)
 		tree_area.add_child(label)
 
 	for talent in talents:

@@ -74,6 +74,12 @@ var bank_box: Control
 var build_rows := {}  # Building name -> its row in the Build list.
 var flask_layer: Control  # The Alchemist screen while it's open (null when closed).
 var alchemist_tab := "Flasks"  # Which tab of the Alchemist screen: "Flasks" or "Potions".
+# The street scrolls sideways once there are too many buildings to fit
+# (Dusty's playtest: with everything built, some were off the screen).
+var street_scroll: ScrollContainer
+var scroll_left: Button  # The ◀ and ▶ buttons on each side of the street.
+var scroll_right: Button
+const SCROLL_STEP := 484.0  # One click of an arrow: two buildings (228 wide + 14 gap, twice).
 
 
 func _ready() -> void:
@@ -101,6 +107,7 @@ func _ready() -> void:
 	packs_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
 	flask_button.add_sibling(packs_button)
 	make_old_master()
+	make_street_scroll()
 	summary_label.text = run_summary()
 	message_label.text = ""
 	refresh()
@@ -241,6 +248,7 @@ func make_building(building: TownBuilding) -> PanelContainer:
 	elif stage > 0 and building.bonus(TownBuilding.BANK, stage) > 0:
 		panel.tooltip_text = "Click the Guild Hall to build, upgrade and see your Bank."
 		on_click = show_guild_hall
+	panel.gui_input.connect(_on_street_input)  # Mouse wheel = scroll the street.
 	if on_click.is_valid():
 		panel.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
 		panel.gui_input.connect(func(event: InputEvent) -> void:
@@ -327,8 +335,9 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 		"built" if stage == 1 and building.needs_blueprint else "upgraded", building.stage_texts[stage - 1]]
 	close_overlay()
 	refresh()
-	# A brand new building pops up on the street.
+	# A brand new building pops up on the street (scrolled into view first).
 	if stage == 1 and panels.has(building.building_name):
+		show_on_street(panels[building.building_name])
 		pop_in(panels[building.building_name])
 	# The Inn: the Innkeeper comes out to thank you (play_story() does the rest).
 	if not GameState.story_beats.has(GameState.INN_BUILT) and building.bonus(TownBuilding.INN, stage) > 0:
@@ -339,6 +348,92 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 		show_quest_board()
 	else:
 		show_guild_hall()
+
+
+# ---------------------------------------------------------------------------
+# The street scrolls
+# ---------------------------------------------------------------------------
+# BuildingRow sits in the scene on its own. Here we move it into a
+# ScrollContainer, with a ◀ button on its left and a ▶ on its right:
+#
+#   [◀] [ Guild Hall | Inn | Shop | Tailor | ... ] [▶]
+#
+# The arrows only show when the buildings don't all fit. The mouse wheel
+# scrolls the street too (see _on_street_input()).
+func make_street_scroll() -> void:
+	var street := HBoxContainer.new()
+	street.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	street.add_theme_constant_override("separation", 8)
+	building_row.add_sibling(street)  # Right where the row was in the layout.
+	scroll_left = make_scroll_arrow("◀", -1)
+	street.add_child(scroll_left)
+	street_scroll = ScrollContainer.new()
+	street_scroll.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	street_scroll.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	street.add_child(street_scroll)
+	building_row.reparent(street_scroll, false)
+	# EXPAND_FILL: with only a few buildings, the row fills the whole width and
+	# its alignment keeps them in the middle, like before.
+	building_row.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	scroll_right = make_scroll_arrow("▶", 1)
+	street.add_child(scroll_right)
+	# The scroll bar tells us when the street gets wider or moves: check the arrows.
+	var bar := street_scroll.get_h_scroll_bar()
+	bar.changed.connect(update_scroll_arrows)
+	bar.value_changed.connect(func(_value: float) -> void: update_scroll_arrows())
+	update_scroll_arrows()
+
+
+func make_scroll_arrow(text: String, direction: int) -> Button:
+	var arrow := Button.new()
+	arrow.text = text
+	arrow.custom_minimum_size = Vector2(46, 120)
+	arrow.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	arrow.add_theme_font_size_override("font_size", 24)
+	arrow.tooltip_text = "See more buildings (the mouse wheel scrolls too)"
+	arrow.pressed.connect(scroll_street.bind(direction))
+	return arrow
+
+
+# Slide the street one step left (-1) or right (1).
+func scroll_street(direction: int) -> void:
+	var bar := street_scroll.get_h_scroll_bar()
+	var target := clampf(street_scroll.scroll_horizontal + direction * SCROLL_STEP, 0, bar.max_value - bar.page)
+	street_scroll.create_tween().tween_property(street_scroll, "scroll_horizontal", int(target), 0.25) \
+		.set_trans(Tween.TRANS_SINE).set_ease(Tween.EASE_OUT)
+
+
+# Show the arrows only when there's more street to see, and grey out the one
+# for the end you're already at.
+func update_scroll_arrows() -> void:
+	var bar := street_scroll.get_h_scroll_bar()
+	var overflow := bar.max_value - bar.page > 1.0
+	scroll_left.visible = overflow
+	scroll_right.visible = overflow
+	scroll_left.disabled = street_scroll.scroll_horizontal <= 0
+	scroll_right.disabled = street_scroll.scroll_horizontal >= bar.max_value - bar.page - 1.0
+
+
+# The mouse wheel over a building scrolls the street (up = left, down = right).
+func _on_street_input(event: InputEvent) -> void:
+	var button := event as InputEventMouseButton
+	if button == null or not button.pressed or not street_scroll.get_h_scroll_bar().visible:
+		return
+	match button.button_index:
+		MOUSE_BUTTON_WHEEL_UP, MOUSE_BUTTON_WHEEL_LEFT:
+			street_scroll.scroll_horizontal -= 60
+		MOUSE_BUTTON_WHEEL_DOWN, MOUSE_BUTTON_WHEEL_RIGHT:
+			street_scroll.scroll_horizontal += 60
+		_:
+			return
+	accept_event()
+
+
+# Scroll so a building is on screen (a new building, or one a guide points at).
+func show_on_street(control: Control) -> void:
+	await get_tree().process_frame  # The new panel needs a frame to get its size.
+	if is_instance_valid(control) and street_scroll:
+		street_scroll.ensure_control_visible(control)
 
 
 # Grow a panel in from nothing with a little bounce (a new building!).

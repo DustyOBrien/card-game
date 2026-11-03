@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_unep0"]
+
+[resource]
+script = ExtResource("1_unep0")
+card_name = "Foresight"
+cost = 0
+types = 4
+schools = 4
+attack = PackedStringArray()
+draw = 1
+reroll = 1
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Choose a non-Wild card in your hand and roll its dice again. Draw 1 card"
+color = Color(0.22, 0.35, 0.65, 1)

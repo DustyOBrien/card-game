@@ -1,0 +1,22 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_i4yrh"]
+
+[resource]
+script = ExtResource("1_i4yrh")
+talent_name = "Nothing Fancy"
+class_display_name = "Adventurer"
+tree = "Master of None"
+tree_index = 1
+tier = 4
+column = 2.5
+needs = PackedStringArray("Steady Hands")
+points_in_tree = 9
+locks_out = PackedStringArray()
+effect = "die bonus"
+school = "neutral"
+amounts = Array[int]([1])
+effect_2 = "max hp"
+amounts_2 = Array[int]([5])
+rules = "Every die on your Neutral cards gets another +1, and +5 max HP."
+rank_texts = PackedStringArray("Every die on your Neutral cards gets another +1, and +5 max HP.")

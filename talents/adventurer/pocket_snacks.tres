@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_v2svx"]
+
+[resource]
+script = ExtResource("1_v2svx")
+talent_name = "Pocket Snacks"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+tier = 3
+column = 3.0
+max_ranks = 3
+needs = PackedStringArray()
+points_in_tree = 6
+locks_out = PackedStringArray()
+effect = "heal after fight"
+amounts = Array[int]([2, 3, 4])
+rules = "Heal 2 / 3 / 4 HP after every fight you win."
+rank_texts = PackedStringArray("Heal 2 HP after every fight you win.", "Heal 3 HP after every fight you win.", "Heal 4 HP after every fight you win.")

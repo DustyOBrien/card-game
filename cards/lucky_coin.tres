@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_f1vcc"]
+
+[resource]
+script = ExtResource("1_f1vcc")
+card_name = "Lucky Coin"
+cost = 0
+types = 4
+attack = PackedStringArray()
+draw = 1
+gain_advantage = true
+vanish = true
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Vanish. Draw 1. Gain Advantage."
+color = Color(0.4, 0.4, 0.42, 1)

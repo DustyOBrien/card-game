@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_v4pim"]
+
+[resource]
+script = ExtResource("1_v4pim")
+card_name = "Haymaker"
+cost = 2
+types = 1
+schools = 1
+attack = PackedStringArray("d10")
+disadvantage = true
+critical = "+3 Damage"
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Disadv. Deal d10 damage. Critical: +3 Damage."
+color = Color(0.6, 0.22, 0.22, 1)

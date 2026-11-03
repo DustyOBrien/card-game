@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_uvjdu"]
+
+[resource]
+script = ExtResource("1_uvjdu")
+card_name = "Scavenge"
+types = 4
+attack = PackedStringArray()
+draw = 2
+discard = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Draw 2. Discard 1 at random."
+color = Color(0.4, 0.4, 0.42, 1)

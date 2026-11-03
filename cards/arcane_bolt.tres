@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_j3wns"]
+
+[resource]
+script = ExtResource("1_j3wns")
+card_name = "Arcane Bolt"
+types = 1
+schools = 4
+attack = PackedStringArray("d6")
+advantage = true
+critical = "Draw 1"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Adv. Deal d6 damage. Critical: Draw 1."
+color = Color(0.22, 0.35, 0.65, 1)

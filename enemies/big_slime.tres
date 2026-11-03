@@ -29,4 +29,4 @@ name_color = Color(0.37254903, 0.81960785, 0.41568628, 1)
 moves = Array[ExtResource("1_6wunj")]([SubResource("Resource_p6yv6"), SubResource("Resource_h2wp3")])
 split_into = "Small Slime"
 exp = 15
-drops = PackedStringArray("Green Ooze 100", "Stone 25")
+drops = PackedStringArray("Green Ooze 100", "Stone 50", "Stone 25")

@@ -41,5 +41,5 @@ moves = Array[ExtResource("1_0kvr1")]([SubResource("Resource_kmgmc"), SubResourc
 move_order = 1
 is_boss = true
 exp = 70
-bonus_gold = 25
-drops = PackedStringArray("Lumber 100")
+bonus_gold = 12
+drops = PackedStringArray("Lumber 100", "Lumber 100", "Lumber 100", "Lumber 50", "Lumber 50")

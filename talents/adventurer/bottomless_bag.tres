@@ -1,0 +1,21 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_ix5ym"]
+
+[resource]
+script = ExtResource("1_ix5ym")
+talent_name = "Bottomless Bag"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+tier = 4
+column = 3.0
+max_ranks = 2
+needs = PackedStringArray("Hoarder", "Heavy Pack")
+needs_any = true
+points_in_tree = 9
+locks_out = PackedStringArray()
+effect = "max hp"
+amounts = Array[int]([5])
+rules = "+5 / +10 max HP."
+rank_texts = PackedStringArray("+5 max HP.", "+10 max HP.")

@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_0kg70"]
+
+[resource]
+script = ExtResource("1_0kg70")
+card_name = "Iron Wall"
+cost = 2
+types = 2
+attack = PackedStringArray()
+block = "d6"
+empowered = true
+critical = "+2 Block"
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Empowered. Gain d8 Block. Critical: +2 Block."
+color = Color(0.4, 0.4, 0.42, 1)

@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_n6sqj"]
+
+[resource]
+script = ExtResource("1_n6sqj")
+talent_name = "Early Riser"
+class_display_name = "Adventurer"
+tree = "Master of None"
+tree_index = 1
+tier = 3
+column = 2.5
+needs = PackedStringArray("Energy +")
+points_in_tree = 6
+locks_out = PackedStringArray()
+effect = "first turn energy"
+amounts = Array[int]([1])
+rules = "+1 Energy on the first turn of every fight."
+rank_texts = PackedStringArray("+1 Energy on the first turn of every fight.")

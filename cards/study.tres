@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_0ynf6"]
+
+[resource]
+script = ExtResource("1_0ynf6")
+card_name = "Study"
+types = 4
+schools = 4
+attack = PackedStringArray()
+draw = 3
+discard = 1
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Draw 3. Discard 1 at random."
+color = Color(0.22, 0.35, 0.65, 1)

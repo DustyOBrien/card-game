@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_45mej"]
+
+[resource]
+script = ExtResource("1_45mej")
+talent_name = "Tough Skin"
+class_display_name = "Adventurer"
+tree = "Master of None"
+tree_index = 1
+column = 3.5
+max_ranks = 3
+needs = PackedStringArray()
+locks_out = PackedStringArray()
+effect = "max hp"
+amounts = Array[int]([2])
+rules = "+2 / +4 / +6 max HP."
+rank_texts = PackedStringArray("+2 max HP.", "+4 max HP.", "+6 max HP.")

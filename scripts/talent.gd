@@ -35,9 +35,18 @@ const HP_PER_EXTRA_CARDS := "max hp per 2 cards over 20"  # +Amount max HP for e
 const START_BLOCK_PER_SCHOOL := "start block per school"  # Start each fight with Amount Block per different school in your deck (Neutral counts).
 const BONUS_GOLD := "bonus gold"  # +Amount gold from every enemy you beat.
 const PACK_DISCOUNT := "pack discount"  # Booster packs cost Amount less gold (never below 1).
+# More effects for the bigger trees (2026-11-03, for testing):
+const MAX_HP := "max hp"  # +Amount max HP.
+const START_BLOCK := "start block"  # Start each fight with Amount Block.
+const FIRST_TURN_ENERGY := "first turn energy"  # +Amount Energy on the first turn of each fight.
+const DIE_BONUS := "die bonus"  # +Amount to every die of School cards (counts towards Criticals!).
+const CRIT_BLOCK := "crit block"  # Gain Amount Block for every die of a School card that crits.
+const HEAL_AFTER_FIGHT := "heal after fight"  # Heal Amount HP after every fight you win.
+const MATERIAL_FIND_CHANCE := "material find chance"  # +Amount% chance to find the area's material (Stone) on a square.
 const EFFECTS: Array[String] = [SCHOOL_LIMIT, ENERGY, ENERGY_IF_ONLY_NEUTRAL, COST_DISCOUNT_CHANCE,
 	DRAW_DAMAGE_CHANCE, MAX_DECK_SIZE, HAND_SIZE, COPY_LIMIT, FIRST_PLAY_FLAWLESS, FIRST_PLAY_BONUS,
-	HP_PER_EXTRA_CARDS, START_BLOCK_PER_SCHOOL, BONUS_GOLD, PACK_DISCOUNT]
+	HP_PER_EXTRA_CARDS, START_BLOCK_PER_SCHOOL, BONUS_GOLD, PACK_DISCOUNT,
+	MAX_HP, START_BLOCK, FIRST_TURN_ENERGY, DIE_BONUS, CRIT_BLOCK, HEAL_AFTER_FIGHT, MATERIAL_FIND_CHANCE]
 
 @export var talent_name: String = "New Talent"
 @export var class_display_name: String = ""  # Whose tree it's in ("Adventurer").

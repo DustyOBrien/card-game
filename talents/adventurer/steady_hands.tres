@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_rtvhy"]
+
+[resource]
+script = ExtResource("1_rtvhy")
+talent_name = "Steady Hands"
+class_display_name = "Adventurer"
+tree = "Master of None"
+tree_index = 1
+tier = 2
+column = 3.0
+needs = PackedStringArray()
+points_in_tree = 3
+locks_out = PackedStringArray()
+effect = "die bonus"
+school = "neutral"
+amounts = Array[int]([1])
+rules = "Every die on your Neutral cards gets +1 (so a d3 crits on a 2!)."
+rank_texts = PackedStringArray("Every die on your Neutral cards gets +1 (so a d3 crits on a 2!).")

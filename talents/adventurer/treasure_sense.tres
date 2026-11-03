@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_gj5s1"]
+
+[resource]
+script = ExtResource("1_gj5s1")
+talent_name = "Treasure Sense"
+class_display_name = "Adventurer"
+tree = "Pack Rat"
+tree_index = 2
+tier = 4
+column = 1.5
+needs = PackedStringArray()
+points_in_tree = 9
+locks_out = PackedStringArray()
+effect = "first turn energy"
+amounts = Array[int]([1])
+rules = "+1 Energy on the first turn of every fight."
+rank_texts = PackedStringArray("+1 Energy on the first turn of every fight.")

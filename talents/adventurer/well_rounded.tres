@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Talent" format=3]
+
+[ext_resource type="Script" path="res://scripts/talent.gd" id="1_m4sfw"]
+
+[resource]
+script = ExtResource("1_m4sfw")
+talent_name = "Well Rounded"
+class_display_name = "Adventurer"
+tree = "Jack of All Trades"
+tier = 4
+column = 1.5
+max_ranks = 3
+needs = PackedStringArray()
+points_in_tree = 8
+locks_out = PackedStringArray()
+effect = "max hp"
+amounts = Array[int]([3])
+rules = "+3 / +6 / +9 max HP."
+rank_texts = PackedStringArray("+3 max HP.", "+6 max HP.", "+9 max HP.")

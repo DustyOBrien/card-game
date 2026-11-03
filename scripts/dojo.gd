@@ -257,12 +257,17 @@ func show_monster(enemy: EnemyData) -> void:
 		add_line("• " + str(place), Color.WHITE)
 
 
-# "Green Ooze 100" -> "Green Ooze (100%)".
+# "Green Ooze 100" -> "Green Ooze (100%)". The same drop listed 3 times
+# (the Slime King's "Stone 100%; Stone 100%; Stone 100%") -> "3x Stone (100%)".
 func drop_texts(enemy: EnemyData) -> Array[String]:
-	var texts: Array[String] = []
+	var counts := {}  # Each different drop -> how many times it's listed (in order).
 	for drop in enemy.drops:
+		counts[drop] = counts.get(drop, 0) + 1
+	var texts: Array[String] = []
+	for drop: String in counts:
 		var words := drop.rsplit(" ", true, 1)
-		texts.append("%s (%s%%)" % [words[0], words[1]] if words.size() == 2 and words[1].is_valid_int() else drop)
+		var text := "%s (%s%%)" % [words[0], words[1]] if words.size() == 2 and words[1].is_valid_int() else drop
+		texts.append(text if counts[drop] == 1 else "%dx %s" % [counts[drop], text])
 	return texts
 
 

@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_l2kkh"]
+
+[resource]
+script = ExtResource("1_l2kkh")
+card_name = "Quick Jab"
+cost = 0
+types = 1
+attack = PackedStringArray("d3")
+discard = 1
+critical = "Draw 1"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Deal d3 damage. Discard 1 at random. Critical: Draw 1."
+color = Color(0.4, 0.4, 0.42, 1)

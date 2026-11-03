@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_w4amd"]
+
+[resource]
+script = ExtResource("1_w4amd")
+card_name = "Desperate Swing"
+types = 1
+attack = PackedStringArray("d8")
+lose_hp = 2
+critical = "+2 Damage"
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Deal d8 damage. Lose 2 HP. Critical: +2 Damage."
+color = Color(0.4, 0.4, 0.42, 1)

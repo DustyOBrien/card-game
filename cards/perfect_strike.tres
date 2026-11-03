@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_5t3dg"]
+
+[resource]
+script = ExtResource("1_5t3dg")
+card_name = "Perfect Strike"
+cost = 2
+types = 1
+attack = PackedStringArray("d3")
+flawless = true
+critical = "+2 Damage"
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Flawless. Deal d3 damage. Critical: +2 Damage."
+color = Color(0.4, 0.4, 0.42, 1)

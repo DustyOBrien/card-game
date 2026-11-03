@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_r72tp"]
+
+[resource]
+script = ExtResource("1_r72tp")
+card_name = "Shield Bash"
+types = 3
+attack = PackedStringArray("d3")
+block = "d3"
+critical = "+1 Block"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Deal d3 damage. Gain d3 Block. Critical: +1 Block."
+color = Color(0.4, 0.4, 0.42, 1)

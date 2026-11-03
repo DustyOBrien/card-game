@@ -35,7 +35,7 @@ const SUPER_CARD_CHANCE := {RoomCard.Type.MINI_BOSS: 25}
 # % chance that exploring a new square (not a fight or a chest) turns up 1 of
 # the area's own material lying on the ground (Area.material: Stone in the
 # Plains, Lumber in the Forest). Not on the guided run: there it's Shiny Rocks only.
-const TILE_MATERIAL_CHANCE := 15
+const TILE_MATERIAL_CHANCE := 30  # Was 15: Stone was too slow (Dusty's playtest).
 const TILE_MATERIAL_ROOMS := [RoomCard.Type.EMPTY, RoomCard.Type.TREASURE, RoomCard.Type.EVENT, RoomCard.Type.CAMPFIRE]
 const REST_HEAL := 0.3  # Resting heals this much of your max HP.
 const PACK_NAME := "Small Plains Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
@@ -231,7 +231,7 @@ func _reveal(square: Vector2i) -> void:
 	# Sometimes there's a bit of the area's material lying around, too.
 	tile_find = ""
 	if not guided and not area.material.is_empty() and card.type in TILE_MATERIAL_ROOMS \
-			and randi() % 100 < TILE_MATERIAL_CHANCE:
+			and randi() % 100 < TILE_MATERIAL_CHANCE + _material_find_bonus():
 		add_found_material(area.material, 1)
 		tile_find = "1 " + area.material
 		add_log("There's %s lying here. You pick it up." % tile_find)
@@ -582,6 +582,13 @@ func die() -> String:
 
 # --- Loot ----------------------------------------------------------------------
 
+# Rock Hound talents: a better chance to find the area's material on a square.
+func _material_find_bonus() -> int:
+	if GameState.character_class == null:
+		return 0
+	return GameState.talent_bonus(GameState.character_class, Talent.MATERIAL_FIND_CHANCE)
+
+
 # Pick one of the card's loot entries and add it to what you've found.
 # Returns what you got, as text: "12 gold", "a card: Strike", "a Map!"...
 func take_loot(card: RoomCard) -> String:
@@ -627,8 +634,8 @@ func take_loot(card: RoomCard) -> String:
 		"map":
 			var room := GameState.unlock_random_room(area)
 			if room == null:
-				found_gold += 10  # Every room is already unlocked.
-				return "an old map of rooms you know (10 gold instead)"
+				found_gold += 5  # Every room is already unlocked.
+				return "an old map of rooms you know (5 gold instead)"
 			return "a Map! New room for the %s: %s" % [area.display_name, room.room_name]
 	# A material: "Stone 2", "Stone 1-3" or "Green Ooze 2" (the name can have spaces).
 	var last := words[-1].split("-")

@@ -33,5 +33,5 @@ moves = Array[ExtResource("1_cewxh")]([SubResource("Resource_d20a6"), SubResourc
 move_order = 1
 is_boss = true
 exp = 60
-bonus_gold = 20
-drops = PackedStringArray("Stone 100")
+bonus_gold = 10
+drops = PackedStringArray("Stone 100", "Stone 100", "Stone 100", "Stone 50", "Stone 50")

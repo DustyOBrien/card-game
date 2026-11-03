@@ -191,6 +191,7 @@ static func _modifier_for(card: CardData, key: String, bonuses: Dictionary) -> i
 	if card.has_dice():
 		modifier += bonuses.get("roll", 0)  # Next roll bonus: every die of a card that rolls.
 		modifier += bonuses.get("first_play", 0)  # Fresh Find: the card's first play this fight.
+		modifier += bonuses.get("die", 0)  # Die Bonus talents (e.g. +1 on Strength dice).
 	if key.begins_with("attack"):
 		modifier += card.attack_modifier
 		if card.has_type(CardData.CardType.ATTACK):

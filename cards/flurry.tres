@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_aws65"]
+
+[resource]
+script = ExtResource("1_aws65")
+card_name = "Flurry"
+cost = 2
+types = 1
+schools = 2
+attack = PackedStringArray("d3", "d3", "d3", "d3")
+wild = true
+critical = "Draw 1"
+rarity = 2
+unlocked = false
+class_only = PackedStringArray()
+effect = "Wild. Deal d3 damage 4 times. Critical: Draw 1."
+color = Color(0.25, 0.5, 0.3, 1)

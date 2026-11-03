@@ -708,6 +708,16 @@ func apply_fight_start_talents() -> void:
 		player.gain_block(block)
 		battle_log.add("Talent: %d school(s) in your deck give you %d Block (Block %d)" % [
 			deck_school_count(), block, player.block], BattleLog.PLAYER_COLOR)
+	# Start Block: a flat amount of Block.
+	var flat_block := GameState.talent_bonus(cls, Talent.START_BLOCK)
+	if flat_block > 0:
+		player.gain_block(flat_block)
+		battle_log.add("Talent: you start with %d Block (Block %d)" % [flat_block, player.block], BattleLog.PLAYER_COLOR)
+	# First Turn Energy: a head start.
+	var first_energy := GameState.talent_bonus(cls, Talent.FIRST_TURN_ENERGY)
+	if first_energy > 0:
+		energy += first_energy
+		battle_log.add("Talent: +%d Energy this first turn" % first_energy, BattleLog.PLAYER_COLOR)
 
 
 # Is this the first time this card is played this fight?
@@ -879,6 +889,11 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 		await draw_cards(card.draw + result.draw)
 	if card.reroll > 0:
 		await choose_rerolls(card.reroll)
+	# Crit Block talents: Block for every die of this card that crit.
+	var crit_block: int = result.crits * GameState.talent_bonus(GameState.character_class, Talent.CRIT_BLOCK, card)
+	if crit_block > 0:
+		player.gain_block(crit_block)
+		battle_log.add("Talent: your Critical gives %d Block (Block %d)" % [crit_block, player.block], BattleLog.PLAYER_COLOR)
 	if result.crits > 0:
 		# e.g. "Critical! Draw 1 (x2)   Discarded Guard"
 		var crit_text := "Critical! %s" % card.critical
@@ -973,7 +988,8 @@ func _on_hand_card_clicked(card: CardData) -> void:
 # The bonuses waiting right now for this card, in the form CardRoller.resolve() wants.
 # Pack Rat's first-play talents only count if the card hasn't been played this fight.
 func get_bonuses(card: CardData) -> Dictionary:
-	var bonuses := {"roll": next_roll_bonus, "attack": next_attack_bonus, "defense": next_defense_bonus}
+	var bonuses := {"roll": next_roll_bonus, "attack": next_attack_bonus, "defense": next_defense_bonus,
+		"die": GameState.talent_bonus(GameState.character_class, Talent.DIE_BONUS, card)}
 	if is_first_play(card):
 		var cls := GameState.character_class
 		bonuses.first_play = GameState.talent_bonus(cls, Talent.FIRST_PLAY_BONUS, card)
@@ -1410,6 +1426,11 @@ func _on_enemy_died(view: EnemyView) -> void:
 		update_ui()
 		return  # Still more to beat.
 
+	# Heal After Fight talents: patch yourself up before the next room.
+	var patch_up := GameState.talent_bonus(GameState.character_class, Talent.HEAL_AFTER_FIGHT)
+	if patch_up > 0 and player.hp > 0 and player.hp < player.max_hp:
+		player.heal(patch_up)
+		battle_log.add("Talent: you patch yourself up, +%d HP (HP %d/%d)" % [patch_up, player.hp, player.max_hp], BattleLog.PLAYER_COLOR)
 	GameState.run_hp = player.hp  # Carry your HP into the next fight.
 	var reward := "You found %d gold!" % fight_gold
 	if not fight_materials.is_empty():

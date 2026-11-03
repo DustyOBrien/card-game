@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_hmh7t"]
+
+[resource]
+script = ExtResource("1_hmh7t")
+card_name = "Triple Strike"
+cost = 2
+types = 1
+attack = PackedStringArray("d3", "d3", "d3")
+critical = "+1 Damage"
+rarity = 1
+unlocked = false
+class_only = PackedStringArray()
+effect = "Deal d3 damage 3 times. Critical: +1 Damage."
+color = Color(0.4, 0.4, 0.42, 1)

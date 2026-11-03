@@ -34,7 +34,7 @@ var current_area: Area
 # Your HP carries over from one fight to the next. Then you go back to town,
 # and from there you start a new run with full HP.
 const GOLD_MIN := 1  # Gold each enemy drops (a random amount between these).
-const GOLD_MAX := 5
+const GOLD_MAX := 3  # Was 1-5: too much gold, not enough Stone (Dusty's playtest, 2026-11-03).
 
 var gold := 0  # Kept between runs, and saved (see "Saving" below).
 var dungeon: DungeonRun  # The dungeon in progress (null between runs).
@@ -1128,11 +1128,12 @@ func enchant_card(deck_index: int, enchant: Enchant) -> void:
 	run_enchants[deck_index] = enchant
 
 
-# Your max HP in a fight: your class's, plus Heavy Pack (+Amount for every
-# 2 cards above 20 in your deck).
+# Your max HP in a fight: your class's, plus Max HP talents, plus Heavy Pack
+# (+Amount for every 2 cards above 20 in your deck).
 func player_max_hp() -> int:
 	var per_two := talent_bonus(character_class, Talent.HP_PER_EXTRA_CARDS)
-	return character_class.max_hp + maxi(deck.size() - 20, 0) / 2 * per_two
+	return character_class.max_hp + talent_bonus(character_class, Talent.MAX_HP) \
+		+ maxi(deck.size() - 20, 0) / 2 * per_two
 
 
 # --- Room cards ---------------------------------------------------------------

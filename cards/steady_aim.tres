@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_2swa2"]
+
+[resource]
+script = ExtResource("1_2swa2")
+card_name = "Steady Aim"
+types = 4
+attack = PackedStringArray()
+draw = 1
+next_roll_bonus = "2"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Draw 1. Next roll +2."
+color = Color(0.4, 0.4, 0.42, 1)

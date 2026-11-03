@@ -1,0 +1,18 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_a5tqm"]
+
+[resource]
+script = ExtResource("1_a5tqm")
+card_name = "Cheap Shot"
+cost = 0
+types = 1
+schools = 2
+attack = PackedStringArray("d4")
+advantage = true
+vanish = true
+critical = "+1 Damage"
+unlocked = false
+class_only = PackedStringArray()
+effect = "Adv · Vanish. Deal d4 damage. Critical: +1 Damage."
+color = Color(0.25, 0.5, 0.3, 1)
