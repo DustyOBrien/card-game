@@ -14,3 +14,4 @@ icon = ExtResource("2_icon")
 background = ExtResource("3_background")
 map_position = Vector2(260, 520)
 map_card_sheet = "res://data/dungeons/farm_cards.csv"
+perk_sheet = "res://data/dungeons/farm_perks.csv"

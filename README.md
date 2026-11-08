@@ -119,6 +119,23 @@ everything you choose before a trip, in three columns:
   have the points for) is skipped, and the screen says so.
 - **Set Out!** starts the trip (greyed out if your deck is too small).
 
+**Place progression (Farm Exp and perks).** Every trip gives the place Exp:
+1 per card you flip, 3 per fight won, 10 per floor deeper, and 10 more for
+getting home (half if you die). The **Home safe!** popup and the end-of-fight
+panels show it. Each **level up** (up to level 15) gives an **Explorer point**
+and a **Small Farm Booster Pack**. The **Farm Perks** button (top right of
+Prepare Expedition) opens the place's own flat list of perks, from
+`data/dungeons/farm_perks.csv` (read when the game runs; see
+`scripts/area_perk.gd` for every Effect):
+- **Camper / Camper II / Water Skins / Second Wind:** Going Deeper heals, refills
+  a flask charge, or brings back Vanished cards.
+- **Slime Hunter / Bunny Hunter:** slimes have less HP, bunnies hit for less.
+- **Old Map: Deep Well / Farmer's Stash / Dark Cellar:** unlock that map card.
+- **Starter Kit:** a Healing Potion or a small key on every trip.
+- **Clear the Weeds / Drain the Puddles / Mend the Fence:** bad base cards become
+  better ones (**Swap Card**; the new card is a Deck **Perk** row in
+  `farm_cards.csv`, like the Grain Field).
+
 Cards show **symbols** instead of rules text, so you can read them at a glance:
 
 | Symbol | Means |

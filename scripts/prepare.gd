@@ -21,6 +21,7 @@ const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CHARACTER_SCENE := "res://scenes/character_select.tscn"
 const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
+const PERKS_SCENE := "res://scenes/area_perks.tscn"
 const TORCH_ICON := preload("res://art/map_cards/torch.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 
@@ -38,6 +39,7 @@ var loadout_row: HBoxContainer
 var name_edit: LineEdit
 var status_label: Label  # A line under the columns: "Loaded Slime Hunt." / why you can't set out.
 var set_out_button: Button
+var perks_button: Button
 
 
 func _ready() -> void:
@@ -56,6 +58,7 @@ func start_guide() -> void:
 		{"target": panel_of(cards_box), "text": "MAP CARDS: your own map cards. Ticked ones go into the map deck with the place's base cards. Untick fights for a safer trip, or keep them for more drops."},
 		{"target": panel_of(pack_box), "text": "PACK: your flask, and how many torches you bring. Torches share one backpack slot, so 0 torches = one more slot for loot."},
 		{"target": loadout_row.get_parent(), "text": "LOADOUTS: Save this whole setup by name and load it again with one click. Same as last time puts back what you last set out with."},
+		{"target": perks_button, "text": "PERKS: every trip here gives the place Exp. Each level up gives an Explorer point to spend on this place's perks, and a booster pack."},
 		{"target": set_out_button, "text": "Ready? Set Out!"},
 	])
 
@@ -91,11 +94,31 @@ func build_screen() -> void:
 	page.add_theme_constant_override("separation", 10)
 	margin.add_child(page)
 
+	var title_row := HBoxContainer.new()
+	title_row.add_theme_constant_override("separation", 12)
+	page.add_child(title_row)
 	var title := make_label("Prepare Expedition  ·  %s" % area.display_name, 34, GOLD_COLOR)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	title.add_theme_color_override("font_outline_color", Color.BLACK)
 	title.add_theme_constant_override("outline_size", 6)
-	page.add_child(title)
+	title.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	title_row.add_child(title)
+	# The place's level, and its perks (if it has any).
+	var progress := GameState.area_exp_progress(area)
+	var level_label := make_label("Level %d%s" % [GameState.area_level(area),
+		"  ·  %d / %d Exp" % [progress.x, progress.y] if progress.y > 0 else ""], 18, Color.WHITE)
+	level_label.add_theme_color_override("font_outline_color", Color.BLACK)
+	level_label.add_theme_constant_override("outline_size", 4)
+	title_row.add_child(level_label)
+	perks_button = make_button("", func() -> void: get_tree().change_scene_to_file(PERKS_SCENE))
+	perks_button.custom_minimum_size = Vector2(0, 44)
+	var points := GameState.explorer_points(area)
+	perks_button.text = "%s Perks" % area.display_name.get_slice(" ", area.display_name.get_slice_count(" ") - 1) + \
+		("  ★ %d" % points if points > 0 else "")
+	if points > 0:
+		perks_button.theme_type_variation = &"PrimaryButton"
+	perks_button.visible = not GameState.area_perk_list(area).is_empty()
+	title_row.add_child(perks_button)
 
 	var columns := HBoxContainer.new()
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL

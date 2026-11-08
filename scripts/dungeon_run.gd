@@ -133,6 +133,8 @@ var flask_charges := 0
 
 var seen_events: Array[String] = []  # Events met this run (each one only once if there are enough).
 var fights_won := 0
+var cards_flipped := 0  # For the place's Exp at the end of the trip.
+var area_exp_result := {}  # What the trip gave the place (award_area_exp()), for the end screens.
 var result := ""  # "" while exploring, then "left", "won" or "died".
 var history: Array[String] = []  # The expedition's log, newest last.
 
@@ -153,6 +155,7 @@ func start() -> void:
 	torches = STARTING_TORCHES if guided else GameState.packed_torches  # Packed on the Prepare screen.
 	if not guided:
 		_build_deck()
+		keys += GameState.area_perk_total(area, AreaPerk.START_KEY)  # Starter Kit perks.
 	_deal()
 	add_log("You set out for the %s." % area.display_name)
 
@@ -185,7 +188,28 @@ func _build_deck() -> void:
 	while deck.size() < DECK_SIZE and not filler.is_empty():
 		deck.append(filler[next % filler.size()])
 		next += 1
+	_swap_perk_cards()
 	deck.shuffle()
+
+
+# Farm perks like Clear the Weeds: some copies of a bad card become a better
+# one (a Deck "Perk" row in the sheet).
+func _swap_perk_cards() -> void:
+	for perk in GameState.owned_area_perks(area):
+		if perk.effect != AreaPerk.SWAP_CARD:
+			continue
+		var better: RoomCard = null
+		for card in area.cards():
+			if card.room_name == perk.into:
+				better = card
+		if better == null:
+			push_warning("%s: no map card called '%s' to swap in" % [perk.perk_name, perk.into])
+			continue
+		var left := perk.amount
+		for i in deck.size():
+			if left > 0 and deck[i].room_name == perk.target:
+				deck[i] = better
+				left -= 1
 
 
 # Cards that join the deck when you reach this floor ("Floor" in the sheet).
@@ -353,6 +377,7 @@ func move_to(square: Vector2i) -> String:
 func _flip(square: Vector2i) -> void:
 	var room: Dictionary = rooms[square]
 	room.revealed = true
+	cards_flipped += 1
 	just_flipped = square
 	var card: RoomCard = room.card
 	add_log("You flip over: %s" % card.room_name)
@@ -444,8 +469,11 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 				var cost := words[1].to_int() if words.size() > 1 else 0
 				if found_gold < cost:
 					return "Needs %d found gold (you have %d)" % [cost, found_gold]
-			"use":  # "Use Key"
-				if keys <= 0:
+			"use":  # "Use Key" / "Use Torch"
+				if words.size() > 1 and words[1].to_lower() == "torch":
+					if torches <= 0:
+						return "You need a torch"
+				elif keys <= 0:
 					return "You need a small key"
 			"drop":  # "Drop 3": throw away supplies from your backpack.
 				if found_materials.is_empty():
@@ -524,9 +552,14 @@ func apply_effects(list: Array[String]) -> Dictionary:
 					add_found_material(material_name, -1)
 					dropped[material_name] = dropped.get(material_name, 0) + 1
 				lines.append("Lost " + (MaterialInfo.costs_text(dropped) if not dropped.is_empty() else "nothing"))
-			"use":  # "Use Key"
-				keys = maxi(keys - 1, 0)
-				lines.append("Used a small key (%d left)" % keys)
+			"use":  # "Use Key" / "Use Torch"
+				if words.size() > 1 and words[1].to_lower() == "torch":
+					torches = maxi(torches - 1, 0)
+					torch_uses = 0
+					lines.append("Used a torch (%d left)" % torches)
+				else:
+					keys = maxi(keys - 1, 0)
+					lines.append("Used a small key (%d left)" % keys)
 			"blueprint":  # Yours right away: rescuing someone isn't loot you can lose.
 				blueprint = effect.substr(10).strip_edges()
 				GameState.give_rewards("Blueprint " + blueprint)
@@ -545,8 +578,9 @@ func apply_effects(list: Array[String]) -> Dictionary:
 				fight = not fight_enemies.is_empty()
 			_:
 				# Everything else is a loot word, like a chest: Gold 5-10, Key, Potion...
+				# "Pack | Card | Potion" = one of them, picked at random.
 				var loot_card := RoomCard.new()
-				loot_card.loot = PackedStringArray([effect])
+				loot_card.loot = CardImporter._parse_list(effect.replace("|", ","))
 				lines.append("You get " + take_loot(loot_card))
 	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint}
 
@@ -817,6 +851,7 @@ func go_deeper() -> void:
 			continue
 		deck.append(card)
 	floor_number += 1
+	_campfire_perks()
 	_add_floor_cards()
 	deck.shuffle()
 	_deal()
@@ -824,6 +859,56 @@ func go_deeper() -> void:
 	add_log("Floor %d! The cards are shuffled and dealt again. Find the next campfire!" % floor_number)
 	if boss_here():
 		add_log("The %s is somewhere on this board..." % boss_card().room_name)
+
+
+# Camper perks: a rest at the campfire before you go down.
+func _campfire_perks() -> void:
+	var heal := GameState.area_perk_total(area, AreaPerk.CAMPFIRE_HEAL)
+	if heal > 0:
+		var max_hp := GameState.player_max_hp()
+		var before := GameState.run_hp if GameState.run_hp > 0 else max_hp
+		GameState.run_hp = mini(before + heal, max_hp)
+		add_log("You rest by the fire: +%d HP (HP %d/%d)." % [GameState.run_hp - before, GameState.run_hp, max_hp])
+	var sips := GameState.area_perk_total(area, AreaPerk.CAMPFIRE_FLASK)
+	if sips > 0 and flask:
+		flask_charges = mini(flask_charges + sips, flask_stats[Flask.CHARGES])
+		add_log("You refill your flask at the stream: %d/%d." % [flask_charges, flask_stats[Flask.CHARGES]])
+	if GameState.area_perk_total(area, AreaPerk.CAMPFIRE_VANISHED) > 0 and not GameState.vanished.is_empty():
+		add_log("Second Wind: %d Vanished card%s come back." % [GameState.vanished.size(), "" if GameState.vanished.size() == 1 else "s"])
+		GameState.vanished.clear()
+
+
+# THE PLACE'S EXP for this trip: 1 per card you flipped, 3 per fight won, 10
+# per floor below the first, and 10 more for getting home (or beating the
+# Boss). Die and you get half. Called once, from claim_loot().
+func area_exp_earned() -> int:
+	var total := cards_flipped + fights_won * 3 + (floor_number - 1) * 10
+	if result == "died":
+		return total / 2
+	return total + 10
+
+
+func award_area_exp() -> void:
+	if not area_exp_result.is_empty():
+		return  # Already given.
+	var amount := area_exp_earned()
+	var level_before := GameState.area_level(area)
+	var levels := GameState.add_area_exp(area, amount)
+	area_exp_result = {"exp": amount, "level_before": level_before, "levels": levels}
+	add_log("%s Exp +%d%s" % [area.display_name, amount,
+		"  Level %d! +%d Explorer point%s and a Farm Booster Pack." % [levels.back(), levels.size(), "" if levels.size() == 1 else "s"] if not levels.is_empty() else ""])
+
+
+# "Abandoned Farm Exp +32 · Level 3! +1 Explorer point, +1 Small Farm Booster Pack" (for the end screens).
+func area_exp_text() -> String:
+	if area_exp_result.is_empty():
+		return ""
+	var text := "%s Exp +%d" % [area.display_name, area_exp_result.exp]
+	var levels: Array = area_exp_result.levels
+	if not levels.is_empty():
+		text += "  ·  Level %d! +%d Explorer point%s, +%d %s" % [levels.back(), levels.size(), "" if levels.size() == 1 else "s",
+			levels.size(), GameState.AREA_LEVEL_PACK]
+	return text
 
 
 # Leave (at a campfire): keep what you found.
@@ -1149,7 +1234,9 @@ func _empty_sack() -> void:
 
 
 # Give the player everything found (after Returning to Town or beating the Boss).
+# The place's Exp is given here too (also when you die: die() calls this).
 func claim_loot() -> void:
+	award_area_exp()
 	_empty_sack()
 	GameState.gold += found_gold
 	GameState.run_gold += found_gold

@@ -1044,7 +1044,9 @@ func _on_leave() -> void:
 		GameState.reach_milestone(GameState.FIRST_TRIP)  # The first trip is done: next time, a shuffled deck.
 	dungeon.leave()
 	dungeon.claim_loot()
-	get_tree().change_scene_to_file(TOWN_SCENE)
+	# What the trip gave the place (Farm Exp, level ups) before heading home.
+	show_popup("Home safe!", "You bring home %s.\n%s" % [dungeon.loot_text(), dungeon.area_exp_text()],
+		[["To Town", func() -> void: get_tree().change_scene_to_file(TOWN_SCENE)]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
 
 
 # --- The popup ----------------------------------------------------------------

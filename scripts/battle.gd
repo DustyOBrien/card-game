@@ -391,6 +391,15 @@ func add_enemy(enemy_data: EnemyData, hp: int = 0, at: int = -1) -> EnemyView:
 		GameState.see_monster(enemy_data.display_name, fight_place())
 	# Danger: the more trouble you stir up on this trip, the stronger they are.
 	view.combatant.strength = GameState.dungeon.enemy_strength() if GameState.dungeon else 0
+	# The place's Monster Hunter perks: weaker slimes, softer-hitting bunnies...
+	var place := GameState.dungeon.area if GameState.dungeon else null
+	if place and not tutorial:
+		view.combatant.strength += GameState.area_perk_total(place, AreaPerk.ENEMY_STRENGTH, enemy_data.display_name)
+		var less := GameState.area_perk_total(place, AreaPerk.ENEMY_HP, enemy_data.display_name)
+		if less > 0 and hp <= 0:  # (Split halves keep the HP that was left.)
+			view.combatant.max_hp = maxi(1, view.combatant.max_hp * (100 - less) / 100)
+			view.combatant.hp = view.combatant.max_hp
+			view.refresh()
 	if at >= 0:
 		enemy_row.move_child(view, at)
 	# bind() adds `view` to the call, so we know WHICH enemy died.
@@ -1442,6 +1451,7 @@ func _on_enemy_died(view: EnemyView) -> void:
 		exp_gain += GameState.EXP_PER_RUN
 		dungeon.claim_loot()
 		reward += "\nYou take home %s." % dungeon.loot_text()
+		reward += "\n" + dungeon.area_exp_text()
 		opened_areas = GameState.clear_area(GameState.current_area)
 		for opened in opened_areas:
 			reward += "\nThe %s is now open on the map!" % opened.display_name
@@ -1506,6 +1516,7 @@ func _on_player_died() -> void:
 	var text := "You won %d fight(s). The dungeon keeps what you found (%s)." % [dungeon.fights_won, lost]
 	if GameState.sack_open():
 		text += "\nYour Save Sack kept: %s." % saved
+	text += "\n" + dungeon.area_exp_text() + " (half, for not making it home)"
 	end_battle("Defeat...", text, "Back to Town →")
 
 

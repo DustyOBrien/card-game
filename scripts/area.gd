@@ -30,6 +30,9 @@ extends Resource
 # The place's MAP CARD sheet (map_cards.gd), e.g.
 # "res://data/dungeons/farm_cards.csv". Read when the game runs.
 @export var map_card_sheet: String = ""
+# The place's PERKS sheet (area_perk.gd): what its Explorer points buy, e.g.
+# "res://data/dungeons/farm_perks.csv". Blank = no perks yet.
+@export var perk_sheet: String = ""
 # The old room deck (rooms.csv, saved in here by the importer), for places
 # without a map card sheet yet.
 @export var rooms: Array[RoomCard] = []

@@ -37,7 +37,14 @@ var map_cards_off := {}
 # Saved loadouts: {"name", "class", "spec", "talents", "deck", "flask", "torches", "map_cards_off"}.
 var loadouts: Array[Dictionary] = []
 var last_loadout := {}  # The setup you last set out with ("Same as last time").
-var preparing := false  # Editing your deck/class from the Prepare screen: come back there after.
+var preparing := false
+# --- Place progression: each place has its own Exp, level and perks ---
+const AREA_MAX_LEVEL := 15
+const AREA_FIRST_LEVEL_EXP := 25  # Exp from level 1 to 2...
+const AREA_LEVEL_EXP_STEP := 15  # ...and each level after needs this much more.
+const AREA_LEVEL_PACK := "Small Farm Booster Pack"  # Every level up gives one.
+var area_exp := {}  # Place name -> its total Exp: {"Abandoned Farm": 140}
+var area_perks := {}  # Place name -> the perks you bought: {"Abandoned Farm": ["Camper"]}  # Editing your deck/class from the Prepare screen: come back there after.
 
 # --- The run --------------------------------------------------------------
 # A "run" is one trip into an area's dungeon (see dungeon_run.gd): explore
@@ -244,6 +251,8 @@ func start_fresh() -> void:
 	potion_upgrades.clear()
 	chosen_flask = ""
 	packed_torches = 2
+	area_exp.clear()
+	area_perks.clear()
 	map_cards_off.clear()
 	loadouts.clear()
 	last_loadout.clear()
@@ -544,6 +553,12 @@ func start_run() -> void:
 		if dungeon.flask:
 			dungeon.flask_stats = flask_stats(dungeon.flask)
 			dungeon.flask_charges = dungeon.flask_stats[Flask.CHARGES]
+		# Starter Kit perks: a potion for every trip to this place.
+		for perk in owned_area_perks(current_area):
+			if perk.effect == AreaPerk.START_POTION:
+				var potion := find_potion(perk.target)
+				if potion:
+					dungeon.add_potion(potion)
 		if not pending_enchants.is_empty() or not pending_potions.is_empty():
 			pending_enchants.clear()
 			pending_potions.clear()
@@ -1490,6 +1505,8 @@ func save_game() -> void:
 		"seen_guides": seen_guides,
 		"story_beats": story_beats,
 		"packed_torches": packed_torches,
+		"area_exp": area_exp,
+		"area_perks": area_perks,
 		"map_cards_off": map_cards_off,
 		"loadouts": loadouts,
 		"last_loadout": last_loadout,
@@ -1595,6 +1612,10 @@ func load_game() -> bool:
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
 	packed_torches = clampi(int(data.get("packed_torches", 2)), 0, MAX_PACKED_TORCHES)
+	var saved_area_exp = data.get("area_exp", {})
+	area_exp = _whole_numbers(saved_area_exp) if saved_area_exp is Dictionary else {}
+	var saved_perks = data.get("area_perks", {})
+	area_perks = saved_perks if saved_perks is Dictionary else {}
 	var saved_off = data.get("map_cards_off", {})
 	map_cards_off = saved_off if saved_off is Dictionary else {}
 	loadouts.clear()
@@ -1821,6 +1842,106 @@ func make_starter_deck() -> Array[CardData]:
 
 # For testing a scene on its own (F6): if nothing was picked yet, use the
 # first class and its starter deck, so the scene still has something to show.
+# --- Place progression -----------------------------------------------------------
+# Every trip gives the place Exp (DungeonRun.award_area_exp()). Each level up
+# gives an Explorer point (to spend on that place's perks) and a booster pack.
+
+func area_level(area: Area) -> int:
+	var total: int = area_exp.get(area.display_name, 0)
+	var level := 1
+	while level < AREA_MAX_LEVEL and total >= area_exp_for_next(level):
+		total -= area_exp_for_next(level)
+		level += 1
+	return level
+
+
+# Exp from `level` to the next one.
+func area_exp_for_next(level: int) -> int:
+	return AREA_FIRST_LEVEL_EXP + AREA_LEVEL_EXP_STEP * (level - 1)
+
+
+# Where the bar is: (Exp into this level, Exp this level needs). (0, 0) at the top level.
+func area_exp_progress(area: Area) -> Vector2i:
+	var total: int = area_exp.get(area.display_name, 0)
+	var level := 1
+	while level < AREA_MAX_LEVEL and total >= area_exp_for_next(level):
+		total -= area_exp_for_next(level)
+		level += 1
+	if level >= AREA_MAX_LEVEL:
+		return Vector2i.ZERO
+	return Vector2i(total, area_exp_for_next(level))
+
+
+# Add Exp. Returns the new levels reached (each gave a point and a pack).
+func add_area_exp(area: Area, amount: int) -> Array[int]:
+	var before := area_level(area)
+	area_exp[area.display_name] = area_exp.get(area.display_name, 0) + maxi(amount, 0)
+	var reached: Array[int] = []
+	for level in range(before + 1, area_level(area) + 1):
+		reached.append(level)
+		add_packs(AREA_LEVEL_PACK, 1)
+	save_game()
+	return reached
+
+
+func area_perk_list(area: Area) -> Array[AreaPerk]:
+	return AreaPerk.load_sheet(area.perk_sheet)
+
+
+func owned_area_perks(area: Area) -> Array[AreaPerk]:
+	var owned_names: Array = area_perks.get(area.display_name, [])
+	return area_perk_list(area).filter(func(perk: AreaPerk) -> bool: return owned_names.has(perk.perk_name))
+
+
+func has_area_perk(area: Area, perk: AreaPerk) -> bool:
+	return area_perks.get(area.display_name, []).has(perk.perk_name)
+
+
+# Explorer points: 1 per level after the first, minus what you've spent.
+func explorer_points(area: Area) -> int:
+	var spent := 0
+	for perk in owned_area_perks(area):
+		spent += perk.cost
+	return area_level(area) - 1 - spent
+
+
+# Why you can't buy it ("" = you can).
+func why_cant_buy_perk(area: Area, perk: AreaPerk) -> String:
+	if has_area_perk(area, perk):
+		return "You have it"
+	if not perk.needs.is_empty() and not area_perks.get(area.display_name, []).has(perk.needs):
+		return "Needs %s first" % perk.needs
+	if explorer_points(area) < perk.cost:
+		return "Needs %d Explorer point%s" % [perk.cost, "" if perk.cost == 1 else "s"]
+	return ""
+
+
+func buy_area_perk(area: Area, perk: AreaPerk) -> bool:
+	if not why_cant_buy_perk(area, perk).is_empty():
+		return false
+	var list: Array = area_perks.get(area.display_name, [])
+	list.append(perk.perk_name)
+	area_perks[area.display_name] = list
+	if perk.effect == AreaPerk.UNLOCK_CARD:  # Like a Map: the card is yours for good.
+		var rooms_list: Array = unlocked_rooms.get(area.display_name, [])
+		if not rooms_list.has(perk.target):
+			rooms_list.append(perk.target)
+		unlocked_rooms[area.display_name] = rooms_list
+	save_game()
+	return true
+
+
+# Add up one effect over the place's perks you own (Target-matched if a name is given).
+func area_perk_total(area: Area, effect: String, thing_name: String = "") -> int:
+	if area == null:
+		return 0
+	var total := 0
+	for perk in owned_area_perks(area):
+		if perk.effect == effect and (thing_name.is_empty() or perk.fits(thing_name)):
+			total += perk.amount
+	return total
+
+
 # --- Loadouts -----------------------------------------------------------------
 # A LOADOUT is everything you pick before an expedition: class, spec, talents,
 # deck, flask, torches and which of your map cards go in. Saved by name on the

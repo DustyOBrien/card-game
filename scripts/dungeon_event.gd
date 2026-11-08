@@ -16,6 +16,8 @@
 #   Danger 1        danger goes up 1     Calm           danger back to 0
 #   Fight Wolf, Wolf    start a fight with these enemies (no backing off)
 #   Use Key         uses up a small key (the choice needs one)
+#   Use Torch       uses up a torch (the choice needs one)
+#   Pack | Card     loot: one of these, picked at random
 #   Drop 3          throw away 3 random supplies from your backpack (needs some)
 #   Blueprint Enchanter   a building's blueprint, yours for good right away
 #   Come Back       the room isn't finished: it goes back into the room deck

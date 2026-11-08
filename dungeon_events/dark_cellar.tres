@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_name = "Dark Cellar"
+area = "Room"
+text = "A cellar door in the grass. The steps go down into the dark."
+choice_labels = PackedStringArray("Light a torch", "Feel your way in", "Leave it")
+chances = Array[int]([100, 50, 100])
+effects = PackedStringArray("Use Torch; Pack | Card | Potion", "Gold 5-10; Grain 2", "")
+fail_effects = PackedStringArray("", "Fight Slime, Slimeling", "")
+results = PackedStringArray("Your torch shows shelves of old jars, and something better tucked behind them.", "Your hands find a coin purse and a sack of grain.", "You close the door on the dark.")
+fail_results = PackedStringArray("", "Something cold and squishy grabs your hand!", "")
