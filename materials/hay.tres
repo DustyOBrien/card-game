@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialInfo" format=3]
+
+[ext_resource type="Texture2D" path="res://art/materials/hay.svg" id="1_k36ep"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_gh5vx"]
+
+[resource]
+script = ExtResource("2_gh5vx")
+material_name = "Hay"
+description = "Dry golden straw from the Abandoned Farm. Good for bedding, roofs and animal feed."
+color = Color(0.9098039215686274, 0.7686274509803922, 0.35294117647058826, 1)
+icon = ExtResource("1_k36ep")

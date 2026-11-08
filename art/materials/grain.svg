@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Grain: a stalk of wheat, with its seeds in two rows. -->
+  <path d="M32 60 L32 20" stroke="#8a6a1e" stroke-width="3" stroke-linecap="round"/>
+  <path d="M32 44 C24 40 20 34 20 28" fill="none" stroke="#8a6a1e" stroke-width="2"/>
+  <g fill="#e5b84a" stroke="#8a6a1e" stroke-width="1.5">
+    <ellipse cx="32" cy="10" rx="4" ry="7"/>
+    <ellipse cx="26" cy="18" rx="4" ry="7" transform="rotate(-30 26 18)"/>
+    <ellipse cx="38" cy="18" rx="4" ry="7" transform="rotate(30 38 18)"/>
+    <ellipse cx="26" cy="28" rx="4" ry="7" transform="rotate(-30 26 28)"/>
+    <ellipse cx="38" cy="28" rx="4" ry="7" transform="rotate(30 38 28)"/>
+    <ellipse cx="26" cy="38" rx="4" ry="7" transform="rotate(-30 26 38)"/>
+    <ellipse cx="38" cy="38" rx="4" ry="7" transform="rotate(30 38 38)"/>
+  </g>
+</svg>

@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- Sheep Pen: a broken wooden fence with a woolly sheep behind it. -->
+  <rect x="0" y="44" width="64" height="20" fill="#6c8f3c"/>
+  <!-- The sheep. -->
+  <g stroke="#7a7466" stroke-width="1.5">
+    <ellipse cx="34" cy="34" rx="14" ry="9" fill="#f2efe6"/>
+    <circle cx="24" cy="30" r="6" fill="#f2efe6"/><circle cx="44" cy="30" r="6" fill="#f2efe6"/>
+    <ellipse cx="18" cy="34" rx="5" ry="4" fill="#3d3a35"/>
+  </g>
+  <g stroke="#3d3a35" stroke-width="3" stroke-linecap="round"><path d="M27 42 L27 48"/><path d="M41 42 L41 48"/></g>
+  <!-- The fence: posts and rails, one rail broken. -->
+  <g fill="#9a6a3a" stroke="#5a3a1a" stroke-width="1.5">
+    <rect x="4" y="32" width="5" height="26"/><rect x="30" y="34" width="5" height="24"/><rect x="56" y="32" width="5" height="26"/>
+    <rect x="4" y="40" width="57" height="4"/>
+    <path d="M4 50 L28 50 L30 54 L4 54 Z"/><path d="M38 52 L61 49 L61 53 L40 56 Z"/>
+  </g>
+</svg>

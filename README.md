@@ -163,6 +163,20 @@ the screen in `scripts/dungeon.gd`.)
   - **Explore** (gold): a choice. A Locked Shed (use a key, break it open for
     40%, or leave it), an Old Well, an Old Barn, a Mystery... Some choices need
     something (a key, found gold), and failing a gamble can raise Danger.
+- **Torches (scouting).** You set out with **2 torches**. Press **Light Torch**,
+  then click ANY face-down card: it lights up so you can see what it is (it stays
+  face down, so no Danger yet). Then the torch makes a **burnout roll** on a d4:
+  **2+** to keep burning, then **3+**, then **4+**, and the 4th card always burns
+  it out. So a torch scouts 1 to 4 cards (about 2.2). Hay, fields and sheds can
+  give you more (`Torch` loot).
+- **Scavenging (push your luck).** Walls, fields, hay bales, the Sheep Pen and the
+  Quarry can be scavenged: stand on one and click it. The **first try is free**
+  and always works. Then each try needs a d6 roll: **3+**, **4+**, **5+**, **6+**.
+  Every success raises your **Luck** there, and Luck picks what you find: Luck 0-1
+  **Common**, Luck 2 **Uncommon**, Luck 3+ **Rare** (about an 11% chance to get
+  that far). A fail ends scavenging there and **Danger +1**. You can Stop and come
+  back later. Farm supplies: **Stone**, **Hay**, **Grain**, **Wool** and the rare
+  **Golden Fleece** (nothing uses Hay, Grain or Wool yet: they wait in the Bank).
 - You can walk back over face-up safe cards for free, but not through a fight
   you haven't won. **Hover** a square for what it is.
 - **Danger meter** (side panel): `Danger 4 · enemies +1 Strength · 2 more → +2`.
@@ -999,7 +1013,10 @@ so change it, save, and press Play: no importer needed.
 | Copies | 3 | How many go in the deck |
 | Unlocked | Yes | **No** = a Map from a chest unlocks it. **Quest** = only a quest reward does |
 | Encounters | Small Slime \| Small Slime, Small Slime | Fights: the enemy groups it can be, split by `\|` (one is picked) |
-| Loot | Stone 1-2 \| Gold 1-3 | What you find, split by `\|` (one is picked) |
+| Loot | Gold 1-3 \| Key | What you find when you step on it (Treasure, chests) or win the fight, split by `\|` (one is picked) |
+| Scavenge | Stone 1 | What scavenging finds at Luck 0-1 (Common). Blank in all three = it can't be scavenged |
+| Scavenge Uncommon | Stone 2 | What it finds at Luck 2 |
+| Scavenge Rare | Stone 3 \| Gold 5-10 | What it finds at Luck 3 and up (an empty table falls back to the one below) |
 | Event | Old Well | Event cards: the event in events.csv it always is (blank = a random one, like Mystery) |
 | Vanish | Yes | Gone for the rest of the trip once it's used |
 | Floor | 2 | It joins the deck when you Go Deeper to this floor (blank = 1). For the Boss: the first floor it's dealt on |
@@ -1024,7 +1041,7 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
 | Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
 | Encounters | Slime \| Slimeling, Slimeling | Fights: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right. **Event** rooms: the name of the event it always is (blank = random) |
-| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Small Farm Booster Pack), **Key**, **Map**, **Enchant**, **Potion** |
+| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Small Farm Booster Pack), **Key**, **Torch**, **Map**, **Enchant**, **Potion**, or a material (`Stone 1-2`) |
 | Notes | | Anything you like; the game ignores it |
 
 ### Events: `data/dungeons/events.csv`

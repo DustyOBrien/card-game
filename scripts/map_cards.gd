@@ -13,6 +13,8 @@
 #   Unlocked    Yes / No (a Map from a chest unlocks it) / Quest (a quest does)
 #   Encounters  fights: "Small Slime | Small Slime, Small Slime" (one group is picked)
 #   Loot        "Stone 1-2 | Gold 1-3" (one is picked)
+#   Scavenge, Scavenge Uncommon, Scavenge Rare
+#               what scavenging finds here, by Luck (see dungeon_run.gd)
 #   Event       Event cards: the event in events.csv (blank = a random one)
 #   Vanish      Yes = gone for the rest of the run once it's used
 #   Floor       it joins the deck when you reach this floor (blank = 1)
@@ -83,6 +85,18 @@ static func load_sheet(path: String) -> Array[RoomCard]:
 		for loot_text in row.get("loot", "").split("|", false):
 			if not loot_text.strip_edges().is_empty():
 				card.loot.append(loot_text.strip_edges())
+		card.scavenge_common = _loot_list(row.get("scavenge", ""))
+		card.scavenge_uncommon = _loot_list(row.get("scavenge uncommon", ""))
+		card.scavenge_rare = _loot_list(row.get("scavenge rare", ""))
 		cards.append(card)
 	_sheets[path] = cards
 	return cards
+
+
+# "Hay 1-2 | Torch" -> ["Hay 1-2", "Torch"]
+static func _loot_list(text: String) -> PackedStringArray:
+	var list := PackedStringArray()
+	for entry in text.split("|", false):
+		if not entry.strip_edges().is_empty():
+			list.append(entry.strip_edges())
+	return list

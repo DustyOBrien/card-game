@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialInfo" format=3]
+
+[ext_resource type="Texture2D" path="res://art/materials/grain.svg" id="1_w4ute"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_gh5vx"]
+
+[resource]
+script = ExtResource("2_gh5vx")
+material_name = "Grain"
+description = "Wheat from the old farm fields. The Inn could bake with it."
+color = Color(0.8980392156862745, 0.7215686274509804, 0.2901960784313726, 1)
+icon = ExtResource("1_w4ute")

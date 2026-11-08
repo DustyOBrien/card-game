@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A torch: a wooden handle wrapped in cloth, with a flame on top. -->
+  <path d="M28 30 L36 30 L34 60 L30 60 Z" fill="#8a5a2b" stroke="#4a2e14" stroke-width="2" stroke-linejoin="round"/>
+  <rect x="25" y="26" width="14" height="8" rx="2" fill="#c9a66b" stroke="#6b4e22" stroke-width="2"/>
+  <path d="M32 2 C40 12 46 18 42 26 C40 30 24 30 22 26 C18 18 26 14 28 6 C30 12 32 14 32 2 Z" fill="#ff8a1e" stroke="#c4460a" stroke-width="2" stroke-linejoin="round"/>
+  <path d="M32 12 C36 18 38 22 36 26 C34 28 30 28 28 26 C26 22 30 20 32 12 Z" fill="#ffd34a"/>
+</svg>

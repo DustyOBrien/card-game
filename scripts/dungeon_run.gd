@@ -25,6 +25,15 @@
 #      down by itself, so the longer you stay, the harder it gets). Deeper
 #      floors also shuffle in tougher cards, and from Floor 3 the Boss is on
 #      every board. Beat it and the place is cleared.
+#   6. TORCHES (scouting). Light a face-down card anywhere on the board to
+#      see what it is before you step on it. Then the torch makes a BURNOUT
+#      roll on a d4: 2+ to keep burning, then 3+, then 4+, and the 4th time
+#      it always burns out. So a torch scouts 1 to 4 cards (about 2.2).
+#   7. SCAVENGING (push your luck). Some Safe cards (walls, fields, hay) can
+#      be scavenged. The first try always works. Then roll a d6: 3+, 4+, 5+,
+#      6+. Each success raises your LUCK for that spot, and Luck picks the
+#      loot table: Luck 0-1 Common, 2 Uncommon, 3+ Rare (about an 11%
+#      chance to get that far). A fail ends scavenging there and Danger +1.
 #   Die, and you lose what you found (except what's in your Save Sack).
 #
 # This file is only rules and numbers: dungeon.gd draws it on screen, and
@@ -44,6 +53,16 @@ const BREAK_CHANCE := 40  # % chance that breaking a locked chest open works (no
 # % chance a won fight drops an enchant / a potion, by card kind.
 const ENCHANT_CHANCE := {RoomCard.Type.FIGHT: 35, RoomCard.Type.HARD_FIGHT: 60, RoomCard.Type.MINI_BOSS: 100}
 const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, RoomCard.Type.MINI_BOSS: 50}
+# Torches: how many you set out with, and the burnout roll (a d4) each time
+# the lit torch scouts a card: 2+ the 1st time, 3+ the 2nd... 5+ = always out.
+const STARTING_TORCHES := 2
+const TORCH_DIE := 4
+const TORCH_TARGETS: Array[int] = [2, 3, 4, 5]
+# Scavenging: the d6 roll for each try at one spot. 0 = always works (the
+# first try). After the last one, the spot is picked clean.
+const SCAVENGE_DIE := 6
+const SCAVENGE_TARGETS: Array[int] = [0, 3, 4, 5, 6]
+const LUCK_NAMES := ["Common", "Common", "Uncommon", "Rare"]  # Luck 3 and up = Rare.
 const PACK_NAME := "Small Farm Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
 const CAMPFIRE_ART := preload("res://art/rooms/campfire.svg")
 # The four squares next to a square: right, left, down, up.
@@ -63,6 +82,8 @@ var gone: Array[RoomCard] = []  # Used cards with Vanish: out of the deck for th
 #   done:     used up (the loot is taken, the fight is won): Vanish cards leave
 #   campfire: a lit campfire is here
 #   opened:   a Locked Chest you've opened (or broken)
+#   scouted:  lit by a torch: you can see its face, but it hasn't flipped yet
+#   scavenges: how many times you've scavenged it (its Luck = this - 1)
 var rooms := {}
 var position := START  # Where you are.
 var came_from := START  # The square you stepped from.
@@ -70,6 +91,8 @@ var just_flipped := Vector2i(-1, -1)  # The card that flipped on your last step 
 var total_steps := 0  # Steps this whole run.
 var keys := 0  # Small keys: each opens one Locked Chest.
 var danger_points := 0  # From Unsafe cards and failed choices. See enemy_strength().
+var torches := 0  # Torches in your pack (the lit one counts until it burns out).
+var torch_uses := 0  # Cards the lit torch has scouted so far.
 
 # What you've found, given to you when you Return to Town or beat the Boss.
 var found_gold := 0
@@ -112,6 +135,7 @@ func _init(for_area: Area) -> void:
 # Build the map deck and deal the first board.
 func start() -> void:
 	guided = GameState.is_guided_run(area)
+	torches = STARTING_TORCHES
 	if not guided:
 		_build_deck()
 	_deal()
@@ -294,6 +318,7 @@ func can_move_to(square: Vector2i) -> bool:
 #   "event"    an Explore card with choices (dungeon.gd shows them)
 #   "campfire" Return to Town or Go Deeper
 #   "empty"    a Safe card with nothing on it
+#   "scavenge" a card you can scavenge (dungeon.gd offers it)
 #   ""         you can't go there
 func move_to(square: Vector2i) -> String:
 	var reach := reachable()
@@ -359,6 +384,8 @@ func _enter(square: Vector2i) -> String:
 			return "walk"  # A campfire that's gone out.
 	# Empty.
 	room.cleared = true
+	if can_scavenge(square):
+		return "scavenge" if square == just_flipped else "walk"
 	room.done = true
 	return "empty" if square == just_flipped else "walk"
 
@@ -494,6 +521,104 @@ func apply_effects(list: Array[String]) -> Dictionary:
 				loot_card.loot = PackedStringArray([effect])
 				lines.append("You get " + take_loot(loot_card))
 	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint}
+
+
+# --- Torches -----------------------------------------------------------------
+
+# Can you light up this square with a torch? (Face down and not scouted yet.)
+func can_scout(square: Vector2i) -> bool:
+	return torches > 0 and result.is_empty() and rooms.has(square) \
+		and not rooms[square].revealed and not rooms[square].get("scouted", false) \
+		and rooms[square].card != null
+
+
+# What the lit torch needs on its next burnout roll (5 on a d4 = it burns out).
+func torch_need() -> int:
+	return TORCH_TARGETS[mini(torch_uses, TORCH_TARGETS.size() - 1)]
+
+
+# SCOUT a face-down card with your torch: you see its face (it stays face
+# down until you step on it, so no Danger yet). Then the burnout roll.
+# Returns {"roll": 3, "need": 2, "kept": true}, or {} if you can't.
+func scout(square: Vector2i) -> Dictionary:
+	if not can_scout(square):
+		return {}
+	var room: Dictionary = rooms[square]
+	room.scouted = true
+	var need := torch_need()
+	var roll := randi_range(1, TORCH_DIE)
+	var kept := roll >= need
+	if kept:
+		torch_uses += 1
+	else:
+		torches -= 1
+		torch_uses = 0
+	var card: RoomCard = room.card
+	add_log("Your torch lights up: %s (%s). Burnout roll %d (needed %d+): %s" % [card.room_name, card.tile_name(), roll, need,
+		"still burning." if kept else "it burns out. %d torch%s left." % [torches, "" if torches == 1 else "es"]])
+	return {"roll": roll, "need": need, "kept": kept}
+
+
+# --- Scavenging -----------------------------------------------------------------
+
+# Can you scavenge here (now, or by coming back)?
+func can_scavenge(square: Vector2i) -> bool:
+	if not rooms.has(square):
+		return false
+	var room: Dictionary = rooms[square]
+	var card: RoomCard = room.card
+	return card != null and card.can_scavenge() and not room.get("scavenge_over", false) \
+		and room.get("scavenges", 0) < SCAVENGE_TARGETS.size()
+
+
+# The Luck you have at a spot: one less than the tries so far (the free
+# first try doesn't count). It goes up with every success.
+func scavenge_luck(square: Vector2i) -> int:
+	return maxi(rooms[square].get("scavenges", 0) - 1, 0)
+
+
+# What the next try at a spot needs on the d6 (0 = it always works).
+func scavenge_need(square: Vector2i) -> int:
+	return SCAVENGE_TARGETS[mini(rooms[square].get("scavenges", 0), SCAVENGE_TARGETS.size() - 1)]
+
+
+# The Luck the next try would find things at, if it works.
+func next_scavenge_luck(square: Vector2i) -> int:
+	return rooms[square].get("scavenges", 0)
+
+
+# Scavenge where you stand. Returns {"roll", "need", "worked", "luck",
+# "text" (what you found), "over" (the spot is finished)}, or {} if you can't.
+func scavenge() -> Dictionary:
+	if not can_scavenge(position) or not result.is_empty():
+		return {}
+	var room: Dictionary = rooms[position]
+	var card: RoomCard = room.card
+	var tries: int = room.get("scavenges", 0)
+	var need := scavenge_need(position)
+	var roll := randi_range(1, SCAVENGE_DIE) if need > 0 else 0
+	var worked := need == 0 or roll >= need
+	if not worked:
+		room.scavenge_over = true
+		room.done = true
+		raise_danger(1)
+		add_log("Scavenging %s: rolled %d (needed %d+). Nothing but noise! Danger +1." % [card.room_name, roll, need])
+		return {"roll": roll, "need": need, "worked": false, "luck": scavenge_luck(position), "text": "", "over": true}
+	var luck := tries  # The free try finds at Luck 0, the next at 1...
+	room.scavenges = tries + 1
+	var loot_card := RoomCard.new()
+	loot_card.loot = card.scavenge_table(luck)
+	var text := take_loot(loot_card)
+	var over := not can_scavenge(position)
+	if over:
+		room.done = true  # Picked clean.
+	add_log("Scavenging %s (Luck %d, %s): %s%s" % [card.room_name, luck, luck_name(luck), text,
+		"" if need == 0 else " (rolled %d, needed %d+)" % [roll, need]])
+	return {"roll": roll, "need": need, "worked": true, "luck": luck, "text": text, "over": over}
+
+
+static func luck_name(luck: int) -> String:
+	return LUCK_NAMES[mini(luck, LUCK_NAMES.size() - 1)]
 
 
 # --- Danger ------------------------------------------------------------------
@@ -720,6 +845,9 @@ func take_loot(card: RoomCard) -> String:
 		"key":
 			keys += 1
 			return "a small key"
+		"torch":
+			torches += 1
+			return "a torch"
 		"enchant":
 			return "an enchant: " + _drop_enchant()
 		"potion":

@@ -23,6 +23,7 @@ const SACK_ICON := preload("res://art/potions/sack.svg")
 const POTION_ICON := preload("res://art/potions/potion.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 const CARD_BACK := preload("res://art/map_cards/card_back.svg")
+const TORCH_ICON := preload("res://art/map_cards/torch.svg")
 
 const SQUARE_SIZE := Vector2(108, 108)
 const GAP := 6
@@ -70,6 +71,8 @@ var squares := {}  # Vector2i -> the Button drawn for that square.
 var reach := {}  # Where you can step to: dungeon.reachable(), worked out once per refresh().
 var _boxes := {}  # Square styles we've already made, so a redraw reuses them.
 var busy := false  # A card is flipping: clicks wait.
+var scouting := false  # The torch is out: the next face-down card you click gets lit up.
+var torch_button: Button
 # The Save Sack, Found and enchant/potion rows in the side panel (built in code).
 var sack_row: HBoxContainer
 var found_row: HFlowContainer
@@ -196,7 +199,8 @@ func refresh() -> void:
 	title_label.text = "%s  ·  Floor %d" % [dungeon.area.display_name, dungeon.floor_number] \
 		if not dungeon.guided else "%s  ·  Your first trip" % dungeon.area.display_name
 	var lines: Array[String] = []
-	lines.append("[color=#ff8080]HP %d / %d[/color]     [color=#ffd75a]Keys: %d[/color]" % [hp, GameState.player_max_hp(), dungeon.keys])
+	lines.append("[color=#ff8080]HP %d / %d[/color]     [color=#ffd75a]Keys: %d[/color]     [color=#ffb060]Torches: %d[/color]" % [
+		hp, GameState.player_max_hp(), dungeon.keys, dungeon.torches])
 	# The DANGER METER: how much, what it does now, and when it gets worse.
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
 	lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Strength  ·  [color=#ffb080]%d more → +%d[/color]" % [
@@ -211,10 +215,13 @@ func refresh() -> void:
 		"HP: carries over from fight to fight.",
 		"Keys: fights drop a small key %d%% of the time. A key opens one locked chest or shed." % DungeonRun.KEY_CHANCE,
 		"Danger: +1 for every Unsafe card you find, and for some failed choices. Every %d Danger gives every enemy +1 Strength. It lasts the whole trip." % dungeon.danger_per_strength(),
+		"Torches: light up any face-down card to see it first. Each time, a d4 burnout roll: %s, then it always burns out." % torch_targets_text(),
+		"Scavenge: stand on a wall, field, hay bale... and click it. Free the first time, then push your luck.",
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
 	deck_button.text = "Map Deck (%d)" % (dungeon.deck.size() + dungeon.face_down_count())
+	refresh_torch_button()
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
 	refresh_sack()
@@ -239,7 +246,15 @@ func draw_square(square: Vector2i) -> void:
 	var reachable := reach.has(square)
 	var color := CARD_COLOR
 	var border := Color(0, 0, 0, 0.6)
-	if room.is_empty() or not room.revealed:
+	if not room.is_empty() and not room.revealed and room.get("scouted", false) and card:
+		# SCOUTED: still face down (it flips when you step on it), but your
+		# torch showed what it is: its picture, a bit dim, with its tile border.
+		color = BACK_COLOR
+		icon.texture = card_art(card)
+		icon.modulate = Color(0.85, 0.8, 0.65) if reachable else Color(0.6, 0.57, 0.5)
+		label.text = card.room_name
+		border = RoomCard.TILE_COLORS[card.tile].darkened(0.0 if reachable else 0.35)
+	elif room.is_empty() or not room.revealed:
 		# FACE DOWN: just the card's back. The ones you can step onto glow gold.
 		color = BACK_COLOR
 		icon.texture = CARD_BACK
@@ -279,13 +294,31 @@ func draw_square(square: Vector2i) -> void:
 	button.add_theme_stylebox_override("disabled", make_box(color, border, width))
 	# You can click a square you can walk to, and the square you're on (to use
 	# its campfire or chest again).
-	button.disabled = not (reachable or (square == dungeon.position and has_action_here()))
+	if scouting:
+		button.disabled = not dungeon.can_scout(square)  # Torch out: only cards you can light up.
+		if not button.disabled:
+			button.add_theme_stylebox_override("normal", make_box(color, HOVER_BORDER, 3))
+	else:
+		button.disabled = not (reachable or (square == dungeon.position and has_action_here()))
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW if button.disabled else Control.CURSOR_POINTING_HAND
 
 
 # The tooltip for a square: what it is and what you can do with it.
 func describe_square(square: Vector2i) -> String:
 	var room: Dictionary = dungeon.rooms.get(square, {})
+	if scouting and dungeon.can_scout(square):
+		return "Light it up with your torch to see what it is."
+	if not room.is_empty() and not room.revealed and room.get("scouted", false) and room.card:
+		var scouted: RoomCard = room.card
+		var scout_lines: Array[String] = ["Scouted: %s  (%s)" % [scouted.room_name, scouted.tile_name()]]
+		if not scouted.text.is_empty():
+			scout_lines.append(scouted.text)
+		if scouted.is_fight():
+			scout_lines.append("Stepping on it starts a fight, and Danger +1.")
+		if scouted.can_scavenge():
+			scout_lines.append("You can scavenge it.")
+		scout_lines.append("Still face down: step on it to flip it.")
+		return "\n".join(scout_lines)
 	if room.is_empty() or not room.revealed:
 		var distance: int = reach[square].steps if reach.has(square) else -1
 		if distance > 0:
@@ -333,6 +366,10 @@ func describe_square(square: Vector2i) -> String:
 		lines.append("Vanish: once it's used, it's gone for the rest of this trip.")
 	if not card.loot.is_empty() and not room.done:
 		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
+	if dungeon.can_scavenge(square):
+		lines.append("Scavenge here (stand on it and click it). Next try: %s." % scavenge_odds(square))
+	elif card.can_scavenge() and room.get("scavenges", 0) > 0:
+		lines.append("Scavenged: nothing more to find here.")
 	return "\n".join(lines.filter(func(line: String) -> bool: return not line.is_empty()))
 
 
@@ -352,6 +389,8 @@ func make_box(color: Color, border: Color, width: int) -> StyleBoxFlat:
 func default_info() -> String:
 	if not dungeon.result.is_empty():
 		return ""
+	if scouting:
+		return "Torch out! Click ANY face-down card to see what it is (it stays face down). Then the torch makes its burnout roll."
 	return "Click a glowing face-down card to flip it, or a face-up card to walk back to it."
 
 
@@ -361,12 +400,17 @@ func has_action_here() -> bool:
 	if room.campfire:
 		return true
 	var card: RoomCard = room.card
+	if dungeon.can_scavenge(dungeon.position):
+		return true
 	return card != null and card.type == RoomCard.Type.LOCKED_CHEST and not room.done
 
 
 # --- Clicking ---------------------------------------------------------------
 
 func _on_square_hovered(square: Vector2i) -> void:
+	if scouting and not busy:
+		info_label.text = "Click it to light it up." if dungeon.can_scout(square) else "Pick a face-down card to light up (click the torch again to put it away)."
+		return
 	if not reach.has(square) or busy:
 		return
 	var distance: int = reach[square].steps
@@ -378,9 +422,17 @@ func _on_square_hovered(square: Vector2i) -> void:
 func _on_square_pressed(square: Vector2i) -> void:
 	if popup.visible or picker or deck_list or busy:
 		return
+	if scouting:
+		scout_square(square)
+		return
 	var what := ""
 	if square == dungeon.position:
-		what = "campfire" if dungeon.rooms[square].campfire else "chest"
+		if dungeon.rooms[square].campfire:
+			what = "campfire"
+		elif dungeon.can_scavenge(square):
+			what = "scavenge"
+		else:
+			what = "chest"
 	else:
 		what = dungeon.move_to(square)
 	if what.is_empty():
@@ -406,6 +458,8 @@ func _on_square_pressed(square: Vector2i) -> void:
 			show_event()
 		"empty":
 			info_label.text = "%s: %s" % [card.room_name, card.text if not card.text.is_empty() else "Nothing here."]
+		"scavenge":
+			show_scavenge()
 		"treasure":
 			var found := dungeon.history[-1].trim_prefix("Treasure! ")
 			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "You find %s." % found
@@ -434,6 +488,126 @@ func flip_square(square: Vector2i) -> void:
 	tween.tween_property(button, "scale:x", 1.0, FLIP_TIME).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
 	await tween.finished  # ...and it's back to full width.
 	busy = false
+
+
+# --- Torches -------------------------------------------------------------------------
+# Click Light Torch, then any face-down card: it lights up (you see its face,
+# but it stays face down). Then the d4 burnout roll tumbles on screen.
+
+func _on_torch_pressed() -> void:
+	if busy or popup.visible or picker or deck_list or dungeon.torches <= 0 or not dungeon.result.is_empty():
+		scouting = false
+	else:
+		scouting = not scouting
+	refresh()
+
+
+func refresh_torch_button() -> void:
+	if torch_button == null:
+		return
+	torch_button.text = ("Put it away" if scouting else "Light Torch") + " (%d)" % dungeon.torches
+	torch_button.set_pressed_no_signal(scouting)
+	torch_button.disabled = dungeon.torches <= 0 or not dungeon.result.is_empty()
+	if dungeon.torches > 0:
+		torch_button.tooltip_text = "Light up any face-down card to see what it is before you step on it.\nAfter each card, the torch rolls a d4 to keep burning: %s. Next roll needs %d+." % [
+			torch_targets_text(), dungeon.torch_need()]
+	else:
+		torch_button.tooltip_text = "No torches left. Hay bales, fields and sheds sometimes have one."
+
+
+# "2+, then 3+, then 4+"
+func torch_targets_text() -> String:
+	var parts: Array[String] = []
+	for need in DungeonRun.TORCH_TARGETS:
+		if need <= DungeonRun.TORCH_DIE:
+			parts.append("%d+" % need)
+	return ", then ".join(parts)
+
+
+func scout_square(square: Vector2i) -> void:
+	if not dungeon.can_scout(square):
+		return
+	scouting = false
+	var outcome := dungeon.scout(square)
+	if outcome.is_empty():
+		refresh()
+		return
+	await flip_square(square)  # It turns over to show its face (but stays face down on the board).
+	busy = true
+	refresh()
+	var card: RoomCard = dungeon.rooms[square].card
+	var kept: bool = outcome.kept
+	await roll_die(DungeonRun.TORCH_DIE, outcome.roll, "Still burning!" if kept else "Burnt out!",
+		Color(1, 0.75, 0.35) if kept else Color(0.75, 0.75, 0.75))
+	busy = false
+	refresh()
+	var how := "still burning: click Light Torch again to use it." if kept \
+		else "it burns out. %d torch%s left." % [dungeon.torches, "" if dungeon.torches == 1 else "es"]
+	info_label.text = "Your torch shows: %s (%s). Burnout roll %d, needed %d+: %s" % [card.room_name, card.tile_name(),
+		outcome.roll, outcome.need, how]
+	if guide_label:
+		show_guide_tip("torch", square)
+
+
+# --- Scavenging ----------------------------------------------------------------------
+# Push your luck: the first try is free, then each try needs a higher d6
+# roll. Every success raises your Luck here (better loot). A fail ends it
+# and raises Danger. The rules are in dungeon_run.gd (scavenge()).
+
+# "free, always works, finds Common things" or "4+ on a d6 (50%), finds Uncommon things"
+func scavenge_odds(square: Vector2i) -> String:
+	var need := dungeon.scavenge_need(square)
+	var finds := DungeonRun.luck_name(dungeon.next_scavenge_luck(square))
+	if need <= 0:
+		return "free, always works, finds %s things" % finds
+	var chance := roundi((DungeonRun.SCAVENGE_DIE - need + 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
+	return "%d+ on a d6 (%d%%), finds %s things" % [need, chance, finds]
+
+
+# The scavenge popup for the card you're standing on. found = what the last
+# try dug up (shown at the top).
+func show_scavenge(found := "") -> void:
+	var square := dungeon.position
+	var card: RoomCard = dungeon.rooms[square].card
+	var lines: Array[String] = []
+	if not found.is_empty():
+		lines.append("You found %s!" % found)
+	elif not card.text.is_empty():
+		lines.append(card.text)
+	if not dungeon.can_scavenge(square):
+		lines.append("Nothing more to find here: it's picked clean.")
+		show_popup(card.room_name, "\n".join(lines), [["OK", close_popup]], card_art(card), "pop", card)
+		return
+	lines.append("Luck here: %d.  Next try: %s." % [dungeon.scavenge_luck(square), scavenge_odds(square)])
+	lines.append("Each success raises your Luck: Luck 2 finds Uncommon things, Luck 3 Rare ones. A fail ends scavenging here, and Danger +1.")
+	var need := dungeon.scavenge_need(square)
+	var label := "Scavenge (free)" if need <= 0 else "Push your luck (%d+)" % need
+	show_popup(card.room_name, "\n".join(lines), [[label, _on_scavenge], ["Stop", close_popup]], card_art(card), "pop", card)
+
+
+func _on_scavenge() -> void:
+	if busy:
+		return
+	var card: RoomCard = dungeon.rooms[dungeon.position].card
+	var outcome := dungeon.scavenge()
+	if outcome.is_empty():
+		close_popup()
+		return
+	popup.hide()
+	var worked: bool = outcome.worked
+	if outcome.need > 0:
+		busy = true
+		await roll_die(DungeonRun.SCAVENGE_DIE, outcome.roll, "Lucky!" if worked else "Noise!",
+			Color(0.55, 0.95, 0.55) if worked else Color(1, 0.45, 0.4))
+		busy = false
+	refresh()
+	if guide_label:
+		show_guide_tip("scavenged", dungeon.position)
+	if worked:
+		show_scavenge("%s (Luck %d: %s)" % [outcome.text, outcome.luck, DungeonRun.luck_name(outcome.luck)])
+	else:
+		show_popup("Nothing but noise!", "You rolled %d (needed %d+). Something heard that... Danger +1, and the %s has nothing more for you." % [
+			outcome.roll, outcome.need, card.room_name], [["OK", close_popup]], card_art(card), "pop", card)
 
 
 # --- The Map Deck list -------------------------------------------------------------
@@ -552,7 +726,7 @@ func make_deck_row(entry: Dictionary) -> Control:
 # first time you meet it. Its campfires only offer Return to Town, and only
 # once you have everything the quests need.
 
-const GUIDE_START := "Welcome to the Abandoned Farm! This board is made of MAP CARDS, all face down. Click a glowing card next to you to flip it over. The Innkeeper needs 5 Stone (from Collapsed Walls) and 3 Hops (locked in sheds)."
+const GUIDE_START := "Welcome to the Abandoned Farm! This board is made of MAP CARDS, all face down. Click a glowing card next to you to flip it over. The Innkeeper needs 5 Stone (scavenge it from Collapsed Walls) and 3 Hops (locked in sheds)."
 
 func build_guide() -> void:
 	var panel := PanelContainer.new()
@@ -592,7 +766,13 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 			if card and card.loot.has("Key"):
 				tip = "A small key! Each key opens one locked shed or chest. Face-up Safe cards can be walked over for free, so you can go back for the sheds."
 			else:
-				tip = "A Collapsed Wall: Stone! SAFE cards (green border) are nothing to fear. What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
+				tip = "Treasure! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
+		"scavenge":
+			tip = "A SAFE card (green border) you can SCAVENGE. The first try is free and always works (a wall always has Stone). After that, push your luck: each try needs a higher roll, but finds better things. Fail, and Danger goes up."
+		"scavenged":
+			tip = "Found it! It's only yours once you get home: if you fall, you lose it. Push your luck for something better, or Stop and come back later (click the card you're standing on)."
+		"torch":
+			tip = "Your TORCH shows a card before you step on it (it stays face down). After each card it rolls a d4 to keep burning, and it gets harder each time. Use it to find the sheds, or to spot fights before they find you."
 		"fight":
 			tip = "An UNSAFE card (red border): always a fight, and it raises DANGER. Every %d Danger makes every enemy stronger, for the whole trip. Once you win, the card is safe to walk over." % dungeon.danger_per_strength()
 		"chest":
@@ -601,7 +781,7 @@ func show_guide_tip(what: String, square: Vector2i) -> void:
 		"event":
 			tip = "Another EXPLORE card: pick a choice. Some choices are a gamble: the % shows the chance it works."
 		"empty":
-			tip = "Nothing here, just the farm. Most of the Farm's cards are like this... for now."
+			tip = "Nothing here, just the farm. Try the Light Torch button: it shows a face-down card before you step on it."
 		"campfire":
 			tip = "A campfire! Campfires are your way home. On later trips, they also let you GO DEEPER: a fresh board, one floor down." if not dungeon.guide_goal_met() else guide_goal_text()
 		"opened":
@@ -790,6 +970,12 @@ func _on_flask_pressed() -> void:
 # The flask's die tumbles in the middle of the screen and lands on its roll,
 # then "+3 HP" floats up. (Like the dice tray in battle, just on its own.)
 func roll_flask_die(sides: int, value: int, heal: int) -> void:
+	await roll_die(sides, value, "+%d HP" % heal, Color(0.5, 0.95, 0.55))
+
+
+# Any die tumbling in the middle of the screen: it lands on `value`, then
+# `text` fades in under it (the flask, a torch's burnout roll, scavenging).
+func roll_die(sides: int, value: int, text: String, color: Color) -> void:
 	var holder := VBoxContainer.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -799,9 +985,9 @@ func roll_flask_die(sides: int, value: int, heal: int) -> void:
 	die.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	holder.add_child(die)
 	var label := Label.new()
-	label.text = "+%d HP" % heal
+	label.text = text
 	label.add_theme_font_size_override("font_size", 40)
-	label.add_theme_color_override("font_color", Color(0.5, 0.95, 0.55))
+	label.add_theme_color_override("font_color", color)
 	label.add_theme_color_override("font_outline_color", Color.BLACK)
 	label.add_theme_constant_override("outline_size", 8)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -1082,6 +1268,14 @@ func build_sack_panel() -> void:
 
 	var gear := HBoxContainer.new()
 	gear.add_theme_constant_override("separation", 8)
+	torch_button = Button.new()
+	torch_button.icon = TORCH_ICON
+	torch_button.expand_icon = true
+	torch_button.custom_minimum_size = Vector2(170, 40)
+	torch_button.toggle_mode = true
+	torch_button.focus_mode = Control.FOCUS_NONE
+	torch_button.pressed.connect(_on_torch_pressed)
+	gear.add_child(torch_button)
 	enchant_button = Button.new()
 	enchant_button.icon = ENCHANT_ICON
 	enchant_button.expand_icon = true
