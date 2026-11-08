@@ -23,6 +23,7 @@ const DIE_SIZE := 32.0  # The little dice on a card in your hand.
 const ROLL_STEPS := 8  # Random faces that flash by while a card's dice tumble...
 const ROLL_STEP_TIME := 0.06  # ...and how long each one shows (seconds).
 const ROLL_TIME := ROLL_STEPS * ROLL_STEP_TIME + 0.2  # How long roll_dice() takes, roughly.
+const FOIL_GOLD := Color(1, 0.84, 0.3)  # A foil card's frame and label.
 
 # The symbols shown on cards instead of rules text.
 # preload() loads a file once, when this script loads (the path must be fixed text).
@@ -88,6 +89,11 @@ func setup(data: CardData) -> void:
 	if data.rarity == CardData.Rarity.LEGENDARY:
 		rarity_label.text = "★ Legendary"
 	_show_super_glow(data.rarity == CardData.Rarity.LEGENDARY)
+	if data.is_foil:
+		rarity_label.text = "✦ Foil " + rarity_label.text
+		rarity_label.add_theme_color_override("font_color", FOIL_GOLD)
+	_show_foil(data.is_foil)
+	_show_class_frame(data)
 	# self_modulate tints only the card background, not the text on it.
 	self_modulate = data.color
 	keyword_label.text = data.get_keyword_text()
@@ -339,3 +345,98 @@ func _show_super_glow(show_it: bool) -> void:
 		glow.add_theme_stylebox_override("panel", style)
 		add_child(glow)
 	glow.visible = show_it
+
+
+# FOIL cards: a gold frame, and a band of light that sweeps across the card
+# every couple of seconds (the "shimmer"). Made the first time it's needed.
+func _show_foil(show_it: bool) -> void:
+	var shine: Control = get_node_or_null("FoilShine")
+	if shine == null:
+		if not show_it:
+			return
+		shine = Control.new()
+		shine.name = "FoilShine"
+		shine.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		shine.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		shine.clip_contents = true  # The sweeping light stays inside the card.
+		add_child(shine)
+		# The light: a soft white stripe (a gradient: clear, white, clear).
+		var band := TextureRect.new()
+		var gradient := Gradient.new()
+		gradient.set_color(0, Color(1, 1, 1, 0))
+		gradient.set_color(1, Color(1, 1, 1, 0))
+		gradient.add_point(0.5, Color(1, 0.95, 0.75, 0.4))
+		var texture := GradientTexture2D.new()
+		texture.gradient = gradient
+		texture.width = 64
+		texture.height = 8
+		band.texture = texture
+		band.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		band.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		band.size = Vector2(56, 420)
+		band.rotation = 0.35  # A slanted stripe.
+		band.position = Vector2(-120, -100)
+		shine.add_child(band)
+		var sweep := create_tween().set_loops()
+		sweep.bind_node(band)  # Stops when the card is freed.
+		sweep.tween_property(band, "position:x", 260.0, 0.9).from(-120.0).set_trans(Tween.TRANS_SINE)
+		sweep.tween_interval(1.6)
+		# The gold frame, on top of the light.
+		var frame := Panel.new()
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		var style := StyleBoxFlat.new()
+		style.draw_center = false
+		style.border_color = FOIL_GOLD
+		style.set_border_width_all(4)
+		style.set_corner_radius_all(8)
+		style.shadow_color = Color(1, 0.85, 0.35, 0.55)
+		style.shadow_size = 8
+		frame.add_theme_stylebox_override("panel", style)
+		shine.add_child(frame)
+	shine.visible = show_it
+
+
+# CLASS CARDS (cards with a Class, from spec levels) get their own look: a
+# thick frame in the class's colour and its emblem faintly behind the text.
+func _show_class_frame(data: CardData) -> void:
+	var frame: Control = get_node_or_null("ClassFrame")
+	if frame:
+		frame.queue_free()
+		remove_child(frame)
+	if not data.is_class_card():
+		return
+	var owner_class: CharacterClass = null
+	for some_class in GameState.load_classes():
+		if data.class_only.has(some_class.display_name):
+			owner_class = some_class
+			break
+	frame = Control.new()
+	frame.name = "ClassFrame"
+	frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	frame.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(frame)
+	move_child(frame, 0)  # Behind the card's text.
+	var color := owner_class.color.lightened(0.35) if owner_class else Color(0.75, 0.8, 0.9)
+	if owner_class and owner_class.emblem:
+		var emblem := TextureRect.new()
+		emblem.texture = owner_class.emblem
+		emblem.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		emblem.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		emblem.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+		emblem.offset_left = 22
+		emblem.offset_right = -22
+		emblem.modulate = Color(1, 1, 1, 0.16)
+		emblem.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_child(emblem)
+	var border := Panel.new()
+	border.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	border.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	var style := StyleBoxFlat.new()
+	style.draw_center = false
+	style.border_color = color
+	style.set_border_width_all(3)
+	style.border_width_top = 8  # A thicker band along the top, like a banner.
+	style.set_corner_radius_all(8)
+	border.add_theme_stylebox_override("panel", style)
+	frame.add_child(border)

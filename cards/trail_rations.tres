@@ -1,0 +1,16 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_hmi82"]
+
+[resource]
+script = ExtResource("1_hmi82")
+card_name = "Trail Rations"
+types = 2
+attack = PackedStringArray()
+heal = "d3"
+draw = 1
+critical = "+1 Heal"
+unlocked = false
+class_only = PackedStringArray("Adventurer")
+effect = "Heal d3. Draw 1."
+color = Color(0.4, 0.4, 0.42, 1)

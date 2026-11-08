@@ -111,15 +111,30 @@ var _potions: Array[Potion] = []
 # How many copies you can own depends on the card's RARITY (CardData.RARITY_LIMITS:
 # Common 3, Uncommon 3, Rare 2, Legendary 1). MAX_COPIES is the biggest of them.
 const MAX_COPIES := 3
-# The chance of each rarity for every card in a pack. They add up to 100.
+# The chance of each rarity for ONE loose card (a card found in the dungeon).
+# They add up to 100. Packs use their own SLOTS instead (below).
 const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 9, CardData.Rarity.LEGENDARY: 1}
 # The booster packs: how many cards each holds, and its Shop price: gold
 # AND Farm Stone ("materials"), so you farm the Farm for Farm packs.
-# Quest rewards name them by size ("Pack Medium 2"). Every pack uses PACK_ODDS.
+# Quest rewards name them by size ("Pack Medium 2", "Pack Foil 1").
+#
+# SLOTS (from the card doc's "Suggested pack contents"): what each card in
+# the pack can be. "C" = a Common, "U" = an Uncommon, "U+" = Uncommon or
+# better, with the pack's "plus_odds" chance (out of 100) of a Rare or a
+# Legendary instead. So every pack has at least 1 Uncommon, and only Medium
+# and Large packs can hold a Rare.
+# "pity": the pack counts toward the RARE PITY COUNTER (Small packs don't: Dusty).
+# "foil": one card is always a foil (a reward, never sold: "for_sale" false).
 const PACKS := [
-	{"name": "Small Farm Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}, "booster": "Farm"},
-	{"name": "Medium Farm Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}, "booster": "Farm"},
-	{"name": "Large Farm Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}, "booster": "Farm"},
+	{"name": "Small Farm Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}, "booster": "Farm",
+		"slots": ["C", "C", "U"], "pity": false},
+	{"name": "Medium Farm Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}, "booster": "Farm",
+		"slots": ["C", "C", "C", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 15, CardData.Rarity.LEGENDARY: 1}, "pity": true},
+	{"name": "Large Farm Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}, "booster": "Farm",
+		"slots": ["C", "C", "C", "C", "U", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 25, CardData.Rarity.LEGENDARY: 2}, "pity": true},
+	{"name": "Foil Farm Booster Pack", "size": "Foil", "cards": 5, "price": 0, "materials": {}, "booster": "Farm",
+		"slots": ["C", "C", "C", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 15, CardData.Rarity.LEGENDARY: 1}, "pity": true,
+		"foil": true, "for_sale": false},
 ]
 var collection := {}
 
@@ -137,15 +152,59 @@ const ESSENCE_COLORS := {
 const ESSENCE_PER_EXTRA := {CardData.Rarity.COMMON: 1, CardData.Rarity.UNCOMMON: 2, CardData.Rarity.RARE: 5, CardData.Rarity.LEGENDARY: 10}
 var essence := {}  # {"Strength": 4, "Neutral": 2}
 
-# --- Class Exp -----------------------------------------------------------------
-# Each class levels up on its own. Leveling up is how a class gets its class
-# cards (see CharacterClass.level_cards and data/class_cards.csv).
-const CLASS_MAX_LEVEL := 25
+# --- Foils ----------------------------------------------------------------------
+# A FOIL is a very rare shiny copy of a card with one stat change (the cards
+# sheet's Foil column, see CardData.make_foil()). Any card in a pack has
+# FOIL_CHANCE % to be one, and the Foil Farm Booster Pack always has one.
+# A foil copy is still a copy: it counts toward the rarity limit, so
+# `collection` counts ALL your copies and `foils` says how many of them shine.
+const FOIL_CHANCE := 2  # % per card in a pack. My number: the card doc left it open.
+var foils := {}  # {"Strike": 1}: 1 of your Strikes is a foil.
+# Which copies in your deck are foils: {"Strike": 1} = one of the deck's
+# Strikes is the foil one. The deck itself holds the plain cards, so every deck
+# rule (copies, schools, size) works just like before.
+var deck_foils := {}
+const FOIL_MARK := "Foil: "  # Saved decks write a foil copy as "Foil: Strike".
+var _foil_cards := {}  # Card name -> its foil CardData, made once (foil_of()).
+
+# --- Rare pity counter ------------------------------------------------------------
+# Bad luck has a visible end: open RARE_PITY_PACKS Medium/Large packs without a
+# Rare and the last of them is sure to have one. (Card doc: 1 every 5 packs.)
+const RARE_PITY_PACKS := 5
+var rare_pity := 0  # Medium/Large packs opened since your last Rare (or better).
+
+# --- Binders --------------------------------------------------------------------
+# Each place with a booster (Area.booster, "Farm") has a BINDER: every card
+# its packs can hold. Cards you haven't found show as silhouettes (binder.gd).
+# Finding a NEW card gives that place Exp (BINDER_EXP), so the place's level,
+# perks and level-up packs grow from collecting as well as exploring (card
+# doc: "one track per biome"). Every 25% found gives a reward from
+# data/progression/binder_rewards.csv.
+const BINDER_EXP := {CardData.Rarity.COMMON: 5, CardData.Rarity.UNCOMMON: 10, CardData.Rarity.RARE: 20, CardData.Rarity.LEGENDARY: 40}
+const BINDER_REWARDS_SHEET := "res://data/progression/binder_rewards.csv"
+var binder_claimed := {}  # Place name -> the highest % reward you've had: {"Abandoned Farm": 50}
+var explorer_bonus := {}  # Place name -> extra Explorer points (from binder rewards).
+
+# --- Class Exp: spec levels ------------------------------------------------------
+# Class Exp goes into the SPEC you're playing (card doc, "Class progression"):
+#   - each spec levels on its own, from 1 to SPEC_MAX_LEVEL (10);
+#   - a locked spec (Pack Rat before you unlock it) is level 0 and gets no Exp;
+#   - the CLASS level is all its spec levels added up, so the Adventurer's 3
+#     specs make a class level from 1 to 30.
+# Every spec level up gives TWO rewards:
+#   1. the spec reward: a class card and/or a booster pack, set per spec and
+#      level in data/progression/class_cards.csv;
+#   2. the class level reward from the CLASS TRACK (a season pass:
+#      data/progression/class_track.csv), plus 1 talent point.
+const SPEC_MAX_LEVEL := 10
 # Every enemy gives its own Exp (EnemyData.exp: 10 for most, more for bosses)...
 const EXP_PER_RUN := 25  # ...plus this for beating all of them.
 const FIRST_LEVEL_EXP := 100  # Exp from level 1 to level 2...
 const LEVEL_EXP_STEP := 50  # ...and each level after needs this much more.
-var class_exp := {}  # Total Exp per class name: {"Knight": 140}
+const CLASS_CARDS_SHEET := "res://data/progression/class_cards.csv"
+const CLASS_TRACK_SHEET := "res://data/progression/class_track.csv"
+var spec_exp := {}  # Class name -> {spec -> total Exp}: {"Adventurer": {"Jack of All Trades": 140}}
+var track_claimed := {}  # Class name -> the highest class level whose track reward you've had.
 
 # Cards that Vanished this run, by their position in `deck` (so with two
 # Bandages, we know WHICH one is gone). The battle leaves these out.
@@ -166,6 +225,7 @@ const SPEC_TREE_ONLY := false
 var legacy_talent_points := 0
 var _bonus_cache := {}  # Remembered talent_bonus() totals (see there).
 var talents_return_scene := "res://scenes/character_select.tscn"  # Where the Talents screen's Back goes.
+var screen_return_scene := "res://scenes/town.tscn"  # Where the Binder and Class Track screens' Back goes.
 
 # The last deck you built for each class, as card names: {"Knight": ["Strike", ...]}.
 # Picking that class again gives you this deck back instead of the starter deck.
@@ -248,7 +308,13 @@ func start_fresh() -> void:
 	gold = 0
 	collection.clear()
 	essence.clear()
-	class_exp.clear()
+	foils.clear()
+	deck_foils.clear()
+	rare_pity = 0
+	binder_claimed.clear()
+	explorer_bonus.clear()
+	spec_exp.clear()
+	track_claimed.clear()
 	booster_packs.clear()
 	saved_decks.clear()
 	talent_ranks.clear()
@@ -294,9 +360,6 @@ func start_fresh() -> void:
 	start_run()
 	# Your first cards come at the end of the Adventurer's training
 	# (give_starter_cards(), called by tutorial.gd).
-	# Every class starts at level 1, so it gets its level 1 class cards now.
-	for character_class in load_classes():
-		_give_level_cards(character_class, 1)
 
 
 # The starter cards (cards.csv Unlocked = TRUE, as many as Copies), given
@@ -330,19 +393,42 @@ func owned(card: CardData) -> int:
 # Add one copy of a card to your collection. Past its rarity limit (Common 3,
 # Uncommon 3, Rare 2, Legendary 1) it turns into Essence instead. Returns what
 # happened, for the screen to show:
-#   {"card": CardData, "new": true/false, "owned": 2, "essence": {"Strength": 2}}
-func add_card(card: CardData) -> Dictionary:
-	var result := {"card": card, "new": owned(card) == 0, "essence": {}}
+#   {"card": CardData, "new": true/false, "owned": 2, "essence": {"Strength": 2},
+#    "foil": true/false, "upgraded": true/false,
+#    "area_exp": [{"area": Area, "exp": 5, "levels": [3]}], "binder": ["reward lines"]}
+#
+# A FOIL past the limit isn't wasted: if some of your copies are still plain,
+# the foil takes one's place ("upgraded") and the plain copy turns into Essence.
+func add_card(card: CardData, foil := false) -> Dictionary:
+	var result := {"card": card, "new": owned(card) == 0, "essence": {}, "foil": foil, "upgraded": false,
+		"area_exp": [], "binder": []}
 	if owned(card) < card.copy_limit():
 		collection[card.card_name] = owned(card) + 1
+		if foil:
+			foils[card.card_name] = foils_owned(card) + 1
+	elif foil and foils_owned(card) < owned(card):
+		foils[card.card_name] = foils_owned(card) + 1
+		result.upgraded = true
+		_add_essence(card, result)  # The plain copy it replaced.
 	else:
-		result.essence = essence_for(card)
-		for school_name in result.essence:
-			essence[school_name] = essence.get(school_name, 0) + result.essence[school_name]
+		_add_essence(card, result)
+	if result.new:
+		# A card you'd never found: it fills its place's binder, which gives
+		# that place Exp (and maybe a level, a perk point and a pack).
+		for area in binder_areas(card):
+			var amount: int = BINDER_EXP.get(card.rarity, 5)
+			result.area_exp.append({"area": area, "exp": amount, "levels": add_area_exp(area, amount)})
+			result.binder.append_array(check_binder(area))
 	# Write down the numbers NOW. If the same card comes out twice in one pack,
 	# the shop shows each one with the numbers it had at that moment.
 	result.owned = owned(card)
 	return result
+
+
+func _add_essence(card: CardData, result: Dictionary) -> void:
+	result.essence = essence_for(card)
+	for school_name in result.essence:
+		essence[school_name] = essence.get(school_name, 0) + result.essence[school_name]
 
 
 # The Essence one extra copy of this card gives: {"Strength": 2}.
@@ -384,9 +470,10 @@ func pack_count() -> int:
 	return total
 
 
-# Open one booster pack you own (its card count from PACKS), each card added
-# to your collection with add_card(). Returns what you got, for the shop to show.
-# Any card can come out, even one you already own the most of (it gives Essence).
+# Open one booster pack you own, each card added to your collection with
+# add_card(). Returns what you got, for the shop to show (plus "pity": true on
+# the card the pity counter made Rare). Any card can come out, even one you
+# already own the most of (it gives Essence).
 func open_pack(pack_name: String) -> Array[Dictionary]:
 	var opened: Array[Dictionary] = []
 	if booster_packs.get(pack_name, 0) <= 0:
@@ -396,20 +483,68 @@ func open_pack(pack_name: String) -> Array[Dictionary]:
 		booster_packs.erase(pack_name)  # None of that pack left.
 	record_for_quest(Quest.OPEN_PACKS, pack_name)
 	var pack := find_pack(pack_name)
-	for i in pack.cards:
-		var card := _pick_pack_card(pack.get("booster", ""))
-		if card:  # null only if there are no cards that can come from packs at all.
-			opened.append(add_card(card))
+	var slots: Array = pack.get("slots", ["C", "C", "U"])
+	# The pity counter: this is the 5th pack without a Rare, so its "U+" card will be one.
+	var pity_due: bool = pack.get("pity", false) and rare_pity >= RARE_PITY_PACKS - 1
+	var foil_slot := randi() % slots.size() if pack.get("foil", false) else -1
+	var got_rare := false
+	for i in slots.size():
+		var rarity := _roll_slot(slots[i], pack)
+		var pity_hit := false
+		if pity_due and slots[i] == "U+" and rarity < CardData.Rarity.RARE:
+			rarity = CardData.Rarity.RARE
+			pity_hit = true
+		var card := _card_of_rarity(rarity, pack.get("booster", ""))
+		if card == null:
+			continue  # Only if no card at all can come from packs.
+		var item := add_card(card, i == foil_slot or randi_range(1, 100) <= FOIL_CHANCE)
+		item.pity = pity_hit
+		opened.append(item)
+		if card.rarity >= CardData.Rarity.RARE:
+			got_rare = true
+	if pack.get("pity", false):
+		rare_pity = 0 if got_rare else rare_pity + 1
 	save_game()
 	return opened
 
 
-# One random card for a pack. First roll its rarity (60 / 30 / 10), then pick
-# any card of that rarity. If the spreadsheet has no cards of some rarity, its
-# odds are shared out among the rarities that do have cards.
-# Class cards never come from packs: classes get them by leveling up.
-# A card with a Booster ("Farm") only comes from that place's packs.
+# How many more Medium/Large packs until a Rare is certain (1 = the next one).
+func pity_packs_left() -> int:
+	return maxi(RARE_PITY_PACKS - rare_pity, 1)
+
+
+# What one pack slot ("C", "U" or "U+") turns out to be.
+func _roll_slot(slot: String, pack: Dictionary) -> CardData.Rarity:
+	match slot:
+		"C":
+			return CardData.Rarity.COMMON
+		"U":
+			return CardData.Rarity.UNCOMMON
+	var odds: Dictionary = pack.get("plus_odds", {})
+	var roll := randi_range(1, 100)
+	var legendary: int = odds.get(CardData.Rarity.LEGENDARY, 0)
+	if roll <= legendary:
+		return CardData.Rarity.LEGENDARY
+	if roll <= legendary + int(odds.get(CardData.Rarity.RARE, 0)):
+		return CardData.Rarity.RARE
+	return CardData.Rarity.UNCOMMON
+
+
+# One random loose card (found in the dungeon): its rarity rolled with PACK_ODDS.
 func _pick_pack_card(booster := "") -> CardData:
+	var roll := randi_range(1, 100)
+	for rarity in PACK_ODDS:
+		roll -= PACK_ODDS[rarity]
+		if roll <= 0:
+			return _card_of_rarity(rarity, booster)
+	return _card_of_rarity(CardData.Rarity.COMMON, booster)
+
+
+# A random pack card of this rarity. If the sheet has none (no Legendary cards
+# yet), the next rarity DOWN is used, then up, so a pack is never short.
+# Class cards never come from packs: classes get them from spec levels.
+# A card with a Booster ("Farm") only comes from that place's packs.
+func _card_of_rarity(rarity: int, booster := "") -> CardData:
 	var by_rarity := {}  # Rarity -> the cards of that rarity.
 	for card in load_all_cards():
 		if card.is_class_card():
@@ -419,18 +554,153 @@ func _pick_pack_card(booster := "") -> CardData:
 		if not by_rarity.has(card.rarity):
 			by_rarity[card.rarity] = []
 		by_rarity[card.rarity].append(card)
-	# Add up the odds of the rarities that have cards, and pick one.
-	var total := 0
-	for rarity in by_rarity:
-		total += PACK_ODDS[rarity]
-	if total == 0:
-		return null  # No pack cards in the spreadsheet (randi_range(1, 0) would go wrong).
-	var roll := randi_range(1, total)
-	for rarity in by_rarity:
-		roll -= PACK_ODDS[rarity]
-		if roll <= 0:
-			return by_rarity[rarity].pick_random()
+	var order: Array = range(rarity, -1, -1) + range(rarity + 1, CardData.Rarity.size())
+	for try_rarity in order:
+		if by_rarity.has(try_rarity):
+			return by_rarity[try_rarity].pick_random()
 	return null
+
+
+# --- Foils ------------------------------------------------------------------------
+
+func foils_owned(card: CardData) -> int:
+	return foils.get(card.card_name, 0)
+
+
+# The shiny version of a card, made once and shared (so it's the same CardData
+# everywhere, like the plain cards).
+func foil_of(card: CardData) -> CardData:
+	if card.is_foil:
+		return card
+	if not _foil_cards.has(card.card_name):
+		_foil_cards[card.card_name] = card.make_foil()
+	return _foil_cards[card.card_name]
+
+
+# The card at this place in your deck as it really plays: the foil version for
+# the first deck_foils[name] copies of a card, the plain one after that.
+func deck_card(index: int) -> CardData:
+	var card := deck[index]
+	var foil_copies: int = deck_foils.get(card.card_name, 0)
+	if foil_copies <= 0:
+		return card
+	var before := 0
+	for i in index:
+		if deck[i] == card:
+			before += 1
+	return foil_of(card) if before < foil_copies else card
+
+
+# Keep deck_foils honest: never more foil copies than the deck holds of that
+# card, or than you own. fill = true also uses every foil you own (your best
+# copies first), for a deck the game builds for you.
+func fix_deck_foils(fill := false) -> void:
+	var counts := {}
+	for card in deck:
+		counts[card.card_name] = counts.get(card.card_name, 0) + 1
+	var fixed := {}
+	for card_name in counts:
+		var card := find_card(card_name)
+		var want: int = foils_owned(card) if fill else deck_foils.get(card_name, 0)
+		var use: int = mini(want, mini(counts[card_name], foils_owned(card)))
+		if use > 0:
+			fixed[card_name] = use
+	deck_foils = fixed
+
+
+# The deck as names for saving, foil copies marked: ["Foil: Strike", "Strike", "Guard"].
+func deck_names() -> Array:
+	var names := []
+	var marked := {}
+	for card in deck:
+		var foil_left: int = deck_foils.get(card.card_name, 0) - marked.get(card.card_name, 0)
+		if foil_left > 0:
+			marked[card.card_name] = marked.get(card.card_name, 0) + 1
+			names.append(FOIL_MARK + card.card_name)
+		else:
+			names.append(card.card_name)
+	return names
+
+
+# Names back into cards. Returns {"cards": [...], "foils": {"Strike": 1}}.
+func _read_deck_names(names: Array) -> Dictionary:
+	var cards: Array[CardData] = []
+	var foil_counts := {}
+	for entry in names:
+		var card_name := str(entry)
+		var is_foil := card_name.begins_with(FOIL_MARK)
+		card_name = card_name.trim_prefix(FOIL_MARK)
+		var card := find_card(card_name)
+		if card:
+			cards.append(card)
+			if is_foil:
+				foil_counts[card_name] = foil_counts.get(card_name, 0) + 1
+	return {"cards": cards, "foils": foil_counts}
+
+
+# --- Binders ----------------------------------------------------------------------
+
+# Every card in this place's binder (the cards its booster packs can hold),
+# Commons first, then by name. Empty if the place has no booster.
+func binder_cards(area: Area) -> Array[CardData]:
+	var cards: Array[CardData] = []
+	if area == null or area.booster.is_empty():
+		return cards
+	for card in load_all_cards():
+		if card.is_class_card():
+			continue  # Class cards come from spec levels, not packs.
+		if card.booster.is_empty() or card.booster.to_lower() == area.booster.to_lower():
+			cards.append(card)
+	cards.sort_custom(func(a: CardData, b: CardData) -> bool:
+		if a.rarity != b.rarity:
+			return a.rarity < b.rarity
+		return a.card_name < b.card_name)
+	return cards
+
+
+# The places whose binder holds this card.
+func binder_areas(card: CardData) -> Array[Area]:
+	var areas: Array[Area] = []
+	if card.is_class_card():
+		return areas
+	for area in load_areas():
+		if not area.booster.is_empty() and (card.booster.is_empty() or card.booster.to_lower() == area.booster.to_lower()):
+			areas.append(area)
+	return areas
+
+
+func binder_found(area: Area) -> int:
+	return binder_cards(area).filter(func(card: CardData) -> bool: return owned(card) > 0).size()
+
+
+# How much of the binder you've found, 0 to 100.
+func binder_percent(area: Area) -> int:
+	var total := binder_cards(area).size()
+	return 0 if total == 0 else floori(100.0 * binder_found(area) / total)
+
+
+# The binder rewards for this place: [{"percent": 25, "rewards": "Pack Medium 1"}], lowest first.
+func binder_rewards(area: Area) -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	for row in CardImporter._read_sheet(BINDER_REWARDS_SHEET):
+		if row.get("area", "").to_lower() == area.display_name.to_lower():
+			list.append({"percent": CardImporter._to_int(row.get("percent", ""), 100), "rewards": row.get("rewards", ""),
+				"text": row.get("text", "")})
+	list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.percent < b.percent)
+	return list
+
+
+# Give any binder rewards you've just reached. Returns what they gave, as lines.
+func check_binder(area: Area) -> Array[String]:
+	var lines: Array[String] = []
+	var percent := binder_percent(area)
+	var claimed: int = binder_claimed.get(area.display_name, 0)
+	for reward in binder_rewards(area):
+		if reward.percent > claimed and reward.percent <= percent:
+			binder_claimed[area.display_name] = reward.percent
+			for line in give_rewards(reward.rewards):
+				lines.append("%s binder %d%%: %s" % [area.display_name, reward.percent, line])
+	return lines
 
 
 # How much Exp it takes to go from `level` to the next one: 100, 150, 200...
@@ -438,40 +708,170 @@ func exp_for_next_level(level: int) -> int:
 	return FIRST_LEVEL_EXP + LEVEL_EXP_STEP * (level - 1)
 
 
-# A class's level, worked out from its total Exp.
-func class_level(character_class: CharacterClass) -> int:
-	var exp_left: int = class_exp.get(character_class.display_name, 0)
+# The spec that gets this class's Exp: the one you picked, or (before you pick)
+# the first open one. "" for a class with no specs.
+func exp_spec(for_class: CharacterClass) -> String:
+	if not spec_of(for_class).is_empty():
+		return spec_of(for_class)
+	for spec in specs_for(for_class):
+		if is_spec_open(spec):
+			return spec.tree
+	return ""
+
+
+# A spec's level, from its Exp: 0 while it's locked, then 1 to SPEC_MAX_LEVEL.
+func spec_level(for_class: CharacterClass, spec_name: String) -> int:
+	var spec := _spec_named(for_class, spec_name)
+	if spec and not is_spec_open(spec):
+		return 0
+	var exp_left: int = spec_exp.get(for_class.display_name, {}).get(spec_name, 0)
 	var level := 1
-	while level < CLASS_MAX_LEVEL and exp_left >= exp_for_next_level(level):
+	while level < SPEC_MAX_LEVEL and exp_left >= exp_for_next_level(level):
 		exp_left -= exp_for_next_level(level)
 		level += 1
 	return level
 
 
-# Progress towards the next level, for the Exp bar: Vector2i(40, 150) means
-# "40 of the 150 Exp needed". At the max level it's Vector2i(0, 0).
-func class_exp_progress(character_class: CharacterClass) -> Vector2i:
-	var level := class_level(character_class)
-	if level >= CLASS_MAX_LEVEL:
+# Progress towards the spec's next level, for the Exp bar: Vector2i(40, 150)
+# means "40 of the 150 Exp needed". (0, 0) at the max level or while locked.
+func spec_exp_progress(for_class: CharacterClass, spec_name: String) -> Vector2i:
+	var level := spec_level(for_class, spec_name)
+	if level >= SPEC_MAX_LEVEL or level == 0:
 		return Vector2i.ZERO
-	var exp_left: int = class_exp.get(character_class.display_name, 0)
+	var exp_left: int = spec_exp.get(for_class.display_name, {}).get(spec_name, 0)
 	for i in range(1, level):
 		exp_left -= exp_for_next_level(i)
 	return Vector2i(exp_left, exp_for_next_level(level))
 
 
-# Give the chosen class some Exp. Returns one entry per level gained, with the
-# class cards it unlocked: [{"level": 2, "cards": [add_card() results]}]
+func _spec_named(for_class: CharacterClass, spec_name: String) -> Talent:
+	for spec in specs_for(for_class):
+		if spec.tree == spec_name:
+			return spec
+	return null
+
+
+# The CLASS level: every spec's level added up (at least 1).
+func class_level(for_class: CharacterClass) -> int:
+	var specs := specs_for(for_class)
+	if specs.is_empty():
+		return spec_level(for_class, "")  # A class with no specs levels by itself.
+	var total := 0
+	for spec in specs:
+		total += spec_level(for_class, spec.tree)
+	return maxi(total, 1)
+
+
+# The highest class level there is: 10 per spec (30 for the Adventurer).
+func class_max_level(for_class: CharacterClass) -> int:
+	return SPEC_MAX_LEVEL * maxi(specs_for(for_class).size(), 1)
+
+
+# The Exp bar's progress for the spec that's getting Exp now.
+func class_exp_progress(for_class: CharacterClass) -> Vector2i:
+	return spec_exp_progress(for_class, exp_spec(for_class))
+
+
+# Is the spec you'd get Exp for already at the top? Then Exp is wasted
+# (the Prepare screen warns you before you set out).
+func spec_maxed(for_class: CharacterClass) -> bool:
+	return spec_level(for_class, exp_spec(for_class)) >= SPEC_MAX_LEVEL
+
+
+# Give the chosen class some Exp (it goes into the spec you're playing).
+# Returns one entry per level gained:
+#   [{"spec": "Jack of All Trades", "level": 3, "class_level": 4,
+#     "spec_rewards": ["Trail Rations", ...], "track": ["10 gold", ...]}]
 func add_class_exp(amount: int) -> Array[Dictionary]:
 	var level_ups: Array[Dictionary] = []
-	var level_before := class_level(character_class)
-	class_exp[character_class.display_name] = class_exp.get(character_class.display_name, 0) + amount
-	for level in range(level_before + 1, class_level(character_class) + 1):
-		level_ups.append({"level": level, "cards": _give_level_cards(character_class, level)})
+	var spec_name := exp_spec(character_class)
+	if spec_maxed(character_class):
+		return level_ups  # Nothing to fill: the spec is already at the top.
+	var level_before := spec_level(character_class, spec_name)
+	var exps: Dictionary = spec_exp.get(character_class.display_name, {})
+	exps[spec_name] = exps.get(spec_name, 0) + amount
+	spec_exp[character_class.display_name] = exps
+	for level in range(level_before + 1, spec_level(character_class, spec_name) + 1):
+		level_ups.append({"spec": spec_name, "level": level,
+			"spec_rewards": give_spec_rewards(character_class, spec_name, level),
+			"class_level": class_level(character_class) - (spec_level(character_class, spec_name) - level),
+			"track": []})
+	# The class track: one reward per class level reached (claim_class_track()
+	# hands out each one only once). They go on the LAST level up's entry.
 	if not level_ups.is_empty():
+		level_ups[-1].track = claim_class_track(character_class)
 		reach_milestone(FIRST_LEVEL_UP)  # The first time: the Old Master's quest (only once).
 	save_game()
 	return level_ups
+
+
+# The spec reward rows for this class: [{"spec", "level", "card", "copies", "pack"}].
+func spec_reward_rows(for_class: CharacterClass) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for row in CardImporter._read_sheet(CLASS_CARDS_SHEET):
+		if row.get("class", "").to_lower() != for_class.display_name.to_lower():
+			continue
+		rows.append({"spec": row.get("spec", ""), "level": CardImporter._to_int(row.get("level", ""), 2),
+			"card": row.get("card", ""), "copies": maxi(CardImporter._to_int(row.get("copies", ""), 1), 1),
+			"pack": row.get("pack", "")})
+	return rows
+
+
+# The spec reward for reaching `level` in a spec, as reward text for
+# give_rewards(): "Card Trail Rations 2; Pack Small 1".
+func spec_reward_text(for_class: CharacterClass, spec_name: String, level: int) -> String:
+	var parts: Array[String] = []
+	for row in spec_reward_rows(for_class):
+		# A blank Spec means "every spec of this class".
+		if row.level == level and (row.spec.is_empty() or row.spec.to_lower() == spec_name.to_lower()):
+			if not row.card.is_empty():
+				parts.append("Card %s %d" % [row.card, row.copies])
+			if not row.pack.is_empty():
+				parts.append("Pack " + row.pack)
+	return "; ".join(parts)
+
+
+func give_spec_rewards(for_class: CharacterClass, spec_name: String, level: int) -> Array[String]:
+	return give_rewards(spec_reward_text(for_class, spec_name, level))
+
+
+# The class track, level by level: [{"level": 2, "rewards": "Gold 10", "text": ""}].
+# Every level also gives 1 talent point (talent_points_earned() counts those).
+func class_track(for_class: CharacterClass) -> Array[Dictionary]:
+	var rows: Array[Dictionary] = []
+	for row in CardImporter._read_sheet(CLASS_TRACK_SHEET):
+		if row.get("class", "").to_lower() == for_class.display_name.to_lower():
+			rows.append({"level": CardImporter._to_int(row.get("level", ""), 0), "rewards": row.get("rewards", ""),
+				"text": row.get("text", "")})
+	rows.sort_custom(func(a: Dictionary, b: Dictionary) -> bool: return a.level < b.level)
+	return rows
+
+
+# Hand out every class track reward you've reached but not had yet.
+# Returns what they gave, as lines ("Class level 4: 10 gold").
+func claim_class_track(for_class: CharacterClass) -> Array[String]:
+	var lines: Array[String] = []
+	var level := class_level(for_class)
+	var claimed: int = track_claimed.get(for_class.display_name, 1)  # Level 1 is where you start.
+	if level <= claimed:
+		return lines
+	for row in class_track(for_class):
+		if row.level > claimed and row.level <= level:
+			for line in give_rewards(row.rewards):
+				lines.append("Class level %d: %s" % [row.level, line])
+	for reached in range(claimed + 1, level + 1):
+		lines.append("Class level %d: +1 talent point" % reached)
+	track_claimed[for_class.display_name] = level
+	return lines
+
+
+# A spec just unlocked (level 0 -> 1): the class goes up a level too.
+func _spec_unlocked(spec_name: String) -> Array[String]:
+	var lines: Array[String] = []
+	for for_class in load_classes():
+		if _spec_named(for_class, spec_name):
+			lines.append_array(claim_class_track(for_class))
+	return lines
 
 
 # --- Duels ------------------------------------------------------------------------
@@ -508,16 +908,6 @@ func end_duel() -> void:
 	duel_backup = {}
 	duel = ""
 	save_game()
-
-
-# Add the class cards a class gets at `level` to your collection.
-func _give_level_cards(character_class: CharacterClass, level: int) -> Array[Dictionary]:
-	var given: Array[Dictionary] = []
-	for card_name in character_class.level_cards.get(level, PackedStringArray()):
-		var card := find_card(card_name)
-		if card:
-			given.append(add_card(card))
-	return given
 
 
 # The card with this name, or null.
@@ -861,6 +1251,32 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 				if not unlocked_rooms[area_name].has(room_name):
 					unlocked_rooms[area_name].append(room_name)
 				lines.append("New map card for the %s: %s" % [area_name, room_name])
+			"essence":  # "Essence Strength 5" (or "Essence 5" = Neutral)
+				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
+				var school_name := rest.get_slice(" ", 0).capitalize() if rest.get_slice(" ", 0).to_int() == 0 else NEUTRAL
+				essence[school_name] = essence.get(school_name, 0) + count
+				lines.append("%d %s Essence" % [count, school_name])
+			"card":  # "Card Trail Rations 2": copies of a card (class cards from spec levels).
+				var count := 1
+				var card_name := rest
+				if rest.get_slice_count(" ") > 1 and rest.get_slice(" ", rest.get_slice_count(" ") - 1).is_valid_int():
+					count = rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int()
+					card_name = rest.substr(0, rest.rfind(" ")).strip_edges()
+				var card := find_card(card_name)
+				if card == null:
+					push_warning("Reward: there's no card called '%s'" % card_name)
+					continue
+				for i in maxi(count, 1):
+					var got := add_card(card)
+					lines.append(card.card_name + (" (%s)" % essence_text(got.essence) if not got.essence.is_empty() else ""))
+			"explorer":  # "Explorer Abandoned Farm 1": extra Explorer points for that place's perks.
+				var points := 1
+				var place := rest
+				if rest.get_slice(" ", rest.get_slice_count(" ") - 1).is_valid_int():
+					points = rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int()
+					place = rest.substr(0, rest.rfind(" ")).strip_edges()
+				explorer_bonus[place] = explorer_bonus.get(place, 0) + points
+				lines.append("%d Explorer point%s for the %s" % [points, "" if points == 1 else "s", place])
 			"legacy":  # "Legacy Point 1": Legacy Talent Points, for every class.
 				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
 				legacy_talent_points += points
@@ -868,6 +1284,9 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 			"unlock":  # "Unlock Talents": opens up a part of the game.
 				if not unlocked_features.has(rest):
 					unlocked_features.append(rest)
+					# A spec (Pack Rat) goes from level 0 to 1: a class level, so a track reward.
+					if not unlocks_only:
+						lines.append_array(_spec_unlocked(rest))
 				lines.append("%s unlocked!" % ("Talent System" if rest == TALENTS_FEATURE else rest))
 			_:
 				push_warning("quests.csv: unknown reward '%s'" % reward)
@@ -1217,16 +1636,18 @@ func choose_class(new_class: CharacterClass) -> void:
 	deck = _load_saved_deck(new_class)
 	if deck.is_empty():
 		deck = make_starter_deck()
+		fix_deck_foils(true)  # A deck the game built: your foil copies go in.
+	else:
+		fix_deck_foils()
 
 
 # The deck you last built for this class, from saved_decks. Any card the class
 # can't use any more (or that you don't own enough of) is left out.
+# Its foil copies go back into deck_foils.
 func _load_saved_deck(for_class: CharacterClass) -> Array[CardData]:
-	var cards: Array[CardData] = []
-	for card_name in saved_decks.get(for_class.display_name, []):
-		var card := find_card(card_name)
-		if card:
-			cards.append(card)
+	var read := _read_deck_names(saved_decks.get(for_class.display_name, []))
+	deck_foils = read.foils
+	var cards: Array[CardData] = read.cards
 	return _keep_allowed(cards, for_class)
 
 
@@ -1481,18 +1902,23 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 7  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp).
+const SAVE_VERSION := 8  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp). 8 = foils, binders, the rare pity counter and spec levels (class Exp goes into specs).
 
 
 func save_game() -> void:
 	if character_class:
-		saved_decks[character_class.display_name] = deck.map(func(card: CardData) -> String: return card.card_name)
+		saved_decks[character_class.display_name] = deck_names()
 	var data := {
 		"version": SAVE_VERSION,
 		"gold": gold,
 		"collection": collection,
 		"essence": essence,
-		"class_exp": class_exp,
+		"foils": foils,
+		"rare_pity": rare_pity,
+		"binder_claimed": binder_claimed,
+		"explorer_bonus": explorer_bonus,
+		"spec_exp": spec_exp,
+		"track_claimed": track_claimed,
 		"booster_packs": booster_packs,
 		"decks": saved_decks,
 		"talents": talent_ranks,
@@ -1554,7 +1980,16 @@ func load_game() -> bool:
 	collection = _whole_numbers(data.get("collection", {}))
 	var saved_essence = data.get("essence", {})
 	essence = _whole_numbers(saved_essence) if saved_essence is Dictionary else {}
-	class_exp = _whole_numbers(data.get("class_exp", {}))
+	foils = _whole_numbers(_dict_or_empty(data.get("foils", {})))
+	rare_pity = int(data.get("rare_pity", 0))
+	binder_claimed = _whole_numbers(_dict_or_empty(data.get("binder_claimed", {})))
+	explorer_bonus = _whole_numbers(_dict_or_empty(data.get("explorer_bonus", {})))
+	track_claimed = _whole_numbers(_dict_or_empty(data.get("track_claimed", {})))
+	spec_exp.clear()
+	var saved_spec_exp := _dict_or_empty(data.get("spec_exp", {}))
+	for class_key in saved_spec_exp:
+		if saved_spec_exp[class_key] is Dictionary:
+			spec_exp[class_key] = _whole_numbers(saved_spec_exp[class_key])
 	booster_packs = _whole_numbers(data.get("booster_packs", {}))
 	saved_decks = data.get("decks", {})
 	talent_ranks.clear()
@@ -1656,6 +2091,11 @@ func load_game() -> bool:
 		if tutorial_done and card.unlocked and owned(card) == 0:
 			collection[card.card_name] = clampi(card.copies, 1, card.copy_limit())
 	return true
+
+
+# A saved value that should be a Dictionary, or {} if it's missing or broken.
+func _dict_or_empty(value: Variant) -> Dictionary:
+	return value if value is Dictionary else {}
 
 
 # {"Strike": 3.0} -> {"Strike": 3}
@@ -1924,7 +2364,7 @@ func explorer_points(area: Area) -> int:
 	var spent := 0
 	for perk in owned_area_perks(area):
 		spent += perk.cost
-	return area_level(area) - 1 - spent
+	return area_level(area) - 1 + explorer_bonus.get(area.display_name, 0) - spent
 
 
 # Why you can't buy it ("" = you can).
@@ -1977,7 +2417,7 @@ func current_loadout(loadout_name: String = "") -> Dictionary:
 		"class": character_class.display_name,
 		"spec": spec_of(character_class),
 		"talents": ranks.duplicate(),
-		"deck": deck.map(func(card: CardData) -> String: return card.card_name),
+		"deck": deck_names(),
 		"flask": flask.flask_name if flask else "",
 		"torches": packed_torches,
 		"tools": packed_tools.duplicate(),
@@ -2030,12 +2470,11 @@ func apply_loadout(loadout: Dictionary) -> Array[String]:
 			_talents_changed()
 			skipped.append("its talents (not enough points)")
 	var names: Array = loadout.get("deck", [])
-	var cards: Array[CardData] = []
-	for card_name in names:
-		var card := find_card(str(card_name))
-		if card:
-			cards.append(card)
+	var read := _read_deck_names(names)
+	var cards: Array[CardData] = read.cards
 	deck = _keep_allowed(cards, for_class)
+	deck_foils = read.foils
+	fix_deck_foils()
 	if deck.size() < names.size():
 		skipped.append("%d card%s you can't use now" % [names.size() - deck.size(), "" if names.size() - deck.size() == 1 else "s"])
 	var flask := find_flask(str(loadout.get("flask", "")))
@@ -2069,6 +2508,7 @@ func ensure_ready() -> void:
 		choose_class(load_classes()[0])
 	elif deck.is_empty():
 		deck = make_starter_deck()
+		fix_deck_foils(true)
 	if current_area == null:
 		current_area = load_areas()[0]  # The first place on the road (the Abandoned Farm).
 	if dungeon == null:

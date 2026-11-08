@@ -33,6 +33,9 @@ extends Resource
 # The place's PERKS sheet (area_perk.gd): what its Explorer points buy, e.g.
 # "res://data/dungeons/farm_perks.csv". Blank = no perks yet.
 @export var perk_sheet: String = ""
+# BOOSTER: the name on this place's booster packs and cards ("Farm"). A place
+# with one has a BINDER of every card its packs can hold (GameState.binder_cards()).
+@export var booster: String = ""
 # The old room deck (rooms.csv, saved in here by the importer), for places
 # without a map card sheet yet.
 @export var rooms: Array[RoomCard] = []

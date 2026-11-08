@@ -118,6 +118,13 @@ var enchant_color := Color.WHITE
 @export var unlocked: bool = true
 # Booster: which place's booster packs it can come from ("Farm"). Blank = any.
 @export var booster: String = ""
+# FOIL: the very rare shiny version's ONE change, from the cards sheet's Foil
+# column, e.g. "Cost 0" or "Empowered" (see FOIL_WORDS below). Blank = the
+# default change (see foil_change()).
+@export var foil: String = ""
+# true on the foil version itself (made by make_foil(), never imported).
+# It's @export so it survives duplicate(): the battle copies every card.
+@export var is_foil: bool = false
 # Classes allowed to use this card, e.g. ["Knight"]. Empty means every class.
 @export var class_only: PackedStringArray = []
 @export_multiline var effect: String = ""  # Rules text shown on the card.
@@ -374,3 +381,67 @@ func get_school_text() -> String:
 # The most copies of this card you can own (its rarity limit).
 func copy_limit() -> int:
 	return RARITY_LIMITS.get(rarity, 3)
+
+
+# --- Foils ---------------------------------------------------------------------
+# A foil is the same card with ONE stat change, written with words the game
+# already knows. Several can be joined with commas: "Cost 0, Flawless".
+#   Cost 0 / Cost -1     set the cost / make it cheaper (never below 0)
+#   Empowered, Flawless, Advantage, Wild   turn that keyword on
+#   No Vanish            the card stops Vanishing
+#   +1 Damage / +1 Block / +1 Heal          add to that roll
+#   +1 Draw / +1 Energy                     draw / gain one more
+const FOIL_WORDS := ["cost", "empowered", "flawless", "advantage", "wild", "no vanish",
+	"damage", "block", "heal", "draw", "energy"]
+
+
+# The foil's change as the sheet says it, or the default when the cell is blank:
+# 1 cheaper if it costs something, else Empowered if it rolls dice, else +1 Draw.
+func foil_change() -> String:
+	if not foil.strip_edges().is_empty():
+		return foil.strip_edges()
+	if cost > 0:
+		return "Cost -1"
+	if has_dice():
+		return "Empowered"
+	return "+1 Draw"
+
+
+# A NEW CardData: the shiny version of this card. GameState keeps one per card
+# (GameState.foil_of()), so every screen shares it.
+func make_foil() -> CardData:
+	var shiny: CardData = duplicate()
+	shiny.is_foil = true
+	shiny.effect += "\nFoil: " + foil_change()
+	for part in foil_change().split(",", false):
+		var words := part.strip_edges().to_lower()
+		var number := 0
+		for word in words.split(" ", false):
+			if word.replace("+", "").is_valid_int():
+				number = word.replace("+", "").to_int()
+		if words.begins_with("cost"):
+			# "Cost 0" sets it; "Cost -1" makes it 1 cheaper.
+			shiny.cost = maxi(shiny.cost + number, 0) if number < 0 else number
+		elif words == "empowered":
+			shiny.empowered = true
+		elif words == "flawless":
+			shiny.flawless = true
+		elif words == "advantage":
+			shiny.advantage = true
+		elif words == "wild":
+			shiny.wild = true
+		elif words == "no vanish":
+			shiny.vanish = false
+		elif words.ends_with("damage"):
+			shiny.attack_modifier += maxi(number, 1)
+		elif words.ends_with("block"):
+			shiny.block_modifier += maxi(number, 1)
+		elif words.ends_with("heal"):
+			shiny.heal_modifier += maxi(number, 1)
+		elif words.ends_with("draw"):
+			shiny.draw += maxi(number, 1)
+		elif words.ends_with("energy"):
+			shiny.energy += maxi(number, 1)
+		else:
+			push_warning("%s: unknown Foil change '%s'. Use: %s" % [card_name, part, ", ".join(FOIL_WORDS)])
+	return shiny

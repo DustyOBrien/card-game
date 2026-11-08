@@ -1,0 +1,14 @@
+[gd_resource type="Resource" script_class="CardData" format=3]
+
+[ext_resource type="Script" path="res://scripts/card_data.gd" id="1_qhwph"]
+
+[resource]
+script = ExtResource("1_qhwph")
+card_name = "Plain Strike"
+types = 1
+attack = PackedStringArray("d6")
+critical = "+1 Damage"
+unlocked = false
+class_only = PackedStringArray("Adventurer")
+effect = "Deal d6 damage."
+color = Color(0.4, 0.4, 0.42, 1)

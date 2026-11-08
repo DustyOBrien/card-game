@@ -89,6 +89,15 @@ func make_spec_panel(character_class: CharacterClass, spec: Talent) -> Control:
 	name_label.add_theme_font_size_override("font_size", 28)
 	box.add_child(name_label)
 
+	# The spec's own level (class Exp goes into the spec you play).
+	var level_label := Label.new()
+	var spec_level := GameState.spec_level(character_class, spec.tree)
+	level_label.text = "Level %d / %d" % [spec_level, GameState.SPEC_MAX_LEVEL] if spec_level > 0 else "Level 0 (locked)"
+	level_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	level_label.add_theme_font_size_override("font_size", 16)
+	level_label.add_theme_color_override("font_color", CURRENT_COLOR)
+	box.add_child(level_label)
+
 	var description := Label.new()
 	description.text = spec.rules
 	description.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -130,4 +139,5 @@ func _on_spec_chosen(character_class: CharacterClass, spec: Talent) -> void:
 	# the starter deck again, now the spec says which school cards fit.
 	if GameState.deck.size() < character_class.min_deck_size:
 		GameState.deck = GameState.make_starter_deck()
+		GameState.fix_deck_foils(true)  # Your foil copies go in first.
 	get_tree().change_scene_to_file(DECK_BUILDER_SCENE)

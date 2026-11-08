@@ -7,15 +7,15 @@
 #
 # The sheets (only the first one is required):
 #   data/cards.csv         Every card            -> cards/<name>.tres
-#   data/class_cards.csv   Which card each class gets at each class level
-#                          -> saved into classes/*.tres (level_cards)
 #   data/talents/<class>.csv  Each class's talent tree, one sheet per class
 #                          (adventurer.csv) -> talents/<class>/<name>.tres
 #   data/enemies/enemies.csv     Every enemy          -> enemies/<name>.tres
 #   data/enemies/moves.csv       Every enemy's moves  -> saved inside those files
 #   data/dungeons/rooms.csv      Old room decks (the Forest) -> saved into areas/*.tres
 #   (data/dungeons/farm_cards.csv, the Farm's map cards, is NOT imported:
-#   the game reads it when it runs, see map_cards.gd.)
+#   the game reads it when it runs, see map_cards.gd. The same goes for
+#   data/progression/class_cards.csv, class_track.csv and binder_rewards.csv:
+#   see game_state.gd.)
 #
 # (Card levels and their level 2/3 sheets were removed in the card system
 # redesign: copies past a card's rarity limit give Essence instead.)
@@ -31,7 +31,6 @@ extends RefCounted
 
 const CSV_PATH := "res://data/cards.csv"
 const CARDS_FOLDER := "res://cards/"
-const CLASS_CARDS_PATH := "res://data/class_cards.csv"
 const CLASSES_FOLDER := "res://classes/"
 const TALENT_SHEETS_FOLDER := "res://data/talents/"
 const TALENTS_FOLDER := "res://talents/"
@@ -60,7 +59,6 @@ static func import_cards() -> int:
 	var names := _import_sheet(CSV_PATH, CARDS_FOLDER)
 	if names.is_empty():
 		return 0
-	_import_class_cards(names)
 	_import_talents()
 	_import_enemies()
 	_import_progression()
@@ -133,6 +131,7 @@ static func _import_sheet(csv_path: String, folder: String) -> Array[String]:
 		card.rarity = _parse_rarity(_cell(row, columns, "rarity"))
 		card.unlocked = _parse_yes_no(_cell(row, columns, "unlocked"), true)
 		card.booster = _cell(row, columns, "booster")
+		card.foil = _cell(row, columns, "foil")  # The foil's one change ("Cost 0"). Blank = the default.
 		card.color = _pick_color(card.schools)
 		var critical := _cell(row, columns, "critical effect")
 		if critical.is_empty():
@@ -154,53 +153,6 @@ static func _import_sheet(csv_path: String, folder: String) -> Array[String]:
 
 	_remove_old_cards(folder, made_files)
 	return made_names
-
-
-# The class cards sheet: one row per card a class gets when it levels up.
-#   Class   | Level | Card         | Copies
-#   Knight  | 2     | Shield Bash  | 1
-# Copies is optional (1 if blank). Each class's list is saved into its .tres
-# file (CharacterClass.level_cards), so you can also see it in the Inspector.
-static func _import_class_cards(known_names: Array[String]) -> void:
-	var file := FileAccess.open(CLASS_CARDS_PATH, FileAccess.READ)
-	if file == null:
-		return  # The sheet is optional.
-	var columns := {}
-	var header := file.get_csv_line()
-	for i in header.size():
-		columns[_clean_column_name(header[i])] = i
-
-	# Class name -> {level: ["Shield Bash", ...]}
-	var by_class := {}
-	while not file.eof_reached():
-		var row := file.get_csv_line()
-		var class_text := _cell(row, columns, "class")
-		var card_name := _cell(row, columns, "card")
-		if class_text.is_empty() or card_name.is_empty():
-			continue
-		if not known_names.has(card_name):
-			push_warning("class_cards.csv: there's no card called \"%s\" in cards.csv, skipped" % card_name)
-			continue
-		var level := _to_int(_cell(row, columns, "level"), 1)
-		if not by_class.has(class_text):
-			by_class[class_text] = {}
-		if not by_class[class_text].has(level):
-			by_class[class_text][level] = PackedStringArray()
-		# Two copies = the name twice in the list.
-		for i in maxi(_to_int(_cell(row, columns, "copies"), 1), 1):
-			by_class[class_text][level].append(card_name)
-
-	# Write each class's list into its file. A class missing from the sheet
-	# gets an empty list.
-	for file_name in DirAccess.get_files_at(CLASSES_FOLDER):
-		if not file_name.ends_with(".tres"):
-			continue
-		var character_class: CharacterClass = load(CLASSES_FOLDER + file_name)
-		character_class.level_cards.clear()
-		for level in by_class.get(character_class.display_name, {}):
-			character_class.level_cards[level] = by_class[character_class.display_name][level]
-		ResourceSaver.save(character_class)
-		print("Class cards for ", character_class.display_name, ": ", character_class.level_cards)
 
 
 # Every data/talents/<class>.csv becomes talents/<class>/<talent>.tres.

@@ -115,7 +115,7 @@ func _ready() -> void:
 # The first visit: a step-by-step guide around the screen (screen_guide.gd).
 func start_guide() -> void:
 	ScreenGuide.start(self, "deck_builder", [
-		{"target": title_label.get_parent(), "text": "This is your DECK BUILDER. Up top: your class, its spec, HP, Armor and how many cards a deck needs. The bar fills with Exp as your class levels up."},
+		{"target": title_label.get_parent(), "text": "This is your DECK BUILDER. Up top: your class, its spec, HP, Armor and how many cards a deck needs. The bar fills with Exp as your SPEC levels up (your class level is all your spec levels added up)."},
 		{"target": filter_bar, "text": "These tabs filter your cards by SCHOOL. Jack of All Trades lets the Adventurer take 1 card of each school."},
 		{"target": _panel_of(pool_grid), "text": "YOUR CARDS: everything you own. Click a card to add a copy to your deck (the dots show how many you own). Booster packs from the Shop bring more."},
 		{"target": _panel_of(deck_list), "text": "YOUR DECK: what you'll fight with. The bar shows the deck size, then the schools, the Energy cost curve and the card types. Click a card in the list to take it out."},
@@ -266,7 +266,7 @@ func refresh_pool(deck: Array[CardData]) -> void:
 			limit = mini(limit, rules.max_cards_per_school)
 		# The dots always show all the copies you OWN, even when your class
 		# can only put fewer in the deck (the Adventurer's 1 per school).
-		parts.pips.text = "[center]%s[/center]" % make_pips(count, owned, card_data.copy_limit())
+		parts.pips.text = "[center]%s[/center]" % make_pips(count, owned, card_data.copy_limit(), GameState.foils_owned(card_data))
 
 		var reason := rules.why_not(deck, card_data)
 		card.disabled = not reason.is_empty()
@@ -287,6 +287,8 @@ func refresh_pool(deck: Array[CardData]) -> void:
 			card.modulate = Color.WHITE
 			# Its rarity, and how many copies you can own (3 / 3 / 2 / 1).
 			note.text = "%s  ·  own %d / %d" % [card_data.get_rarity_text(), owned, card_data.copy_limit()]
+			if GameState.foils_owned(card_data) > 0:
+				note.text += "  ·  ✦ %d foil" % GameState.foils_owned(card_data)
 			note.add_theme_color_override("font_color", DIM_TEXT)
 
 		parts.cell.visible = matches_filter(card_data)
@@ -297,13 +299,15 @@ func refresh_pool(deck: Array[CardData]) -> void:
 
 # The copy dots as BBCode: `in_deck` gold dots, then grey ones up to
 # `owned`, then hollow ones up to `limit` (the card's rarity limit: 3, 2 or 1).
-func make_pips(in_deck: int, owned: int, limit: int) -> String:
+# Your FOIL copies come first and are drawn as stars (✦) instead of dots.
+func make_pips(in_deck: int, owned: int, limit: int, foil_count := 0) -> String:
 	var text := ""
 	for i in limit:
+		var mark := "✦" if i < foil_count else "●"
 		if i < in_deck:
-			text += "[color=#ffd94d]●[/color]"
+			text += "[color=#ffd94d]%s[/color]" % mark
 		elif i < owned:
-			text += "[color=#ffffff66]●[/color]"
+			text += "[color=#ffffff66]%s[/color]" % mark
 		else:
 			text += "[color=#ffffff40]○[/color]"
 	return text
@@ -388,6 +392,11 @@ func refresh_deck_list(deck: Array[CardData]) -> void:
 			deck_list.add_child(deck_rows[card_data])
 		var row: Button = deck_rows[card_data]
 		row.get_meta("count_label").text = "×%d" % counts[card_data]
+		var foil_button: Button = row.get_meta("foil_button")
+		var in_deck_foils: int = GameState.deck_foils.get(card_data.card_name, 0)
+		foil_button.visible = GameState.foils_owned(card_data) > 0
+		foil_button.text = "✦%d" % in_deck_foils
+		foil_button.modulate = GOLD if in_deck_foils > 0 else Color(1, 1, 1, 0.45)
 		deck_list.move_child(row, i)  # Keep the list sorted by cost, then name.
 
 
@@ -485,6 +494,18 @@ func make_deck_row(card_data: CardData) -> Button:
 	rarity_dot.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	content.add_child(rarity_dot)
 
+	# FOILS: you choose which copies go in. This little button shows how many
+	# of the deck's copies are your foil ones ("✦1"); click it to change that.
+	var foil_button := Button.new()
+	foil_button.flat = true
+	foil_button.focus_mode = Control.FOCUS_NONE
+	foil_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	foil_button.add_theme_font_size_override("font_size", 15)
+	foil_button.tooltip_text = "Foil copies in your deck. Click to change how many of this card's copies are your shiny ones."
+	foil_button.pressed.connect(_on_foil_toggled.bind(card_data))
+	content.add_child(foil_button)
+	row.set_meta("foil_button", foil_button)
+
 	var count_label := Label.new()  # refresh_deck_list() fills in "×2".
 	count_label.custom_minimum_size = Vector2(24, 0)
 	count_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
@@ -553,6 +574,9 @@ func _on_pool_card_clicked(card_data: CardData) -> void:
 	if not can_add(card_data):
 		return
 	GameState.deck.append(card_data)
+	# Your best copies first: if you own a foil that isn't in the deck yet, this copy is it.
+	if GameState.deck_foils.get(card_data.card_name, 0) < GameState.foils_owned(card_data):
+		GameState.deck_foils[card_data.card_name] = GameState.deck_foils.get(card_data.card_name, 0) + 1
 	refresh()
 	pop(cells[card_data].card)
 	flash_deck_row(card_data)
@@ -590,16 +614,29 @@ func pop(card: Control) -> void:
 
 func _on_deck_line_clicked(card_data: CardData) -> void:
 	GameState.deck.erase(card_data)  # erase() removes only the FIRST match, so one copy.
+	GameState.fix_deck_foils()  # A plain copy goes first; a foil only once no plain ones are left.
+	refresh()
+
+
+# The ✦ button on a deck row: one more of this card's deck copies becomes your
+# foil one, and after the most you can, back to none.
+func _on_foil_toggled(card_data: CardData) -> void:
+	var most := mini(GameState.deck.count(card_data), GameState.foils_owned(card_data))
+	var now: int = GameState.deck_foils.get(card_data.card_name, 0)
+	GameState.deck_foils[card_data.card_name] = 0 if now >= most else now + 1
+	GameState.fix_deck_foils()
 	refresh()
 
 
 func _on_clear_pressed() -> void:
 	GameState.deck.clear()
+	GameState.deck_foils.clear()
 	refresh()
 
 
 func _on_default_pressed() -> void:
 	GameState.deck = GameState.make_starter_deck()
+	GameState.fix_deck_foils(true)  # Your foil copies go in first.
 	refresh()
 
 

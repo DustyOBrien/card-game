@@ -309,10 +309,12 @@ func start_battle() -> void:
 	# each remember their own dice roll. The deck you built stays untouched
 	# for the next battle.
 	draw_pile.clear()
+	GameState.fix_deck_foils()
 	for i in GameState.deck.size():
 		if GameState.vanished.has(i):
 			continue  # This card Vanished earlier in the run.
-		var card: CardData = GameState.deck[i].duplicate()
+		# deck_card() gives the FOIL version for your foil copies.
+		var card: CardData = GameState.deck_card(i).duplicate()
 		# set_meta() tags the copy with where it came from in the deck,
 		# so if it Vanishes we know which deck card to leave out next fight.
 		card.set_meta("deck_index", i)
@@ -1459,10 +1461,15 @@ func _on_enemy_died(view: EnemyView) -> void:
 		for opened in opened_areas:
 			reward += "\nThe %s is now open on the map!" % opened.display_name
 			battle_log.add("The %s is now open!" % opened.display_name, BattleLog.CRIT_COLOR)
-	# Remember where the bar was, so it can fill up from there.
-	var before_level := GameState.class_level(GameState.character_class)
-	var before_progress := GameState.class_exp_progress(GameState.character_class)
+	# Remember where the bar was, so it can fill up from there. The bar shows
+	# the SPEC you're playing: class Exp goes into it (game_state.gd).
+	var spec_name := GameState.exp_spec(GameState.character_class)
+	var before_level := GameState.spec_level(GameState.character_class, spec_name)
+	var before_progress := GameState.spec_exp_progress(GameState.character_class, spec_name)
+	var spec_was_maxed := GameState.spec_maxed(GameState.character_class)
 	var level_ups := GameState.add_class_exp(exp_gain)
+	if spec_was_maxed:
+		battle_log.add("%s is max level: no class Exp" % spec_name, BattleLog.TURN_COLOR)
 	battle_log.add("You gain %d Exp" % exp_gain, BattleLog.TURN_COLOR)
 
 	if outcome == "won":
@@ -1479,25 +1486,26 @@ func _on_enemy_died(view: EnemyView) -> void:
 	show_exp_gain(before_level, before_progress, exp_gain, level_ups)
 
 
-# Fill the Exp bar on the victory panel, then list any level ups and the
-# class cards they gave you.
+# Fill the Exp bar on the victory panel, then list any level ups and what
+# they gave: the spec reward (class card / pack) and the class track reward.
 func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, level_ups: Array[Dictionary]) -> void:
 	exp_bar.show()
-	var hero_name := GameState.character_class.display_name
 	await exp_bar.play_gain(GameState.character_class, before_level, before_progress, amount)
 	for level_up in level_ups:
-		var line := "%s reached level %d!" % [hero_name, level_up.level]
+		var line := "%s reached level %d!  (%s class level %d)" % [level_up.spec, level_up.level,
+			GameState.character_class.display_name, level_up.class_level]
 		battle_log.add(line, BattleLog.PLAYER_COLOR)
-		for item in level_up.cards:
-			var card_line := "New class card: %s" % item.card.card_name
-			if not item.essence.is_empty():
-				card_line = "%s: %s" % [item.card.card_name, GameState.essence_text(item.essence)]  # You already had the most.
-			line += "\n" + card_line
-			battle_log.add(card_line, BattleLog.PLAYER_COLOR)
+		for reward in level_up.spec_rewards:
+			var reward_line := "Spec reward: %s" % reward
+			line += "\n" + reward_line
+			battle_log.add(reward_line, BattleLog.PLAYER_COLOR)
+		for reward in level_up.track:
+			line += "\n" + reward
+			battle_log.add(reward, BattleLog.PLAYER_COLOR)
 		reward_label.text += "\n" + line
-	# Each level gives a talent point: make sure the player notices.
+	# Each class level gives a talent point: make sure the player notices.
 	var ready := GameState.talent_points_text(GameState.character_class)
-	if not level_ups.is_empty() and not ready.is_empty():
+	if not level_ups.is_empty() and not ready.is_empty() and GameState.talents_open():
 		reward_label.text += "\n" + ready + " Spend it on the Talents screen."
 		battle_log.add(ready, BattleLog.CRIT_COLOR)
 

@@ -13,11 +13,11 @@ extends Control
 
 const TOWN_SCENE := "res://scenes/town.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
+const BINDER_SCENE := "res://scenes/binder.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")
 const REVEAL_GAP := 0.35  # Seconds between the cards of a pack appearing.
 
-# The packs (names, card counts, prices) are GameState.PACKS, and the odds
-# are GameState.PACK_ODDS: edit them there.
+# The packs (names, card counts, prices, slots) are GameState.PACKS: edit them there.
 const FARM_COLOR := Color(0.36, 0.58, 0.27)  # Farm packs are grassy green.
 const PACK_ICON := preload("res://icons/booster.svg")  # A Farm booster pack.
 
@@ -43,10 +43,19 @@ func _ready() -> void:
 	if shop_built():
 		summary_label.text = "Farm packs cost gold AND Stone from the Abandoned Farm (it comes out of your Bank). Open them here or later."
 		for pack in GameState.PACKS:
-			pack_row.add_child(_make_pack(pack))
+			if pack.get("for_sale", true):  # The Foil pack is a reward, never sold.
+				pack_row.add_child(_make_pack(pack))
 	else:
 		summary_label.text = "The Shop isn't built yet, so nothing's for sale. You can still open the packs you have."
 		pack_row.visible = false
+	# The Farm Binder: every card Farm packs can hold, found or not.
+	var binder_button := Button.new()
+	binder_button.text = "Farm Binder"
+	binder_button.custom_minimum_size = edit_deck_button.custom_minimum_size
+	binder_button.pressed.connect(func() -> void:
+		GameState.screen_return_scene = scene_file_path
+		get_tree().change_scene_to_file(BINDER_SCENE))
+	edit_deck_button.add_sibling(binder_button)
 	open_row = HBoxContainer.new()
 	open_row.alignment = BoxContainer.ALIGNMENT_CENTER
 	open_row.add_theme_constant_override("separation", 12)
@@ -68,6 +77,9 @@ func refresh() -> void:
 		var button: Button = panel.get_meta("buy_button")
 		button.disabled = not can_buy(panel.get_meta("pack"))
 	owned_label.text = "Your packs:" if GameState.pack_count() > 0 else "Your packs: none yet"
+	# The rare pity counter, so bad luck has a visible end.
+	var left := GameState.pity_packs_left()
+	owned_label.text += "      Rare guaranteed in %s (Medium or Large packs)" % ("the next pack" if left == 1 else "%d packs" % left)
 	for old in open_row.get_children():
 		old.queue_free()
 	for pack in GameState.PACKS:  # Small, Medium, Large order.
@@ -83,6 +95,27 @@ func refresh() -> void:
 		button.custom_minimum_size = Vector2(0, 44)
 		button.pressed.connect(open_pack.bind(pack.name))
 		open_row.add_child(button)
+
+
+# "2 Common, 1 Uncommon" or "3 Common, 1 Uncommon, 1 Uncommon or better (Rare 15%, Legendary 1%)".
+static func pack_contents_text(pack: Dictionary) -> String:
+	var slots: Array = pack.get("slots", [])
+	var parts: Array[String] = []
+	for slot in ["C", "U", "U+"]:
+		var count := slots.count(slot)
+		if count == 0:
+			continue
+		match slot:
+			"C": parts.append("%d Common" % count)
+			"U": parts.append("%d Uncommon" % count)
+			"U+":
+				var odds: Dictionary = pack.get("plus_odds", {})
+				parts.append("%d Uncommon or better (Rare %d%%, Legendary %d%%)" % [count,
+					odds.get(CardData.Rarity.RARE, 0), odds.get(CardData.Rarity.LEGENDARY, 0)])
+	var text := ", ".join(parts)
+	if pack.get("foil", false):
+		text += "\n1 guaranteed FOIL"
+	return text
 
 
 # What a pack costs you: its price, less any Pack Discount talents (never below 1).
@@ -147,9 +180,7 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(name_label)
 
 	var blurb := Label.new()
-	blurb.text = "%d cards\nCommon %d%%  ·  Uncommon %d%%  ·  Rare %d%%  ·  Legendary %d%%" % [pack.cards,
-		GameState.PACK_ODDS[CardData.Rarity.COMMON], GameState.PACK_ODDS[CardData.Rarity.UNCOMMON],
-		GameState.PACK_ODDS[CardData.Rarity.RARE], GameState.PACK_ODDS[CardData.Rarity.LEGENDARY]]
+	blurb.text = "%d cards\n%s" % [pack.cards, pack_contents_text(pack)]
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.add_theme_font_size_override("font_size", 13)
 	blurb.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
@@ -290,11 +321,32 @@ func open_pack(pack_name: String) -> void:
 			return  # The reveal was closed early.
 		await _flip(slots[i], opened[i])
 
+	# Level ups and binder rewards this pack gave, in one list above Done.
+	var news: Array[String] = []
+	for item in opened:
+		for gain in item.get("area_exp", []):
+			for level in gain.levels:
+				news.append("%s level %d! +1 Explorer point, +1 %s" % [gain.area.display_name, level, GameState.AREA_LEVEL_PACK])
+		for line in item.get("binder", []):
+			news.append(line)
+	if not news.is_empty():
+		var news_label := Label.new()
+		news_label.text = "\n".join(news)
+		news_label.add_theme_font_size_override("font_size", 18)
+		news_label.add_theme_color_override("font_color", Color(1, 0.88, 0.45))
+		news_label.add_theme_color_override("font_outline_color", Color.BLACK)
+		news_label.add_theme_constant_override("outline_size", 6)
+		news_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		news_label.size = Vector2(900, 30 * news.size())
+		news_label.position = Vector2(middle.x - 450, middle.y + CARD_SIZE.y / 2 + 80)
+		reveal_layer.add_child(news_label)
+		refresh()  # A level up gave a pack: show its Open button.
+
 	var done := Button.new()
 	done.text = "Done"
 	done.custom_minimum_size = Vector2(160, 44)
 	done.size = done.custom_minimum_size
-	done.position = Vector2(middle.x - 80, middle.y + CARD_SIZE.y / 2 + 90)
+	done.position = Vector2(middle.x - 80, middle.y + CARD_SIZE.y / 2 + 100 + 30 * news.size())
 	done.pressed.connect(reveal_layer.queue_free)
 	reveal_layer.add_child(done)
 
@@ -337,6 +389,9 @@ func _make_slot(item: Dictionary) -> Control:
 	glow_style.set_corner_radius_all(12)
 	glow_style.shadow_color = CardData.RARITY_COLORS[item.card.rarity]
 	glow_style.shadow_size = 0 if item.card.rarity == CardData.Rarity.COMMON else (18 if item.card.rarity == CardData.Rarity.UNCOMMON else 30)
+	if item.foil:
+		glow_style.shadow_color = Card.FOIL_GOLD  # Foils always glow gold, and big.
+		glow_style.shadow_size = 36
 	glow.add_theme_stylebox_override("panel", glow_style)
 	glow.visible = false
 	slot.add_child(glow)
@@ -344,7 +399,7 @@ func _make_slot(item: Dictionary) -> Control:
 	var card: Card = CARD_SCENE.instantiate()
 	card.name = "Face"
 	slot.add_child(card)
-	card.setup(item.card)
+	card.setup(GameState.foil_of(item.card) if item.foil else item.card)  # A foil shows its shiny version.
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Just for looking at.
 	# Force the exact size: some cards have more on them than others, and
 	# without this a busy card grows a little bigger than its neighbours.
@@ -391,6 +446,8 @@ func _flip(slot: Control, item: Dictionary) -> void:
 	var rarity: CardData.Rarity = item.card.rarity
 	var color: Color = CardData.RARITY_COLORS[rarity]
 	var centre := slot.position + CARD_SIZE / 2
+	if item.foil:
+		_foil_burst(slot, centre)
 	if rarity == CardData.Rarity.LEGENDARY:
 		_sparkles(centre, color, 90, 380.0)
 		_flash(Color(1, 0.55, 0.2, 0.6), 0.6)
@@ -401,7 +458,7 @@ func _flip(slot: Control, item: Dictionary) -> void:
 		_shake_screen()
 	elif rarity == CardData.Rarity.UNCOMMON:
 		_sparkles(centre, color, 24, 200.0)
-	if rarity != CardData.Rarity.COMMON:
+	if rarity != CardData.Rarity.COMMON or item.foil:
 		# The glow breathes in and out.
 		var pulse := create_tween().set_loops()
 		pulse.bind_node(slot)  # Stops when the slot is freed.
@@ -414,19 +471,29 @@ func _flip(slot: Control, item: Dictionary) -> void:
 	var owned_text := "Owned %d / %d" % [item.owned, item.card.copy_limit()]
 	if item.new:
 		owned_text = "NEW!"
+		# A new card fills the place's binder, which gives it Exp.
+		for gain in item.get("area_exp", []):
+			owned_text += "  +%d %s Exp" % [gain.exp, gain.area.booster]
+	elif item.get("upgraded", false):
+		owned_text = "Foil swapped in! " + GameState.essence_text(item.essence)
+		for school_name: String in item.essence:
+			_essence_orbs(centre, GameState.ESSENCE_COLORS.get(school_name, Color.WHITE), mini(item.essence[school_name] + 2, 8), item.essence[school_name])
 	elif not item.essence.is_empty():
 		owned_text = GameState.essence_text(item.essence)
 		for school_name: String in item.essence:
 			_essence_orbs(centre, GameState.ESSENCE_COLORS.get(school_name, Color.WHITE), mini(item.essence[school_name] + 2, 8), item.essence[school_name])
 	var note := Label.new()
-	note.text = "%s\n%s" % [owned_text, item.card.get_rarity_text()]
-	note.add_theme_font_size_override("font_size", 18)
+	note.text = "%s\n%s%s%s" % [owned_text, "✦ FOIL ✦ " if item.foil else "", item.card.get_rarity_text(),
+		"  (pity!)" if item.get("pity", false) else ""]
+	note.add_theme_font_size_override("font_size", 16)
 	note.add_theme_color_override("font_color", color)
 	note.add_theme_color_override("font_outline_color", Color.BLACK)
 	note.add_theme_constant_override("outline_size", 6)
 	note.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	note.size = Vector2(CARD_SIZE.x + CARD_GAP, 50)
-	note.position = Vector2(slot.position.x - CARD_GAP / 2.0, slot.position.y + CARD_SIZE.y + 12)
+	# Long notes ("Foil swapped in! +1 Neutral Essence") wrap under their own card.
+	note.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	note.size = Vector2(CARD_SIZE.x + 10, 70)
+	note.position = Vector2(slot.position.x - 5, slot.position.y + CARD_SIZE.y + 12)
 	note.pivot_offset = note.size / 2
 	note.scale = Vector2(0.4, 0.4)
 	reveal_layer.add_child(note)
@@ -438,6 +505,32 @@ func _flip(slot: Control, item: Dictionary) -> void:
 		bob.tween_property(note, "position:y", note.position.y - 5, 0.4)
 		bob.tween_property(note, "position:y", note.position.y, 0.4)
 	await grow.finished
+	if item.foil and not _skip:
+		await get_tree().create_timer(0.7).timeout  # Let the foil sink in before the next card.
+
+
+# A FOIL: the biggest reveal there is. A gold flash, a shower of gold sparks,
+# a shake, and "✦ FOIL ✦" bursting out over the card.
+func _foil_burst(slot: Control, centre: Vector2) -> void:
+	_flash(Color(1, 0.85, 0.35, 0.7), 0.8)
+	_sparkles(centre, Card.FOIL_GOLD, 140, 460.0)
+	_sparkles(centre, Color.WHITE, 60, 300.0)
+	_shake_screen()
+	var banner := Label.new()
+	banner.text = "✦ FOIL ✦"
+	banner.add_theme_font_size_override("font_size", 40)
+	banner.add_theme_color_override("font_color", Card.FOIL_GOLD)
+	banner.add_theme_color_override("font_outline_color", Color(0.3, 0.15, 0))
+	banner.add_theme_constant_override("outline_size", 10)
+	banner.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	banner.size = Vector2(300, 60)
+	banner.position = Vector2(centre.x - 150, slot.position.y - 70)
+	banner.pivot_offset = banner.size / 2
+	banner.scale = Vector2(0.2, 0.2)
+	reveal_layer.add_child(banner)
+	var pop := create_tween()
+	pop.tween_property(banner, "scale", Vector2(1.3, 1.3), 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	pop.tween_property(banner, "scale", Vector2.ONE, 0.2)
 
 
 # ESSENCE: little glowing orbs fly from the card up to the counter at the top.

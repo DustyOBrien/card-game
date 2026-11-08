@@ -22,6 +22,8 @@ const CHARACTER_SCENE := "res://scenes/character_select.tscn"
 const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
 const PERKS_SCENE := "res://scenes/area_perks.tscn"
+const BINDER_SCENE := "res://scenes/binder.tscn"
+const TRACK_SCENE := "res://scenes/class_track.tscn"
 const TORCH_ICON := preload("res://art/map_cards/torch.svg")
 const TOOL_ICONS := {
 	DungeonRun.CROWBAR: preload("res://art/map_cards/crowbar.svg"),
@@ -123,6 +125,11 @@ func build_screen() -> void:
 		perks_button.theme_type_variation = &"PrimaryButton"
 	perks_button.visible = not GameState.area_perk_list(area).is_empty()
 	title_row.add_child(perks_button)
+	# The place's binder (its cards, found and not), if it has booster packs.
+	if not area.booster.is_empty():
+		var binder_button := make_button("Binder  %d%%" % GameState.binder_percent(area), _show_screen.bind(BINDER_SCENE))
+		binder_button.custom_minimum_size = Vector2(0, 44)
+		title_row.add_child(binder_button)
 
 	var columns := HBoxContainer.new()
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
@@ -247,15 +254,24 @@ func fill_hero() -> void:
 	names.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	names.add_child(make_label(rules.display_name, 24, Color.WHITE))
 	var spec := GameState.spec_of(rules)
-	names.add_child(make_label("Level %d  ·  %s" % [GameState.class_level(rules), spec if not spec.is_empty() else "no spec yet"], 16, DIM_COLOR))
+	var spec_name := GameState.exp_spec(rules)
+	names.add_child(make_label("Class level %d / %d  ·  %s %s" % [GameState.class_level(rules), GameState.class_max_level(rules),
+		spec if not spec.is_empty() else "no spec yet",
+		"Lv %d" % GameState.spec_level(rules, spec_name) if not spec_name.is_empty() else ""], 16, DIM_COLOR))
 	row.add_child(names)
 	hero_box.add_child(row)
+	# Class Exp only goes to the spec you play. Already at the top? Say so
+	# BEFORE the trip, so the Exp isn't thrown away by surprise (card doc).
+	if GameState.spec_maxed(rules) and not spec_name.is_empty():
+		hero_box.add_child(make_label("⚠ %s is max level (%d): this trip's class Exp is lost. Change Spec to level another one." % [
+			spec_name, GameState.SPEC_MAX_LEVEL], 15, BAD_COLOR, true))
 	hero_box.add_child(make_label("%d HP%s" % [GameState.player_max_hp(), "  ·  %d Armor" % rules.armor if rules.armor > 0 else ""], 16, Color(1, 0.6, 0.6), true))
 
 	var buttons := HFlowContainer.new()
 	buttons.add_theme_constant_override("h_separation", 6)
 	buttons.add_theme_constant_override("v_separation", 6)
 	buttons.add_child(make_button("Change Class", _go_to.bind(CHARACTER_SCENE)))
+	buttons.add_child(make_button("Class Track", _show_screen.bind(TRACK_SCENE)))
 	if GameState.specs_open() and not GameState.specs_for(rules).is_empty():
 		buttons.add_child(make_button("Change Spec", _go_to.bind(SPEC_SCENE)))
 	if GameState.talents_open():
@@ -465,6 +481,13 @@ func fill_loadouts() -> void:
 func _go_to(scene: String) -> void:
 	GameState.save_game()
 	GameState.preparing = true
+	get_tree().change_scene_to_file(scene)
+
+
+# A screen that only looks (Binder, Class Track): its Back comes straight here.
+func _show_screen(scene: String) -> void:
+	GameState.save_game()
+	GameState.screen_return_scene = scene_file_path
 	get_tree().change_scene_to_file(scene)
 
 

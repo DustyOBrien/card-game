@@ -1,6 +1,8 @@
 # exp_bar.gd
 #
 # A class's Exp bar, drawn with code in _draw() (like the health bar).
+# Class Exp goes into the SPEC you're playing, so the bar (and the gold level
+# badge) show that spec: "Jack of All Trades  40 / 150 Exp".
 #
 #   (Lv 3)[ purple = Exp so far | dark = still to go ]  "40 / 200 Exp" on top
 #
@@ -25,13 +27,16 @@ var level := 1
 var current := 0.0  # Exp into this level. A float so a Tween can slide it.
 var needed := 1  # Exp this level needs. 0 = max level.
 var gain_text := ""  # e.g. "+10 Exp", shown on the right while animating.
+var spec_name := ""  # The spec the bar is for, written before the numbers.
 
 
 func show_class(character_class: CharacterClass) -> void:
-	level = GameState.class_level(character_class)
-	var progress := GameState.class_exp_progress(character_class)
+	spec_name = GameState.exp_spec(character_class)
+	level = GameState.spec_level(character_class, spec_name)
+	var progress := GameState.spec_exp_progress(character_class, spec_name)
 	current = progress.x
 	needed = progress.y
+	tooltip_text = "%s level %d (class level %d)" % [spec_name, level, GameState.class_level(character_class)] if not spec_name.is_empty() else ""
 	queue_redraw()
 
 
@@ -42,14 +47,15 @@ func play_gain(character_class: CharacterClass, before_level: int, before_progre
 	current = before_progress.x
 	needed = before_progress.y
 	gain_text = "+%d Exp" % amount
-	var target_level := GameState.class_level(character_class)
-	var target := GameState.class_exp_progress(character_class)
+	spec_name = GameState.exp_spec(character_class)
+	var target_level := GameState.spec_level(character_class, spec_name)
+	var target := GameState.spec_exp_progress(character_class, spec_name)
 	while level < target_level:
 		# Fill this level up to the end, then start the next one from empty.
 		await _slide_to(needed)
 		level += 1
 		current = 0
-		needed = GameState.exp_for_next_level(level) if level < GameState.CLASS_MAX_LEVEL else 0
+		needed = GameState.exp_for_next_level(level) if level < GameState.SPEC_MAX_LEVEL else 0
 		leveled_up.emit(level)
 		_pop()
 	await _slide_to(target.x)
@@ -88,6 +94,9 @@ func _draw() -> void:
 
 	# The numbers, in the middle of the bar.
 	var text := "Max level" if needed <= 0 else "%d / %d Exp" % [roundi(current), needed]
+	# The spec's name first, if the bar is wide enough for it.
+	if not spec_name.is_empty() and size.x >= 320:
+		text = spec_name + "   " + text
 	if not gain_text.is_empty():
 		text += "   " + gain_text
 	var text_size := font.get_string_size(text, HORIZONTAL_ALIGNMENT_LEFT, -1, FONT_SIZE)

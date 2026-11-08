@@ -1978,7 +1978,7 @@ func pick_card_for(enchant: Enchant) -> void:
 	for i in fits:
 		var card: Card = CARD_SCENE.instantiate()
 		cards.add_child(card)
-		card.setup(GameState.deck[i])
+		card.setup(GameState.deck_card(i))  # Foil copies show shiny.
 		card.clicked.connect(_on_enchant_card_chosen.bind(i, enchant))
 	if fits.is_empty():
 		about.text += "\n\nNo card in your deck can take this enchant (it needs a card with dice, or one that deals damage)."

@@ -30,12 +30,6 @@ extends Resource
 @export_enum("Strength:1", "Agility:2", "Intellect:4", "Wisdom:8") var unlock_school: int = 1
 @export var unlock_card_count: int = 12
 
-@export_group("Levels")
-# The cards this class gets when it reaches each level, e.g.
-#   {2: ["Shield Bash"], 5: ["Shield Wall", "Shield Wall"]}  (twice = 2 copies)
-# Filled in from data/class_cards.csv by the card importer.
-@export var level_cards: Dictionary[int, PackedStringArray] = {}
-
 @export_group("Deck rules")
 # Which schools' cards this class may put in its deck. Same checkboxes as on cards.
 @export_flags("Strength", "Agility", "Intellect", "Wisdom") var allowed_schools: int = 15  # 15 = all four.

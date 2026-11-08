@@ -133,11 +133,27 @@ func make_class_panel(character_class: CharacterClass, all_cards: Array[CardData
 	rules_label.size_flags_vertical = Control.SIZE_EXPAND_FILL  # Push the bottom part down.
 	box.add_child(rules_label)
 
-	# The class's level and Exp.
+	# The spec's level and Exp, and (once you can play it) a button to the
+	# Class Track: class level = all spec levels added up.
+	var exp_row := HBoxContainer.new()
+	exp_row.add_theme_constant_override("separation", 4)
+	box.add_child(exp_row)
 	var exp_bar := ExpBar.new()
 	exp_bar.custom_minimum_size = Vector2(0, 22)
-	box.add_child(exp_bar)
+	exp_bar.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	exp_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	exp_row.add_child(exp_bar)
 	exp_bar.show_class(character_class)
+	if unlocked:
+		var track_button := Button.new()
+		track_button.text = "Lv %d/%d" % [GameState.class_level(character_class), GameState.class_max_level(character_class)]
+		track_button.tooltip_text = "Class level (all your spec levels added up). Click for the Class Track and its rewards."
+		track_button.add_theme_font_size_override("font_size", 13)
+		track_button.pressed.connect(func() -> void:
+			GameState.choose_class(character_class)
+			GameState.screen_return_scene = scene_file_path
+			get_tree().change_scene_to_file("res://scenes/class_track.tscn"))
+		exp_row.add_child(track_button)
 
 	if not unlocked:
 		# Say how to unlock it, with progress: "Unlock 12 Strength cards (6 / 12)".
