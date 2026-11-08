@@ -19,6 +19,7 @@
 extends Control
 
 const CARD_SCENE := preload("res://scenes/card.tscn")
+const PREPARE_SCENE := "res://scenes/prepare.tscn"
 const TOWN_SCENE := "res://scenes/town.tscn"
 const CHARACTER_SELECT_SCENE := "res://scenes/character_select.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
@@ -76,6 +77,8 @@ func _ready() -> void:
 	clear_button.pressed.connect(_on_clear_pressed)
 	default_button.pressed.connect(_on_default_pressed)
 	start_button.pressed.connect(_on_start_pressed)
+	if GameState.preparing:  # Came here from the Prepare Expedition screen: go back there.
+		start_button.text = "Back to Prepare"
 	back_button.pressed.connect(_on_back_pressed)
 	add_talents_button()
 
@@ -606,6 +609,10 @@ func _on_start_pressed() -> void:
 	# change_scene_to_file() throws away this whole scene and loads the town.
 	# The deck survives because it lives in GameState, not in this scene.
 	GameState.save_game()  # Also remembers this deck for next time.
+	if GameState.preparing:
+		GameState.preparing = false
+		get_tree().change_scene_to_file(PREPARE_SCENE)
+		return
 	get_tree().change_scene_to_file(TOWN_SCENE)
 
 

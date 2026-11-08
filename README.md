@@ -101,6 +101,24 @@ map cards yet), and the **Cave** is still locked. Locked areas are greyed out wi
 and say what opens them. Cleared areas say "Cleared ✓", and you can go back.
 **Edit Deck** goes back to the deck builder.
 
+**Prepare Expedition** (`scenes/prepare.tscn`, `scripts/prepare.gd`). Picking a
+place on the map opens this screen (the very first Farm trip skips it). It has
+everything you choose before a trip, in three columns:
+- **Hero:** your class, spec, HP and deck. **Edit Deck**, **Change Class**,
+  **Change Spec** and **Talents** hop to their screens and come straight back
+  (the deck builder's button says **Back to Prepare**; `GameState.preparing`).
+- **Map Cards:** your own map cards for this place (Deck **Yours** in the
+  sheet). Untick one to leave it out of the map deck (`GameState.map_cards_off`,
+  saved). Filler takes its place.
+- **Pack:** pick your **flask**, and how many **torches** to bring (0 to 3; they
+  share one backpack slot). What you bought in town is listed too.
+- **Loadouts** along the bottom: type a name and **Save** to keep the whole setup
+  (class, spec, talents, deck, flask, torches, map cards), up to 6. Click one to
+  load it, **×** to delete it. **Same as last time** loads what you last set out
+  with. Anything you can't use any more (a card you don't own, talents you don't
+  have the points for) is skipped, and the screen says so.
+- **Set Out!** starts the trip (greyed out if your deck is too small).
+
 Cards show **symbols** instead of rules text, so you can read them at a glance:
 
 | Symbol | Means |

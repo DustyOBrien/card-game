@@ -150,7 +150,7 @@ func _init(for_area: Area) -> void:
 # Build the map deck and deal the first board.
 func start() -> void:
 	guided = GameState.is_guided_run(area)
-	torches = STARTING_TORCHES
+	torches = STARTING_TORCHES if guided else GameState.packed_torches  # Packed on the Prepare screen.
 	if not guided:
 		_build_deck()
 	_deal()
@@ -175,7 +175,8 @@ func _build_deck() -> void:
 					if card.floor_from <= 1:
 						deck.append(card)
 				RoomCard.DECK_YOURS:
-					yours.append(card)
+					if not GameState.is_map_card_off(area, card):  # Left out on the Prepare screen.
+						yours.append(card)
 				RoomCard.DECK_FILLER:
 					filler.append(card)
 	deck.append_array(yours.slice(0, YOUR_SLOTS))

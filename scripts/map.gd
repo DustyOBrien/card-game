@@ -1,7 +1,7 @@
 # map.gd
 #
-# The map (scenes/map.tscn), between the deck builder and the battle.
-# Pick an area to start a run there. Locked areas are shown, but greyed out.
+# The map (scenes/map.tscn), between town and the Prepare Expedition screen.
+# Pick an area to get ready for a run there. Locked areas are shown, but greyed out.
 #
 # The map picture is just a background (art/map/world_map.svg). The round
 # area buttons are built here in code, one per file in areas/, and placed at
@@ -11,6 +11,7 @@ extends Control
 const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const TOWN_SCENE := "res://scenes/town.tscn"
+const PREPARE_SCENE := "res://scenes/prepare.tscn"
 const LOCK_ICON := preload("res://art/map/lock.svg")
 
 const BUTTON_SIZE := Vector2(110, 110)  # The round area pictures.
@@ -129,10 +130,15 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 		info_label.text = "Choose where to adventure."
 
 
+# The first trip sets out straight away (the tips explain everything).
+# Every other trip goes through Prepare Expedition first.
 func _on_area_chosen(area: Area) -> void:
 	GameState.current_area = area
-	GameState.start_run()  # A fresh dungeon, at full HP.
-	get_tree().change_scene_to_file(DUNGEON_SCENE)
+	if GameState.is_guided_run(area):
+		GameState.start_run()  # A fresh dungeon, at full HP.
+		get_tree().change_scene_to_file(DUNGEON_SCENE)
+	else:
+		get_tree().change_scene_to_file(PREPARE_SCENE)
 
 
 func _on_deck_pressed() -> void:

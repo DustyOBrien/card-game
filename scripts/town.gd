@@ -86,6 +86,7 @@ const SCROLL_STEP := 484.0  # One click of an arrow: two buildings (228 wide + 1
 
 func _ready() -> void:
 	GameState.ensure_ready()  # So pressing F6 on this scene still works.
+	GameState.preparing = false  # (In case you left the Prepare screen's deck edit another way.)
 	GameState.check_quest()
 	deck_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(DECK_BUILDER_SCENE))
 	# The road to the map replaces the old "Start Next Run" button.

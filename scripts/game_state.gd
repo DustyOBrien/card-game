@@ -28,6 +28,17 @@ var deck: Array[CardData] = []
 # The area picked on the map. This run's fights happen here.
 var current_area: Area
 
+# --- Getting ready for an expedition (scenes/prepare.tscn) ---
+const MAX_PACKED_TORCHES := 3  # Torches you can pack (they take backpack space).
+const MAX_LOADOUTS := 6
+var packed_torches := 2  # How many torches you take (DungeonRun.STARTING_TORCHES on the first trip).
+# Your own map cards you've taken OUT of the map deck, per place: {"Abandoned Farm": ["Bunny Warren"]}.
+var map_cards_off := {}
+# Saved loadouts: {"name", "class", "spec", "talents", "deck", "flask", "torches", "map_cards_off"}.
+var loadouts: Array[Dictionary] = []
+var last_loadout := {}  # The setup you last set out with ("Same as last time").
+var preparing := false  # Editing your deck/class from the Prepare screen: come back there after.
+
 # --- The run --------------------------------------------------------------
 # A "run" is one trip into an area's dungeon (see dungeon_run.gd): explore
 # rooms, beat Mini Bosses, and beat the Boss, Leave at a campfire, or die.
@@ -232,6 +243,11 @@ func start_fresh() -> void:
 	unlocked_potions.clear()
 	potion_upgrades.clear()
 	chosen_flask = ""
+	packed_torches = 2
+	map_cards_off.clear()
+	loadouts.clear()
+	last_loadout.clear()
+	preparing = false
 	tutorial_done = false  # A new player sees the tutorial again.
 	materials.clear()
 	blueprints.clear()
@@ -1393,6 +1409,10 @@ func _talent_could_open(card: CardData) -> bool:
 	return false
 
 
+func is_class_unlocked(for_class: CharacterClass) -> bool:
+	return for_class.is_unlocked(load_all_cards())
+
+
 func _class_named(display_name: String) -> CharacterClass:
 	for each_class in load_classes():
 		if each_class.display_name == display_name:
@@ -1469,6 +1489,11 @@ func save_game() -> void:
 		"unlocked_features": unlocked_features,
 		"seen_guides": seen_guides,
 		"story_beats": story_beats,
+		"packed_torches": packed_torches,
+		"map_cards_off": map_cards_off,
+		"loadouts": loadouts,
+		"last_loadout": last_loadout,
+		"class": character_class.display_name if character_class else "",
 	}
 	var file := FileAccess.open(SAVE_PATH, FileAccess.WRITE)
 	if file == null:
@@ -1569,6 +1594,19 @@ func load_game() -> bool:
 	var saved_specs = data.get("specs", {})
 	class_specs = saved_specs if saved_specs is Dictionary else {}  # Ignore a broken entry.
 	_talents_changed()
+	packed_torches = clampi(int(data.get("packed_torches", 2)), 0, MAX_PACKED_TORCHES)
+	var saved_off = data.get("map_cards_off", {})
+	map_cards_off = saved_off if saved_off is Dictionary else {}
+	loadouts.clear()
+	for loadout in data.get("loadouts", []):
+		if loadout is Dictionary:
+			loadouts.append(loadout)
+	var saved_last = data.get("last_loadout", {})
+	last_loadout = saved_last if saved_last is Dictionary else {}
+	# The class you played last (its deck comes from saved_decks).
+	var last_class := _class_named(str(data.get("class", "")))
+	if last_class and is_class_unlocked(last_class):
+		choose_class(last_class)
 	# A card added to the spreadsheet as Unlocked after you saved still
 	# shows up in your collection (once you've had your starter cards).
 	for card in load_all_cards():
@@ -1783,6 +1821,103 @@ func make_starter_deck() -> Array[CardData]:
 
 # For testing a scene on its own (F6): if nothing was picked yet, use the
 # first class and its starter deck, so the scene still has something to show.
+# --- Loadouts -----------------------------------------------------------------
+# A LOADOUT is everything you pick before an expedition: class, spec, talents,
+# deck, flask, torches and which of your map cards go in. Saved by name on the
+# Prepare screen; "Same as last time" is the one you last set out with.
+
+func current_loadout(loadout_name: String = "") -> Dictionary:
+	var ranks: Dictionary = talent_ranks.get(character_class.display_name, {})
+	var flask := current_flask()
+	return {
+		"name": loadout_name,
+		"class": character_class.display_name,
+		"spec": spec_of(character_class),
+		"talents": ranks.duplicate(),
+		"deck": deck.map(func(card: CardData) -> String: return card.card_name),
+		"flask": flask.flask_name if flask else "",
+		"torches": packed_torches,
+		"map_cards_off": map_cards_off.duplicate(true),
+	}
+
+
+# Save the current setup under a name (the same name replaces the old one).
+# Returns false if there's no room for a new one.
+func save_loadout(loadout_name: String) -> bool:
+	var loadout := current_loadout(loadout_name)
+	for i in loadouts.size():
+		if loadouts[i].get("name", "") == loadout_name:
+			loadouts[i] = loadout
+			save_game()
+			return true
+	if loadouts.size() >= MAX_LOADOUTS:
+		return false
+	loadouts.append(loadout)
+	save_game()
+	return true
+
+
+func delete_loadout(index: int) -> void:
+	if index >= 0 and index < loadouts.size():
+		loadouts.remove_at(index)
+		save_game()
+
+
+# Put a loadout back on. Anything that can't be used any more (a class that's
+# locked, a card you no longer own, a flask you don't have) is skipped.
+# Returns a list of what was skipped, as text (empty = everything fit).
+func apply_loadout(loadout: Dictionary) -> Array[String]:
+	var skipped: Array[String] = []
+	var for_class := _class_named(str(loadout.get("class", "")))
+	if for_class == null or not is_class_unlocked(for_class):
+		return ["the class %s" % loadout.get("class", "?")]
+	choose_class(for_class)
+	var spec := str(loadout.get("spec", ""))
+	if not spec.is_empty() and specs_open() and spec != spec_of(for_class):
+		set_spec(for_class, spec)  # Changing spec gives the talent points back...
+	# ...and then the loadout's talents go back on, if you have the points.
+	var ranks = loadout.get("talents", {})
+	if ranks is Dictionary and spec == spec_of(for_class):
+		var before: Dictionary = talent_ranks.get(for_class.display_name, {}).duplicate()
+		talent_ranks[for_class.display_name] = _whole_numbers(ranks)
+		_talents_changed()
+		if talent_points_left(for_class) < 0:
+			talent_ranks[for_class.display_name] = before  # Not enough points: keep what you had.
+			_talents_changed()
+			skipped.append("its talents (not enough points)")
+	var names: Array = loadout.get("deck", [])
+	var cards: Array[CardData] = []
+	for card_name in names:
+		var card := find_card(str(card_name))
+		if card:
+			cards.append(card)
+	deck = _keep_allowed(cards, for_class)
+	if deck.size() < names.size():
+		skipped.append("%d card%s you can't use now" % [names.size() - deck.size(), "" if names.size() - deck.size() == 1 else "s"])
+	var flask := find_flask(str(loadout.get("flask", "")))
+	if flask and is_flask_unlocked(flask):
+		chosen_flask = flask.flask_name
+	packed_torches = clampi(int(loadout.get("torches", 2)), 0, MAX_PACKED_TORCHES)
+	var off = loadout.get("map_cards_off", {})
+	if off is Dictionary:
+		map_cards_off = off.duplicate(true)
+	save_game()
+	return skipped
+
+
+# Is this map card (one of Yours) taken out of the deck?
+func is_map_card_off(area: Area, card: RoomCard) -> bool:
+	return map_cards_off.get(area.display_name, []).has(card.room_name)
+
+
+func set_map_card_off(area: Area, card: RoomCard, off: bool) -> void:
+	var list: Array = map_cards_off.get(area.display_name, [])
+	list.erase(card.room_name)
+	if off:
+		list.append(card.room_name)
+	map_cards_off[area.display_name] = list
+
+
 func ensure_ready() -> void:
 	if character_class == null:
 		choose_class(load_classes()[0])
