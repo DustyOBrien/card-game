@@ -75,6 +75,8 @@ var torch_button: Button
 # The Save Sack, Found and enchant/potion rows in the side panel (built in code).
 var sack_row: HBoxContainer
 var found_row: HFlowContainer
+var backpack_title: Label
+var backpack_row: HFlowContainer  # One button per backpack slot.
 var enchant_button: Button
 var potion_row: HBoxContainer
 var picker: ColorRect  # The "put an enchant on a card" screen, while it's open.
@@ -202,8 +204,9 @@ func refresh() -> void:
 		hp, GameState.player_max_hp(), dungeon.keys, dungeon.torches])
 	# The DANGER METER: how much, what it does now, and when it gets worse.
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
-	lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Strength  ·  [color=#ffb080]%d more → +%d[/color]" % [
-		danger_color, dungeon.danger(), dungeon.enemy_strength(), dungeon.danger_to_next(), dungeon.enemy_strength() + 1])
+	var next := "Danger card" + (", +%d Str" % (dungeon.enemy_strength() + 1) if dungeon.next_danger_adds_strength() else "")
+	lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Str  ·  [color=#ffb080]%d more → %s[/color]" % [
+		danger_color, dungeon.danger(), dungeon.enemy_strength(), dungeon.danger_to_next(), next])
 	var hunting := dungeon.hunting_text()
 	if not hunting.is_empty():
 		lines.append("[color=#a8e0ff]Hunting: %s[/color]" % hunting)
@@ -213,7 +216,8 @@ func refresh() -> void:
 	stats_label.tooltip_text = "\n".join([
 		"HP: carries over from fight to fight.",
 		"Keys: fights drop a small key %d%% of the time. A key opens one locked chest or shed." % DungeonRun.KEY_CHANCE,
-		"Danger: +1 for every Unsafe card you find, and for some failed choices. Every %d Danger gives every enemy +1 Strength. It lasts the whole trip." % dungeon.danger_per_strength(),
+		"Danger: +1 for every Unsafe card you find, and for some failed choices. Every %d Danger shuffles a bad Danger card into the map deck (it can swap onto the board too), and every %d gives every enemy +1 Strength. It lasts the whole trip." % [dungeon.danger_per_card(), dungeon.danger_per_strength()],
+		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Gold, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
 		"Torches: light up any face-down card to see it first. Each time, a d4 burnout roll: %s, then it always burns out." % torch_targets_text(),
 		"Scavenge: stand on a wall, field, hay bale... and click it. Free the first time, then push your luck.",
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
@@ -224,6 +228,26 @@ func refresh() -> void:
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
 	refresh_sack()
+	if not dungeon.left_over.is_empty() or dungeon.last_danger_card != null:
+		show_news.call_deferred()
+
+
+# Things to tell you once nothing else is going on: loot that didn't fit in
+# the backpack, then a new Danger card.
+func show_news() -> void:
+	if popup.visible or busy or picker or deck_list or not dungeon.result.is_empty():
+		return
+	if not dungeon.left_over.is_empty():
+		show_backpack_full()
+	elif dungeon.last_danger_card != null:
+		var card := dungeon.last_danger_card
+		dungeon.last_danger_card = null
+		show_popup("Danger card!", danger_news_text(card), [["Uh oh", close_popup]], card_art(card), "flip", card)
+
+
+func danger_news_text(card: RoomCard) -> String:
+	return "All that noise... Danger is %d, so a %s card was shuffled into the map deck. If a card was still face down on the board, it may already be out there.\n%s" % [
+		dungeon.danger(), card.room_name, card.text]
 
 
 # The picture on a card's face: its Art, or the old icon for its kind.
@@ -448,6 +472,9 @@ func _on_square_pressed(square: Vector2i) -> void:
 			var heading := "Boss!" if card.type == RoomCard.Type.BOSS else ("Mini Boss!" if card.type == RoomCard.Type.MINI_BOSS else card.room_name)
 			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "Enemies: " + enemy_list(dungeon.fight_enemies)
 			text += "\nUnsafe cards are always a fight. Danger is now %d." % dungeon.danger()
+			if dungeon.last_danger_card != null:
+				text += "\nDanger card! A %s was shuffled into the map deck." % dungeon.last_danger_card.room_name
+				dungeon.last_danger_card = null
 			show_popup(heading, text, [["Fight!", start_fight]], card_art(card), "flip", card)
 		"chest":
 			show_chest()
@@ -1265,6 +1292,14 @@ func build_sack_panel() -> void:
 	found_row.add_theme_constant_override("v_separation", 4)
 	nodes.append(found_row)
 
+	backpack_title = make_small_label("", Color(0.85, 0.82, 0.76))
+	backpack_title.mouse_filter = Control.MOUSE_FILTER_PASS
+	nodes.append(backpack_title)
+	backpack_row = HFlowContainer.new()
+	backpack_row.add_theme_constant_override("h_separation", 4)
+	backpack_row.add_theme_constant_override("v_separation", 4)
+	nodes.append(backpack_row)
+
 	var gear := HBoxContainer.new()
 	gear.add_theme_constant_override("separation", 8)
 	torch_button = Button.new()
@@ -1305,7 +1340,7 @@ func make_small_label(text: String, color: Color) -> Label:
 func refresh_sack() -> void:
 	if sack_row == null:
 		return
-	for old in sack_row.get_children() + found_row.get_children() + potion_row.get_children():
+	for old in sack_row.get_children() + found_row.get_children() + potion_row.get_children() + backpack_row.get_children():
 		old.queue_free()
 	# The sack's slots: filled ones (click to take out) and empty ones.
 	for i in GameState.sack_slots():
@@ -1338,18 +1373,9 @@ func refresh_sack() -> void:
 		found_row.add_child(pack_chip)
 	for card in dungeon.found_cards:
 		found_row.add_child(make_chip(card.card_name, {"kind": "card", "card": card}, ""))
-	for material_name in dungeon.found_materials:
-		var chip := make_chip("%s x%d" % [material_name, dungeon.found_materials[material_name]],
-			{"kind": "material", "name": material_name},
-			"Drag into the sack: a slot holds up to %d of one material." % GameState.gold_stack())
-		var info := GameState.find_material(material_name)
-		if info:
-			chip.add_theme_color_override("font_color", info.color)
-			chip.icon = info.icon
-			chip.add_theme_constant_override("icon_max_width", 18)
-		found_row.add_child(chip)
 	if found_row.get_child_count() == 0:
-		found_row.add_child(make_small_label("nothing yet", Color(1, 1, 1, 0.5)))
+		found_row.add_child(make_small_label("nothing yet" if dungeon.found_materials.is_empty() else "only what's in your backpack", Color(1, 1, 1, 0.5)))
+	refresh_backpack()
 	# Enchants waiting, and potions.
 	enchant_button.text = "Use Enchant (%d)" % dungeon.enchant_drops.size()
 	enchant_button.disabled = dungeon.enchant_drops.is_empty()
@@ -1382,6 +1408,120 @@ func refresh_sack() -> void:
 	var free_slots := GameState.potion_slots() - dungeon.potions.size()
 	if free_slots > 0:
 		potion_row.add_child(make_small_label("+%d" % free_slots, Color(1, 1, 1, 0.4)))
+
+
+# --- The Backpack ------------------------------------------------------------------
+# One button per slot: materials and torches, up to 5 of one thing in each.
+# Click a slot to drop it (or put it in the Save Sack). Drag a material
+# slot into the sack, like the Found chips.
+
+func refresh_backpack() -> void:
+	var used := dungeon.backpack_used()
+	var slots := dungeon.backpack_slots()
+	backpack_title.text = "Backpack %d / %d slots (lost if you die):" % [used, slots]
+	backpack_title.add_theme_color_override("font_color", Color(1, 0.6, 0.45) if used >= slots else Color(0.85, 0.82, 0.76))
+	backpack_title.tooltip_text = "Materials and torches go in your backpack: up to %d of one thing in each slot.\nGold, cards, packs and keys don't take space. Click a slot to drop it.\nThe Tailor in town sews a bigger backpack." % DungeonRun.BACKPACK_STACK
+	var contents := dungeon.backpack_contents()
+	for i in maxi(slots, contents.size()):
+		var slot := Button.new()
+		slot.custom_minimum_size = Vector2(66, 34)
+		slot.add_theme_font_size_override("font_size", 14)
+		slot.focus_mode = Control.FOCUS_NONE
+		if i >= contents.size():
+			slot.text = "-"
+			slot.modulate.a = 0.45
+			slot.tooltip_text = "An empty backpack slot."
+			backpack_row.add_child(slot)
+			continue
+		var item: Dictionary = contents[i]
+		slot.text = "x%d" % item.amount
+		slot.add_theme_constant_override("icon_max_width", 20)
+		if item.name == DungeonRun.TORCH:
+			slot.icon = TORCH_ICON
+		else:
+			var info := GameState.find_material(item.name)
+			if info:
+				slot.icon = info.icon
+				slot.add_theme_color_override("font_color", info.color)
+		slot.tooltip_text = "%d %s. Click to drop it%s." % [item.amount, item.name,
+			" or put it in the Save Sack" if GameState.sack_open() and item.name != DungeonRun.TORCH else ""]
+		slot.pressed.connect(show_backpack_slot.bind(item.name))
+		if GameState.sack_open() and item.name != DungeonRun.TORCH:
+			var data := {"kind": "material", "name": item.name}
+			slot.set_drag_forwarding(func(_at: Vector2) -> Variant:
+				var preview := Label.new()
+				preview.text = "%d %s" % [item.amount, item.name]
+				preview.add_theme_font_size_override("font_size", 16)
+				slot.set_drag_preview(preview)
+				return data, Callable(), Callable())
+		backpack_row.add_child(slot)
+
+
+# What to do with one backpack slot.
+func show_backpack_slot(item_name: String) -> void:
+	if popup.visible or busy or picker or deck_list:
+		return
+	var have := dungeon.carried(item_name)
+	var top := have % DungeonRun.BACKPACK_STACK if have % DungeonRun.BACKPACK_STACK != 0 else DungeonRun.BACKPACK_STACK
+	var choices := [["Drop %d" % top, _on_drop_stack.bind(item_name)]]
+	if GameState.sack_open() and item_name != DungeonRun.TORCH:
+		choices.append(["Into the Save Sack", _on_backpack_to_sack.bind(item_name)])
+	choices.append(["Keep it", close_popup])
+	show_popup(item_name, "You carry %d %s. Drop a slot's worth (%d) to make room?" % [have, item_name, top], choices, backpack_picture(item_name), "pop")
+
+
+func _on_drop_stack(item_name: String) -> void:
+	var dropped := dungeon.drop_stack(item_name)
+	close_popup()
+	info_label.text = "You drop %d %s." % [dropped, item_name]
+
+
+func _on_backpack_to_sack(item_name: String) -> void:
+	close_popup()
+	_put_in_sack({"kind": "material", "name": item_name})
+	refresh()
+
+
+func backpack_picture(item_name: String) -> Texture2D:
+	if item_name == DungeonRun.TORCH:
+		return TORCH_ICON
+	var info := GameState.find_material(item_name)
+	return info.icon if info else null
+
+
+# Something you found doesn't fit: drop a slot of something else to make
+# room, or leave it behind.
+func show_backpack_full() -> void:
+	var item_name: String = dungeon.left_over.keys()[0]
+	var amount: int = dungeon.left_over[item_name]
+	var choices := [["Leave it", _on_leave_behind]]
+	var names: Array = dungeon.found_materials.keys()
+	if dungeon.torches > 0:
+		names.push_front(DungeonRun.TORCH)
+	for other: String in names:
+		if other == item_name:
+			continue
+		var have := dungeon.carried(other)
+		var top := have % DungeonRun.BACKPACK_STACK if have % DungeonRun.BACKPACK_STACK != 0 else DungeonRun.BACKPACK_STACK
+		choices.append(["Drop %d %s" % [top, other], _on_make_room.bind(other)])
+	var text := "%d %s won't fit: all %d slots are full (up to %d of one thing in each).\nDrop something to make room, or leave it here." % [
+		amount, item_name, dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK]
+	show_popup("Backpack full!", text, choices, backpack_picture(item_name), "pop")
+	if choices.size() > 3:  # Lots of choices: let the buttons shrink to fit.
+		for button: Button in popup_buttons.get_children():
+			if not button.is_queued_for_deletion():
+				button.custom_minimum_size.x = 0
+
+
+func _on_make_room(item_name: String) -> void:
+	dungeon.drop_stack(item_name)
+	dungeon.repack_left_over()
+	close_popup()  # (If it still doesn't all fit, it asks again.)
+
+
+func _on_leave_behind() -> void:
+	dungeon.leave_behind()
+	close_popup()
 
 
 # A found thing you can drag into the sack (or click).

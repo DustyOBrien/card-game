@@ -12,6 +12,6 @@ sort_order = 6
 costs = Array[int]([40, 70])
 effects = PackedStringArray("mapmaker", "danger steps")
 amounts = Array[int]([1, 1])
-stage_texts = PackedStringArray("Buy maps that unlock new map cards", "Enemies get stronger every 4 Danger instead of 3")
+stage_texts = PackedStringArray("Buy maps that unlock new map cards", "Danger builds slower: a Danger card every 4 Danger instead of 3")
 material_costs = PackedStringArray("Stone 5", "Stone 10")
 needs_blueprint = true

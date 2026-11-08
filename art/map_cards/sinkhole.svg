@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A sinkhole: cracked muddy ground around a dark hole. -->
+  <ellipse cx="32" cy="38" rx="28" ry="16" fill="#7a5a34" stroke="#3e2a14" stroke-width="2.5"/>
+  <ellipse cx="32" cy="38" rx="17" ry="9" fill="#1c140c" stroke="#4a3018" stroke-width="2"/>
+  <ellipse cx="32" cy="41" rx="10" ry="4" fill="#000000" opacity="0.8"/>
+  <path d="M8 34 L14 36 L12 40 M56 33 L50 36 L53 41 M20 52 L24 48 L28 51 M42 52 L40 48 L45 46" stroke="#3e2a14" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path d="M10 26 Q14 18 18 26 M46 24 Q50 16 54 24" stroke="#5f8a3a" stroke-width="3" fill="none" stroke-linecap="round"/>
+</svg>

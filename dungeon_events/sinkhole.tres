@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_name = "Sinkhole"
+area = "Room"
+text = "The ground here is soft and sagging. One wrong step and you're in."
+choice_labels = PackedStringArray("Edge around it", "Fill it with supplies", "Jump it")
+chances = Array[int]([60, 100, 40])
+effects = PackedStringArray("", "Drop 3", "Gold 3-6")
+fail_effects = PackedStringArray("Lose HP 4", "", "Lose HP 6; Danger 1")
+results = PackedStringArray("You edge around the hole. Phew.", "You throw supplies from your backpack in until it's safe to cross.", "A clean jump! Something shiny was lying on the far side.")
+fail_results = PackedStringArray("The ground gives way! You scramble out, scraped and muddy.", "", "You land short, in the mud. Ouch, and LOUD.")

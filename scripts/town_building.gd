@@ -22,12 +22,13 @@ const ENCHANT_CHOICE := "enchant choice"  # When an enchant drops, choose from t
 const ALCHEMIST := "alchemist"  # Buy potions to take into your next run.
 const POTION_SLOTS := "potion slots"  # Carry more potions.
 const MAPMAKER := "mapmaker"  # Buy maps that unlock room cards.
-const DANGER_STEPS := "danger steps"  # Steps per danger level go up by this much.
+const DANGER_STEPS := "danger steps"  # Danger needed for each Danger card goes up by this much.
+const BACKPACK_SLOTS := "backpack slots"  # More backpack slots on expeditions.
 const INN := "inn"  # Opens quests, the map and adventuring.
 const BANK := "bank"  # The Guild Hall's Bank: see your materials.
 const DOJO := "dojo"  # The Old Master's Dojo: the Talents screen, from town.
 const EFFECTS := [SHOP, PACK_DISCOUNT, SACK_SLOTS, GOLD_STACK, ENCHANTER, ENCHANT_CHOICE,
-	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS, INN, BANK, DOJO]
+	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS, BACKPACK_SLOTS, INN, BANK, DOJO]
 
 @export var building_name: String = "Building"
 @export_multiline var description: String = ""

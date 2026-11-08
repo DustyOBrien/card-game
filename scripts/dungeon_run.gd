@@ -47,7 +47,17 @@ const SIZE := 5  # The board is SIZE x SIZE squares.
 const START := Vector2i(2, 2)  # The middle square.
 const DECK_SIZE := 40  # Cards in the map deck.
 const YOUR_SLOTS := 20  # How many of your own map cards fit in it.
-const DANGER_PER_STRENGTH := 3  # Danger for each +1 enemy Strength (the Mapmaker adds more).
+# DANGER: every DANGER_PER_CARD danger shuffles a bad Danger card into the
+# map deck (and swaps one onto the board). Every second time, enemies also
+# get +1 Strength. The Mapmaker makes both come slower.
+const DANGER_PER_CARD := 3
+const DANGER_CARDS_PER_STRENGTH := 2  # So enemies get +1 Strength every 6 danger.
+# The BACKPACK: materials and torches take space, gold, cards, packs and keys
+# don't. Each slot holds a stack of up to BACKPACK_STACK of the same thing.
+# The Tailor sews on more slots.
+const BACKPACK_SLOTS := 6
+const BACKPACK_STACK := 5
+const TORCH := "Torch"  # The backpack's name for your torches.
 const KEY_CHANCE := 25  # % chance a fight drops a small key.
 const BREAK_CHANCE := 40  # % chance that breaking a locked chest open works (no key needed, but loud).
 # % chance a won fight drops an enchant / a potion, by card kind.
@@ -97,7 +107,12 @@ var torch_uses := 0  # Cards the lit torch has scouted so far.
 # What you've found, given to you when you Return to Town or beat the Boss.
 var found_gold := 0
 var found_packs := 0
-var found_materials := {}  # Materials found this run: {"Green Ooze": 3}. Lost if you die (unless sacked).
+var found_materials := {}  # Materials found this run: {"Green Ooze": 3}. Lost if you die (unless sacked). In the backpack.
+# Things that didn't fit in the backpack: {"Hay": 2}. dungeon.gd asks what to
+# drop to make room, or leaves them behind (leave_behind()).
+var left_over := {}
+var danger_cards_added := 0  # Danger cards shuffled in so far this run.
+var last_danger_card: RoomCard = null  # The newest one (dungeon.gd shows it), null once shown.
 var found_cards: Array[CardData] = []
 
 # The SAVE SACK: what's in it survives if you die. Each slot holds one
@@ -431,6 +446,9 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 			"use":  # "Use Key"
 				if keys <= 0:
 					return "You need a small key"
+			"drop":  # "Drop 3": throw away supplies from your backpack.
+				if found_materials.is_empty():
+					return "Your backpack has no supplies to throw in"
 			"flask":
 				if flask == null:
 					return "You have no flask"
@@ -496,6 +514,15 @@ func apply_effects(list: Array[String]) -> Dictionary:
 			"calm":
 				danger_points = 0
 				lines.append("Danger back to 0")
+			"drop":  # "Drop 3": that many supplies, picked at random from your backpack.
+				var dropped := {}
+				for i in number:
+					if found_materials.is_empty():
+						break
+					var material_name: String = found_materials.keys().pick_random()
+					add_found_material(material_name, -1)
+					dropped[material_name] = dropped.get(material_name, 0) + 1
+				lines.append("Lost " + (MaterialInfo.costs_text(dropped) if not dropped.is_empty() else "nothing"))
 			"use":  # "Use Key"
 				keys = maxi(keys - 1, 0)
 				lines.append("Used a small key (%d left)" % keys)
@@ -625,9 +652,13 @@ static func luck_name(luck: int) -> String:
 
 func raise_danger(amount: int) -> void:
 	var strength_before := enemy_strength()
+	var cards_before := danger_points / danger_per_card()
 	danger_points += amount
 	if enemy_strength() > strength_before:
 		add_log("Danger %d! Every enemy now has +%d Strength." % [danger_points, enemy_strength()])
+	if not guided:
+		for i in danger_points / danger_per_card() - cards_before:
+			_add_danger_card()
 
 
 # Danger points (shown on the danger meter).
@@ -635,8 +666,13 @@ func danger() -> int:
 	return danger_points
 
 
+# Danger for each Danger card (the Mapmaker adds more).
+func danger_per_card() -> int:
+	return DANGER_PER_CARD + GameState.town_bonus(TownBuilding.DANGER_STEPS)
+
+
 func danger_per_strength() -> int:
-	return DANGER_PER_STRENGTH + GameState.town_bonus(TownBuilding.DANGER_STEPS)
+	return danger_per_card() * DANGER_CARDS_PER_STRENGTH
 
 
 # The Strength every enemy gets: +1 for every danger_per_strength() danger.
@@ -644,9 +680,54 @@ func enemy_strength() -> int:
 	return danger_points / danger_per_strength()
 
 
-# How much more danger until enemies get stronger again.
+# How much more danger until the next Danger card.
 func danger_to_next() -> int:
-	return danger_per_strength() - danger_points % danger_per_strength()
+	return danger_per_card() - danger_points % danger_per_card()
+
+
+# Will the next Danger card also make enemies stronger?
+func next_danger_adds_strength() -> bool:
+	return (danger_points + danger_to_next()) % danger_per_strength() == 0
+
+
+# This place's Danger cards (Deck "Danger" in the sheet), one entry per Copy
+# so more Copies = more likely.
+func danger_pool() -> Array[RoomCard]:
+	var pool: Array[RoomCard] = []
+	for card in area.cards():
+		if card.deck_part == RoomCard.DECK_DANGER and card.floor_from <= floor_number:
+			for i in card.copies:
+				pool.append(card)
+	return pool
+
+
+# A DANGER CARD: a bad card goes into the map deck. If a card on the board
+# is still face down (and not scouted), the Danger card takes its place right
+# away, and that card goes back into the deck.
+func _add_danger_card() -> void:
+	var pool := danger_pool()
+	if pool.is_empty():
+		return
+	var card: RoomCard = pool.pick_random()
+	danger_cards_added += 1
+	last_danger_card = card
+	var spots: Array[Vector2i] = []
+	for square: Vector2i in rooms:
+		var room: Dictionary = rooms[square]
+		var here: RoomCard = room.card
+		if here != null and not room.revealed and not room.get("scouted", false) and not room.campfire \
+				and here.deck_part != RoomCard.DECK_BOSS:
+			spots.append(square)
+	if spots.is_empty():
+		deck.append(card)
+		deck.shuffle()
+		add_log("Danger %d! A Danger card is shuffled into the map deck: %s." % [danger_points, card.room_name])
+		return
+	var square: Vector2i = spots.pick_random()
+	deck.append(rooms[square].card)
+	deck.shuffle()
+	rooms[square].card = card
+	add_log("Danger %d! A Danger card sneaks onto the board, face down: %s." % [danger_points, card.room_name])
 
 
 # --- Cards -------------------------------------------------------------------
@@ -846,7 +927,8 @@ func take_loot(card: RoomCard) -> String:
 			keys += 1
 			return "a small key"
 		"torch":
-			torches += 1
+			if pack_item(TORCH, 1) == 0:
+				return "a torch (no room in your backpack)"
 			return "a torch"
 		"enchant":
 			return "an enchant: " + _drop_enchant()
@@ -865,7 +947,9 @@ func take_loot(card: RoomCard) -> String:
 		var amount := randi_range(last[0].to_int(), last[-1].to_int()) if words.size() > 1 and last[0].is_valid_int() else 1
 		if not guided and randi_range(1, 100) <= _material_find_bonus():
 			amount += 1  # Rock Hound: a sharp eye for good finds.
-		add_found_material(material_name, amount)
+		var fits := pack_item(material_name, amount)
+		if fits < amount:
+			return "%d %s (only %d fit%s in your backpack)" % [amount, material_name, fits, "s" if fits == 1 else ""]
 		return "%d %s" % [amount, material_name]
 	return entry
 
@@ -895,6 +979,94 @@ func add_potion(potion: Potion) -> bool:
 		return false
 	potions.append(potion)
 	return true
+
+
+# --- The Backpack ----------------------------------------------------------------
+
+func backpack_slots() -> int:
+	return BACKPACK_SLOTS + GameState.town_bonus(TownBuilding.BACKPACK_SLOTS)
+
+
+# How many of something you carry (TORCH = your torches).
+func carried(item_name: String) -> int:
+	return torches if item_name == TORCH else found_materials.get(item_name, 0)
+
+
+# Slots that many of one thing fill: 1-5 = 1 slot, 6-10 = 2...
+static func stacks(amount: int) -> int:
+	return ceili(amount / float(BACKPACK_STACK))
+
+
+func backpack_used() -> int:
+	var used := stacks(torches)
+	for material_name in found_materials:
+		used += stacks(found_materials[material_name])
+	return used
+
+
+# What's in the backpack, one entry per slot: [{"name": "Stone", "amount": 5}, {"name": "Stone", "amount": 2}...]
+func backpack_contents() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	var names: Array = found_materials.keys()
+	if torches > 0:
+		names.push_front(TORCH)
+	for item_name: String in names:
+		var left := carried(item_name)
+		while left > 0:
+			list.append({"name": item_name, "amount": mini(left, BACKPACK_STACK)})
+			left -= BACKPACK_STACK
+	return list
+
+
+# How many more of something fit: the gap on its top stack plus the free slots.
+func backpack_room(item_name: String) -> int:
+	var top_gap := (BACKPACK_STACK - carried(item_name) % BACKPACK_STACK) % BACKPACK_STACK
+	return top_gap + maxi(backpack_slots() - backpack_used(), 0) * BACKPACK_STACK
+
+
+# Put something you found in the backpack. What doesn't fit goes to
+# left_over (dungeon.gd asks what to do with it). Returns how many fit.
+func pack_item(item_name: String, amount: int) -> int:
+	var fits := mini(amount, backpack_room(item_name))
+	if item_name == TORCH:
+		torches += fits
+	elif fits > 0:
+		add_found_material(item_name, fits)
+	if amount > fits:
+		left_over[item_name] = left_over.get(item_name, 0) + amount - fits
+	return fits
+
+
+# Throw away one slot's worth of something (the top stack: the part-full one
+# if there is one) to make room. Returns how many you dropped.
+func drop_stack(item_name: String) -> int:
+	var have := carried(item_name)
+	if have <= 0:
+		return 0
+	var amount := have % BACKPACK_STACK if have % BACKPACK_STACK != 0 else BACKPACK_STACK
+	if item_name == TORCH:
+		torches -= amount
+		if torches <= 0:
+			torch_uses = 0
+	else:
+		add_found_material(item_name, -amount)
+	add_log("You drop %d %s to make room." % [amount, item_name])
+	return amount
+
+
+# Try again to fit what was left over (after dropping something).
+func repack_left_over() -> void:
+	var waiting := left_over.duplicate()
+	left_over.clear()
+	for item_name: String in waiting:
+		pack_item(item_name, waiting[item_name])
+
+
+# Leave what didn't fit where it is.
+func leave_behind() -> void:
+	for item_name: String in left_over:
+		add_log("No room: you leave %d %s behind." % [left_over[item_name], item_name])
+	left_over.clear()
 
 
 # --- The Save Sack ---------------------------------------------------------------
@@ -942,7 +1114,7 @@ func take_out_of_sack(slot: int) -> void:
 		"pack": found_packs += 1
 		"gold": found_gold += item.amount
 		"card": found_cards.append(item.card)
-		"material": add_found_material(item.name, item.amount)
+		"material": pack_item(item.name, item.amount)
 
 
 static func sack_item_text(item: Dictionary) -> String:
@@ -963,9 +1135,16 @@ func add_found_material(material_name: String, amount: int) -> void:
 		found_materials.erase(material_name)
 
 
+# At the end of the run (home, or dead): no backpack limits any more.
 func _empty_sack() -> void:
-	while not sack.is_empty():
-		take_out_of_sack(0)
+	for item in sack:
+		match item.kind:
+			"pack": found_packs += 1
+			"gold": found_gold += item.amount
+			"card": found_cards.append(item.card)
+			"material": add_found_material(item.name, item.amount)
+	sack.clear()
+	left_over.clear()
 
 
 # Give the player everything found (after Returning to Town or beating the Boss).

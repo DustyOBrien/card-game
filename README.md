@@ -179,9 +179,18 @@ the screen in `scripts/dungeon.gd`.)
   **Golden Fleece** (nothing uses Hay, Grain or Wool yet: they wait in the Bank).
 - You can walk back over face-up safe cards for free, but not through a fight
   you haven't won. **Hover** a square for what it is.
-- **Danger meter** (side panel): `Danger 4 · enemies +1 Strength · 2 more → +2`.
-  Every **3 Danger** gives every enemy **+1 Strength**, for the whole trip.
-  The Mapmaker's second stage makes it every 4.
+- **Danger meter** (side panel): `Danger 4 · enemies +0 Str · 2 more → Danger card, +1 Str`.
+- **Danger cards.** Every **3 Danger** a bad card (Deck **Danger** in the sheet:
+  Slime Ambush, Bunny Raiders, Sinkhole) is shuffled into the map deck. If a card
+  on the board is still face down (and not scouted), the Danger card takes its
+  place right away, and that card goes back into the deck. Every **6 Danger**
+  also gives every enemy **+1 Strength**, for the whole trip (gentler than
+  before). The Mapmaker's second stage makes it every 4 and every 8.
+- **Backpack.** Materials and torches go in your backpack: **6 slots**, each a
+  stack of up to **5** of one thing (so 7 Stone = 2 slots). Gold, cards, packs
+  and keys don't take space. When something doesn't fit, a popup asks you to
+  drop a slot of something else or leave it behind. Click a backpack slot to
+  drop it (or put it in the Save Sack). The Tailor's second stage adds 2 slots.
 - **Hunting:** the side panel lists what your quests want you to bring home
   (`Stone 3/5  Hops 1/3`, counting the Bank).
 - **Map Deck** (button under the board): every card in the place's deck, with
@@ -338,7 +347,7 @@ Every building costs **Stone** on top of its own materials: 5 for stage 1, 10 fo
 stage 2, 15 for stage 3 (first pass; town.csv's Materials column).
 
 - **Shop**: booster packs. Stage 2: packs cost 1 less.
-- **Tailor** (5 Animal Hair): sews your **Save Sack** (2 slots), then 10 more gold per slot, then +1 slot.
+- **Tailor** (5 Animal Hair): sews your **Save Sack** (2 slots), then a bigger **backpack** (+2 slots, 5 Wool), then 10 more gold per slot, then +1 slot.
 - **Enchanter**: turns on enchants (drops, chests, events), and sells a random enchant (15 gold) to take into your next run.
   Stage 2: when an enchant drops, choose from 2.
 - **Alchemist**: **Enter the Alchemist** for a screen with two tabs. **Flasks**: brew
@@ -1006,7 +1015,7 @@ so change it, save, and press Play: no importer needed.
 | Column | Example | What it means |
 |---|---|---|
 | Place | Abandoned Farm | The area it belongs to |
-| Deck | Base | **Guide** (the first trip's board, dealt in the sheet's order, left to right and top to bottom, skipping the middle), **Base** (the place's own 20 cards), **Filler** (fills your empty slots), **Yours** (your own map cards, from quests and Maps), **Campfire** (the one hidden on every board), **Boss** |
+| Deck | Base | **Guide** (the first trip's board, dealt in the sheet's order, left to right and top to bottom, skipping the middle), **Base** (the place's own 20 cards), **Filler** (fills your empty slots), **Yours** (your own map cards, from quests and Maps), **Campfire** (the one hidden on every board), **Boss**, **Danger** (never in the starting deck: shuffled in as Danger grows; more Copies = more likely) |
 | Card | Collapsed Wall | Its name on the card |
 | Tile | Safe | **Safe**, **Unsafe** (always a fight, Danger +1 when flipped) or **Explore** (a choice) |
 | Kind | Treasure | **Empty**, **Treasure**, **Fight**, **Hard Fight**, **Locked Chest**, **Event**, **Campfire**, **Mini Boss** or **Boss** |

@@ -1409,9 +1409,11 @@ func _on_enemy_died(view: EnemyView) -> void:
 		var chance := drop.get_slice(" ", drop.count(" ")).to_int()
 		var material_name := drop.trim_suffix(" " + str(chance)).strip_edges()
 		if randi_range(1, 100) <= chance:
-			dungeon.add_found_material(material_name, 1)
 			fight_materials[material_name] = fight_materials.get(material_name, 0) + 1
-			battle_log.add("It drops 1 %s!" % material_name, BattleLog.CRIT_COLOR)
+			if dungeon.pack_item(material_name, 1) == 0:
+				battle_log.add("It drops 1 %s, but your backpack is full!" % material_name, BattleLog.CRIT_COLOR)
+			else:
+				battle_log.add("It drops 1 %s!" % material_name, BattleLog.CRIT_COLOR)
 	GameState.record_for_quest(Quest.DEFEAT, view.data.display_name)
 	if not living_enemies().is_empty():
 		update_ui()

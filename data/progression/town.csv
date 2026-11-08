@@ -4,12 +4,13 @@ Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,Ope
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,Stone 5,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,Stone 10,
 Tailor,1,0,Sack Slots,2,tailor.svg,Sews you a Save Sack: what's in it is kept even if you die.,A Save Sack with 2 slots,Stone 5; Animal Hair 5,Yes
-Tailor,2,50,Gold Stack,10,,,Each Save Sack slot holds 10 more gold,Stone 10,
-Tailor,3,90,Sack Slots,1,,,Save Sack +1 slot,Stone 15,
+Tailor,2,40,Backpack Slots,2,,,A bigger backpack: +2 slots on every expedition,Stone 5; Wool 5,
+Tailor,3,50,Gold Stack,10,,,Each Save Sack slot holds 10 more gold,Stone 10,
+Tailor,4,90,Sack Slots,1,,,Save Sack +1 slot,Stone 15,
 Enchanter,1,40,Enchanter,1,enchanter.svg,Enchants for your next run.,Buy enchants to take into your next run,Stone 5,Yes
 Enchanter,2,70,Enchant Choice,1,,,"When an enchant drops, choose from 2",Stone 10,
 Alchemist,1,0,Alchemist,1,alchemist.svg,Brews flasks and potions.,"Brew flasks, and potions start dropping (Healing Potion unlocked)",Stone 5; Green Ooze 5,Yes
 Alchemist,2,60,Potion Slots,1,,,Carry 1 more potion,Stone 10,
 Mapmaker,1,40,Mapmaker,1,mapmaker.svg,Draws maps of the dungeons.,Buy maps that unlock new map cards,Stone 5,Yes
-Mapmaker,2,70,Danger Steps,1,,,Enemies get stronger every 4 Danger instead of 3,Stone 10,
+Mapmaker,2,70,Danger Steps,1,,,Danger builds slower: a Danger card every 4 Danger instead of 3,Stone 10,
 Dojo,1,20,Dojo,1,dojo.svg,A training hall where the Old Master teaches. Your talents and the Monster Book live here.,Talents + the Monster Book (every monster you meet),Stone 10,Yes

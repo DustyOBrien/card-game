@@ -52,6 +52,7 @@ const DECK_FILLER := "Filler"  # Fills your empty map card slots.
 const DECK_YOURS := "Yours"  # Your own map cards (from quests and Maps).
 const DECK_CAMPFIRE := "Campfire"  # The campfire hidden on every board.
 const DECK_BOSS := "Boss"  # Dealt onto every board from its Floor on.
+const DECK_DANGER := "Danger"  # Bad cards shuffled in as Danger grows (never in the starting deck).
 
 @export var room_name: String = "Room"
 @export var type: Type = Type.EMPTY
