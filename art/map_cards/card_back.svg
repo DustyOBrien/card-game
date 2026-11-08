@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="96" height="96" viewBox="0 0 96 96">
+  <!-- The back of a map card: a dark wooden card with a gold compass. -->
+  <rect x="3" y="3" width="90" height="90" rx="10" fill="#3b2a1a" stroke="#c9a24a" stroke-width="4"/>
+  <rect x="11" y="11" width="74" height="74" rx="6" fill="none" stroke="#7a5a2c" stroke-width="2" stroke-dasharray="4 4"/>
+  <circle cx="48" cy="48" r="20" fill="#2a1e12" stroke="#c9a24a" stroke-width="3"/>
+  <path d="M48 26 L54 48 L48 70 L42 48 Z" fill="#e8c35a"/>
+  <path d="M26 48 L48 43 L70 48 L48 53 Z" fill="#a8822e"/>
+  <circle cx="48" cy="48" r="4" fill="#3b2a1a"/>
+</svg>

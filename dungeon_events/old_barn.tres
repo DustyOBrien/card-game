@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_name = "Old Barn"
+area = "Room"
+text = "A barn with a sagging roof. Something rustles in the hay."
+choice_labels = PackedStringArray("Search the hay", "Climb to the loft", "Leave it")
+chances = Array[int]([70, 50, 100])
+effects = PackedStringArray("Gold 3-6; Stone 1", "Card", "")
+fail_effects = PackedStringArray("Fight Small Slime, Small Slime", "Lose HP 3; Danger 1", "")
+results = PackedStringArray("You dig through the hay and find a few coins and a good stone.", "Up in the loft, an old card is tucked into a beam!", "You leave the barn to the mice.")
+fail_results = PackedStringArray("Slimes were napping in the hay! They wake up grumpy.", "A rotten board snaps. Ouch! And that was LOUD.", "")

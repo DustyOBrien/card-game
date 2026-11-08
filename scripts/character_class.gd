@@ -146,7 +146,7 @@ func unlock_progress(all_cards: Array[CardData]) -> int:
 
 func is_unlocked(all_cards: Array[CardData]) -> bool:
 	if not GameState.adventurers_here():
-		return false  # Nobody to play until the first adventurer arrives (the Need Hops quest).
+		return false  # Nobody to play until the first adventurer arrives (with the Inn).
 	return starts_unlocked or unlock_progress(all_cards) >= unlock_card_count
 
 

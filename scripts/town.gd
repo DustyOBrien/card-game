@@ -19,10 +19,12 @@
 #                   guide explains building and points at the Guild Hall.
 #   2. King's Stone Your first visit to the Guild Hall: 5 Stone pops up in
 #                   the Bank, and a guide shows you how to build the Inn.
-#   3. Inn Built    The Innkeeper thanks you and asks for help: the QUEST
-#                   tutorial, then his first two quests (Gather Stone, Need Hops).
-#   4. Adventurer Trained   Back from the Adventurer's training and the deck
-#                   builder: the Innkeeper's slime news, and the next quests.
+#   3. Inn Built    The Innkeeper thanks you, and the first ADVENTURER checks
+#                   in. Off to Character Select and their training (the tutorial).
+#   4. Adventurer Trained   Back from the training and the deck builder: the
+#                   Innkeeper's job at the Abandoned Farm, the QUEST tutorial,
+#                   then his first quests (Gather Stone, Need Hops) for the
+#                   first Farm trip.
 #   5. Old Master   After your first level up: the Old Master appears at the
 #                   edge of town (click him to duel), with his quest.
 extends Control
@@ -39,7 +41,7 @@ const BLUEPRINT_ICON := preload("res://art/town/blueprint.svg")
 const QUEST_ICON := preload("res://art/town/quest.svg")
 const GUILD_HALL_ICON := preload("res://art/town/guild_hall.svg")
 const INN_ICON := preload("res://art/town/inn.svg")
-const SLIME_ART := preload("res://art/enemies/slime.svg")
+const AREA_FARM_ICON := preload("res://art/areas/farm.svg")
 const OLD_MASTER_ART := preload("res://art/enemies/old_master.svg")
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
@@ -150,7 +152,7 @@ func refresh() -> void:
 		var tween := glow.create_tween().set_loops()
 		tween.tween_property(glow, "modulate", Color(1.35, 1.25, 0.9), 0.6)
 		tween.tween_property(glow, "modulate", Color.WHITE, 0.6)
-	# You can head out once any area is open (after the Inn: the Architect's guided run first).
+	# You can head out once any area is open (once the Adventurer has come with the Inn).
 	var can_go := GameState.load_areas().any(func(area: Area) -> bool: return GameState.is_area_unlocked(area))
 	road.set_open(can_go)
 	# No adventurer yet: you're running the town, so there's no deck or flask to look at.
@@ -464,8 +466,8 @@ func map_area() -> Area:
 	var areas: Array[Area] = [GameState.current_area]  # The last one you were in first...
 	areas.append_array(GameState.load_areas())  # ...then the rest.
 	for area in areas:
-		if area and GameState.is_area_unlocked(area) and area.rooms.any(
-				func(card: RoomCard) -> bool: return not GameState.is_room_unlocked(area, card)):
+		if area and GameState.is_area_unlocked(area) and area.cards().any(
+				func(card: RoomCard) -> bool: return not card.quest_only and not GameState.is_room_unlocked(area, card)):
 			return area
 	return null
 
@@ -476,7 +478,7 @@ func _buy_map() -> void:
 		return
 	GameState.gold -= GameState.MAP_PRICE
 	var room := GameState.unlock_random_room(area)  # Also saves.
-	message_label.text = "A new room for the %s: %s!" % [area.display_name, room.room_name]
+	message_label.text = "A new map card for the %s: %s!" % [area.display_name, room.room_name]
 	refresh()
 
 
@@ -1002,7 +1004,7 @@ func quest_reward_text(text: String) -> String:
 			"material": parts.append(MaterialInfo.costs_text(MaterialInfo.parse_costs(rest)))
 			"blueprint": parts.append("%s blueprint" % rest)
 			"room": parts.append("new room: " + rest.get_slice(":", 1).strip_edges())
-			"pack":  # "Small 2" -> "2 Small Plains Booster Packs"
+			"pack":  # "Small 2" -> "2 Small Farm Booster Packs"
 				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
 				var pack := GameState.find_pack(rest.get_slice(" ", 0))
 				parts.append("%d %s%s" % [count, pack.name, "s" if count > 1 else ""])
@@ -1022,15 +1024,6 @@ func _on_hand_in(quest: Quest) -> void:
 	close_overlay()
 	refresh()
 	# Big moments get the big banner (unlock_banner.gd).
-	# "Unlock Adventurer" (the Need Hops quest): the first Adventurer arrives,
-	# and Character Select and the deck builder open up. Off to meet them (and
-	# their training, the tutorial). Back in town, the Innkeeper has news.
-	if GameState.adventurers_here() and not features_before.has(GameState.ADVENTURER_FEATURE):
-		var adventurer: CharacterClass = GameState.load_classes()[0]
-		UnlockBanner.show_in(self, "A NEW ADVENTURER!", "The %s has arrived" % adventurer.display_name, adventurer.emblem,
-			"The Inn's ale is flowing again, and word has spread: the first Adventurer has checked in! From now on, they do the fighting. You keep building the town.\n\nNEW: Character Select and the Deck Builder.  Quest rewards: %s" % ", ".join(lines),
-			"Meet the Adventurer", func() -> void: get_tree().change_scene_to_file(CHARACTER_SCENE))
-		return
 	if GameState.talents_open() and not talents_before:
 		# The Old Master's reward: the Talent System. Straight to the Talents
 		# screen, where a guide explains the two kinds of points.
@@ -1263,8 +1256,10 @@ func play_story() -> void:
 		show_welcome()
 	elif GameState.town_bonus(TownBuilding.INN) > 0 and not GameState.story_beats.has(GameState.INN_BUILT):
 		show_innkeeper_thanks()
+	elif GameState.adventurers_here() and not GameState.tutorial_done:
+		show_adventurer_arrives()  # (The game was closed before the training.)
 	elif GameState.adventurers_here() and GameState.tutorial_done and not GameState.story_beats.has(GameState.ADVENTURER_TRAINED):
-		show_slime_news()
+		show_farm_news()
 	elif GameState.story_beats.has(GameState.FIRST_LEVEL_UP) and not GameState.story_beats.has(MASTER_MET):
 		show_old_master_arrives()
 	elif inn_waiting():
@@ -1299,35 +1294,48 @@ func _on_read_blueprint() -> void:
 	# How building works: point at the Inn's ruins, then at the Guild Hall.
 	var steps := []
 	if panels.has("Inn"):
-		steps.append({"target": panels["Inn"], "text": "The blueprint shows you the Inn's ruins. To BUILD it you need MATERIALS: the Inn takes 5 Stone. Some buildings cost gold too. You find materials in the dungeons, and each area has its own (the Plains have Stone)."})
+		steps.append({"target": panels["Inn"], "text": "The blueprint shows you the Inn's ruins. To BUILD it you need MATERIALS: the Inn takes 5 Stone. Some buildings cost gold too. You find materials in the dungeons, and each area has its own (the Abandoned Farm has Stone)."})
 	if panels.has("Guild Hall"):
 		steps.append({"target": panels["Guild Hall"], "text": "Everything is built from the GUILD HALL. It also holds your Bank, where your materials are kept. Click the Guild Hall to take a look inside."})
 	ScreenGuide.start(self, "town_building", steps)
 
 
-# STORY BEAT 3: the Innkeeper thanks you, then the quest tutorial, then his
-# first two quests (quests.csv: Starts After "Inn Built").
+# STORY BEAT 3: the Innkeeper thanks you... and the first Adventurer checks
+# in. (Dusty: you get the Adventurer BEFORE the first trip out, so the
+# Adventurer does the exploring and the fighting from the very start.)
 func show_innkeeper_thanks() -> void:
 	close_overlay()
 	UnlockBanner.show_in(self, "THE INN IS OPEN!", "The Innkeeper comes out to meet you", INN_ICON,
-		"\"You rebuilt my Inn! I never thought I'd see the day. Thank you, Architect!\"\n\nHe wipes his hands on his apron. \"Truth is, there are still a few things I need help with around here. Could you lend me a hand?\"",
-		"Happy to help!", show_quest_tutorial)
+		"\"You rebuilt my Inn! I never thought I'd see the day. Thank you, Architect!\"\n\nHe nods at the door. \"And look: we've got our first guest already. Someone who can handle a sword...\"",
+		"Who is it?", show_adventurer_arrives)
+
+
+# The Inn's first guest: the Adventurer. Off to meet them, and their
+# training (the tutorial). Back in town, the Innkeeper has his first jobs.
+func show_adventurer_arrives() -> void:
+	GameState.reach_milestone(GameState.INN_BUILT)
+	GameState.give_rewards("Unlock " + GameState.ADVENTURER_FEATURE)
+	GameState.save_game()
+	refresh()
+	var adventurer: CharacterClass = GameState.load_classes()[0]
+	UnlockBanner.show_in(self, "A NEW ADVENTURER!", "The %s has arrived" % adventurer.display_name, adventurer.emblem,
+		"Word has spread that the town has an Inn again, and the first Adventurer has checked in! From now on, they do the exploring and the fighting. You keep building the town.\n\nNEW: Character Select and the Deck Builder.",
+		"Meet the Adventurer", func() -> void: get_tree().change_scene_to_file(CHARACTER_SCENE))
+
+
+# STORY BEAT 4: back from the Adventurer's training. The Innkeeper's first
+# jobs, out at the Abandoned Farm, then how quests work, then the quests
+# themselves (quests.csv: Starts After "Adventurer Trained").
+func show_farm_news() -> void:
+	UnlockBanner.show_in(self, "THE ABANDONED FARM", "The Innkeeper has a job for your Adventurer", AREA_FARM_ICON,
+		"\"So you're the new Adventurer! Good. Down the road there's an old farm, abandoned since the slimes moved in. The walls are falling down (that's good Stone!) and the old farmers locked their Hops away in the sheds.\"\n\n\"Bring me some of both and I'll make it worth your while. Watch out for the slimes.\"",
+		"How do jobs work?", show_quest_tutorial)
 
 
 func show_quest_tutorial() -> void:
 	UnlockBanner.show_in(self, "QUESTS UNLOCKED!", "How quests work", QUEST_ICON,
 		"People in town will ask you for help. Each QUEST has an objective (bring something home, build something, beat some monsters) and a REWARD.\n\n•  Your quests live at the INN: click it any time to see them, and how far along you are.\n•  When one is done, come back to the Inn and press HAND IN to get the reward.\n•  You can be on several quests at once.",
 		"See the Innkeeper's quests", func() -> void:
-			GameState.reach_milestone(GameState.INN_BUILT)
-			refresh()
-			show_next_story(true))
-
-
-# STORY BEAT 4: back from the Adventurer's training. Slimes!
-func show_slime_news() -> void:
-	UnlockBanner.show_in(self, "TROUBLE ON THE PLAINS!", "The Innkeeper has news", SLIME_ART,
-		"\"Now that we've got a real Adventurer, I can tell you: slimes are taking over the Plains! Folk are too scared to travel, and nobody comes to an Inn that nobody can reach.\"\n\n\"I've put up some new jobs, and your Adventurer has a favour to ask too.\"",
-		"Let's hear it", func() -> void:
 			GameState.reach_milestone(GameState.ADVENTURER_TRAINED)
 			refresh()
 			announce_quests(true))

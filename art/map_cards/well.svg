@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- An old stone well with a little roof and a bucket. -->
+  <path d="M10 18 L32 6 L54 18 Z" fill="#7a4a2a" stroke="#3e2414" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M16 18 L16 40 M48 18 L48 40" stroke="#6e4220" stroke-width="4"/>
+  <path d="M16 26 L48 26" stroke="#3e2414" stroke-width="2"/>
+  <path d="M32 26 L32 34" stroke="#c9b48a" stroke-width="2"/>
+  <path d="M28 34 L36 34 L35 40 L29 40 Z" fill="#8a5a32"/>
+  <ellipse cx="32" cy="42" rx="22" ry="6" fill="#2a3a5a"/>
+  <path d="M10 42 L10 56 Q32 62 54 56 L54 42" fill="#a3a8b2" stroke="#2e3036" stroke-width="2.5"/>
+  <path d="M10 49 Q32 55 54 49" stroke="#6e737c" stroke-width="2" fill="none"/>
+</svg>

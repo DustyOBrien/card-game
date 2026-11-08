@@ -18,7 +18,7 @@ A tiny deckbuilder in the style of *Slay the Spire*, made with **Godot 4.7** and
 - Draw 5 cards each turn, with a draw pile and discard pile that reshuffles when empty
 - 3 **energy** per turn; cards you can't afford are greyed out
 - Fights against one or several enemies, each showing what it **intends** to do next turn: attack, block, buff, shield its friends, heal, summon help or split in two
-- A boss at the end of each area: beat the Plains' Slime King to open the Forest
+- A boss deep in each area: the Abandoned Farm's Slime King waits from Floor 3
 - Block that soaks up damage and disappears at the start of your next turn
 - A turn loop (your turn, then the enemy's), plus a Victory / Defeat screen with Play Again and Change Deck buttons
 
@@ -95,9 +95,9 @@ Then you're on the **deck builder**, holding your class's starter deck:
   (`scripts/screen_guide.gd`, 6 steps in `start_guide()` in `deck_builder.gd`).
   Each guide shows once (`GameState.seen_guides`, saved); **Skip guide** ends it.
 
-**The map.** Pick where your run happens. The **Plains** are open from the
-start. The **Forest** opens once you beat the Plains boss (finish a run there),
-and the **Cave** is still locked. Locked areas are greyed out with a padlock
+**The map.** Pick where your run happens. The **Abandoned Farm** is open once
+the Adventurer arrives. The **Forest** says "Coming later" (it hasn't moved to
+map cards yet), and the **Cave** is still locked. Locked areas are greyed out with a padlock
 and say what opens them. Cleared areas say "Cleared ✓", and you can go back.
 **Edit Deck** goes back to the deck builder.
 
@@ -145,46 +145,48 @@ In the battle:
 - An enemy's **Strength** and **Armor** show on a second line under its intent.
 - Defeat every enemy to win. Each one drops **1 to 5 gold** (bosses drop extra).
 
-**The dungeon.** Picking an area starts a run in its dungeon: a **5 × 5 grid**
-of squares, and you start in the middle. Every other square is hidden.
+**The dungeon: map cards.** Picking an area starts a run on a **5 × 5 board of
+map cards**, like a tabletop game. You start in the middle; the other 24
+squares are dealt **face down**. (The rules are in `scripts/dungeon_run.gd`,
+the screen in `scripts/dungeon.gd`.)
 
-- Click a **?** square next to where you've been to explore it. That draws a
-  card from the area's **room deck**, and the square becomes that room: a
-  **Fight**, a **Hard Fight**, a **Locked Chest**, a **Treasure**, a
-  **Campfire**, the **Mini Boss**, or an **Empty** room.
-- **Fight or Back off.** When you find a fight, you see the enemies first and
-  choose: **Fight**, or **Back off** to the square you came from (1 step). The room
-  stays on the map and blocks the way until you beat it, so you can come back
-  for it later (the Mini Boss and the Boss too).
-- **Ambush** rooms (marked in the sheet) start the fight straight away: no backing off.
-- You can walk back through rooms you've cleared for free (click any explored
-  room), but you can't walk through a fight you haven't won.
-- **Hover** any square for a moment to see what it is (enemies, loot, what a
-  Mini Boss opens), and hover the side panel for what HP, Keys, Danger and Found mean.
-- **Danger.** Every step makes noise: every **6 steps** since your last rest,
-  every enemy gets **+1 Strength**. The side panel shows how many steps until it
-  goes up again, and hovering a square shows how far it is.
-- **Keys and chests.** Fights drop a **small key** 25% of the time. A key opens one
-  Locked Chest (gold, a card, a pack, or a **Map**). A Map unlocks a new room card
-  for that area for good, so the area gets richer the more you play it.
-- **Campfires** (for now) only take you home: **Return to Town**, keeping
-  everything you found. **Not now** keeps exploring. (The old Rest, which healed
-  and reshuffled the map, is still in `DungeonRun.rest()` for later.)
-- **The Mini Boss.** Beating it lights a campfire where it fell. Its campfire
-  also has **Go Deeper** (now, or later with **Not now**): it adds the next
-  **tier**'s harder (and richer) rooms to the deck and reshuffles the map, but
-  doesn't heal. After the last tier's Mini Boss, resting shuffles in the
-  **Boss** room instead. The Plains and the Forest have **3 tiers**. Beating the
-  final Boss shows the **Victory** screen and opens the next area on the map.
-- **Events.** A **Mystery** room is a little story with choices: a strange
-  fountain, a wandering merchant (spend found gold on potions, enchants, keys),
-  an ancient altar... Some choices are a gamble (they show their % chance), and
-  some cost found gold (greyed out if you can't pay). Events come from
-  `data/dungeons/events.csv`.
-- **Super cards.** Very rare, very strong cards (orange glow, "★ Super"). A Mini
-  Boss drops one 25% of the time, and some events and Tier 3 chests give them.
-  They join your deck for **this run only** and are gone when it ends. They come
-  from `data/super_cards.csv` (same columns as cards.csv, Rarity = Super).
+- **The map deck** has 40 cards: the place's **20 base cards**, plus **your own
+  map cards** (up to 20, from quests and Maps). Empty slots are filled with the
+  place's **Filler** cards (Loose Stones, Overgrown Path), so it's always 40.
+  Each board takes **23** of them plus one hidden **Campfire**; the rest wait in
+  the draw pile, so every board is a different mix.
+- Click a **glowing** face-down card next to a safe one to step onto it: it
+  **flips over**. Every card is one of three **tiles** (its border colour):
+  - **Safe** (green): nothing to fear. An Empty Field, a Collapsed Wall (Stone)...
+  - **Unsafe** (red): always a fight, and **Danger +1** the moment you flip it.
+    Once you win, it's safe to walk over (until it's shuffled back in).
+  - **Explore** (gold): a choice. A Locked Shed (use a key, break it open for
+    40%, or leave it), an Old Well, an Old Barn, a Mystery... Some choices need
+    something (a key, found gold), and failing a gamble can raise Danger.
+- You can walk back over face-up safe cards for free, but not through a fight
+  you haven't won. **Hover** a square for what it is.
+- **Danger meter** (side panel): `Danger 4 · enemies +1 Strength · 2 more → +2`.
+  Every **3 Danger** gives every enemy **+1 Strength**, for the whole trip.
+  The Mapmaker's second stage makes it every 4.
+- **Hunting:** the side panel lists what your quests want you to bring home
+  (`Stone 3/5  Hops 1/3`, counting the Bank).
+- **Map Deck** (button under the board): every card in the place's deck, with
+  how many you **haven't seen yet** (face down here, or still in the draw pile).
+- **Keys and chests.** Fights drop a **small key** 25% of the time. Treasure can
+  be a **Map**: it unlocks a new map card (Unlocked = No in the sheet) for good.
+- **The Campfire** is the exit. **Return to Town** keeps everything you found.
+  **Go Deeper**: every card goes back in the deck, the next **Floor**'s cards are
+  shuffled in, and a fresh board is dealt. You start on your old campfire (burnt
+  out), so you have to find the new one to get home. No healing (for now).
+- **Vanish** cards (the Big Slime Nest, the Hidden Cache) are gone for the rest of
+  the trip once they're used, instead of being shuffled back.
+- **Floors.** Floor 2 adds the Old Quarry and Slime Swarms, Floor 3 the Acid
+  Pools, and from **Floor 3** the **Slime King's Throne** (the Boss) is dealt onto
+  every board. Beat it to clear the Farm and see the **Victory** screen.
+- **Events** come from `data/dungeons/events.csv`. A **Mystery** card is a random
+  one; the Old Well, Old Barn and Deep Well cards always lead to their own event.
+- **Super cards** are removed for now (Dusty, 2026-11-08). The Super rarity is
+  still in the code for later.
 - Gold, cards and packs you find are only **yours once you get out**: Leave at a
   campfire or beat the Boss. Die, and the dungeon keeps them (you keep your Exp),
   except what's in your **Save Sack** (once you have one).
@@ -210,10 +212,10 @@ of squares, and you start in the middle. Every other square is hidden.
   Energy) is unlocked for gold. Both are upgraded at the Alchemist (bigger die, more
   charges, +roll, 2 Energy, a chance to keep the charge). Drinking a flask rolls
   its die in the dice tray (on the map too), so you see what you got.
-- If the room deck runs out, the other squares become dead ends.
+- If the map deck runs out, the leftover squares are bare ground.
 
 Your HP carries over from one fight to the next (the top of the battle screen
-shows `Plains · Tier 1 · Danger 0`). After a win, **Back to the Dungeon** returns
+shows `Floor 1 · Danger 0`). After a win, **Back to the Dungeon** returns
 to the grid. When the run ends (Boss beaten, Leave, or death) you go back to **Town**.
 
 **How a new game starts.** You're the King's **Architect**, rebuilding the
@@ -229,23 +231,12 @@ stay hidden. The start is a few one-time **story beats** (`play_story()` in
 2. **The Guild Hall** (it glows until the Inn is built): **5 Stone** pops up in
    its **Bank** (from the King's builders), and a guide shows the **Build list**.
    All building and upgrading happens in here now. Build the **Inn**.
-3. **The Inn is open!** The Innkeeper thanks you and asks for help, a
-   **Quests Unlocked!** banner explains how quests work, and his first two
-   quests start (no quests before the Inn):
-   - **Gather Stone**: have 5 Stone in your Bank. Reward: 1 Small pack and the
-     **Alchemist** blueprint.
-   - **Need Hops**: bring 3 Hops to the Inn (handing it in gives them away, a
-     **Deliver** quest). Reward: 1 Small pack and the **Adventurer**.
-   Both happen on one scripted Plains trip with no monsters, where YOU explore:
-   5 **Shiny Rocks** (1 Stone each), a Small Chest (1 Hops) and a Medium Chest
-   (2 Hops), opened with the 2 keys you find. A Guide box explains each new thing
-   (with "Stone 3 / 5  Hops 1 / 3" progress). The campfire's only choice is
-   **Return to Town**, greyed out until you have it all. Hops is only for this.
-4. Handing in Need Hops brings the first **Adventurer** (a big unlock banner). Character
-   Select and the Deck Builder open, and the Adventurer's training starts, three
-   fights against dummies (`scripts/tutorial.gd`). Each stage opens with a big
-   **STAGE 1: ATTACK!** banner. Then **spotlights** dim the screen and point at the
-   real thing (a card, its dice, your Energy, End Turn, the enemy's attack) with a
+3. **The Inn is open!** The Innkeeper thanks you, and his first guest checks
+   in: the first **Adventurer** (a big unlock banner). Character Select and the
+   Deck Builder open, and the Adventurer's training starts, three fights against
+   dummies (`scripts/tutorial.gd`). Each stage opens with a big **STAGE 1:
+   ATTACK!** banner. Then **spotlights** dim the screen and point at the real
+   thing (a card, its dice, your Energy, End Turn, the enemy's attack) with a
    line of text and Next. The first time something special happens, a **keyword
    pop-up** slams in (CRITICAL!, REROLL!, WILD!, ARMOR UP!, ADVANTAGE!, VANISH!),
    and each stage ends with a **STAGE COMPLETE!** banner:
@@ -263,20 +254,30 @@ stay hidden. The start is a few one-time **story beats** (`play_story()` in
    All Trades is open, the others show 🔒 Locked), and the Deck Builder's Guide explains the
    screen. **Skip Tutorial** jumps to the splash, and Character Select's
    **Tutorial** button replays the fights.
-5. Back in town after the Deck Builder: **Trouble on the Plains!** The Innkeeper
-   says slimes are taking over, and a **3 New Quests!** banner lists what just
-   started (Clear the Slimes, Open Plains Packs, Kill Enemies 1). Every batch of
-   new quests gets that banner, so they're hard to miss.
-6. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Tier 1 has the weaker **Small Slime** (14 HP, hits 1-4); the old Slime (20 HP, hits 2-5) lives in Tier 2 and up. Gives 2 Small
-   packs and adds the Blue Slime rooms to the Plains.
-7. **Make your first Flask**: build the Alchemist (5 Stone and 5 Green Ooze), then brew the
+4. Back in town after the Deck Builder: **The Abandoned Farm.** The Innkeeper has
+   a job for the Adventurer, a **Quests Unlocked!** banner explains how quests
+   work, and the milestone `Adventurer Trained` starts his first quests (plus
+   Open Farm Packs and Kill Enemies 1), with a **N New Quests!** banner:
+   - **Gather Stone**: have 5 Stone in your Bank. Reward: 1 Small pack and the
+     **Alchemist** blueprint.
+   - **Need Hops**: bring 3 Hops to the Inn (handing it in gives them away, a
+     **Deliver** quest). Reward: 1 Small pack, then Clear the Slimes starts.
+   Both happen on the **first Farm trip**: a set board (the Guide rows of
+   `farm_cards.csv`) with Collapsed Walls (Stone), 2 Locked Sheds (the Hops), 2
+   Rusty Keys, an Old Well and three Slime Puddles. A Guide box explains each new
+   thing (Safe / Unsafe / Explore, Danger, keys). Its campfires only offer
+   **Return to Town**, greyed out until you have it all. Coming home once ends
+   the first trip (`First Farm Trip` in `story_beats`); after that, every trip
+   is a shuffled deck.
+5. **Clear the Slimes**: bring home 5 Green Ooze (Small Slimes and Slimes drop it). Gives 2 Small
+   packs and adds the **Blue Slime Patch** map cards to your deck.
+6. **Make your first Flask**: build the Alchemist (5 Stone and 5 Green Ooze), then brew the
    Health Flask there (3 Green Ooze). Gives the Shop and **Tailor** blueprints, and
-   adds **Bunny Warrior** rooms to the Plains (Bunny Burrow, Bunny Ambush). Bunny
+   adds **Bunny Burrow** and **Bunny Warren** map cards. Bunny
    Warriors (16 HP, Carrot Kick 2-4, Hop Back for 4 Block) always drop **Animal Hair**.
-8. **Slay the Slime Nest**: puts the Big Slime Nest (the Tier 1 boss room) into
-   the Plains deck for good. Beat it and Go Deeper at its campfire to reach Tier 2.
-   Reward: 4 Small packs.
-9. **The Old Master** (starts at your first class level up): an old man turns up at
+7. **Slay the Slime Nest**: adds the **Big Slime Nest** (a Mini Boss, Vanish) to
+   your map cards. Find it and beat it. Reward: 4 Small packs.
+8. **The Old Master** (starts at your first class level up): an old man turns up at
    the edge of town, impressed by how many monsters you've slain. Click him (right
    side of town) to **duel** him in the Training Grounds: 45 HP, Measured Strike
    (5-7), Iron Stance (Block 8) and Teach a Lesson (3 damage, +1 Strength). You
@@ -289,18 +290,17 @@ for that class only. **Legacy** points: from quests, and EVERY class gets all of
 them (2 Legacy points = 2 for the Adventurer AND 2 for the Knight).
 
 **Several quests run at once**: the **Story** quest above, plus **Adventurer**
-quests and **Side** quests that start with the Innkeeper's slime news:
-- **Open Plains Packs** (Adventurer): open 10 Plains Booster Packs (any size).
+quests and **Side** quests that start after the Adventurer's training:
+- **Open Farm Packs** (Adventurer): open 10 Farm Booster Packs (any size).
   Unlocks the **Pack Rat** spec, with a big "NEW SPEC UNLOCKED!" banner.
 - **Kill Enemies 1 / 2 / 3** (Side): defeat 10, then 20, then 30 enemies of any
   kind (the training dummies don't count). Rewards: 1 Small, 2 Medium, then 1
-  Large Plains Booster Pack.
+  Large Farm Booster Pack.
 - **A Bag for the Road** (Side, from the Alchemist; starts after the Flask quest):
   build the Tailor (5 Animal Hair). Reward: 1 Small pack, and the **Trapped Chest**
-  room joins the Plains: someone is locked in a chest that wiggles and shouts
+  map card joins your deck: someone is locked in a chest that wiggles and shouts
   "Help!". Use a small key (always works) or try to break it open (25%). If it
-  fails, or you leave, the room goes back into the deck when you rest, so you
-  can find it again. Freeing them: the **Enchanter** jumps out and gives you
+  fails, step on it again to have another go (or find it on a later board). Freeing them: the **Enchanter** jumps out and gives you
   their blueprint (and the room never comes back).
 
 **Click the Inn** (or its **Quests** button) for the quest screen: every quest
@@ -310,9 +310,9 @@ progress bar, its reward and its story. Finished ones go to the top under
 once, when it starts.
 
 **Materials** drop from enemies and turn up in rooms. Each area has its own
-(the `material` of `areas/*.tres`): **Stone** in the Plains, **Lumber** in the
-Forest. Exploring a new square that isn't a fight or a chest has a 15% chance of
-1 of it lying on the ground, Shiny Rocks have some, and monsters drop it now and
+(the `material` of `areas/*.tres`): **Stone** on the Abandoned Farm, **Lumber** in the
+Forest. On the Farm, Stone comes from Collapsed Walls, Loose Stones and the Old
+Quarry (their Loot in `farm_cards.csv`), and monsters drop it now and
 then (enemies.csv Drops, e.g. "Green Ooze 100%; Stone 10%"). Chests no longer
 hold Stone. Green Ooze comes from Green Slimes. Like gold, they're only yours once you get home; put them in the
 Save Sack (once the Tailor makes you one) to keep them if you die. The **Guild Hall**'s **Bank** shows them all.
@@ -336,7 +336,7 @@ stage 2, 15 for stage 3 (first pass; town.csv's Materials column).
   of potion drops it is. Stage 2: carry 1 more potion.
 - **Dojo** (10 Stone, from the Old Master): your talent points (and a button to the
   Talents screen), plus the **Monster Book**. Every monster you meet in a fight goes
-  in it: its picture, HP, moves, drops, **where you saw it** ("Plains, Tier 2"), how
+  in it: its picture, HP, moves, drops, **where you saw it** ("Abandoned Farm, Floor 2"), how
   many you've beaten, and its **Monster Exp** (+1 per kill; Monster Level 2 at 5,
   3 at 15, 4 at 30...). Monster Levels don't do anything yet. Monsters you haven't
   met are "???" silhouettes. Saved in `GameState.bestiary`; `scripts/dojo.gd`.
@@ -351,7 +351,7 @@ code), goes to the map; the map also has a **Town** button. The gold **Open Pack
 opens your booster packs, even before the Shop is built (then nothing is for sale).
 
 In the **Shop**:
-- Buy **Plains Booster Packs** with gold AND Plains **Stone** from your Bank, so you farm the Plains for them: **Small** (3 cards, 5 gold + 1 Stone), **Medium** (5 cards, 8 gold + 2 Stone) or **Large** (7 cards, 11 gold + 3 Stone). Quests and chests give them too (a chest's Pack is a Small one). They wait under "Your packs" until you press **Open**, which shows the cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
+- Buy **Farm Booster Packs** with gold AND **Stone** from your Bank, so you farm the Abandoned Farm for them: **Small** (3 cards, 5 gold + 1 Stone), **Medium** (5 cards, 8 gold + 2 Stone) or **Large** (7 cards, 11 gold + 3 Stone). Quests and chests give them too (a chest's Pack is a Small one). They wait under "Your packs" until you press **Open**, which shows the cards one by one, marked **NEW!**, "Owned 2 / 3", or "Extra! Owned 4" for copies past 3.
 - Each card in a pack is **Common 60%, Uncommon 30%, Rare 10%**, picked from every card in the game (locked ones too), even ones you already own 3 of. (Odds: `PACK_ODDS`, and the packs' names, sizes and prices: `PACKS`, both in `game_state.gd`.)
 - **Back to Town** returns to the town. A new run starts at full HP, and your unspent gold is kept.
 
@@ -403,7 +403,7 @@ card-game/
 ├── scenes/
 │   ├── character_select.tscn The first screen: pick a class
 │   ├── deck_builder.tscn Pick the cards for your deck
-│   ├── map.tscn         Pick an area (Plains, Forest, Cave) to start a run
+│   ├── map.tscn         Pick an area (Abandoned Farm, Forest, Cave) to start a run
 │   ├── dungeon.tscn     The 5 x 5 grid you explore between fights
 │   ├── battle.tscn      The fight: enemy, player stats, hand, End Turn button
 │   ├── town.tscn        Between runs: restore buildings, buy enchants, potions and maps
@@ -415,9 +415,10 @@ card-game/
 │   ├── character_select.gd Shows one panel per class
 │   ├── area.gd          Defines what an area is (name, picture, background, map spot)
 │   ├── map.gd           Puts a button on the map for every area
-│   ├── dungeon.gd       Draws the dungeon grid and handles clicks and popups
-│   ├── dungeon_run.gd   The dungeon's rules: room deck, danger, keys, resting, loot
-│   ├── room_card.gd     One room card (a row of rooms.csv)
+│   ├── dungeon.gd       Draws the board of map cards, flips them, popups
+│   ├── dungeon_run.gd   The board's rules: map deck, dealing, danger, keys, Go Deeper, loot
+│   ├── map_cards.gd     Reads a map card sheet (farm_cards.csv) when the game runs
+│   ├── room_card.gd     One map card (a row of farm_cards.csv)
 │   ├── deck_builder.gd  Adding and removing cards, filters, deck stats
 │   ├── battle.gd        The rules: drawing, energy, turns, winning and losing
 │   ├── card.gd          Makes a card show its data; clicked (deck builder) or dragged (battle)
@@ -449,10 +450,11 @@ card-game/
 │   └── import_cards.gd  Run this in the editor to re-import the spreadsheet
 ├── data/
 │   ├── cards.csv        The card spreadsheet (the master list of cards)
-│   └── dungeons/rooms.csv  Each area's room deck
+│   ├── dungeons/farm_cards.csv  The Abandoned Farm's map cards (read when the game runs)
+│   └── dungeons/rooms.csv  The old room decks (the Forest, for now)
 ├── cards/               One .tres file per card, made by the importer
 ├── classes/             One .tres file per class (adventurer, knight, rogue, mage, priest)
-├── areas/               One .tres file per area on the map (plains, forest, cave), with its room deck
+├── areas/               One .tres file per area on the map (abandoned_farm, forest, cave)
 ├── enemies/             One .tres file per kind of enemy (made from data/enemies/*.csv)
 ├── art/                 Pictures (SVG): backgrounds/, enemies/ (Slimes, Wolf, Mushroom, Old Oak), areas/ (map icons), map/
 ├── emblems/             The class emblems (SVG pictures)
@@ -479,10 +481,10 @@ Nodes are arranged in a **tree**: each node can have children. Open
 Battle (Control)                 ← battle.gd is attached here
 ├── Player (Node)                ← combatant.gd: your HP and Block
 ├── Background (ColorRect)        ← plain colour, in case an area has no picture
-├── AreaBackground (TextureRect)  ← the area's picture (the Plains)
+├── AreaBackground (TextureRect)  ← the area's picture (the Abandoned Farm)
 ├── Margin (MarginContainer)
 │   └── Layout (VBoxContainer)   ← stacks everything top to bottom
-│       ├── EnemyBox             ← "Plains · Fight 2 / 5", then EnemyRow: one
+│       ├── EnemyBox             ← "Floor 1 · Danger 0", then EnemyRow: one
 │       │                          EnemyView (enemy_view.gd) per enemy, made in code
 │       ├── Spacer
 │       ├── MessageLabel
@@ -924,8 +926,10 @@ To give the new class its own cards, type its **Display Name** in the **Class** 
 Areas work like classes: one `.tres` file per area in `areas/`, made from
 `area.gd`. To change one, click it and edit it in the **Inspector**:
 
-- **Unlocked**: tick it to have the area open from the start (the Plains).
-- **Unlock After**: the name of the area whose boss opens this one (the Forest says `Plains`). Cleared areas are saved.
+- **Unlocked**: tick it to have the area open from the start (the Abandoned Farm).
+- **Unlock After**: the name of the area whose boss opens this one (the Forest says `Abandoned Farm`). Cleared areas are saved.
+- **Coming Later**: ticked = it shows "Coming later" on the map and can't be picked (the Forest, until it gets map cards).
+- **Map Card Sheet**: the area's map card sheet (`res://data/dungeons/farm_cards.csv`). Blank = it uses the old room deck from `rooms.csv`.
 - **Icon**: the round picture on the map. **Background**: the picture behind the fight (the Cave doesn't have one yet, so it would use the plain dark colour).
 - **Map Position**: where its centre sits on the map, in pixels (the screen is 1280 × 720).
 - **Sort Order**: its place along the road.
@@ -979,15 +983,40 @@ The pictures are in `art/enemies/`. In battle each enemy "breathes" with a
 looping Tween (`set_loops()`), hops when it attacks, flashes red when hit, and
 squishes flat when defeated. See `enemy_view.gd`.
 
+### Map cards: `data/dungeons/farm_cards.csv`
+
+The Abandoned Farm's board is made from this sheet, one row per map card.
+Unlike the other sheets, the game reads it **when it runs** (`map_cards.gd`),
+so change it, save, and press Play: no importer needed.
+
+| Column | Example | What it means |
+|---|---|---|
+| Place | Abandoned Farm | The area it belongs to |
+| Deck | Base | **Guide** (the first trip's board, dealt in the sheet's order, left to right and top to bottom, skipping the middle), **Base** (the place's own 20 cards), **Filler** (fills your empty slots), **Yours** (your own map cards, from quests and Maps), **Campfire** (the one hidden on every board), **Boss** |
+| Card | Collapsed Wall | Its name on the card |
+| Tile | Safe | **Safe**, **Unsafe** (always a fight, Danger +1 when flipped) or **Explore** (a choice) |
+| Kind | Treasure | **Empty**, **Treasure**, **Fight**, **Hard Fight**, **Locked Chest**, **Event**, **Campfire**, **Mini Boss** or **Boss** |
+| Copies | 3 | How many go in the deck |
+| Unlocked | Yes | **No** = a Map from a chest unlocks it. **Quest** = only a quest reward does |
+| Encounters | Small Slime \| Small Slime, Small Slime | Fights: the enemy groups it can be, split by `\|` (one is picked) |
+| Loot | Stone 1-2 \| Gold 1-3 | What you find, split by `\|` (one is picked) |
+| Event | Old Well | Event cards: the event in events.csv it always is (blank = a random one, like Mystery) |
+| Vanish | Yes | Gone for the rest of the trip once it's used |
+| Floor | 2 | It joins the deck when you Go Deeper to this floor (blank = 1). For the Boss: the first floor it's dealt on |
+| Art | map_cards/barn.svg | The picture, from the `art/` folder |
+| Text | | The card's flavour text |
+| Notes | | Just for you: the game ignores it |
+
 ### Room decks: `data/dungeons/rooms.csv`
 
+The old room decks, for areas that haven't moved to map cards yet (the Forest).
 Each area's dungeon draws its rooms from this sheet (one row per room card).
 Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 `areas/<area>.tres`.
 
 | Column | Example | What it means |
 |---|---|---|
-| Area | Plains | Which area's deck it goes in |
+| Area | Forest | Which area's deck it goes in |
 | Tier | 1 | **1** = in the deck from the start. **2** = shuffled in when you rest after the Tier 1 Mini Boss, and so on. **Boss** = the Boss room, shuffled in after the last tier's Mini Boss |
 | Room | Slime Patch | The room's name, shown on the square |
 | Type | Fight | **Fight**, **Hard Fight**, **Locked Chest**, **Treasure**, **Campfire**, **Mini Boss**, **Boss**, **Event** (a random event from events.csv, or the one named in Encounters) or **Empty** |
@@ -995,7 +1024,7 @@ Run `tools/import_cards.gd` after changing it: it saves each area's cards into
 | Unlocked | Yes | **No** = it only goes in the deck once you find a **Map** for it in a chest |
 | Ambush | Yes | Fights only. **Yes** = the fight starts as soon as you find it (no Back off). Blank = No |
 | Encounters | Slime \| Slimeling, Slimeling | Fights: the enemy groups it can be, split by `\|`. One group is picked at random each time. Enemies in a group are split by commas, left to right. **Event** rooms: the name of the event it always is (blank = random) |
-| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Small Plains Booster Pack), **Key**, **Map**, **Enchant**, **Potion**, **Super Card** |
+| Loot | Gold 10-20 \| Card \| Pack \| Map | What you find, split by `\|`; one is picked at random. Chests and Treasure always give one; for fights it's a bonus for winning. Words: **Gold N-M**, **Card**, **Pack** (a Small Farm Booster Pack), **Key**, **Map**, **Enchant**, **Potion** |
 | Notes | | Anything you like; the game ignores it |
 
 ### Events: `data/dungeons/events.csv`
@@ -1011,7 +1040,7 @@ One row per **choice**; rows with the same Event are one event (see
 | Text | A stone fountain... | The story (first row only) |
 | Choice | Drink deeply | The button |
 | Chance | 65 | % that the Effect happens; otherwise the Fail Effect does. 100 = always |
-| Effect | Heal 8 | What happens, several split by `;`: **Heal N**, **Lose HP N** (never below 1), **Gold N-M**, **Pay N** (costs found gold; greyed out without it), **Key**, **Potion**, **Enchant**, **Card**, **Pack**, **Super Card**, **Flask** (+1 charge), **Danger N**, **Calm** (danger to 0), **Fight Wolf, Wolf** (a fight, no backing off), **Use Key** (needs a small key; greyed out without one), **Blueprint Enchanter** (yours right away), **Come Back** (the room goes back into the deck at your next rest) |
+| Effect | Heal 8 | What happens, several split by `;`: **Heal N**, **Lose HP N** (never below 1), **Gold N-M**, **Pay N** (costs found gold; greyed out without it), **Key**, **Potion**, **Enchant**, **Card**, **Pack**, **Flask** (+1 charge), **Danger N**, **Calm** (danger to 0), **Fight Wolf, Wolf** (a fight, no backing off), **Use Key** (needs a small key; greyed out without one), **Blueprint Enchanter** (yours right away), **Come Back** (the card isn't used up: step on it again to have another go) |
 | Picture | Wiggling Chest | Optional picture above the text (first row only). `Wiggling Chest` = a locked chest that wiggles and shouts "Help!" |
 | Fail Effect | Lose HP 4 | What happens when the Chance misses |
 | Result / Fail Result | Cool and sweet. | The text shown afterwards |
@@ -1090,21 +1119,20 @@ Several quests can run at once.
 | Type | Story | **Story**, **Adventurer**, **Side** (or any word): groups it on the Inn's quest screen. Blank = Story |
 | Giver | The Innkeeper | Who gives it, shown above the story |
 | Text | | The story, shown when it starts |
-| Objective | Have | Build (a building), Have (materials in the Bank), Deliver (like Have, but handing it in gives them away), Brew (a flask), Clear Room, Defeat (an enemy, or **Any** enemy), Open Packs (Target `Plains Booster Pack`), Reach Tier |
+| Objective | Have | Build (a building), Have (materials in the Bank), Deliver (like Have, but handing it in gives them away), Brew (a flask), Clear Room, Defeat (an enemy, or **Any** enemy), Open Packs (Target `Farm Booster Pack`), Reach Tier (a Floor, from Go Deeper) |
 | Target | Green Ooze | What the objective is about |
 | Amount | 5 | How many |
 | Start Gift | Material Lumber 5; Blueprint Inn | Given when the quest starts |
-| Rewards | Blueprint Alchemist; Room Plains: Blue Slime Patch | Given when you hand it in |
+| Rewards | Blueprint Alchemist; Room Abandoned Farm: Blue Slime Patch | Given when you hand it in |
 | Next Quest | Make your first Flask | The quest that starts next (blank = none) |
-| Starts After | Adventurer Trained | This quest also starts when THAT one is handed in, or at a milestone: `Inn Built` (the Innkeeper's thanks) or `Adventurer Trained` (his slime news) |
+| Starts After | Adventurer Trained | This quest also starts when THAT one is handed in, or at a milestone: `Inn Built` (the Innkeeper's thanks) or `Adventurer Trained` (back from the training) |
 
 Gifts and rewards can be `Gold 10`, `Pack Small 2` (or `Pack Medium 1`,
 `Pack Large 1`), `Material Green Ooze 3`, `Blueprint Shop`,
-`Room Plains: Big Slime Nest`, `Unlock Talents`, or `Unlock Pack Rat` (opens a
-spec with Unlocked = No in specs.csv). A room in `rooms.csv` with
-Unlocked = `Quest` only joins the room deck through a quest reward. Rows with
-Tier = `Guide` are the guided first run (before the Inn): no shuffle, drawn in
-the sheet's order. Room Loot can name a material too: `Stone 2` or `Stone 1-3`.
+`Room Abandoned Farm: Big Slime Nest`, `Unlock Talents`, or `Unlock Pack Rat` (opens a
+spec with Unlocked = No in specs.csv). A map card with Unlocked = `Quest` only
+joins your map deck through a quest reward. Loot can name a material too:
+`Stone 2` or `Stone 1-3`.
 
 Potion unlock and upgrade prices are `POTION_UNLOCK_COSTS` and `POTION_UPGRADES` in
 `game_state.gd`. The prices (enchant 15, map 25) and the Save Sack (0 slots until the

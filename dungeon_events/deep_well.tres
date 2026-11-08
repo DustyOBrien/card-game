@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_name = "Deep Well"
+area = "Room"
+text = "A deep, cold well. The water glows a little."
+choice_labels = PackedStringArray("Fill your flask", "Drink deep", "Leave it")
+chances = Array[int]([100, 100, 100])
+effects = PackedStringArray("Flask; Flask; Flask", "Heal 10", "")
+fail_effects = PackedStringArray("", "", "")
+results = PackedStringArray("The glowing water fills your flask right to the top!", "Magic water! You feel MUCH better.", "You leave the well be. For now.")
+fail_results = PackedStringArray("", "", "")

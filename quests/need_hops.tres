@@ -6,10 +6,11 @@
 script = ExtResource("1_06hsi")
 quest_name = "Need Hops"
 giver = "The Innkeeper"
-text = "\"An Inn with no ale is just a house! Hops grow wild in the Plains, but the old farmers locked them away in chests.\" Find small keys on the Plains and open the chests. Bring 3 Hops to the Inn (you hand them over)."
+text = "\"An Inn with no ale is just a house! The old farmers grew Hops, and locked them away in their sheds.\" Find small keys on the Abandoned Farm and open the Locked Sheds. Bring 3 Hops to the Inn (you hand them over)."
 objective = "deliver"
 target = "Hops"
 amount = 3
-rewards = "Pack Small 1; Unlock Adventurer"
-starts_after = "Inn Built"
+rewards = "Pack Small 1"
+next_quest = "Clear the Slimes"
+starts_after = "Adventurer Trained"
 sort_order = 1

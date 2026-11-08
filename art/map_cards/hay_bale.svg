@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- An old hay bale, gone grey and soggy. -->
+  <rect x="8" y="24" width="48" height="30" rx="6" fill="#c9a948" stroke="#7d6524" stroke-width="2.5"/>
+  <path d="M8 34 L56 34 M8 44 L56 44" stroke="#9c8132" stroke-width="2"/>
+  <path d="M22 24 L22 54 M42 24 L42 54" stroke="#6e4220" stroke-width="3"/>
+  <path d="M12 24 L8 16 M30 24 L30 14 M50 24 L56 16" stroke="#d8bd62" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

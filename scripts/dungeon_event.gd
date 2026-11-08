@@ -11,7 +11,7 @@
 # What a choice does is a list of EFFECTS, split by ";":
 #   Heal 8          heal 8 HP            Lose HP 4      lose 4 HP (never below 1)
 #   Gold 10-20      found gold           Pay 10         costs 10 found gold (needs it)
-#   Key, Potion, Enchant, Card, Pack, Super Card        loot, like chests
+#   Key, Potion, Enchant, Card, Pack, Stone 1-2         loot, like chests
 #   Flask           +1 flask charge (needs a flask)
 #   Danger 1        danger goes up 1     Calm           danger back to 0
 #   Fight Wolf, Wolf    start a fight with these enemies (no backing off)

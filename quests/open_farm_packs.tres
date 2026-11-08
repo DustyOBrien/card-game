@@ -4,11 +4,11 @@
 
 [resource]
 script = ExtResource("1_jivfu")
-quest_name = "Open Plains Packs"
+quest_name = "Open Farm Packs"
 giver = "The Adventurer"
-text = "\"I like to carry a bit of everything. Well, a LOT of everything. Open some Plains Booster Packs and I'll show you a new way to fight.\" Packs come from quests, chests and the Shop."
+text = "\"I like to carry a bit of everything. Well, a LOT of everything. Open some Farm Booster Packs and I'll show you a new way to fight.\" Packs come from quests, chests and the Shop."
 objective = "open packs"
-target = "Plains Booster Pack"
+target = "Farm Booster Pack"
 amount = 10
 rewards = "Unlock Pack Rat"
 quest_type = "Adventurer"

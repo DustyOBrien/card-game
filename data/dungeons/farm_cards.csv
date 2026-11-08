@@ -1,0 +1,49 @@
+Place,Deck,Card,Tile,Kind,Copies,Unlocked,Encounters,Loot,Event,Vanish,Floor,Art,Text,Notes
+Abandoned Farm,Guide,Empty Field,Safe,Empty,1,Yes,,,,,,map_cards/field.svg,Weeds and dry dirt. Nothing here.,"The first trip (Guide rows): dealt onto the board in this order, left to right and top to bottom, skipping the middle square"
+Abandoned Farm,Guide,Collapsed Wall,Safe,Treasure,1,Yes,,Stone 1,,,,map_cards/wall.svg,An old wall has fallen down. Good stone!,
+Abandoned Farm,Guide,Slime Puddle,Unsafe,Fight,1,Yes,Small Slime,,,,,enemies/slime.svg,Something green and wobbly lives in this puddle.,
+Abandoned Farm,Guide,Hay Bale,Safe,Empty,1,Yes,,,,,,map_cards/hay_bale.svg,A soggy old hay bale. Nothing useful.,
+Abandoned Farm,Guide,Locked Shed,Explore,Locked Chest,1,Yes,,Hops 2,,,,map_cards/shed.svg,The farmers locked their hops away in here.,
+Abandoned Farm,Guide,Overgrown Path,Safe,Empty,1,Yes,,,,,,map_cards/path.svg,Tall grass over an old cart track.,
+Abandoned Farm,Guide,Rusty Key,Safe,Treasure,1,Yes,,Key,,,,rooms/key.svg,A rusty key lies in the mud.,
+Abandoned Farm,Guide,Collapsed Wall,Safe,Treasure,1,Yes,,Stone 1,,,,map_cards/wall.svg,An old wall has fallen down. Good stone!,
+Abandoned Farm,Guide,Empty Field,Safe,Empty,1,Yes,,,,,,map_cards/field.svg,Weeds and dry dirt. Nothing here.,
+Abandoned Farm,Guide,Collapsed Wall,Safe,Treasure,1,Yes,,Stone 1,,,,map_cards/wall.svg,An old wall has fallen down. Good stone!,
+Abandoned Farm,Guide,Old Well,Explore,Event,1,Yes,,,Old Well,,,map_cards/well.svg,An old stone well. The rope still holds a bucket.,
+Abandoned Farm,Guide,Collapsed Wall,Safe,Treasure,1,Yes,,Stone 1,,,,map_cards/wall.svg,An old wall has fallen down. Good stone!,
+Abandoned Farm,Guide,Slime Puddle,Unsafe,Fight,1,Yes,Small Slime,,,,,enemies/slime.svg,Something green and wobbly lives in this puddle.,
+Abandoned Farm,Guide,Overgrown Path,Safe,Empty,1,Yes,,,,,,map_cards/path.svg,Tall grass over an old cart track.,
+Abandoned Farm,Guide,Locked Shed,Explore,Locked Chest,1,Yes,,Hops 1,,,,map_cards/shed.svg,The farmers locked their hops away in here.,
+Abandoned Farm,Guide,Empty Field,Safe,Empty,1,Yes,,,,,,map_cards/field.svg,Weeds and dry dirt. Nothing here.,
+Abandoned Farm,Guide,Rusty Key,Safe,Treasure,1,Yes,,Key,,,,rooms/key.svg,A rusty key lies in the mud.,
+Abandoned Farm,Guide,Collapsed Wall,Safe,Treasure,1,Yes,,Stone 1,,,,map_cards/wall.svg,An old wall has fallen down. Good stone!,
+Abandoned Farm,Guide,Campfire,Safe,Campfire,1,Yes,,,,,,rooms/campfire.svg,A ring of stones and dry wood. Warm and safe.,
+Abandoned Farm,Guide,Hay Bale,Safe,Empty,1,Yes,,,,,,map_cards/hay_bale.svg,A soggy old hay bale. Nothing useful.,
+Abandoned Farm,Guide,Slime Puddle,Unsafe,Fight,1,Yes,Small Slime,,,,,enemies/slime.svg,Something green and wobbly lives in this puddle.,
+Abandoned Farm,Guide,Empty Field,Safe,Empty,1,Yes,,,,,,map_cards/field.svg,Weeds and dry dirt. Nothing here.,
+Abandoned Farm,Guide,Overgrown Path,Safe,Empty,1,Yes,,,,,,map_cards/path.svg,Tall grass over an old cart track.,
+Abandoned Farm,Guide,Hay Bale,Safe,Empty,1,Yes,,,,,,map_cards/hay_bale.svg,A soggy old hay bale. Nothing useful.,
+Abandoned Farm,Campfire,Campfire,Safe,Campfire,1,Yes,,,,,,rooms/campfire.svg,A ring of stones and dry wood. Warm and safe.,"Every floor hides one on the board. Return to Town, or Go Deeper (a new board, one floor down)"
+Abandoned Farm,Base,Empty Field,Safe,Empty,5,Yes,,,,,,map_cards/field.svg,Weeds and dry dirt. Nothing here.,"The Farm's 20 base cards: mostly bad or empty, on purpose (Farm perks will improve them later)"
+Abandoned Farm,Base,Hay Bale,Safe,Empty,2,Yes,,,,,,map_cards/hay_bale.svg,A soggy old hay bale. Nothing useful.,
+Abandoned Farm,Base,Collapsed Wall,Safe,Treasure,3,Yes,,Stone 1-2,,,,map_cards/wall.svg,An old wall has fallen down. Good stone!,Stone comes from walls
+Abandoned Farm,Base,Slime Puddle,Unsafe,Fight,4,Yes,"Small Slime | Small Slime, Small Slime",,,,,enemies/slime.svg,Something green and wobbly lives in this puddle.,Green Slimes drop Green Ooze
+Abandoned Farm,Base,Slime Pond,Unsafe,Fight,1,Yes,"Slime | Small Slime, Small Slime, Small Slime",Key,,,,enemies/slime.svg,A whole pond of slime. It's looking at you.,
+Abandoned Farm,Base,Locked Shed,Explore,Locked Chest,2,Yes,,Gold 5-10 | Card | Pack | Key | Potion | Enchant | Map | Hops 1-2,,,,map_cards/shed.svg,A padlocked tool shed. Something rattles inside.,"Use a key, or break it open (loud: a fail raises danger and ruins the shed)"
+Abandoned Farm,Base,Old Barn,Explore,Event,1,Yes,,,Old Barn,,,map_cards/barn.svg,A barn with a sagging roof. Something rustles in the hay.,events.csv: Old Barn
+Abandoned Farm,Base,Old Well,Explore,Event,1,Yes,,,Old Well,,,map_cards/well.svg,An old stone well. The rope still holds a bucket.,events.csv: Old Well (fills your flask)
+Abandoned Farm,Base,Mystery,Explore,Event,1,Yes,,,,,,rooms/event.svg,Something strange is going on here...,A random event from events.csv
+Abandoned Farm,Filler,Loose Stones,Safe,Treasure,1,Yes,,Stone 1 | Gold 1-3,,,,materials/stone.svg,A few loose stones in the grass.,"Filler: fills your empty map card slots, so the deck is always 40"
+Abandoned Farm,Filler,Overgrown Path,Safe,Empty,1,Yes,,,,,,map_cards/path.svg,Tall grass over an old cart track.,
+Abandoned Farm,Yours,Blue Slime Patch,Unsafe,Fight,3,Quest,"Slimeling, Slimeling | Slimeling, Small Slime | Slimeling, Slimeling, Slimeling",,,,,enemies/slimeling.svg,Little blue slimes hop around a puddle.,"Your map cards: they take filler slots (up to 20). Unlocked by the quest Clear the Slimes"
+Abandoned Farm,Yours,Bunny Burrow,Unsafe,Fight,3,Quest,"Bunny Warrior | Bunny Warrior, Small Slime | Bunny Warrior, Bunny Warrior",,,,,enemies/bunny_warrior.svg,A burrow with a tiny sword stuck in the dirt.,Unlocked by the quest Make your first Flask (they drop Animal Hair)
+Abandoned Farm,Yours,Bunny Warren,Unsafe,Fight,2,Quest,"Bunny Warrior, Bunny Warrior | Bunny Warrior, Slimeling",,,,,enemies/bunny_warrior.svg,Lots of burrows. Lots of tiny swords.,Unlocked by the quest Make your first Flask
+Abandoned Farm,Yours,Trapped Chest,Explore,Event,1,Quest,,,Locked in a Chest,,,rooms/chest.svg,A big chest... and it's shouting.,Unlocked by A Bag for the Road; gone once you have the Enchanter blueprint
+Abandoned Farm,Yours,Big Slime Nest,Unsafe,Mini Boss,1,Quest,"Big Slime, Slimeling",Card | Pack,,Yes,,enemies/big_slime.svg,A huge slime sits on a nest of goo.,Mini Boss. Vanish: once beaten it's gone for the rest of the run
+Abandoned Farm,Yours,Farmer's Stash,Explore,Locked Chest,1,No,,Pack | Card | Gold 8-12 | Potion | Stone 3-5,,Yes,,map_cards/stash.svg,A loose floorboard. The farmer hid something here!,Unlocked by a Map. Vanish
+Abandoned Farm,Yours,Hidden Cache,Safe,Treasure,1,No,,Pack | Card | Gold 8-12 | Potion | Stone 3-5,,Yes,,rooms/treasure.svg,A sack tucked behind a fence post.,Unlocked by a Map. Vanish
+Abandoned Farm,Yours,Deep Well,Explore,Event,1,No,,,Deep Well,,,map_cards/well.svg,"A deep, cold well. The water glows a little.",Unlocked by a Map. Fills your flask right up
+Abandoned Farm,Base,Old Quarry,Safe,Treasure,1,Yes,,Stone 3-5,,,2,materials/stone.svg,The farm's old quarry. Lots of stone!,"Floor 2: shuffled into the deck when you reach Floor 2"
+Abandoned Farm,Base,Slime Swarm,Unsafe,Hard Fight,2,Yes,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 3-6 | Key | Stone 2-3,,,2,enemies/big_slime.svg,Slimes everywhere!,Floor 2
+Abandoned Farm,Base,Acid Pools,Unsafe,Fight,2,Yes,"Acid Slime | Acid Slime, Slimeling | Slime, Acid Slime",Gold 3-6,,,3,enemies/acid_slime.svg,The puddles here hiss and smoke.,Floor 3
+Abandoned Farm,Boss,Slime King's Throne,Unsafe,Boss,1,Yes,Slime King,Pack,,,3,enemies/slime_king.svg,A throne of hay and goo. Something big wears a crown.,"The Boss: from Floor 3 it is dealt onto every board. Beat it to clear the Farm"

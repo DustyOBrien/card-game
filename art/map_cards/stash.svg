@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A farmer's stash: a sack and a crate hidden under a loose board. -->
+  <rect x="6" y="40" width="52" height="18" fill="#5a4030" stroke="#2a1e14" stroke-width="2.5"/>
+  <rect x="10" y="22" width="24" height="22" fill="#a8824a" stroke="#4e3a1e" stroke-width="2.5"/>
+  <path d="M10 33 L34 33 M22 22 L22 44" stroke="#6e5428" stroke-width="2"/>
+  <path d="M40 44 Q36 30 44 22 L50 20 Q58 30 54 44 Z" fill="#c9b48a" stroke="#6e5a3a" stroke-width="2.5"/>
+  <path d="M44 22 L50 20" stroke="#6e5a3a" stroke-width="3"/>
+  <circle cx="47" cy="34" r="3" fill="#ffd34d"/>
+</svg>

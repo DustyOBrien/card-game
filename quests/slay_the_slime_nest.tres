@@ -6,9 +6,9 @@
 script = ExtResource("1_xvvbg")
 quest_name = "Slay the Slime Nest"
 giver = "The Innkeeper"
-text = "\"Something BIG is growing in the Plains. I've marked its nest on your map.\" The Big Slime Nest is now in the Plains room deck for good. Beat it, then Go Deeper at its campfire to reach Tier 2."
+text = "\"Something BIG is growing on the farm. I've marked its nest on your map.\" The Big Slime Nest is now one of your map cards. Find it on the board and beat it. (It Vanishes once beaten, so it's once per trip.)"
 objective = "clear room"
 target = "Big Slime Nest"
-start_gift = "Room Plains: Big Slime Nest"
+start_gift = "Room Abandoned Farm: Big Slime Nest"
 rewards = "Pack Small 4"
 sort_order = 4

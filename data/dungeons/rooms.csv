@@ -1,50 +1,4 @@
 Area,Tier,Room,Type,Copies,Unlocked,Ambush,Encounters,Loot,Notes
-Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,"The Architect's first trip (Inn built, no Adventurer yet): drawn in this order, no enemies. 5 Stone from Shiny Rocks, 3 Hops from the two chests"
-Plains,Guide,Rusty Key,Treasure,1,Yes,,,Key,
-Plains,Guide,Small Chest,Locked Chest,1,Yes,,,Hops 1,
-Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
-Plains,Guide,Campfire,Campfire,1,Yes,,,,Return to Town once you have the Stone and the Hops
-Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
-Plains,Guide,Quiet Meadow,Empty,1,Yes,,,,
-Plains,Guide,Shiny Key,Treasure,1,Yes,,,Key,
-Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
-Plains,Guide,Medium Chest,Locked Chest,1,Yes,,,Hops 2,
-Plains,Guide,Shiny Rock,Treasure,1,Yes,,,Stone 1,
-Plains,1,Slime Patch,Fight,3,Yes,,"Small Slime | Small Slime | Small Slime, Small Slime",,Green Slimes only (they drop Green Ooze)
-Plains,1,Slime Ambush,Fight,2,Yes,Yes,"Small Slime | Small Slime, Small Slime",,Ambush: no backing off
-Plains,1,Blue Slime Patch,Fight,3,Quest,,"Slimeling, Slimeling | Slimeling, Small Slime | Slimeling, Slimeling, Slimeling",,Unlocked by the quest Clear the Slimes
-Plains,1,Blue Slime Ambush,Fight,1,Quest,Yes,"Slimeling, Slimeling | Slimeling, Small Slime",,Unlocked by the quest Clear the Slimes
-Plains,1,Bunny Burrow,Fight,3,Quest,,"Bunny Warrior | Bunny Warrior, Small Slime | Bunny Warrior, Bunny Warrior",,Unlocked by the quest Make your first Flask (they drop Animal Hair)
-Plains,1,Bunny Ambush,Fight,2,Quest,Yes,"Bunny Warrior | Bunny Warrior, Bunny Warrior",,Unlocked by the quest Make your first Flask
-Plains,1,Bunny Warren,Fight,2,Quest,,"Bunny Warrior, Bunny Warrior | Bunny Warrior, Slimeling",,Unlocked by the quest Make your first Flask: more bunnies = Animal Hair faster
-Plains,1,Trapped Chest,Event,1,Quest,,Locked in a Chest,,Someone is locked in a chest (events.csv: Locked in a Chest). Unlocked by A Bag for the Road; gone once you have the Enchanter blueprint
-Plains,1,Old Chest,Locked Chest,2,Yes,,,Gold 5-10 | Card | Pack | Map | Enchant | Potion,Needs a small key (no Stone in chests: Stone comes from tiles and monsters)
-Plains,1,Shiny Rock,Treasure,2,Yes,,,Gold 2-5 | Key | Map | Potion | Stone 1-2 | Stone 2-3 | Stone 2-3,Mostly Stone
-Plains,1,Rock Pile,Treasure,2,Yes,,,Stone 2-3,Always Stone
-Plains,1,Campfire,Campfire,1,Yes,,,,Rest or Leave
-Plains,1,Mystery,Event,2,Yes,,,,A random event (events.csv)
-Plains,1,Big Slime Nest,Mini Boss,1,Quest,,"Big Slime, Slimeling",Card | Pack,Beating it opens Tier 2
-Plains,1,Quiet Meadow,Empty,1,Yes,,,,
-Plains,2,Slime Swarm,Hard Fight,2,Yes,,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 3-6 | Key | Stone 2-3,
-Plains,2,Slime Pit,Hard Fight,2,Yes,Yes,"Big Slime | Slime, Slime | Slimeling, Slime, Slimeling",Gold 3-6 | Key | Stone 2-3,Ambush: no backing off
-Plains,2,Mossy Chest,Locked Chest,1,Yes,,,Card | Pack | Map | Enchant | Potion,
-Plains,2,Lost Satchel,Treasure,1,Yes,,,Gold 5-10 | Card | Potion,
-Plains,2,Old Quarry,Treasure,1,Yes,,,Stone 3-5,Always Stone
-Plains,2,Mystery,Event,1,Yes,,,,A random event (events.csv)
-Plains,2,Twin Giants,Mini Boss,1,Yes,,"Big Slime, Big Slime",Card | Pack,Beating it opens Tier 3
-Plains,1,Slime Den,Hard Fight,1,No,,"Big Slime, Small Slime",Pack | Card,Unlocked by a Map
-Plains,1,Hidden Cache,Treasure,1,No,,,Pack | Card | Gold 8-12 | Potion | Stone 3-5,Unlocked by a Map
-Plains,2,Golden Glade,Campfire,1,No,,,,Unlocked by a Map
-Plains,3,Acid Pools,Fight,3,Yes,,"Acid Slime | Acid Slime, Slimeling | Slime, Acid Slime",Gold 3-6,
-Plains,3,Acid Ambush,Fight,2,Yes,Yes,"Acid Slime | Acid Slime, Slimeling | Slime, Acid Slime",Gold 3-6,Ambush: no backing off
-Plains,3,Knight Patrol,Hard Fight,2,Yes,,"Slime Knight, Slime | Slime Knight, Acid Slime",Gold 5-8 | Key | Stone 2-4,
-Plains,3,Gilded Chest,Locked Chest,1,Yes,,,Gold 10-15 | Enchant | Potion | Super Card,
-Plains,3,Royal Coffer,Treasure,1,Yes,,,Gold 8-12 | Potion | Pack | Stone 3-5,
-Plains,3,Fallen Statue,Treasure,1,Yes,,,Stone 4-6,Always Stone
-Plains,3,Campfire,Campfire,1,Yes,,,,
-Plains,3,Mystery,Event,2,Yes,,,,A random event (events.csv)
-Plains,3,Royal Guard,Mini Boss,1,Yes,,"Slime Knight, Slime Knight",Card | Pack,Beating it opens the Boss room
-Plains,Boss,Slime King's Throne,Boss,1,Yes,,Slime King,Pack,The boss
 Forest,1,Wolf Trail,Fight,3,Yes,,"Wolf | Mushroom, Wolf | Wolf, Wolf",,
 Forest,1,Wolf Ambush,Fight,3,Yes,Yes,"Wolf | Mushroom, Wolf | Wolf, Wolf",,Ambush: no backing off
 Forest,1,Rotten Chest,Locked Chest,2,Yes,,,Gold 6-11 | Card | Pack | Map | Enchant | Potion,
@@ -64,7 +18,7 @@ Forest,1,Fairy Ring,Treasure,1,No,,,Pack | Card | Gold 8-12 | Potion,Unlocked by
 Forest,3,Dark Hollow,Fight,3,Yes,,"Dire Wolf | Thorn Treant | Wolf, Dire Wolf",Gold 3-6,
 Forest,3,Bramble Ambush,Fight,2,Yes,Yes,"Dire Wolf | Thorn Treant | Wolf, Dire Wolf",Gold 3-6,Ambush: no backing off
 Forest,3,Heart of the Woods,Hard Fight,2,Yes,,"Dire Wolf, Thorn Treant | Thorn Treant, Mushroom, Wolf",Gold 6-9 | Key,
-Forest,3,Mossy Strongbox,Locked Chest,1,Yes,,,Gold 11-16 | Enchant | Potion | Super Card,
+Forest,3,Mossy Strongbox,Locked Chest,1,Yes,,,Gold 11-16 | Enchant | Potion,
 Forest,3,Druid's Cache,Treasure,1,Yes,,,Gold 8-12 | Potion | Pack,
 Forest,3,Campfire,Campfire,1,Yes,,,,
 Forest,3,Mystery,Event,2,Yes,,,,A random event (events.csv)

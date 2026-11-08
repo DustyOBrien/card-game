@@ -18,8 +18,8 @@ const REVEAL_GAP := 0.35  # Seconds between the cards of a pack appearing.
 
 # The packs (names, card counts, prices) are GameState.PACKS, and the odds
 # are GameState.PACK_ODDS: edit them there.
-const PLAINS_COLOR := Color(0.36, 0.58, 0.27)  # Plains packs are grassy green.
-const PACK_ICON := preload("res://icons/booster.svg")  # A Plains booster pack.
+const FARM_COLOR := Color(0.36, 0.58, 0.27)  # Farm packs are grassy green.
+const PACK_ICON := preload("res://icons/booster.svg")  # A Farm booster pack.
 
 @onready var gold_label: Label = %GoldLabel
 @onready var summary_label: Label = %SummaryLabel
@@ -39,7 +39,7 @@ func _ready() -> void:
 
 	next_run_button.text = "← Back to Town"
 	if shop_built():
-		summary_label.text = "Plains packs cost gold AND Stone from the Plains (it comes out of your Bank). Open them here or later."
+		summary_label.text = "Farm packs cost gold AND Stone from the Abandoned Farm (it comes out of your Bank). Open them here or later."
 		for pack in GameState.PACKS:
 			pack_row.add_child(_make_pack(pack))
 	else:
@@ -109,7 +109,7 @@ func buy(pack: Dictionary, panel: Control) -> void:
 
 # One pack for sale: a coloured "packet" with its name, price and a Buy button.
 func _make_pack(pack: Dictionary) -> PanelContainer:
-	var color := PLAINS_COLOR
+	var color := FARM_COLOR
 
 	var panel := PanelContainer.new()
 	panel.custom_minimum_size = Vector2(200, 300)
@@ -135,7 +135,7 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(picture)
 
 	var name_label := Label.new()
-	name_label.text = pack.size  # "Small": the picture says it's a Plains pack.
+	name_label.text = pack.size  # "Small": the picture says it's a Farm pack.
 	name_label.tooltip_text = pack.name
 	name_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	name_label.add_theme_font_size_override("font_size", 24)
@@ -190,7 +190,7 @@ func open_pack(pack_name: String) -> void:
 	if opened.is_empty():
 		return
 	refresh()
-	var color := PLAINS_COLOR
+	var color := FARM_COLOR
 	_skip = false
 
 	# A dark layer over the whole shop. Clicking it hurries the reveal.
@@ -289,7 +289,7 @@ func _make_sealed_pack(color: Color) -> PanelContainer:
 	style.shadow_color = color.lightened(0.3)
 	style.shadow_size = 24  # A glow around it.
 	packet.add_theme_stylebox_override("panel", style)
-	var picture := TextureRect.new()  # The Plains pack's picture on the front.
+	var picture := TextureRect.new()  # The Farm pack's picture on the front.
 	picture.texture = PACK_ICON
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED

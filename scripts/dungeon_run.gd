@@ -1,20 +1,31 @@
 # dungeon_run.gd
 #
-# The rules of one trip into a dungeon. A run happens on a 5 x 5 grid of
-# squares. You start in the middle. Every other square is blank until you
-# step onto it: then you draw a card from the area's ROOM DECK, and that's
-# what the room is (a fight, a chest, a campfire...).
+# The rules of one EXPEDITION into a place (the Abandoned Farm). It happens
+# on a 5 x 5 BOARD of map cards (room_card.gd), like a tabletop game:
 #
-# How a dungeon goes:
-#   1. The deck starts with the area's Tier 1 room cards, shuffled.
-#   2. Beating a Mini Boss forces a campfire. Resting there shuffles every
-#      room back into the deck, plus the next tier's harder (and richer)
-#      cards. The last tier's Mini Boss shuffles in the Boss room instead.
-#   3. Beat the Boss and the area is cleared. You can also Leave at any
-#      campfire with what you found. Die, and you lose what you found
-#      (you keep your Exp).
-#   4. DANGER: every step makes noise. Every STEPS_PER_DANGER steps since
-#      your last rest, enemies get +1 Strength. Resting resets it.
+#   1. THE MAP DECK. 40 cards: the place's 20 base cards, plus your own map
+#      cards (up to 20, from quests and Maps). Empty slots are filled with
+#      the place's basic Filler cards, so it's always 40.
+#   2. THE DEAL. You start in the middle. The other 24 squares get a card
+#      FACE DOWN: 23 from the deck, plus one hidden CAMPFIRE. The other 17
+#      wait in the draw pile, so every board is a different mix. (Is the
+#      Old Well on this board at all? You'll have to look.)
+#   3. EXPLORING. Step onto a face-down card next to you to flip it. You can
+#      walk back over cards that are Safe (or that you've made safe).
+#        Safe     nothing to fear (and maybe some loot)
+#        Unsafe   always a fight, and DANGER goes up by 1
+#        Explore  a choice: open the shed with a key, or break it open...
+#   4. THE CAMPFIRE. Find it to Return to Town with your loot, or Go Deeper:
+#      every card on the board is shuffled back into the deck (beaten
+#      Unsafe cards come back Unsafe), a fresh board is dealt one FLOOR
+#      down, and a new campfire is hidden on it. Your burnt-out campfire is
+#      where you start, so the only way home is to find the next one!
+#      Cards with VANISH (mini bosses, the very best loot) don't come back.
+#   5. DANGER. Every 3 danger gives every enemy +1 Strength (it never goes
+#      down by itself, so the longer you stay, the harder it gets). Deeper
+#      floors also shuffle in tougher cards, and from Floor 3 the Boss is on
+#      every board. Beat it and the place is cleared.
+#   Die, and you lose what you found (except what's in your Save Sack).
 #
 # This file is only rules and numbers: dungeon.gd draws it on screen, and
 # battle.gd asks it which enemies to fight. GameState.dungeon holds the one
@@ -23,49 +34,44 @@
 class_name DungeonRun
 extends RefCounted
 
-const SIZE := 5  # The grid is SIZE x SIZE squares.
+const SIZE := 5  # The board is SIZE x SIZE squares.
 const START := Vector2i(2, 2)  # The middle square.
-const STEPS_PER_DANGER := 6  # Steps (since the last rest) for each +1 enemy Strength (the Mapmaker adds more).
+const DECK_SIZE := 40  # Cards in the map deck.
+const YOUR_SLOTS := 20  # How many of your own map cards fit in it.
+const DANGER_PER_STRENGTH := 3  # Danger for each +1 enemy Strength (the Mapmaker adds more).
 const KEY_CHANCE := 25  # % chance a fight drops a small key.
-# % chance a won fight drops an enchant / a potion, by room type.
+const BREAK_CHANCE := 40  # % chance that breaking a locked chest open works (no key needed, but loud).
+# % chance a won fight drops an enchant / a potion, by card kind.
 const ENCHANT_CHANCE := {RoomCard.Type.FIGHT: 35, RoomCard.Type.HARD_FIGHT: 60, RoomCard.Type.MINI_BOSS: 100}
 const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, RoomCard.Type.MINI_BOSS: 50}
-# % chance a won fight drops a SUPER card (run-only, see card_data.gd). Super rare!
-const SUPER_CARD_CHANCE := {RoomCard.Type.MINI_BOSS: 25}
-# % chance that exploring a new square (not a fight or a chest) turns up 1 of
-# the area's own material lying on the ground (Area.material: Stone in the
-# Plains, Lumber in the Forest). Not on the guided run: there it's Shiny Rocks only.
-const TILE_MATERIAL_CHANCE := 30  # Was 15: Stone was too slow (Dusty's playtest).
-const TILE_MATERIAL_ROOMS := [RoomCard.Type.EMPTY, RoomCard.Type.TREASURE, RoomCard.Type.EVENT, RoomCard.Type.CAMPFIRE]
-const REST_HEAL := 0.3  # Resting heals this much of your max HP.
-const PACK_NAME := "Small Plains Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
+const PACK_NAME := "Small Farm Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
+const CAMPFIRE_ART := preload("res://art/rooms/campfire.svg")
 # The four squares next to a square: right, left, down, up.
 const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
 
 var area: Area
-var tier := 1  # Which tier's cards are in the deck.
-# The Architect's guided run (Inn built, no adventurer yet): only the area's
-# Guide rooms, no enemies, and dungeon.gd shows tips as you go.
+# The FIRST TRIP to the Farm (the Innkeeper's Stone and Hops): a set board
+# (the sheet's Guide rows) and tips as you go (dungeon.gd).
 var guided := false
-var max_tier := 1  # The area's last tier.
-var deck: Array[RoomCard] = []  # The room cards still to draw, top = the end.
-# Every explored square: Vector2i -> a Dictionary describing the room there:
-#   card: RoomCard (null for the start square)
-#   cleared: safe to walk through (the fight is won, the treasure taken...)
-#   opened: a Locked Chest you've opened
-#   done: this card never goes back into the deck (a beaten Mini Boss, an opened chest)
-#   campfire: a campfire is here (also after a Mini Boss)
+var floor_number := 1  # Each Go Deeper is one floor further down.
+var deck: Array[RoomCard] = []  # The draw pile, top = the end.
+var gone: Array[RoomCard] = []  # Used cards with Vanish: out of the deck for the rest of the run.
+# Every square on the board: Vector2i -> a Dictionary describing it:
+#   card:     RoomCard (null for the square you started this floor on)
+#   revealed: flipped face up
+#   cleared:  safe to walk over (Safe cards, beaten fights, used events...)
+#   done:     used up (the loot is taken, the fight is won): Vanish cards leave
+#   campfire: a lit campfire is here
+#   opened:   a Locked Chest you've opened (or broken)
 var rooms := {}
-var walls := {}  # Squares that are dead ends (the deck ran out): Vector2i -> true.
 var position := START  # Where you are.
-var came_from := START  # The square you stepped from (where Back off takes you).
-var steps := 0  # Steps since the last rest (danger).
+var came_from := START  # The square you stepped from.
+var just_flipped := Vector2i(-1, -1)  # The card that flipped on your last step (dungeon.gd animates it).
 var total_steps := 0  # Steps this whole run.
 var keys := 0  # Small keys: each opens one Locked Chest.
-var boss_unlocked := false  # The Boss room is in the deck.
-var tier_up_waiting := false  # A Mini Boss was beaten: the next rest adds the next tier.
+var danger_points := 0  # From Unsafe cards and failed choices. See enemy_strength().
 
-# What you've found, given to you when you Leave or beat the Boss.
+# What you've found, given to you when you Return to Town or beat the Boss.
 var found_gold := 0
 var found_packs := 0
 var found_materials := {}  # Materials found this run: {"Green Ooze": 3}. Lost if you die (unless sacked).
@@ -82,56 +88,76 @@ var sack: Array[Dictionary] = []
 # (usually 1; the Enchanter's upgrade makes it 2): pick one, then a card.
 var enchant_drops: Array = []
 var potions: Array[Potion] = []  # Potions you carry (drink them in a fight).
-# Super cards you found: they join your deck for the rest of THIS run only.
-var super_cards: Array[CardData] = []
-# Your flask (flask.gd), set by GameState.start_run(). Its charges come back
-# when you Rest at a campfire.
+# Your flask (flask.gd), set by GameState.start_run(). It starts full.
 var flask: Flask = null
 var flask_stats := {}  # What it does this run (Flask.stats()).
 var flask_charges := 0
 
-var tile_find := ""  # "1 Stone" if the square you just explored had some lying around ("" = no).
 var seen_events: Array[String] = []  # Events met this run (each one only once if there are enough).
 var fights_won := 0
-var result := ""  # "" while in the dungeon, then "left", "won" or "died".
-var history: Array[String] = []  # The dungeon's log, newest last.
+var result := ""  # "" while exploring, then "left", "won" or "died".
+var history: Array[String] = []  # The expedition's log, newest last.
 
-# The room you're fighting in right now (for battle.gd).
+# The card you're fighting on right now (for battle.gd).
 var fight_square := Vector2i(-1, -1)
 var fight_enemies: Array[EnemyData] = []
 
 
+# Making a DungeonRun doesn't deal anything yet (duels and the training
+# make one just to hold their fight). GameState.start_run() calls start().
 func _init(for_area: Area) -> void:
 	area = for_area
-	for card in area.rooms:
-		max_tier = maxi(max_tier, card.tier)
-	rooms[START] = {"card": null, "cleared": true, "done": true, "campfire": false}
+
+
+# Build the map deck and deal the first board.
+func start() -> void:
 	guided = GameState.is_guided_run(area)
-	if guided:
-		_add_tier(RoomCard.GUIDE_TIER)
-		max_tier = RoomCard.GUIDE_TIER  # No tiers to go deeper into.
-	else:
-		_add_tier(1)
-	add_log("You enter the %s." % area.display_name)
+	if not guided:
+		_build_deck()
+	_deal()
+	add_log("You set out for the %s." % area.display_name)
 
 
-# --- The deck --------------------------------------------------------------
+# --- The map deck --------------------------------------------------------------
 
-# Shuffle every card of this tier into the deck (as many as its Copies),
-# leaving out cards that still need a Map.
-func _add_tier(number: int) -> void:
-	tier = number
-	for card in area.rooms:
-		if card.tier == number and GameState.is_room_unlocked(area, card) and not _event_finished(card):
-			for i in maxi(card.copies, 1):
+# The place's base cards + your map cards (up to YOUR_SLOTS) + Filler up to
+# DECK_SIZE, shuffled. Cards that need a Map or a quest are left out until
+# you have them.
+func _build_deck() -> void:
+	deck.clear()
+	var yours: Array[RoomCard] = []
+	var filler: Array[RoomCard] = []
+	for card in area.cards():
+		if not GameState.is_room_unlocked(area, card) or _event_finished(card):
+			continue
+		for i in card.copies:
+			match card.deck_part:
+				RoomCard.DECK_BASE:
+					if card.floor_from <= 1:
+						deck.append(card)
+				RoomCard.DECK_YOURS:
+					yours.append(card)
+				RoomCard.DECK_FILLER:
+					filler.append(card)
+	deck.append_array(yours.slice(0, YOUR_SLOTS))
+	# Fill the empty slots, taking the Filler cards in turn.
+	var next := 0
+	while deck.size() < DECK_SIZE and not filler.is_empty():
+		deck.append(filler[next % filler.size()])
+		next += 1
+	deck.shuffle()
+
+
+# Cards that join the deck when you reach this floor ("Floor" in the sheet).
+func _add_floor_cards() -> void:
+	for card in area.cards():
+		if card.deck_part == RoomCard.DECK_BASE and card.floor_from == floor_number \
+				and GameState.is_room_unlocked(area, card):
+			for i in card.copies:
 				deck.append(card)
-	if number == RoomCard.GUIDE_TIER:
-		deck.reverse()  # Draw them in the sheet's order (the deck is drawn from the end).
-	else:
-		deck.shuffle()
 
 
-# A room whose event gives a blueprint you already have (the trapped
+# A card whose event gives a blueprint you already have (the trapped
 # Enchanter, once you've freed them) never comes back.
 func _event_finished(card: RoomCard) -> bool:
 	if card.event_name.is_empty():
@@ -143,12 +169,77 @@ func _event_finished(card: RoomCard) -> bool:
 	return not names.is_empty() and names.all(func(n: String) -> bool: return GameState.blueprints.has(n))
 
 
-func _add_boss() -> void:
-	for card in area.rooms:
-		if card.type == RoomCard.Type.BOSS:
-			deck.append(card)
-	deck.shuffle()
-	boss_unlocked = true
+# The campfire hidden on every board (the sheet's Campfire row, or a plain one).
+func campfire_card() -> RoomCard:
+	for card in area.cards():
+		if card.deck_part == RoomCard.DECK_CAMPFIRE:
+			return card
+	var card := RoomCard.new()
+	card.room_name = "Campfire"
+	card.type = RoomCard.Type.CAMPFIRE
+	card.art = CAMPFIRE_ART
+	return card
+
+
+# The place's Boss card (null if it has none).
+func boss_card() -> RoomCard:
+	for card in area.cards():
+		if card.deck_part == RoomCard.DECK_BOSS:
+			return card
+	return null
+
+
+# Is the Boss on this floor's board?
+func boss_here() -> bool:
+	var boss := boss_card()
+	return boss != null and not guided and floor_number >= boss.floor_from
+
+
+# --- Dealing the board -----------------------------------------------------------
+
+# Every square but the start, in reading order (left to right, top to bottom).
+func board_squares() -> Array[Vector2i]:
+	var squares: Array[Vector2i] = []
+	for y in SIZE:
+		for x in SIZE:
+			if Vector2i(x, y) != START:
+				squares.append(Vector2i(x, y))
+	return squares
+
+
+# Deal a fresh board, every card face down. The first trip deals its Guide
+# cards in the sheet's order; otherwise it's 23 from the deck plus the
+# campfire (and the Boss from its floor on), shuffled onto the squares.
+func _deal() -> void:
+	rooms.clear()
+	var squares := board_squares()
+	var cards: Array[RoomCard] = []
+	if guided:
+		for card in area.cards():
+			if card.deck_part == RoomCard.DECK_GUIDE:
+				cards.append(card)
+	else:
+		var fixed: Array[RoomCard] = [campfire_card()]
+		if boss_here():
+			fixed.append(boss_card())
+		while cards.size() < squares.size() - fixed.size() and not deck.is_empty():
+			cards.append(deck.pop_back())
+		cards.append_array(fixed)
+		cards.shuffle()
+	for i in squares.size():
+		if i < cards.size():
+			rooms[squares[i]] = {"card": cards[i], "revealed": false, "cleared": false, "done": false,
+				"campfire": cards[i].type == RoomCard.Type.CAMPFIRE, "opened": false}
+		else:
+			# The deck ran out: bare, trampled ground.
+			rooms[squares[i]] = {"card": null, "revealed": true, "cleared": true, "done": true, "campfire": false, "opened": false}
+	# Where you start. On Floor 1 it's the way back to town (a campfire);
+	# deeper down it's the campfire you just used, burnt out.
+	rooms[START] = {"card": null, "revealed": true, "cleared": true, "done": true,
+		"campfire": floor_number == 1, "opened": false, "start": true}
+	position = START
+	came_from = START
+	just_flipped = Vector2i(-1, -1)
 
 
 # --- Moving ------------------------------------------------------------------
@@ -157,22 +248,22 @@ func in_grid(square: Vector2i) -> bool:
 	return square.x >= 0 and square.y >= 0 and square.x < SIZE and square.y < SIZE
 
 
-func is_explored(square: Vector2i) -> bool:
-	return rooms.has(square)
+func is_revealed(square: Vector2i) -> bool:
+	return rooms.has(square) and rooms[square].revealed
 
 
-# Walkable without a fight: explored and cleared (or the start).
+# Walkable without trouble: face up and cleared.
 func is_safe(square: Vector2i) -> bool:
-	return rooms.has(square) and rooms[square].cleared
+	return rooms.has(square) and rooms[square].revealed and rooms[square].cleared
 
 
-# Every square you can step to from where you are, walking through safe
-# squares only: square -> {"steps": how many steps, "from": the last safe
-# square on the way (where Back off takes you)}. A square you can step to is
-# a blank square next to the explored area (that's exploring) or any
-# explored room. This is a "breadth-first search": find every square 1 step
-# away, then every square 2 steps away, and so on. The grid is tiny, so one
-# search answers every square at once (the dungeon screen asks once per redraw).
+# Every square you can step to from where you are, walking over safe squares
+# only: square -> {"steps": how many steps, "from": the last safe square on
+# the way}. You can step onto any card next to a safe square you can reach:
+# a face-down one (it flips) or a face-up one. This is a "breadth-first
+# search": find every square 1 step away, then every square 2 steps away,
+# and so on. The board is tiny, so one search answers every square at once
+# (the dungeon screen asks once per redraw).
 func reachable() -> Dictionary:
 	var found := {}
 	var queue: Array[Vector2i] = [position]
@@ -181,68 +272,51 @@ func reachable() -> Dictionary:
 		var here: Vector2i = queue.pop_front()
 		for direction in DIRECTIONS:
 			var next := here + direction
-			if not in_grid(next) or walls.has(next) or seen.has(next):
+			if not in_grid(next) or seen.has(next):
 				continue
 			seen[next] = seen[here] + 1
 			found[next] = {"steps": seen[next], "from": here}
 			if is_safe(next):
-				queue.append(next)  # Only walk ON through rooms that are safe.
+				queue.append(next)  # Only walk ON over squares that are safe.
 	return found
 
 
-# How many steps to `target`, or -1 if you can't get there.
-func steps_to(target: Vector2i) -> int:
-	var reach := reachable()
-	return reach[target].steps if reach.has(target) else -1
-
-
 func can_move_to(square: Vector2i) -> bool:
-	return result.is_empty() and steps_to(square) > 0
+	return result.is_empty() and reachable().has(square)
 
 
-# Walk to a square. Returns what happened there, for the dungeon screen:
-#   "walk"     back into a room you've cleared (or a campfire)
-#   "fight"    a fight: see who it is, then Fight or Back off (fight_enemies says who)
-#   "ambush"   a fight that starts straight away (no backing off)
-#   "chest"    a Locked Chest (open it with a key, or leave it for later)
+# Walk to a square (flipping it if it's face down). Returns what happened
+# there, for the dungeon screen:
+#   "walk"     onto a card you've already dealt with
+#   "fight"    an Unsafe card: a fight (fight_enemies says who)
+#   "chest"    a Locked Chest (a key, break it open, or leave it for later)
 #   "treasure" loot, taken right away
-#   "campfire" Rest or Leave
-#   "empty"    nothing here
+#   "event"    an Explore card with choices (dungeon.gd shows them)
+#   "campfire" Return to Town or Go Deeper
+#   "empty"    a Safe card with nothing on it
 #   ""         you can't go there
 func move_to(square: Vector2i) -> String:
 	var reach := reachable()
 	if not reach.has(square) or not result.is_empty():
 		return ""
-	steps += reach[square].steps
 	total_steps += reach[square].steps
 	came_from = reach[square].from
 	position = square
-	tile_find = ""
-	if not rooms.has(square):
-		_reveal(square)
+	just_flipped = Vector2i(-1, -1)
+	if not rooms[square].revealed:
+		_flip(square)
 	return _enter(square)
 
 
-# Draw a room card for a blank square.
-func _reveal(square: Vector2i) -> void:
-	var card: RoomCard = deck.pop_back()
-	rooms[square] = {"card": card, "cleared": false, "done": false, "campfire": card.type == RoomCard.Type.CAMPFIRE}
-	add_log("You find: %s" % card.room_name)
-	# Sometimes there's a bit of the area's material lying around, too.
-	tile_find = ""
-	if not guided and not area.material.is_empty() and card.type in TILE_MATERIAL_ROOMS \
-			and randi() % 100 < TILE_MATERIAL_CHANCE + _material_find_bonus():
-		add_found_material(area.material, 1)
-		tile_find = "1 " + area.material
-		add_log("There's %s lying here. You pick it up." % tile_find)
-	if deck.is_empty():
-		# No cards left: every other blank square is a dead end until you rest.
-		for y in SIZE:
-			for x in SIZE:
-				var other := Vector2i(x, y)
-				if not rooms.has(other):
-					walls[other] = true
-		add_log("The room deck is empty. The other paths are dead ends.")
+# Turn a card face up. Unsafe cards raise danger the moment you find them.
+func _flip(square: Vector2i) -> void:
+	var room: Dictionary = rooms[square]
+	room.revealed = true
+	just_flipped = square
+	var card: RoomCard = room.card
+	add_log("You flip over: %s" % card.room_name)
+	if card.tile == RoomCard.Tile.UNSAFE:
+		raise_danger(1)
 
 
 func _enter(square: Vector2i) -> String:
@@ -253,43 +327,47 @@ func _enter(square: Vector2i) -> String:
 	var card: RoomCard = room.card
 	if card == null:
 		return "walk"
-	if card.type == RoomCard.Type.LOCKED_CHEST:
-		# You can walk past a chest you can't open yet, and come back with a key.
-		room.cleared = true
-		return "walk" if room.get("opened", false) else "chest"
-	if room.cleared:
-		return "walk"
 	if card.is_fight():
+		if room.cleared:
+			return "walk"
 		fight_square = square
 		fight_enemies = card.pick_encounter()
-		return "ambush" if card.ambush else "fight"
+		return "fight"
 	match card.type:
+		RoomCard.Type.LOCKED_CHEST:
+			# You can walk past a chest you can't open yet, and come back with a key.
+			room.cleared = true
+			return "walk" if room.done else "chest"
 		RoomCard.Type.EVENT:
 			if room.done:
 				return "walk"
 			if not room.has("event"):
 				room.event = GameState.find_event(card.event_name) if not card.event_name.is_empty() else pick_event()
 			if room.event == null:
-				room.cleared = true  # No events in the sheet: just an empty room.
+				room.cleared = true  # No events in the sheet: just an empty card.
 				room.done = true
 				return "empty"
 			return "event"
-		RoomCard.Type.LOCKED_CHEST:
-			return "chest"
 		RoomCard.Type.TREASURE:
+			if room.done:
+				return "walk"
 			room.cleared = true
 			room.done = true
 			add_log("Treasure! %s" % take_loot(card))
 			return "treasure"
-	room.cleared = true  # Empty.
-	return "empty"
+		RoomCard.Type.CAMPFIRE:
+			return "walk"  # A campfire that's gone out.
+	# Empty.
+	room.cleared = true
+	room.done = true
+	return "empty" if square == just_flipped else "walk"
 
 
 # --- Events -------------------------------------------------------------------
 
-# A random event for this area and tier, preferring ones you haven't seen this run.
+# A random event for this place and floor, preferring ones you haven't seen this run.
 func pick_event() -> DungeonEvent:
-	var fitting := GameState.load_events().filter(func(e: DungeonEvent) -> bool: return e.fits(area.display_name, tier))
+	var fitting := GameState.load_events().filter(func(e: DungeonEvent) -> bool: return e.fits(area.display_name, floor_number))
 	var fresh := fitting.filter(func(e: DungeonEvent) -> bool: return not seen_events.has(e.event_name))
 	var pool := fresh if not fresh.is_empty() else fitting
 	if pool.is_empty():
@@ -335,8 +413,8 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 
 
 # Make a choice in the event where you're standing. Roll its Chance, do its
-# effects, and finish the room. Returns {"text": what happened, "fight": true
-# if it started a fight (fight_enemies is set, like an ambush)}.
+# effects, and finish the card. Returns {"text": what happened, "fight": true
+# if it started a fight (fight_enemies is set)}.
 func choose(index: int) -> Dictionary:
 	var room: Dictionary = rooms[position]
 	var event: DungeonEvent = room.event
@@ -349,14 +427,12 @@ func choose(index: int) -> Dictionary:
 	add_log("%s: %s" % [event.event_name, event.choice_labels[index]] + (" (%s)" % ", ".join(outcome.lines) if not outcome.lines.is_empty() else ""))
 	var text := story
 	if not outcome.lines.is_empty():
-		text += ("
-" if not text.is_empty() else "") + "
-".join(outcome.lines)
+		text += ("\n" if not text.is_empty() else "") + "\n".join(outcome.lines)
 	if outcome.fight:
 		room.cleared = false  # Blocks the way until you win.
 		fight_square = position
 	if outcome.come_back:
-		room.done = false  # Back into the room deck when you rest (rest() re-adds rooms that aren't done).
+		room.done = false  # Not finished: step on it again to have another go.
 	return {"text": text, "fight": outcome.fight, "blueprint": outcome.blueprint}
 
 
@@ -388,10 +464,10 @@ func apply_effects(list: Array[String]) -> Dictionary:
 					flask_charges = mini(flask_charges + 1, flask_stats[Flask.CHARGES])
 					lines.append("Flask %d/%d" % [flask_charges, flask_stats[Flask.CHARGES]])
 			"danger":
-				steps += number * steps_per_danger()
+				raise_danger(number)
 				lines.append("Danger +%d" % number)
 			"calm":
-				steps = 0
+				danger_points = 0
 				lines.append("Danger back to 0")
 			"use":  # "Use Key"
 				keys = maxi(keys - 1, 0)
@@ -420,56 +496,49 @@ func apply_effects(list: Array[String]) -> Dictionary:
 	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint}
 
 
-# Step back out of a fight you don't want yet, to the square you came from.
-# The room stays on the map, unbeaten, and you can't walk through it until
-# you beat it. Backing off still makes noise (1 step). Ambushes can't be backed off.
-func can_back_off() -> bool:
-	if not rooms.has(position) or rooms[position].card == null:
-		return false
-	var card: RoomCard = rooms[position].card
-	return card.is_fight() and not card.ambush and not rooms[position].cleared and position != came_from
-
-
-func back_off() -> void:
-	if not can_back_off():
-		return
-	add_log("You back away from %s." % rooms[position].card.room_name)
-	position = came_from
-	steps += 1
-	total_steps += 1
-	fight_square = Vector2i(-1, -1)
-	fight_enemies.clear()
-
-
 # --- Danger ------------------------------------------------------------------
 
-# +1 enemy Strength for every STEPS_PER_DANGER steps since you last rested.
+func raise_danger(amount: int) -> void:
+	var strength_before := enemy_strength()
+	danger_points += amount
+	if enemy_strength() > strength_before:
+		add_log("Danger %d! Every enemy now has +%d Strength." % [danger_points, enemy_strength()])
+
+
+# Danger points (shown on the danger meter).
 func danger() -> int:
-	return steps / steps_per_danger()
+	return danger_points
 
 
-func steps_per_danger() -> int:
-	return STEPS_PER_DANGER + GameState.town_bonus(TownBuilding.DANGER_STEPS)
+func danger_per_strength() -> int:
+	return DANGER_PER_STRENGTH + GameState.town_bonus(TownBuilding.DANGER_STEPS)
 
 
-# Steps until danger goes up again.
-func steps_to_next_danger() -> int:
-	return steps_per_danger() - steps % steps_per_danger()
+# The Strength every enemy gets: +1 for every danger_per_strength() danger.
+func enemy_strength() -> int:
+	return danger_points / danger_per_strength()
 
 
-# --- Rooms -------------------------------------------------------------------
+# How much more danger until enemies get stronger again.
+func danger_to_next() -> int:
+	return danger_per_strength() - danger_points % danger_per_strength()
 
-# The fight in fight_square was won. Returns "campfire" if it was a Mini
-# Boss (a campfire appears), "won" for the Boss, or "" for a normal fight.
+
+# --- Cards -------------------------------------------------------------------
+
+# The fight in fight_square was won. Returns "won" for the Boss, or "".
 func win_fight() -> String:
 	fights_won += 1
 	if not rooms.has(fight_square):
-		return ""  # A fight that isn't in a room (the battle scene run on its own with F6).
+		return ""  # A fight that isn't on the board (a duel, or the battle scene run on its own with F6).
 	var room: Dictionary = rooms[fight_square]
 	var card: RoomCard = room.card
-	room.cleared = true
+	room.cleared = true  # Safe now, until it's shuffled back in.
+	room.done = true
+	if card == null:
+		return ""
 	GameState.record_for_quest(Quest.CLEAR_ROOM, card.room_name)
-	if not card.loot.is_empty():
+	if not card.loot.is_empty() and card.is_fight():
 		add_log("Reward: %s" % take_loot(card))
 	if randi_range(1, 100) <= KEY_CHANCE:
 		keys += 1
@@ -478,91 +547,82 @@ func win_fight() -> String:
 		add_log("An enchant! %s" % _drop_enchant())
 	if GameState.potions_open() and randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
 		add_log("A potion! %s" % _drop_potion())
-	if randi_range(1, 100) <= SUPER_CARD_CHANCE.get(card.type, 0):
-		add_log("★ A SUPER CARD! %s" % _drop_super_card())
-	match card.type:
-		RoomCard.Type.BOSS:
-			room.done = true
-			result = "won"
-			add_log("You beat the boss! The %s is cleared." % area.display_name)
-			return "won"
-		RoomCard.Type.MINI_BOSS:
-			room.done = true  # A beaten Mini Boss never comes back.
-			room.campfire = true  # Its room becomes a campfire.
-			tier_up_waiting = true
-			add_log("The Mini Boss is beaten! A campfire is lit where it fell.")
-			return "campfire"
+	if card.type == RoomCard.Type.BOSS:
+		result = "won"
+		add_log("You beat the boss! The %s is cleared." % area.display_name)
+		return "won"
 	return ""
 
 
+# Open a Locked Chest with a small key. Returns what was inside ("" = you can't).
 func open_chest(square: Vector2i) -> String:
 	var room: Dictionary = rooms[square]
-	if keys <= 0 or room.get("opened", false):
+	if keys <= 0 or room.done:
 		return ""
 	keys -= 1
 	room.opened = true
 	room.done = true
 	var text := take_loot(room.card)
-	add_log("You open the chest: %s" % text)
+	add_log("You unlock %s: %s" % [room.card.room_name, text])
 	return text
 
 
-# Rest at a campfire: heal (battle HP is in GameState.run_hp), get your
-# Vanished cards back, and shuffle every room back into the deck. Rooms
-# that are done (a beaten Mini Boss, an opened chest) stay gone. If a Mini
-# Boss was just beaten, the next tier's cards (or the Boss) go in too.
-# The room you're in stays (its fire burns out); the rest of the map goes blank.
-#
-# GO DEEPER (heal = false) is the same move without the resting: no healing,
-# Vanished cards stay gone, the flask stays as it is. For now campfires only
-# offer Return to Town, plus Go Deeper after a Mini Boss (Dusty, 2026-11-01).
-func rest(heal := true) -> int:
-	var max_hp := GameState.player_max_hp()
-	var hp_before := GameState.run_hp if GameState.run_hp > 0 else max_hp
-	var hp_after := mini(hp_before + ceili(max_hp * REST_HEAL), max_hp) if heal else hp_before
-	GameState.run_hp = hp_after
-	if heal:
-		GameState.vanished.clear()
-		if flask:
-			flask_charges = flask_stats[Flask.CHARGES]  # The flask refills.
-	for square: Vector2i in rooms.keys():
+# Break a Locked Chest open: no key needed, but it's loud. BREAK_CHANCE % it
+# works. If it doesn't, danger goes up and the chest is ruined (its loot is
+# lost). Returns {"worked": bool, "text": what happened}.
+func break_chest(square: Vector2i) -> Dictionary:
+	var room: Dictionary = rooms[square]
+	if room.done:
+		return {"worked": false, "text": ""}
+	room.done = true
+	room.opened = true
+	if randi_range(1, 100) <= BREAK_CHANCE:
+		var text := take_loot(room.card)
+		add_log("You smash %s open: %s" % [room.card.room_name, text])
+		return {"worked": true, "text": text}
+	room.ruined = true
+	raise_danger(1)
+	add_log("CRASH! %s falls apart, and everything inside is ruined. Danger +1." % room.card.room_name)
+	return {"worked": false, "text": "The lock holds... then the whole thing collapses. Whatever was inside is ruined, and that was LOUD (Danger +1)."}
+
+
+# --- The campfire ---------------------------------------------------------------
+
+# Can the campfire you're standing at take you deeper? (The start of Floor 1
+# is the way into town, and the first trip only goes home.)
+func can_go_deeper() -> bool:
+	return not guided and rooms.has(position) and not rooms[position].get("start", false)
+
+
+# GO DEEPER: every card on the board goes back into the deck (used Vanish
+# cards are gone for the run instead), the next floor's cards are shuffled
+# in, and a fresh board is dealt. You start on this campfire, now burnt out:
+# a new one is hidden somewhere on the new board.
+# (No healing for now: Camper perks will add that later.)
+func go_deeper() -> void:
+	for square: Vector2i in rooms:
 		var room: Dictionary = rooms[square]
-		if square == position:
+		var card: RoomCard = room.card
+		if card == null or card.deck_part in [RoomCard.DECK_CAMPFIRE, RoomCard.DECK_BOSS, RoomCard.DECK_GUIDE]:
+			continue  # The campfire and the Boss are dealt fresh each floor.
+		if card.vanish and room.done:
+			gone.append(card)
 			continue
-		if room.card != null and not room.done:
-			deck.append(room.card)
-		rooms.erase(square)
-	walls.clear()
-	var here: Dictionary = rooms[position]
-	if here.card != null and not here.done:
-		# A Campfire room card: it stays lit for now, but goes back in the deck
-		# (it's "done" from now on, so it isn't added twice).
-		deck.append(here.card)
-		here.done = true
-	here.cleared = true
-	here.campfire = false  # The fire burns out: each campfire is used once.
-	steps = 0
-	if heal:
-		add_log("You rest: HP %d → %d. Vanished cards are back. The rooms shift..." % [hp_before, hp_after])
-	else:
-		add_log("You head deeper. The rooms shift...")
-	if tier_up_waiting:
-		tier_up_waiting = false
-		if tier < max_tier:
-			_add_tier(tier + 1)
-			GameState.record_for_quest(Quest.REACH_TIER, "", tier)
-			add_log("Tier %d! Harder rooms (and better loot) are shuffled in." % tier)
-		elif not boss_unlocked:
-			_add_boss()
-			add_log("The way to the Boss is open! Its room is in the deck.")
+		deck.append(card)
+	floor_number += 1
+	_add_floor_cards()
 	deck.shuffle()
-	return hp_after - hp_before
+	_deal()
+	GameState.record_for_quest(Quest.REACH_TIER, "", floor_number)
+	add_log("Floor %d! The cards are shuffled and dealt again. Find the next campfire!" % floor_number)
+	if boss_here():
+		add_log("The %s is somewhere on this board..." % boss_card().room_name)
 
 
-# Leave the dungeon (at a campfire): keep what you found.
+# Leave (at a campfire): keep what you found.
 func leave() -> void:
 	result = "left"
-	add_log("You leave the dungeon.")
+	add_log("You head back to town.")
 
 
 # You lose what you found, but keep what's in the Save Sack. Returns what
@@ -580,9 +640,44 @@ func die() -> String:
 	return saved
 
 
+# --- The deck list ------------------------------------------------------------------
+
+# What's still out there: one entry per card name, with how many you
+# haven't seen yet (face down on the board, or still in the draw pile) and
+# how many there are in all. For the dungeon screen's "Map Deck" list.
+#   [{"card": RoomCard, "unseen": 1, "total": 2}, ...] Safe first, then Explore, then Unsafe.
+func deck_summary() -> Array[Dictionary]:
+	var by_name := {}
+	var add := func(card: RoomCard, unseen: bool) -> void:
+		if not by_name.has(card.room_name):
+			by_name[card.room_name] = {"card": card, "unseen": 0, "total": 0}
+		by_name[card.room_name].total += 1
+		if unseen:
+			by_name[card.room_name].unseen += 1
+	for card in deck:
+		add.call(card, true)
+	for square: Vector2i in rooms:
+		var card: RoomCard = rooms[square].card
+		if card != null:
+			add.call(card, not rooms[square].revealed)
+	var order := {RoomCard.Tile.SAFE: 0, RoomCard.Tile.EXPLORE: 1, RoomCard.Tile.UNSAFE: 2}
+	var list: Array[Dictionary] = []
+	list.assign(by_name.values())
+	list.sort_custom(func(a: Dictionary, b: Dictionary) -> bool:
+		if a.card.tile != b.card.tile:
+			return order[a.card.tile] < order[b.card.tile]
+		return a.card.room_name < b.card.room_name)
+	return list
+
+
+# How many cards are still face down on the board.
+func face_down_count() -> int:
+	return rooms.values().filter(func(room: Dictionary) -> bool: return not room.revealed).size()
+
+
 # --- Loot ----------------------------------------------------------------------
 
-# Rock Hound talents: a better chance to find the area's material on a square.
+# Rock Hound talents: a % chance for 1 extra of a material you pick up.
 func _material_find_bonus() -> int:
 	if GameState.character_class == null:
 		return 0
@@ -621,7 +716,7 @@ func take_loot(card: RoomCard) -> String:
 			return "a card: %s" % found.card_name
 		"pack":
 			found_packs += 1
-			return "a %s pack" % PACK_NAME
+			return "a %s" % PACK_NAME
 		"key":
 			keys += 1
 			return "a small key"
@@ -629,19 +724,19 @@ func take_loot(card: RoomCard) -> String:
 			return "an enchant: " + _drop_enchant()
 		"potion":
 			return _drop_potion()
-		"super":  # "Super Card"
-			return "a Super card: " + _drop_super_card()
 		"map":
 			var room := GameState.unlock_random_room(area)
 			if room == null:
-				found_gold += 5  # Every room is already unlocked.
-				return "an old map of rooms you know (5 gold instead)"
-			return "a Map! New room for the %s: %s" % [area.display_name, room.room_name]
+				found_gold += 5  # Every card is already unlocked.
+				return "an old map of places you know (5 gold instead)"
+			return "a Map! A new map card for the %s: %s" % [area.display_name, room.room_name]
 	# A material: "Stone 2", "Stone 1-3" or "Green Ooze 2" (the name can have spaces).
 	var last := words[-1].split("-")
 	var material_name := " ".join(words.slice(0, -1)) if words.size() > 1 and last[0].is_valid_int() else entry.strip_edges()
 	if GameState.find_material(material_name):
 		var amount := randi_range(last[0].to_int(), last[-1].to_int()) if words.size() > 1 and last[0].is_valid_int() else 1
+		if not guided and randi_range(1, 100) <= _material_find_bonus():
+			amount += 1  # Rock Hound: a sharp eye for good finds.
 		add_found_material(material_name, amount)
 		return "%d %s" % [amount, material_name]
 	return entry
@@ -656,18 +751,6 @@ func _drop_enchant() -> String:
 	for enchant in choices:
 		names.append(enchant.enchant_name)
 	return " or ".join(names) + " (put it on a card from the dungeon screen)"
-
-
-# A random Super card you don't have yet this run, straight into your deck.
-func _drop_super_card() -> String:
-	var choices := GameState.load_super_cards().filter(func(c: CardData) -> bool: return not super_cards.has(c))
-	if choices.is_empty():
-		choices = GameState.load_super_cards()
-	if choices.is_empty():
-		return "nothing"
-	var card: CardData = choices.pick_random()
-	super_cards.append(card)
-	return "%s (in your deck until the run ends)" % card.card_name
 
 
 func _drop_potion() -> String:
@@ -757,7 +840,7 @@ func _empty_sack() -> void:
 		take_out_of_sack(0)
 
 
-# Give the player everything found (after Leaving or beating the Boss).
+# Give the player everything found (after Returning to Town or beating the Boss).
 func claim_loot() -> void:
 	_empty_sack()
 	GameState.gold += found_gold
@@ -780,7 +863,7 @@ func material_total(material_name: String) -> int:
 	return total
 
 
-# The guided run's goal: what the Innkeeper's quests need ({"Stone": 5, "Hops": 3}).
+# What your quests want you to bring home: {"Stone": 5, "Hops": 3}.
 func guide_needs() -> Dictionary:
 	return GameState.guide_needs()
 
@@ -792,6 +875,17 @@ func guide_goal_met() -> bool:
 		if material_total(material_name) + GameState.material_count(material_name) < needs[material_name]:
 			return false
 	return true
+
+
+# The HUNTING LIST: "Stone 3/5   Hops 0/3" (Bank + found so far), or "" if
+# no quest needs anything.
+func hunting_text() -> String:
+	var parts: Array[String] = []
+	var needs := guide_needs()
+	for material_name in needs:
+		var have := mini(material_total(material_name) + GameState.material_count(material_name), needs[material_name])
+		parts.append("%s %d/%d%s" % [material_name, have, needs[material_name], " ✓" if have >= needs[material_name] else ""])
+	return "   ".join(parts)
 
 
 # "23 gold, 1 pack, 2 cards" (or "nothing").

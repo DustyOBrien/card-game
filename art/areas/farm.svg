@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <!-- The Abandoned Farm: a broken-down red barn on a grassy hill. -->
+  <circle cx="64" cy="64" r="60" fill="#c9b98f" stroke="#3b2c1a" stroke-width="5"/>
+  <circle cx="92" cy="38" r="11" fill="#fff0a8"/>
+  <path d="M8 88 C30 72 56 74 72 80 C88 86 104 78 120 78 L120 92 C110 116 18 116 8 92 Z" fill="#7a9a48"/>
+  <path d="M34 80 L34 54 L54 40 L74 54 L74 80 Z" fill="#a8432f" stroke="#3b2c1a" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M30 56 L54 36 L70 50" stroke="#4a3a2a" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M70 50 L78 58" stroke="#4a3a2a" stroke-width="5" stroke-linecap="round"/>
+  <rect x="46" y="62" width="16" height="18" fill="#5a1e14"/>
+  <path d="M46 62 L62 80 M62 62 L46 80" stroke="#e8d9b0" stroke-width="2"/>
+  <path d="M84 82 L84 66 M80 70 L88 70 M92 84 L92 70 M88 74 L96 74" stroke="#6e4220" stroke-width="3" stroke-linecap="round"/>
+</svg>

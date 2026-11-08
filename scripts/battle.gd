@@ -80,7 +80,7 @@ var _ui_update_queued := false  # See queue_update_ui().
 # %Name finds any node marked as a "unique name" anywhere in this scene.
 @onready var player: Combatant = $Player
 
-@onready var fight_label: Label = %FightLabel  # "Plains · Tier 1 · Danger 0"
+@onready var fight_label: Label = %FightLabel  # "Abandoned Farm · Floor 1 · Danger 0"
 @onready var enemy_row: HBoxContainer = %EnemyRow  # The EnemyViews go in here.
 @onready var message_label: Label = %MessageLabel
 @onready var player_hp_label: Label = %PlayerHpLabel
@@ -321,15 +321,6 @@ func start_battle() -> void:
 		if GameState.run_enchants.has(i):
 			GameState.run_enchants[i].apply_to(card)
 		draw_pile.append(card)
-	# Super cards found this run (dungeon_run.gd). Their "deck index" carries
-	# on after your real deck's, so Vanish works for them too.
-	if GameState.dungeon:
-		for j in GameState.dungeon.super_cards.size():
-			var index := GameState.deck.size() + j
-			if not GameState.vanished.has(index):
-				var super_card: CardData = GameState.dungeon.super_cards[j].duplicate()
-				super_card.set_meta("deck_index", index)
-				draw_pile.append(super_card)
 	draw_pile.shuffle()
 	if tutorial:
 		tutorial.arrange_draw_pile(draw_pile)  # The training draws its cards in a set order.
@@ -339,8 +330,8 @@ func start_battle() -> void:
 
 	turn = 0
 	var dungeon := GameState.dungeon
-	fight_label.text = "%s  ·  Tier %d  ·  Danger %d" % [GameState.current_area.display_name,
-		dungeon.tier, dungeon.danger()]
+	fight_label.text = "%s  ·  Floor %d  ·  Danger %d" % [GameState.current_area.display_name,
+		dungeon.floor_number, dungeon.danger()]
 	if tutorial:
 		fight_label.text = "Training Grounds"
 	elif not GameState.duel.is_empty():
@@ -350,10 +341,10 @@ func start_battle() -> void:
 	var enemy_list: Array[String] = []
 	for view in enemy_views:
 		enemy_list.append("%s (%d HP)" % [view.data.display_name, view.data.max_hp])
-	battle_log.add("%s, tier %d: %s" % [GameState.current_area.display_name,
-		dungeon.tier, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
-	if dungeon.danger() > 0:
-		battle_log.add("Danger %d: every enemy has +%d Strength" % [dungeon.danger(), dungeon.danger()], BattleLog.ENEMY_COLOR)
+	battle_log.add("%s, floor %d: %s" % [GameState.current_area.display_name,
+		dungeon.floor_number, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
+	if dungeon.enemy_strength() > 0:
+		battle_log.add("Danger %d: every enemy has +%d Strength" % [dungeon.danger(), dungeon.enemy_strength()], BattleLog.ENEMY_COLOR)
 	battle_log.add("You are the %s (HP %d/%d, %d gold)" % [GameState.character_class.display_name,
 		player.hp, player.max_hp, GameState.gold], BattleLog.PLAYER_COLOR)
 	if not GameState.vanished.is_empty():
@@ -361,13 +352,13 @@ func start_battle() -> void:
 	start_player_turn()
 
 
-# Where this fight is, for the monster book: "Plains, Tier 2" or "Training Grounds".
+# Where this fight is, for the monster book: "Abandoned Farm, Floor 2" or "Training Grounds".
 func fight_place() -> String:
 	if not GameState.duel.is_empty():
 		return "Training Grounds (a duel)"
 	if GameState.dungeon == null:
 		return GameState.current_area.display_name
-	return "%s, Tier %d" % [GameState.current_area.display_name, GameState.dungeon.tier]
+	return "%s, Floor %d" % [GameState.current_area.display_name, GameState.dungeon.floor_number]
 
 
 # Make the enemies for this fight: the area's encounter for this fight number,
@@ -398,8 +389,8 @@ func add_enemy(enemy_data: EnemyData, hp: int = 0, at: int = -1) -> EnemyView:
 	# (not the training dummies).
 	if not tutorial:
 		GameState.see_monster(enemy_data.display_name, fight_place())
-	# Danger: the longer you wander the dungeon without resting, the stronger they are.
-	view.combatant.strength = GameState.dungeon.danger() if GameState.dungeon else 0
+	# Danger: the more trouble you stir up on this trip, the stronger they are.
+	view.combatant.strength = GameState.dungeon.enemy_strength() if GameState.dungeon else 0
 	if at >= 0:
 		enemy_row.move_child(view, at)
 	# bind() adds `view` to the call, so we know WHICH enemy died.

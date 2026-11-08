@@ -21,13 +21,13 @@
 #   Clear Room   Big Slime Nest beat that room (counted while the quest is active)
 #   Defeat       Slime 10       defeat that many (counted while the quest is active;
 #                Any = any monster, but not the training dummies)
-#   Open Packs   Plains Booster Pack 10   open that many packs (any size)
-#   Reach Tier   3              get to that tier in any dungeon
+#   Open Packs   Farm Booster Pack 10     open that many packs (any size)
+#   Reach Tier   3              get to that floor in any dungeon (Go Deeper)
 #
 # Rewards and Start Gift (several, split by ";"):
-#   Gold 20, Pack Small 2 (Small / Medium / Large Plains Booster Packs),
+#   Gold 20, Pack Small 2 (Small / Medium / Large Farm Booster Packs),
 #   Material Lumber 5, Blueprint Alchemist, Unlock Pack Rat (opens a spec),
-#   Room Plains: Big Slime Nest (puts a quest-locked room card in the deck)
+#   Room Abandoned Farm: Big Slime Nest (adds a quest-locked map card)
 class_name Quest
 extends Resource
 
@@ -66,5 +66,5 @@ func objective_text() -> String:
 		CLEAR_ROOM: return "Beat the %s" % target
 		DEFEAT: return "Defeat %d %s" % [amount, "enemies" if target.to_lower() == ANY else target]
 		OPEN_PACKS: return "Open %d %ss" % [amount, target]
-		REACH_TIER: return "Reach Tier %d in a dungeon" % amount
+		REACH_TIER: return "Reach Floor %d of a dungeon" % amount
 	return "%s %s" % [objective, target]

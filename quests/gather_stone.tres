@@ -6,9 +6,9 @@
 script = ExtResource("1_r7bxq")
 quest_name = "Gather Stone"
 giver = "The Innkeeper"
-text = "\"This town is going to need a LOT of stone, Architect. The Plains are full of it: bring home 5 and keep it in the Bank, you'll want it.\" Take the road out of town to the Plains. No monsters out there yet: you're the Architect, so you'll explore it yourself. Look for Shiny Rocks."
+text = "\"This town is going to need a LOT of stone. The Abandoned Farm's old walls are falling down: bring home 5 Stone and keep it in the Bank, you'll want it.\" Take the road out of town to the Abandoned Farm. Collapsed Walls have Stone."
 objective = "have"
 target = "Stone"
 amount = 5
 rewards = "Pack Small 1; Blueprint Alchemist"
-starts_after = "Inn Built"
+starts_after = "Adventurer Trained"

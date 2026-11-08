@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_name = "Old Well"
+area = "Room"
+text = "An old stone well. The rope still holds a bucket."
+choice_labels = PackedStringArray("Fill your flask", "Drink", "Make a wish", "Leave it")
+chances = Array[int]([100, 100, 50, 100])
+effects = PackedStringArray("Flask", "Heal 4", "Pay 2; Key", "")
+fail_effects = PackedStringArray("", "", "Pay 2", "")
+results = PackedStringArray("Cold, clear water. Your flask is a little fuller (+1 charge).", "You drink deeply. That feels better.", "Something glints at the bottom of the bucket: a small key!", "You leave the well be.")
+fail_results = PackedStringArray("", "", "Plop. The coin sinks. Nothing happens.", "")

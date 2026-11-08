@@ -44,8 +44,9 @@ const NEUTRAL_COLOR := Color(0.4, 0.4, 0.42)
 enum Target { SINGLE, ALL, RANDOM }
 
 # Rarity is just one value per card, so it's a normal enum (0, 1, 2, 3), not flags.
-# SUPER cards only come from data/super_cards.csv: rare drops (Mini Bosses,
-# events) that join your deck for ONE run and are gone after it.
+# SUPER: the old run-only boss drops. Removed for now (Dusty, 2026-11-08), so
+# no card uses it; it stays in the list so the numbers saved in card files
+# don't shift. The card system redesign will bring a Legendary rarity.
 enum Rarity { COMMON, UNCOMMON, RARE, SUPER }
 const RARITY_COLORS := {
 	Rarity.COMMON: Color(0.85, 0.85, 0.85),

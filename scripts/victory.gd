@@ -71,11 +71,7 @@ func _ready() -> void:
 		stats.add_child(make_stat("Fights won", str(dungeon.fights_won)))
 		stats.add_child(make_stat("Steps walked", str(dungeon.total_steps)))
 		stats.add_child(make_stat("Taken home", dungeon.loot_text()))
-		if not dungeon.super_cards.is_empty():
-			var names: Array[String] = []
-			for card in dungeon.super_cards:
-				names.append(card.card_name)
-			stats.add_child(make_stat("Super cards used", ", ".join(names)))
+		stats.add_child(make_stat("Deepest floor", str(dungeon.floor_number)))
 	stats.add_child(make_stat("Exp", "+%d" % info.get("exp", 0)))
 
 	# The new area: its picture, pulsing.

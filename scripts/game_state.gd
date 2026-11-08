@@ -40,9 +40,9 @@ var gold := 0  # Kept between runs, and saved (see "Saving" below).
 var dungeon: DungeonRun  # The dungeon in progress (null between runs).
 var run_gold := 0  # Gold you took home from the last run, for the shop's summary.
 var run_hp := -1  # Your HP between fights. -1 = start the next fight at full HP.
-# Room cards you've unlocked with Maps, per area: {"Plains": ["Slime Den"]}.
+# Map cards you've unlocked with Maps and quests, per place: {"Abandoned Farm": ["Deep Well"]}.
 var unlocked_rooms := {}
-# Booster packs you own and have not opened yet, by name: {"Small Plains Booster Pack": 2}.
+# Booster packs you own and have not opened yet, by name: {"Small Farm Booster Pack": 2}.
 var booster_packs := {}
 
 # --- Town, enchants and potions ---------------------------------------------
@@ -88,12 +88,12 @@ const MAX_COPIES := 3  # The most copies of one card you can own (and put in a d
 # The chance of each rarity for every card in a pack. They add up to 100.
 const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10, CardData.Rarity.SUPER: 0}  # Super cards never come from packs.
 # The booster packs: how many cards each holds, and its Shop price: gold
-# AND Plains Stone ("materials"), so you farm the Plains for Plains packs.
+# AND Farm Stone ("materials"), so you farm the Farm for Farm packs.
 # Quest rewards name them by size ("Pack Medium 2"). Every pack uses PACK_ODDS.
 const PACKS := [
-	{"name": "Small Plains Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}},
-	{"name": "Medium Plains Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}},
-	{"name": "Large Plains Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}},
+	{"name": "Small Farm Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}},
+	{"name": "Medium Farm Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}},
+	{"name": "Large Farm Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}},
 ]
 var collection := {}
 
@@ -141,15 +141,14 @@ var saved_decks := {}
 
 # Remembered lists, so the cards/ folder is only read once (see load_all_cards()).
 var _all_cards: Array[CardData] = []
-var _super_cards: Array[CardData] = []
 var _cards_by_name := {}  # "Strike" -> its CardData, for find_card().
 var _classes: Array[CharacterClass] = []  # For load_classes().
 var _talents := {}  # Class name -> its Array[Talent], for talents_for().
 var _enemies_by_name := {}  # "Slime" -> its EnemyData, for find_enemy().
 
 const ENEMIES_FOLDER := "res://enemies/"
-# Areas whose boss you've beaten (finished a run there): ["Plains"].
-# An area with Unlock After = "Plains" opens once the Plains is in here.
+# Places whose boss you've beaten: ["Abandoned Farm"].
+# An area with Unlock After = "Abandoned Farm" opens once the Farm is in here.
 var cleared_areas: Array[String] = []
 # The last final-Boss win, for the Victory screen (victory.gd): area, boss, opened areas, exp.
 var last_victory := {}
@@ -175,18 +174,21 @@ var seen_guides: Array[String] = []  # Screen guides you've seen (screen_guide.g
 # "Starts After" is "Inn Built" starts when that beat happens (reach_milestone()).
 var story_beats: Array[String] = []
 const TALENTS_FEATURE := "Talents"
-# The "Unlock Adventurer" quest reward (the Need Hops quest): the first
-# adventurer moves into the Inn. Until then YOU, the Architect, explore.
+# The first adventurer moves into the Inn the moment it's built (town.gd).
+# Until then you're the Architect, running the town: nobody can explore yet.
 const ADVENTURER_FEATURE := "Adventurer"
 # Milestones (quests.csv "Starts After" can name one of these instead of a quest).
-const INN_BUILT := "Inn Built"  # The Innkeeper has thanked you: the first quests.
-const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the training + deck builder.
+const INN_BUILT := "Inn Built"  # The Innkeeper has thanked you, and the Adventurer checks in.
+const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the training + deck builder: the first quests.
+# Story beat: the FIRST TRIP to the Farm is done (you came home with the
+# Innkeeper's Stone and Hops). Until then, every Farm trip is that guided one.
+const FIRST_TRIP := "First Farm Trip"
 const FIRST_LEVEL_UP := "First Level Up"  # Any class reached level 2: the Old Master appears.
 # Monsters you've beaten in the dungeons (not the training dummies). Saved.
 # The Old Master is impressed by it.
 var monsters_slain := 0
 # THE DOJO'S MONSTER BOOK. Every monster you've met, by name:
-#   {"seen": ["Plains, Tier 1", ...], "kills": 3}
+#   {"seen": ["Abandoned Farm, Floor 1", ...], "kills": 3}
 # "seen" lists the places you've fought it. Each kill is worth MONSTER_EXP_PER_KILL
 # Monster Exp for that monster (nothing uses the levels yet, it's the start of
 # the feature). Saved.
@@ -452,7 +454,7 @@ func start_duel(enemy_name: String) -> void:
 	run_hp = -1
 	vanished.clear()
 	run_enchants.clear()
-	var fight := DungeonRun.new(current_area)
+	var fight := DungeonRun.new(current_area)  # Not start()ed: no board, just this fight.
 	var enemy := find_enemy(enemy_name)
 	if enemy:
 		fight.fight_enemies.append(enemy)
@@ -511,6 +513,7 @@ func start_run() -> void:
 	run_enchants.clear()  # Enchants only last one run.
 	dungeon = DungeonRun.new(current_area) if current_area else null
 	if dungeon:
+		dungeon.start()  # Build the map deck and deal the first board.
 		# What you bought in town for this run.
 		for enchant_name in pending_enchants:
 			var enchant := find_enchant(enchant_name)
@@ -758,8 +761,9 @@ func reach_milestone(beat: String) -> bool:
 	return true
 
 
-# What the Architect's guided run is after: every material an active Have
-# or Deliver quest still needs, e.g. {"Stone": 5, "Hops": 3}.
+# What your quests want you to bring home (the dungeon's HUNTING LIST, and
+# the first trip's goal): every material an active Have or Deliver quest
+# needs, e.g. {"Stone": 5, "Hops": 3}.
 func guide_needs() -> Dictionary:
 	var needs := {}
 	for quest in quests_active():
@@ -768,7 +772,7 @@ func guide_needs() -> Dictionary:
 	return needs
 
 
-# "Gold 20; Pack 1; Material Lumber 5; Blueprint Alchemist; Room Plains: Big Slime Nest"
+# "Gold 20; Pack 1; Material Lumber 5; Blueprint Alchemist; Room Abandoned Farm: Big Slime Nest"
 # unlocks_only = true skips gold, packs and materials and only hands out
 # blueprints, rooms and unlocks. load_game() uses that to catch an old save up
 # when a quest it already finished gets a new reward in quests.csv (giving
@@ -802,14 +806,14 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 				if not blueprints.has(rest):
 					blueprints.append(rest)
 				lines.append("Blueprint: " + rest)
-			"room":  # "Room Plains: Blue Slime Patch"
+			"room":  # "Room Abandoned Farm: Blue Slime Patch"
 				var area_name := rest.get_slice(":", 0).strip_edges()
 				var room_name := rest.get_slice(":", 1).strip_edges()
 				if not unlocked_rooms.has(area_name):
 					unlocked_rooms[area_name] = []
 				if not unlocked_rooms[area_name].has(room_name):
 					unlocked_rooms[area_name].append(room_name)
-				lines.append("New room in the %s: %s" % [area_name, room_name])
+				lines.append("New map card for the %s: %s" % [area_name, room_name])
 			"legacy":  # "Legacy Point 1": Legacy Talent Points, for every class.
 				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
 				legacy_talent_points += points
@@ -1138,8 +1142,8 @@ func player_max_hp() -> int:
 
 # --- Room cards ---------------------------------------------------------------
 
-# Is this room card in the area's deck? Cards start Unlocked (the sheet's
-# Unlocked column), or you find a Map for them.
+# Is this map card in the place's deck? Cards start Unlocked (the sheet's
+# Unlocked column), or a quest or a Map unlocks them.
 func is_room_unlocked(area: Area, card: RoomCard) -> bool:
 	return card.unlocked or unlocked_rooms.get(area.display_name, []).has(card.room_name)
 
@@ -1148,7 +1152,7 @@ func is_room_unlocked(area: Area, card: RoomCard) -> bool:
 # away: what you learn from a map stays, even if you die). null if none are left.
 func unlock_random_room(area: Area) -> RoomCard:
 	# Quest rooms are left out: only their quest unlocks them.
-	var locked := area.rooms.filter(func(card: RoomCard) -> bool: return not card.quest_only and not is_room_unlocked(area, card))
+	var locked := area.cards().filter(func(card: RoomCard) -> bool: return not card.quest_only and not is_room_unlocked(area, card))
 	if locked.is_empty():
 		return null
 	var card: RoomCard = locked.pick_random()
@@ -1426,7 +1430,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 5  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer.
+const SAVE_VERSION := 6  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn.
 
 
 func save_game() -> void:
@@ -1542,7 +1546,7 @@ func load_game() -> bool:
 		quest_progress[str(data.active_quest)] = int(saved_progress) if not saved_progress is Dictionary else 0
 		if not bool(data.get("quest_seen", true)):
 			unseen_quests.append(str(data.active_quest))
-	# Packs from before Plains Booster Packs: they become Small ones.
+	# Packs from before booster pack sizes: they become Small ones.
 	if booster_packs.has("Basic Booster"):
 		add_packs(PACKS[0].name, booster_packs["Basic Booster"])
 		booster_packs.erase("Basic Booster")
@@ -1609,23 +1613,20 @@ func load_classes() -> Array[CharacterClass]:
 # Is this area open on the map? Open from the start, or its Unlock After
 # area has been cleared (you beat that area's boss).
 func is_area_unlocked(area: Area) -> bool:
-	if not adventurers_here():
-		# No adventurer yet: nothing is open until the Inn is built. Then
-		# the Architect (you) can take the guided trip for the Innkeeper's
-		# first two quests (Stone and Hops).
-		return town_bonus(TownBuilding.INN) > 0 and has_guide_rooms(area)
+	if area.coming_later or not adventurers_here():
+		return false  # Still being built, or nobody to send out yet (the Adventurer comes with the Inn).
 	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
 
 
-# Does this area have rooms for the guided first run (Tier "Guide" in rooms.csv)?
+# Does this place have a first-trip board (Deck = Guide in its map card sheet)?
 func has_guide_rooms(area: Area) -> bool:
-	return area.rooms.any(func(card: RoomCard) -> bool: return card.tier == RoomCard.GUIDE_TIER)
+	return area.cards().any(func(card: RoomCard) -> bool: return card.deck_part == RoomCard.DECK_GUIDE)
 
 
-# A run before the first adventurer arrives is the Architect's guided one:
-# no enemies, just tips.
+# Until you've come home from it once, a trip to the Farm is the FIRST TRIP:
+# a set board with tips (dungeon.gd), for the Innkeeper's Stone and Hops.
 func is_guided_run(area: Area) -> bool:
-	return not adventurers_here() and has_guide_rooms(area)
+	return adventurers_here() and has_guide_rooms(area) and not story_beats.has(FIRST_TRIP)
 
 
 # Talents and specs stay hidden until a quest unlocks them (after the first boss).
@@ -1633,9 +1634,9 @@ func talents_open() -> bool:
 	return unlocked_features.has(TALENTS_FEATURE)
 
 
-# Has an adventurer come to town yet? The Need Hops quest brings the first
-# one ("Unlock Adventurer"). Until then no class is playable: you're the
-# Architect, running the town (and exploring the Plains yourself, safely).
+# Has an adventurer come to town yet? The first one checks into the Inn as
+# soon as it's built ("Unlock Adventurer", town.gd). Until then no class is
+# playable: you're the Architect, running the town.
 func adventurers_here() -> bool:
 	return unlocked_features.has(ADVENTURER_FEATURE)
 
@@ -1657,7 +1658,7 @@ func clear_area(area: Area) -> Array[Area]:
 # An enemy by name ("Slimeling"), for summons and splits. null if there's none.
 # --- The monster book (the Dojo) ---------------------------------------------
 
-# You met this monster at `place` ("Plains, Tier 1"): it goes in the book.
+# You met this monster at `place` ("Abandoned Farm, Floor 1"): it goes in the book.
 func see_monster(monster: String, place: String) -> void:
 	var seen: Array[String] = book_entry(monster).seen
 	if not place.is_empty() and not seen.has(place):
@@ -1740,15 +1741,6 @@ func find_event(event_name: String) -> DungeonEvent:
 	return null
 
 
-# The run-only Super cards (data/super_cards.csv -> cards/super/). Not in packs or the collection.
-func load_super_cards() -> Array[CardData]:
-	if _super_cards.is_empty():
-		for file_name in ResourceLoader.list_directory(CardImporter.SUPER_FOLDER):
-			if file_name.ends_with(".tres"):
-				_super_cards.append(load(CardImporter.SUPER_FOLDER + file_name))
-	return _super_cards
-
-
 func load_all_cards() -> Array[CardData]:
 	if _all_cards.is_empty():
 		for file_name in ResourceLoader.list_directory(CARDS_FOLDER):
@@ -1797,6 +1789,7 @@ func ensure_ready() -> void:
 	elif deck.is_empty():
 		deck = make_starter_deck()
 	if current_area == null:
-		current_area = load_areas()[0]  # The first area on the road (the Plains).
+		current_area = load_areas()[0]  # The first place on the road (the Abandoned Farm).
 	if dungeon == null:
 		dungeon = DungeonRun.new(current_area)
+		dungeon.start()

@@ -1,7 +1,7 @@
 # area.gd
 #
-# An Area is one place on the map (Plains, Forest, Cave...). Each run is a
-# trip into the dungeon of the area you pick on the map screen.
+# An Area is one PLACE on the map (the Abandoned Farm, the Forest, the
+# Cave...). Each run is an expedition into the place you pick on the map screen.
 #
 # Like cards and classes, an area is a Resource: one .tres file per area in
 # the areas/ folder. To ADD AN AREA, duplicate areas/forest.tres in Godot's
@@ -13,10 +13,13 @@ extends Resource
 @export var display_name: String = "New Area"
 @export_multiline var description: String = ""  # Shown when you point at it on the map.
 @export var unlocked: bool = false  # Open from the start? Locked areas show on the map but can't be picked.
-# The area whose boss opens this one, e.g. "Plains" for the Forest. Blank = only `unlocked` counts.
+# The area whose boss opens this one, e.g. "Abandoned Farm" for the Forest. Blank = only `unlocked` counts.
 @export var unlock_after: String = ""
-# This area's own material ("Stone"): it turns up on explored squares now
-# and then (see dungeon_run.gd). Monsters can drop it too (enemies.csv Drops).
+# true = shown on the map, but not open yet whatever you do: it's still being
+# built (the Forest waits until the Farm's new map cards feel right).
+@export var coming_later: bool = false
+# This area's own material ("Stone"). The map cards' Loot and the monsters'
+# Drops (enemies.csv) are what really hand it out.
 @export var material: String = ""
 @export var sort_order: int = 0  # The order along the road: 0 first.
 @export var icon: Texture2D  # The round picture on the map.
@@ -24,6 +27,16 @@ extends Resource
 # Where the area's button sits on the map, in pixels from the top-left of the
 # 1280 x 720 screen. Its centre goes here.
 @export var map_position: Vector2 = Vector2(640, 360)
-# The area's room cards (see room_card.gd and dungeon_run.gd), from the
-# spreadsheet data/dungeons/rooms.csv. Every tier's cards are in here.
+# The place's MAP CARD sheet (map_cards.gd), e.g.
+# "res://data/dungeons/farm_cards.csv". Read when the game runs.
+@export var map_card_sheet: String = ""
+# The old room deck (rooms.csv, saved in here by the importer), for places
+# without a map card sheet yet.
 @export var rooms: Array[RoomCard] = []
+
+
+# Every map card this place has (each one once; Copies says how many go in the deck).
+func cards() -> Array[RoomCard]:
+	if not map_card_sheet.is_empty():
+		return MapCards.load_sheet(map_card_sheet)
+	return rooms

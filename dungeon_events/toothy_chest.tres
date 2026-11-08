@@ -5,7 +5,7 @@
 [resource]
 script = ExtResource("1_5o6ns")
 event_name = "Toothy Chest"
-area = "Plains"
+area = "Abandoned Farm"
 text = "A chest sits alone in the grass. It has... teeth marks? Or teeth?"
 choice_labels = PackedStringArray("Open it", "Leave it")
 chances = Array[int]([50, 100])

@@ -10,6 +10,6 @@ Enchanter,1,40,Enchanter,1,enchanter.svg,Enchants for your next run.,Buy enchant
 Enchanter,2,70,Enchant Choice,1,,,"When an enchant drops, choose from 2",Stone 10,
 Alchemist,1,0,Alchemist,1,alchemist.svg,Brews flasks and potions.,"Brew flasks, and potions start dropping (Healing Potion unlocked)",Stone 5; Green Ooze 5,Yes
 Alchemist,2,60,Potion Slots,1,,,Carry 1 more potion,Stone 10,
-Mapmaker,1,40,Mapmaker,1,mapmaker.svg,Draws maps of the dungeons.,Buy maps that unlock new room cards,Stone 5,Yes
-Mapmaker,2,70,Danger Steps,2,,,Danger rises every 2 more steps,Stone 10,
+Mapmaker,1,40,Mapmaker,1,mapmaker.svg,Draws maps of the dungeons.,Buy maps that unlock new map cards,Stone 5,Yes
+Mapmaker,2,70,Danger Steps,1,,,Enemies get stronger every 4 Danger instead of 3,Stone 10,
 Dojo,1,20,Dojo,1,dojo.svg,A training hall where the Old Master teaches. Your talents and the Monster Book live here.,Talents + the Monster Book (every monster you meet),Stone 10,Yes

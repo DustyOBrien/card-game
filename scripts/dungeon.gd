@@ -1,8 +1,9 @@
 # dungeon.gd
 #
-# The dungeon screen (scenes/dungeon.tscn): the 5 x 5 grid you explore
-# between fights. Click a square next to the explored area to step into the
-# unknown (a room card is drawn), or click any explored room to walk back.
+# The dungeon screen (scenes/dungeon.tscn): the 5 x 5 BOARD of map cards.
+# Every card starts face down. Click a card next to the ones you've made
+# safe to step onto it: it FLIPS over, and you deal with whatever it is.
+# Click any face-up safe card to walk back to it.
 #
 # All the RULES live in dungeon_run.gd (GameState.dungeon). This script only
 # draws them and turns clicks into calls like dungeon.move_to(square). So
@@ -21,11 +22,13 @@ const PACK_ICON := preload("res://icons/booster.svg")
 const SACK_ICON := preload("res://art/potions/sack.svg")
 const POTION_ICON := preload("res://art/potions/potion.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
+const CARD_BACK := preload("res://art/map_cards/card_back.svg")
 
 const SQUARE_SIZE := Vector2(108, 108)
 const GAP := 6
+const FLIP_TIME := 0.14  # Seconds for each half of a card flip.
 
-# One picture per kind of room. (Empty rooms have no picture, just a name.)
+# A picture for cards whose row has no Art (the old room decks).
 const ICONS := {
 	RoomCard.Type.FIGHT: preload("res://art/rooms/fight.svg"),
 	RoomCard.Type.HARD_FIGHT: preload("res://art/rooms/hard_fight.svg"),
@@ -42,14 +45,14 @@ const START_ICON := preload("res://art/rooms/start.svg")
 const PLAYER_ICON := preload("res://art/rooms/player.svg")
 
 # Square colours.
-const FOG_COLOR := Color(0.08, 0.09, 0.12, 0.85)  # Not explored, can't reach yet.
-const REACHABLE_COLOR := Color(0.2, 0.24, 0.32, 0.92)  # Not explored, one step away: click to explore.
-const ROOM_COLOR := Color(0.32, 0.27, 0.2, 0.95)  # An explored room.
-const DANGER_ROOM_COLOR := Color(0.45, 0.16, 0.14, 0.95)  # A fight you haven't won yet.
-const CAMPFIRE_COLOR := Color(0.5, 0.32, 0.1, 0.95)
-const WALL_COLOR := Color(0.03, 0.03, 0.04, 0.95)  # A dead end (the room deck ran out).
+const BACK_COLOR := Color(0.16, 0.12, 0.08, 0.95)  # A face-down card.
+const CARD_COLOR := Color(0.3, 0.26, 0.2, 0.96)  # A face-up card.
+const DANGER_CARD_COLOR := Color(0.45, 0.16, 0.14, 0.96)  # A fight you haven't won yet.
+const CAMPFIRE_COLOR := Color(0.5, 0.32, 0.1, 0.96)
+const GROUND_COLOR := Color(0.12, 0.11, 0.1, 0.9)  # A square with no card (the deck ran out).
 const HOVER_BORDER := Color(1.0, 0.85, 0.35)
 const HERE_BORDER := Color(0.55, 0.9, 1.0)
+const USED_TINT := Color(1, 1, 1, 0.4)  # A card you've used up (looted, beaten...).
 
 @onready var background: TextureRect = %Background
 @onready var grid: GridContainer = %Grid
@@ -66,16 +69,20 @@ var dungeon: DungeonRun
 var squares := {}  # Vector2i -> the Button drawn for that square.
 var reach := {}  # Where you can step to: dungeon.reachable(), worked out once per refresh().
 var _boxes := {}  # Square styles we've already made, so a redraw reuses them.
+var busy := false  # A card is flipping: clicks wait.
 # The Save Sack, Found and enchant/potion rows in the side panel (built in code).
 var sack_row: HBoxContainer
 var found_row: HFlowContainer
 var enchant_button: Button
 var potion_row: HBoxContainer
 var picker: ColorRect  # The "put an enchant on a card" screen, while it's open.
-var guide_label: Label  # The guided first run's tip box (null on normal runs).
+var deck_list: ColorRect  # The "Map Deck" list, while it's open.
+var deck_button: Button
+var guide_label: Label  # The first trip's tip box (null on normal runs).
 # The popup's picture (a key, a chest...) and its little animation.
 var popup_holder: Control
 var popup_picture: TextureRect
+var popup_badge: Label  # "SAFE" / "UNSAFE" / "EXPLORE" under the title, for map cards.
 var popup_sparkles: CPUParticles2D
 var popup_tween: Tween
 var popup_loot_texture: Texture2D  # What pops out of a chest you just opened.
@@ -100,34 +107,39 @@ func _ready() -> void:
 		build_guide()
 	popup.hide()
 	refresh()
-	# Back from beating a Mini Boss: its room is a campfire now. Offer it
-	# straight away (you can still say Not now and keep exploring: the next
-	# tier waits until you rest at a campfire).
-	if dungeon.tier_up_waiting and dungeon.rooms[dungeon.position].campfire:
-		show_campfire()
 
 
 # --- Drawing ----------------------------------------------------------------
 
-# A row of the room pictures and their names, under the grid.
+# Under the board: what the three tile colours mean, and the Map Deck button.
 func build_legend() -> void:
 	var legend := HBoxContainer.new()
 	legend.add_theme_constant_override("separation", 10)
-	legend.position = grid.position + Vector2(0, grid.size.y + 10)
-	legend.size = Vector2(grid.size.x, 36)
+	legend.position = grid.position + Vector2(0, grid.size.y + 8)
+	legend.size = Vector2(grid.size.x, 40)
 	legend.alignment = BoxContainer.ALIGNMENT_CENTER
-	for type in [RoomCard.Type.FIGHT, RoomCard.Type.HARD_FIGHT, RoomCard.Type.LOCKED_CHEST,
-			RoomCard.Type.TREASURE, RoomCard.Type.EVENT, RoomCard.Type.CAMPFIRE, RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS]:
-		var picture := TextureRect.new()
-		picture.texture = ICONS[type]
-		picture.custom_minimum_size = Vector2(26, 26)
-		picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-		picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-		legend.add_child(picture)
+	for tile in [RoomCard.Tile.SAFE, RoomCard.Tile.UNSAFE, RoomCard.Tile.EXPLORE]:
+		var chip := ColorRect.new()
+		chip.color = RoomCard.TILE_COLORS[tile]
+		chip.custom_minimum_size = Vector2(16, 16)
+		chip.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		legend.add_child(chip)
 		var name_label := Label.new()
-		name_label.text = RoomCard.TYPE_NAMES[type]
-		name_label.add_theme_font_size_override("font_size", 13)
+		name_label.text = RoomCard.TILE_NAMES[tile]
+		name_label.add_theme_font_size_override("font_size", 14)
+		name_label.tooltip_text = {
+			RoomCard.Tile.SAFE: "Safe: nothing to fear here.",
+			RoomCard.Tile.UNSAFE: "Unsafe: always a fight, and Danger goes up when you find it.",
+			RoomCard.Tile.EXPLORE: "Explore: a choice. Some need something (a key), and failing one raises Danger.",
+		}[tile]
+		name_label.mouse_filter = Control.MOUSE_FILTER_PASS
 		legend.add_child(name_label)
+	deck_button = Button.new()
+	deck_button.custom_minimum_size = Vector2(150, 34)
+	deck_button.add_theme_font_size_override("font_size", 15)
+	deck_button.tooltip_text = "Every card in this place's map deck, and how many you haven't seen yet."
+	deck_button.pressed.connect(show_deck_list)
+	legend.add_child(deck_button)
 	add_child(legend)
 
 
@@ -136,6 +148,7 @@ func make_square(square: Vector2i) -> Button:
 	button.custom_minimum_size = SQUARE_SIZE
 	button.focus_mode = Control.FOCUS_NONE
 	button.clip_contents = true
+	button.pivot_offset = SQUARE_SIZE / 2  # Flips turn around the middle.
 	button.pressed.connect(_on_square_pressed.bind(square))
 	button.mouse_entered.connect(_on_square_hovered.bind(square))
 	button.mouse_exited.connect(func() -> void: info_label.text = default_info())
@@ -180,32 +193,36 @@ func refresh() -> void:
 	for square: Vector2i in squares:
 		draw_square(square)
 	var hp := GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
-	title_label.text = "%s  ·  Tier %d / %d" % [dungeon.area.display_name, dungeon.tier, dungeon.max_tier] \
-		if not dungeon.guided else "%s  ·  The Architect explores" % dungeon.area.display_name
+	title_label.text = "%s  ·  Floor %d" % [dungeon.area.display_name, dungeon.floor_number] \
+		if not dungeon.guided else "%s  ·  Your first trip" % dungeon.area.display_name
 	var lines: Array[String] = []
-	if not dungeon.guided:  # The Architect's trip has no fights, so no HP to watch.
-		lines.append("[color=#ff8080]HP %d / %d[/color]" % [hp, GameState.player_max_hp()])
-	lines.append("[color=#ffd75a]Keys: %d[/color]" % dungeon.keys)
+	lines.append("[color=#ff8080]HP %d / %d[/color]     [color=#ffd75a]Keys: %d[/color]" % [hp, GameState.player_max_hp(), dungeon.keys])
+	# The DANGER METER: how much, what it does now, and when it gets worse.
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
-	if not dungeon.guided:  # No enemies on the guided run, so no Danger either.
-		lines.append("[color=%s]Danger %d[/color]  (enemies +%d Strength; +1 more in %d steps)" % [
-			danger_color, dungeon.danger(), dungeon.danger(), dungeon.steps_to_next_danger()])
-	lines.append("Rooms left in the deck: %d" % dungeon.deck.size())
-	if dungeon.boss_unlocked:
-		lines.append("[color=#ff6060]The Boss is somewhere in the deck![/color]")
-	elif dungeon.tier_up_waiting:
-		lines.append("[color=#ffd75a]Go Deeper at the campfire.[/color]")
+	lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Strength  ·  [color=#ffb080]%d more → +%d[/color]" % [
+		danger_color, dungeon.danger(), dungeon.enemy_strength(), dungeon.danger_to_next(), dungeon.enemy_strength() + 1])
+	var hunting := dungeon.hunting_text()
+	if not hunting.is_empty():
+		lines.append("[color=#a8e0ff]Hunting: %s[/color]" % hunting)
+	if dungeon.boss_here():
+		lines.append("[color=#ff6060]The %s is somewhere on this board![/color]" % dungeon.boss_card().room_name)
 	stats_label.text = "\n".join(lines)
 	stats_label.tooltip_text = "\n".join([
-		"HP: carries over from fight to fight. Resting at a campfire heals %d%%." % roundi(DungeonRun.REST_HEAL * 100),
-		"Keys: fights drop a small key %d%% of the time. A key opens one Locked Chest." % DungeonRun.KEY_CHANCE,
-		"Danger: every %d steps since your last rest, every enemy gets +1 Strength. Resting resets it." % dungeon.steps_per_danger(),
-		"Found: only yours once you get out (Leave at a campfire, or beat the Boss). Die and it's lost.",
-		"Rooms left: blank squares draw from this deck. When it's empty, the rest are dead ends until you rest.",
+		"HP: carries over from fight to fight.",
+		"Keys: fights drop a small key %d%% of the time. A key opens one locked chest or shed." % DungeonRun.KEY_CHANCE,
+		"Danger: +1 for every Unsafe card you find, and for some failed choices. Every %d Danger gives every enemy +1 Strength. It lasts the whole trip." % dungeon.danger_per_strength(),
+		"Hunting: what your quests want you to bring home (the Bank counts too).",
+		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
+	deck_button.text = "Map Deck (%d)" % (dungeon.deck.size() + dungeon.face_down_count())
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
 	refresh_sack()
+
+
+# The picture on a card's face: its Art, or the old icon for its kind.
+func card_art(card: RoomCard) -> Texture2D:
+	return card.art if card.art else ICONS.get(card.type)
 
 
 func draw_square(square: Vector2i) -> void:
@@ -217,49 +234,49 @@ func draw_square(square: Vector2i) -> void:
 	icon.modulate = Color.WHITE
 	label.text = ""
 	button.tooltip_text = describe_square(square)  # Shown when you hover the square for a moment.
-	var color := FOG_COLOR
+	var room: Dictionary = dungeon.rooms.get(square, {})
+	var card: RoomCard = room.get("card")
 	var reachable := reach.has(square)
-	if dungeon.walls.has(square):
-		color = WALL_COLOR
-	elif dungeon.is_explored(square):
-		var room: Dictionary = dungeon.rooms[square]
-		var card: RoomCard = room.card
-		color = ROOM_COLOR
-		if card == null:
-			icon.texture = START_ICON
-			label.text = "Entrance"
+	var color := CARD_COLOR
+	var border := Color(0, 0, 0, 0.6)
+	if room.is_empty() or not room.revealed:
+		# FACE DOWN: just the card's back. The ones you can step onto glow gold.
+		color = BACK_COLOR
+		icon.texture = CARD_BACK
+		icon.modulate = Color.WHITE if reachable else Color(0.6, 0.6, 0.6)
+		border = Color(0.79, 0.64, 0.29, 0.9) if reachable else Color(0.3, 0.24, 0.14)
+	elif card == null:
+		if room.get("start", false):
+			icon.texture = ICONS[RoomCard.Type.CAMPFIRE] if room.campfire else START_ICON
+			label.text = "Way Home" if room.campfire else "Start"
+			color = CAMPFIRE_COLOR if room.campfire else CARD_COLOR
+			if not room.campfire:
+				icon.modulate = USED_TINT  # Your old campfire, burnt out.
 		else:
-			label.text = card.room_name
-			icon.texture = ICONS.get(card.type)
-			if card.is_fight():
-				if room.cleared:
-					icon.modulate = Color(1, 1, 1, 0.35)  # Beaten: faded out.
-				else:
-					color = DANGER_ROOM_COLOR
-			elif card.type == RoomCard.Type.LOCKED_CHEST and room.get("opened", false):
-				icon.texture = OPEN_CHEST_ICON
-			elif card.type == RoomCard.Type.TREASURE and room.cleared:
-				icon.modulate = Color(1, 1, 1, 0.35)
-			elif card.type == RoomCard.Type.EVENT and room.get("event") != null:
-				label.text = room.event.event_name  # Once you've found out what it is.
-				if room.done:
-					icon.modulate = Color(1, 1, 1, 0.35)
+			color = GROUND_COLOR
+			label.text = "Bare ground"
+	else:
+		# FACE UP: its picture, its name, and a border in its tile's colour.
+		label.text = card.room_name
+		icon.texture = card_art(card)
+		border = RoomCard.TILE_COLORS[card.tile]
+		if card.type == RoomCard.Type.EVENT and room.get("event") != null and card.event_name.is_empty():
+			label.text = room.event.event_name  # A Mystery, once you know what it is.
 		if room.campfire:
-			icon.texture = ICONS[RoomCard.Type.CAMPFIRE]
-			icon.modulate = Color.WHITE
 			color = CAMPFIRE_COLOR
-			if card != null and card.type == RoomCard.Type.MINI_BOSS:
-				label.text = "Campfire"
-		elif card != null and card.type == RoomCard.Type.CAMPFIRE:
-			icon.modulate = Color(1, 1, 1, 0.35)  # Used: the fire is out.
-	elif reachable:
-		color = REACHABLE_COLOR
-		label.text = "?"
-	var border := HERE_BORDER if square == dungeon.position else Color(0, 0, 0, 0.6)
-	button.add_theme_stylebox_override("normal", make_box(color, border, 2 if square != dungeon.position else 4))
-	button.add_theme_stylebox_override("hover", make_box(color.lightened(0.12), HOVER_BORDER if reachable else border, 4 if reachable else 2))
+		elif card.is_fight() and not room.cleared:
+			color = DANGER_CARD_COLOR
+		elif card.type == RoomCard.Type.LOCKED_CHEST and room.opened and not room.get("ruined", false) and card.art == null:
+			icon.texture = OPEN_CHEST_ICON
+		if room.done and not room.campfire:
+			icon.modulate = USED_TINT  # Used up: faded out.
+	var width := 4 if square == dungeon.position else (3 if reachable or room.get("revealed", false) else 2)
+	if square == dungeon.position:
+		border = HERE_BORDER
+	button.add_theme_stylebox_override("normal", make_box(color, border, width))
+	button.add_theme_stylebox_override("hover", make_box(color.lightened(0.12), HOVER_BORDER if reachable else border, 4 if reachable else width))
 	button.add_theme_stylebox_override("pressed", make_box(color.lightened(0.2), HOVER_BORDER, 4))
-	button.add_theme_stylebox_override("disabled", make_box(color, border, 2 if square != dungeon.position else 4))
+	button.add_theme_stylebox_override("disabled", make_box(color, border, width))
 	# You can click a square you can walk to, and the square you're on (to use
 	# its campfire or chest again).
 	button.disabled = not (reachable or (square == dungeon.position and has_action_here()))
@@ -268,26 +285,27 @@ func draw_square(square: Vector2i) -> void:
 
 # The tooltip for a square: what it is and what you can do with it.
 func describe_square(square: Vector2i) -> String:
-	if dungeon.walls.has(square):
-		return "Dead end: the room deck ran out."
-	if not dungeon.is_explored(square):
+	var room: Dictionary = dungeon.rooms.get(square, {})
+	if room.is_empty() or not room.revealed:
 		var distance: int = reach[square].steps if reach.has(square) else -1
 		if distance > 0:
-			return "Unexplored (%d step%s away).\nStep here to draw a room from the deck." % [distance, "s" if distance > 1 else ""]
-		return "Unexplored.\nExplore a square next to it first."
-	var room: Dictionary = dungeon.rooms[square]
+			return "A face-down card (%d step%s away).\nStep onto it to flip it over." % [distance, "s" if distance > 1 else ""]
+		return "A face-down card.\nFlip a card next to it first."
 	var card: RoomCard = room.card
 	if card == null:
-		return "The entrance."
-	var lines: Array[String] = ["%s (%s)" % [card.room_name, card.type_name()]]
+		if room.get("start", false):
+			return "Where you came in. Return to Town from here." if room.campfire \
+				else "Your campfire from the floor above, burnt out. Find this floor's campfire to get home!"
+		return "Bare ground: the map deck ran out of cards."
+	var lines: Array[String] = ["%s  (%s)" % [card.room_name, card.tile_name()]]
+	if not card.text.is_empty():
+		lines.append(card.text)
 	if room.campfire:
-		lines.append("A lit campfire. Stand here and click it to Rest or Leave the dungeon.")
-		if dungeon.tier_up_waiting:
-			lines.append("Resting here takes you deeper.")
+		lines.append("A campfire! Stand here and click it to Return to Town or Go Deeper.")
 		return "\n".join(lines)
 	if card.is_fight():
 		if room.cleared:
-			lines.append("Beaten. Safe to walk through.")
+			lines.append("Beaten. Safe to walk over (until it's shuffled back in).")
 			return "\n".join(lines)
 		var groups: Array[String] = []
 		for encounter in card.encounters:
@@ -296,29 +314,24 @@ func describe_square(square: Vector2i) -> String:
 				names.append(enemy.display_name)
 			groups.append(", ".join(names))
 		lines.append(("Could be: " if groups.size() > 1 else "Enemies: ") + "  /  ".join(groups))
-		match card.type:
-			RoomCard.Type.MINI_BOSS:
-				lines.append("Beat it to light a campfire. Resting there opens %s." % (
-					"Tier %d" % (dungeon.tier + 1) if dungeon.tier < dungeon.max_tier else "the Boss room"))
-			RoomCard.Type.BOSS:
-				lines.append("Beat it to clear the %s and take your loot home." % dungeon.area.display_name)
-		lines.append("Blocks the way until you beat it. Click it to fight.")
+		if card.type == RoomCard.Type.BOSS:
+			lines.append("Beat it to clear the %s and take your loot home." % dungeon.area.display_name)
 	elif card.type == RoomCard.Type.LOCKED_CHEST:
-		if room.get("opened", false):
+		if room.get("ruined", false):
+			lines.append("Smashed to pieces.")
+		elif room.opened:
 			lines.append("Opened.")
 		else:
-			lines.append("Needs a small key (you have %d)." % dungeon.keys)
-	elif card.type == RoomCard.Type.TREASURE:
-		lines.append("Taken." if room.cleared else "")
-	elif card.type == RoomCard.Type.CAMPFIRE:
-		lines.append("The fire is out (each campfire can be used once).")
-	elif card.type == RoomCard.Type.EMPTY:
-		lines.append("Nothing here.")
+			lines.append("Locked. Use a small key (you have %d), or break it open." % dungeon.keys)
+	elif card.type in [RoomCard.Type.TREASURE, RoomCard.Type.EMPTY]:
+		lines.append("Taken." if room.done and card.type == RoomCard.Type.TREASURE else "")
 	elif card.type == RoomCard.Type.EVENT:
-		if room.get("event") != null:
-			lines[0] = "%s (Event)" % room.event.event_name
-		lines.append("Done." if room.done else "Something strange happens here. Step in to find out.")
-	if not card.loot.is_empty() and not room.get("opened", false) and not (card.type == RoomCard.Type.TREASURE and room.cleared):
+		if room.get("event") != null and card.event_name.is_empty():
+			lines[0] = "%s  (%s)" % [room.event.event_name, card.tile_name()]
+		lines.append("Done." if room.done else "Step on it to see your choices.")
+	if card.vanish:
+		lines.append("Vanish: once it's used, it's gone for the rest of this trip.")
+	if not card.loot.is_empty() and not room.done:
 		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
 	return "\n".join(lines.filter(func(line: String) -> bool: return not line.is_empty()))
 
@@ -339,7 +352,7 @@ func make_box(color: Color, border: Color, width: int) -> StyleBoxFlat:
 func default_info() -> String:
 	if not dungeon.result.is_empty():
 		return ""
-	return "Click a ? square to explore, or a room to walk back to it."
+	return "Click a glowing face-down card to flip it, or a face-up card to walk back to it."
 
 
 # Is there something to do on the square you're standing on?
@@ -347,69 +360,199 @@ func has_action_here() -> bool:
 	var room: Dictionary = dungeon.rooms[dungeon.position]
 	if room.campfire:
 		return true
-	return room.card != null and room.card.type == RoomCard.Type.LOCKED_CHEST and not room.get("opened", false)
+	var card: RoomCard = room.card
+	return card != null and card.type == RoomCard.Type.LOCKED_CHEST and not room.done
 
 
 # --- Clicking ---------------------------------------------------------------
 
 func _on_square_hovered(square: Vector2i) -> void:
-	if not reach.has(square):
+	if not reach.has(square) or busy:
 		return
 	var distance: int = reach[square].steps
-	var what := "explore" if not dungeon.is_explored(square) else "walk there"
-	var text := "%d step%s to %s." % [distance, "s" if distance > 1 else "", what]
-	if dungeon.steps_to_next_danger() <= distance:
-		text += " Danger goes up!"
+	var face_down := not dungeon.is_revealed(square)
+	var text := "%d step%s to %s." % [distance, "s" if distance > 1 else "", "flip this card" if face_down else "walk there"]
 	info_label.text = text
 
 
 func _on_square_pressed(square: Vector2i) -> void:
-	if popup.visible or picker:
+	if popup.visible or picker or deck_list or busy:
 		return
-	var what := "chest" if square == dungeon.position else dungeon.move_to(square)
-	if square == dungeon.position and dungeon.rooms[square].campfire:
-		what = "campfire"
+	var what := ""
+	if square == dungeon.position:
+		what = "campfire" if dungeon.rooms[square].campfire else "chest"
+	else:
+		what = dungeon.move_to(square)
+	if what.is_empty():
+		return
+	if dungeon.just_flipped == square:
+		await flip_square(square)  # The card turns over before anything happens.
 	refresh()
 	if guide_label:
 		show_guide_tip(what, square)
-	if not dungeon.tile_find.is_empty():
-		info_label.text = "You spot %s lying on the ground, and pick it up!" % dungeon.tile_find
+	var room: Dictionary = dungeon.rooms[square]
+	var card: RoomCard = room.card
 	match what:
-		"fight", "ambush":
-			var card: RoomCard = dungeon.rooms[square].card
-			var heading := "Boss!" if card.type == RoomCard.Type.BOSS else card.type_name() + "!"
-			var text := "%s\n%s" % [card.room_name, enemy_list(dungeon.fight_enemies)]
-			if what == "ambush":
-				show_popup("Ambush!", text + "\nThey jump out at you. There's no backing off!", [["Fight!", start_fight]])
-			else:
-				text += "\nBacking off takes you to the square you came from (1 step). This room will block the way until you beat it."
-				show_popup(heading, text, [["Fight!", start_fight], ["Back off", _on_back_off]])
+		"fight":
+			var heading := "Boss!" if card.type == RoomCard.Type.BOSS else ("Mini Boss!" if card.type == RoomCard.Type.MINI_BOSS else card.room_name)
+			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "Enemies: " + enemy_list(dungeon.fight_enemies)
+			text += "\nUnsafe cards are always a fight. Danger is now %d." % dungeon.danger()
+			show_popup(heading, text, [["Fight!", start_fight]], card_art(card), "flip", card)
 		"chest":
 			show_chest()
 		"campfire":
 			show_campfire()
 		"event":
 			show_event()
+		"empty":
+			info_label.text = "%s: %s" % [card.room_name, card.text if not card.text.is_empty() else "Nothing here."]
 		"treasure":
 			var found := dungeon.history[-1].trim_prefix("Treasure! ")
-			var card: RoomCard = dungeon.rooms[square].card
-			var text := "You find %s." % found
+			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "You find %s." % found
 			if dungeon.guided and dungeon.guide_goal_met():
 				text += "\n" + guide_goal_text()
 			if card.loot.has("Key"):
-				show_popup("A Key!", text, [["Nice", close_popup]], KEY_ICON, "key")
+				show_popup("A Key!", text, [["Nice", close_popup]], KEY_ICON, "key", card)
 			else:
-				show_popup("Treasure!", text, [["Nice", close_popup]], loot_picture(card), "pop")
+				show_popup(card.room_name, text, [["Nice", close_popup]], loot_picture(card), "pop", card)
 
 
-# --- The guided first run ------------------------------------------------------
-# Before the first adventurer arrives, YOU (the Architect) explore the Plains
-# for the Innkeeper's first two quests: Stone from Shiny Rocks, and Hops
-# locked in chests (so you learn keys and chests). No enemies: a box under the
-# stats explains each new thing the first time you meet it. Its campfire only
-# offers Return to Town, and only once you have everything the quests need.
+# Turn a square's card over: it squashes to nothing showing its back, then
+# grows back showing its face (like turning a real card over).
+func flip_square(square: Vector2i) -> void:
+	busy = true
+	var button: Button = squares[square]
+	var icon: TextureRect = button.get_node("Icon")
+	icon.texture = CARD_BACK
+	button.get_node("Name").text = ""
+	var tween := create_tween()
+	tween.tween_property(button, "scale:x", 0.0, FLIP_TIME).set_ease(Tween.EASE_IN)
+	await tween.finished
+	reach = dungeon.reachable()
+	draw_square(square)  # Now it shows its face...
+	tween = create_tween()
+	tween.tween_property(button, "scale:x", 1.0, FLIP_TIME).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+	await tween.finished  # ...and it's back to full width.
+	busy = false
 
-const GUIDE_START := "Welcome to the Plains, Architect! The grid is the dungeon. Click a ? square next to you to explore it: each new square draws a card from the area's room deck. The Innkeeper needs 5 Stone (look for Shiny Rocks) and 3 Hops (locked in chests)."
+
+# --- The Map Deck list -------------------------------------------------------------
+# Every card in the place's map deck, and how many you haven't seen yet
+# (face down on this board, or waiting in the draw pile). "Is the Old Well
+# still out there?" Look here.
+
+func show_deck_list() -> void:
+	if deck_list or popup.visible or busy:
+		return
+	deck_list = ColorRect.new()
+	deck_list.color = Color(0, 0, 0, 0.82)
+	deck_list.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(deck_list)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.13, 0.11, 0.09, 0.98)
+	style.border_color = Color(0.85, 0.68, 0.3)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(12)
+	style.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size = Vector2(620, 0)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	deck_list.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	var heading := Label.new()
+	heading.text = "Map Deck"
+	heading.add_theme_font_size_override("font_size", 30)
+	heading.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(heading)
+	var about := Label.new()
+	about.text = "%d cards face down on this board, %d in the draw pile.\n\"Unseen\" = not flipped yet: still face down here, or waiting in the deck for the next floor." % [
+		dungeon.face_down_count(), dungeon.deck.size()]
+	about.add_theme_font_size_override("font_size", 15)
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(about)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 380)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_theme_constant_override("separation", 4)
+	scroll.add_child(rows)
+	for entry in dungeon.deck_summary():
+		rows.add_child(make_deck_row(entry))
+	if not dungeon.gone.is_empty():
+		var gone_names: Array[String] = []
+		for card in dungeon.gone:
+			gone_names.append(card.room_name)
+		var gone_label := Label.new()
+		gone_label.text = "Vanished this trip: " + ", ".join(gone_names)
+		gone_label.add_theme_font_size_override("font_size", 14)
+		gone_label.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+		gone_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		box.add_child(gone_label)
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(160, 44)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.pressed.connect(func() -> void:
+		deck_list.queue_free()
+		deck_list = null)
+	box.add_child(close)
+
+
+# One line of the list: picture, name, tile, "2 unseen / 3".
+func make_deck_row(entry: Dictionary) -> Control:
+	var card: RoomCard = entry.card
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	row.tooltip_text = card.text
+	var picture := TextureRect.new()
+	picture.texture = card_art(card)
+	picture.custom_minimum_size = Vector2(34, 34)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	picture.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(picture)
+	var name_label := Label.new()
+	name_label.text = card.room_name
+	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	name_label.add_theme_font_size_override("font_size", 17)
+	name_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(name_label)
+	var tile_label := Label.new()
+	tile_label.text = card.tile_name()
+	tile_label.custom_minimum_size = Vector2(80, 0)
+	tile_label.add_theme_font_size_override("font_size", 15)
+	tile_label.add_theme_color_override("font_color", RoomCard.TILE_COLORS[card.tile])
+	tile_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(tile_label)
+	var count := Label.new()
+	count.text = "%d unseen / %d" % [entry.unseen, entry.total]
+	count.custom_minimum_size = Vector2(120, 0)
+	count.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	count.add_theme_font_size_override("font_size", 15)
+	count.add_theme_color_override("font_color", Color.WHITE if entry.unseen > 0 else Color(1, 1, 1, 0.4))
+	count.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	row.add_child(count)
+	return row
+
+
+# --- The first trip ---------------------------------------------------------------
+# The Adventurer's first trip to the Farm, for the Innkeeper's first two
+# quests: Stone (from Collapsed Walls) and Hops (locked in sheds, so you
+# learn keys). The board is always the same (the Guide rows of
+# farm_cards.csv) and a box under the stats explains each new thing the
+# first time you meet it. Its campfires only offer Return to Town, and only
+# once you have everything the quests need.
+
+const GUIDE_START := "Welcome to the Abandoned Farm! This board is made of MAP CARDS, all face down. Click a glowing card next to you to flip it over. The Innkeeper needs 5 Stone (from Collapsed Walls) and 3 Hops (locked in sheds)."
 
 func build_guide() -> void:
 	var panel := PanelContainer.new()
@@ -432,51 +575,45 @@ func build_guide() -> void:
 
 # "Stone 3 / 5  Hops 1 / 3" for the guide, from what the quests need.
 func guide_progress() -> String:
-	var parts: Array[String] = []
-	var needs := dungeon.guide_needs()
-	for material_name in needs:
-		parts.append("%s %d / %d" % [material_name, mini(dungeon.material_total(material_name), needs[material_name]), needs[material_name]])
-	return "  ".join(parts)
+	return dungeon.hunting_text()
 
 
-# Once you have enough Stone: find the campfire, or go back to the one you found.
+# Once you have it all: back to a campfire.
 func guide_goal_text() -> String:
-	var found_fire := dungeon.rooms.values().any(func(room: Dictionary) -> bool:
-		return room.card != null and room.card.type == RoomCard.Type.CAMPFIRE)
-	return "You have the Stone and the Hops! Walk back to the campfire and Return to Town." if found_fire \
-		else "You have the Stone and the Hops! Find a campfire to Return to Town."
+	return "You have the Stone and the Hops! Walk back to the campfire where you started (or find the hidden one) and Return to Town."
 
 
-# A tip for what just happened.
+# A tip for what just happened, the first time each thing happens.
 func show_guide_tip(what: String, square: Vector2i) -> void:
 	var card: RoomCard = dungeon.rooms[square].card if dungeon.rooms.has(square) else null
 	var tip := ""
 	match what:
 		"treasure":
 			if card and card.loot.has("Key"):
-				tip = "A small key! Each key opens one Locked Chest. You can walk back through rooms you've explored for free."
+				tip = "A small key! Each key opens one locked shed or chest. Face-up Safe cards can be walked over for free, so you can go back for the sheds."
 			else:
-				tip = "A Shiny Rock: Stone! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
+				tip = "A Collapsed Wall: Stone! SAFE cards (green border) are nothing to fear. What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
+		"fight":
+			tip = "An UNSAFE card (red border): always a fight, and it raises DANGER. Every %d Danger makes every enemy stronger, for the whole trip. Once you win, the card is safe to walk over." % dungeon.danger_per_strength()
 		"chest":
-			tip = "A Locked Chest. Open it with a key." if dungeon.keys > 0 \
-				else "A Locked Chest, and no key yet. Keep exploring, then come back: chests wait for you."
+			tip = "An EXPLORE card (gold border): you choose what to do. Use a key to open it." if dungeon.keys > 0 \
+				else "An EXPLORE card (gold border): a locked shed, and no key yet. Keep exploring, then come back: it waits for you."
+		"event":
+			tip = "Another EXPLORE card: pick a choice. Some choices are a gamble: the % shows the chance it works."
 		"empty":
-			tip = "Nothing here, just a quiet meadow. Explored rooms stay on the map."
+			tip = "Nothing here, just the farm. Most of the Farm's cards are like this... for now."
 		"campfire":
-			tip = "A campfire! Campfires are your way back to town." if not dungeon.guide_goal_met() else guide_goal_text()
+			tip = "A campfire! Campfires are your way home. On later trips, they also let you GO DEEPER: a fresh board, one floor down." if not dungeon.guide_goal_met() else guide_goal_text()
 		"opened":
-			tip = "The key opened it! Chests hold the good stuff: here, the Innkeeper's Hops."
-		"walk":
-			if dungeon.deck.is_empty():
-				tip = "The room deck is empty, so the dark squares are dead ends."
+			tip = "The key opened it! Sheds and chests hold the good stuff: here, the Innkeeper's Hops."
 	if dungeon.guide_goal_met() and what != "campfire":
 		tip = guide_goal_text()
 	if not tip.is_empty():
 		guide_label.text = "Guide:  %s\n(%s)" % [tip, guide_progress()]
 
 
-# The guided run's campfire: Return to Town is the only choice, greyed out
-# until you have the Stone.
+# The first trip's campfire: Return to Town is the only choice, greyed out
+# until you have the Stone and the Hops.
 func show_guided_campfire() -> void:
 	var text := "Campfires let you return to town with everything you found."
 	var blocked := ""
@@ -489,10 +626,12 @@ func show_guided_campfire() -> void:
 		ICONS[RoomCard.Type.CAMPFIRE], "pop")
 
 
-# An event: its story and a button per choice. Choices you can't pick yet
-# (not enough gold, no flask) are greyed out with the reason as a tooltip.
+# An Explore card's event: its story and a button per choice. Choices you
+# can't pick yet (not enough gold, no flask) are greyed out with the reason as a tooltip.
 func show_event() -> void:
-	var event: DungeonEvent = dungeon.rooms[dungeon.position].event
+	var room: Dictionary = dungeon.rooms[dungeon.position]
+	var event: DungeonEvent = room.event
+	var card: RoomCard = room.card
 	var choices := []
 	for i in event.choice_labels.size():
 		if dungeon.choice_hidden(event, i):
@@ -506,11 +645,13 @@ func show_event() -> void:
 		var blocked := dungeon.choice_blocked(event, i)
 		choices.append([label, _on_event_choice.bind(i), blocked])
 	var picture := event_picture(event)
-	show_popup(event.event_name, event.text, choices, picture[0], picture[1])
+	if picture[0] == null and card:
+		picture = [card_art(card), "flip"]
+	show_popup(event.event_name, event.text, choices, picture[0], picture[1], card)
 
 
 # The picture (and animation) an event shows, from its Picture column:
-# [texture, animation], or [null, ""] for none.
+# [texture, animation], or [null, ""] for none (the card's own picture then).
 func event_picture(event: DungeonEvent) -> Array:
 	match event.picture.to_lower():
 		"wiggling chest":  # Someone's stuck inside: it wiggles and shouts.
@@ -543,28 +684,31 @@ func enemy_list(enemies: Array[EnemyData]) -> String:
 	return ", ".join(names)
 
 
-func _on_back_off() -> void:
-	dungeon.back_off()
-	close_popup()
-
-
 func start_fight() -> void:
 	get_tree().change_scene_to_file(BATTLE_SCENE)
 
 
+# A Locked Chest (a shed, a stash...): use a key, break it open, or leave it.
+# (The first trip only offers the key, so the Hops can't be lost.)
 func show_chest() -> void:
 	var card: RoomCard = dungeon.rooms[dungeon.position].card
-	if dungeon.keys > 0:
-		show_popup(card.room_name, "A locked chest. Use a small key? (You have %d.)" % dungeon.keys,
-			[["Open it", _on_open_chest], ["Leave it", close_popup]], ICONS[RoomCard.Type.LOCKED_CHEST], "chest")
-	else:
-		show_popup(card.room_name, "A locked chest. You need a small key: %s" % ("look around for one." if dungeon.guided else "fights sometimes drop one."),
-			[["OK", close_popup]], ICONS[RoomCard.Type.LOCKED_CHEST], "chest")
+	var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "How do you want to open it?"
+	var choices := []
+	choices.append(["Use a key (100%)", _on_open_chest, "" if dungeon.keys > 0 else "You need a small key (fights sometimes drop one)."])
+	if not dungeon.guided:
+		choices.append(["Break it open (%d%%)" % DungeonRun.BREAK_CHANCE, _on_break_chest])
+	choices.append(["Leave it", close_popup])
+	text += "\nKeys: %d." % dungeon.keys
+	if not dungeon.guided:
+		text += " Breaking it is free but LOUD: if it fails, Danger +1 and whatever is inside is ruined."
+	show_popup(card.room_name, text, choices, card_art(card) if card.art else ICONS[RoomCard.Type.LOCKED_CHEST], "chest", card)
 
 
 func _on_open_chest() -> void:
 	var card: RoomCard = dungeon.rooms[dungeon.position].card
 	var loot := dungeon.open_chest(dungeon.position)
+	if loot.is_empty():
+		return
 	refresh()
 	if guide_label:
 		show_guide_tip("opened", dungeon.position)
@@ -576,34 +720,52 @@ func _on_open_chest() -> void:
 	popup_loot_texture = loot_picture(card)
 
 
+func _on_break_chest() -> void:
+	var card: RoomCard = dungeon.rooms[dungeon.position].card
+	var outcome := dungeon.break_chest(dungeon.position)
+	refresh()
+	if outcome.worked:
+		show_popup("Smashed open!", "Inside: %s" % outcome.text, [["Nice", close_popup]], ICONS[RoomCard.Type.LOCKED_CHEST], "unlock")
+		popup_loot_texture = loot_picture(card)
+	else:
+		show_popup("CRASH!", outcome.text, [["Oops", close_popup]], card_art(card), "help")
+
+
+# A campfire: the way home, and (except where you came in) the way deeper.
 func show_campfire() -> void:
 	if dungeon.guided:
 		show_guided_campfire()
 		return
-	# For now a campfire is the way home. (Rest is switched off: see rest() in
-	# dungeon_run.gd.) After a Mini Boss it can also take you deeper.
 	var text := "Return to Town with what you found (%s)." % dungeon.loot_text()
 	var choices := [["Return to Town", _on_leave]]
-	if dungeon.tier_up_waiting:
-		text = ("The Mini Boss is beaten! Go Deeper to Tier %d: harder rooms, better loot. (No healing: the map goes blank and the rooms shift.)" % (dungeon.tier + 1)
-			if dungeon.tier < dungeon.max_tier else "The Mini Boss is beaten! Go Deeper to find the way to the Boss. (No healing: the map goes blank.)") + "\nOr " + text
-		choices.push_front(["Go Deeper", _on_go_deeper])
+	if dungeon.can_go_deeper():
+		text += "\nOr GO DEEPER: every card goes back in the deck and a fresh board is dealt, one floor down (Floor %d). You start here, and this fire goes out: you'll have to find the next campfire to get home!" % (dungeon.floor_number + 1)
+		choices.append(["Go Deeper", _on_go_deeper])
 	choices.append(["Not now", close_popup])
 	show_popup("Campfire", text, choices, ICONS[RoomCard.Type.CAMPFIRE], "pop")
 
 
 func _on_go_deeper() -> void:
-	dungeon.rest(false)
 	close_popup()
+	busy = true
+	# Every card on the board flips back over and is swept up...
+	var tween := create_tween().set_parallel()
+	for square: Vector2i in squares:
+		tween.tween_property(squares[square], "scale", Vector2(0.0, 0.0), 0.25).set_delay(randf_range(0.0, 0.2))
+	await tween.finished
+	dungeon.go_deeper()
 	refresh()
-	info_label.text = "Tier %d! New rooms are in the deck." % dungeon.tier if not dungeon.boss_unlocked else "The Boss is somewhere in the deck now!"
-
-
-func _on_rest() -> void:
-	var healed := dungeon.rest()
-	close_popup()
-	refresh()
-	info_label.text = "You rest and heal %d HP.%s" % [healed, " Your flask is full again." if dungeon.flask else ""]
+	# ...and the new board is dealt, card by card.
+	tween = create_tween().set_parallel()
+	var i := 0
+	for square: Vector2i in squares:
+		tween.tween_property(squares[square], "scale", Vector2.ONE, 0.2).set_delay(i * 0.03).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		i += 1
+	await tween.finished
+	busy = false
+	info_label.text = "Floor %d! A new board. Find the campfire to get home." % dungeon.floor_number
+	if dungeon.boss_here():
+		info_label.text += " The %s is on this board!" % dungeon.boss_card().room_name
 
 
 # Drink the flask between fights: heal your run HP.
@@ -666,6 +828,8 @@ func roll_flask_die(sides: int, value: int, heal: int) -> void:
 
 
 func _on_leave() -> void:
+	if dungeon.guided:
+		GameState.reach_milestone(GameState.FIRST_TRIP)  # The first trip is done: next time, a shuffled deck.
 	dungeon.leave()
 	dungeon.claim_loot()
 	get_tree().change_scene_to_file(TOWN_SCENE)
@@ -675,8 +839,13 @@ func _on_leave() -> void:
 
 # choices: a list of [button text, function to call], or [text, function,
 # why it's blocked] to grey a button out (with the reason as its tooltip).
-func show_popup(heading: String, text: String, choices: Array, picture: Texture2D = null, animation := "") -> void:
+# card: the map card it's about, so the popup shows its tile (Safe/Unsafe/Explore).
+func show_popup(heading: String, text: String, choices: Array, picture: Texture2D = null, animation := "", card: RoomCard = null) -> void:
 	play_picture(picture, animation)
+	popup_badge.visible = card != null
+	if card:
+		popup_badge.text = card.tile_name().to_upper()
+		popup_badge.add_theme_color_override("font_color", RoomCard.TILE_COLORS[card.tile])
 	popup_title.text = heading
 	popup_text.text = text
 	for old in popup_buttons.get_children():
@@ -710,6 +879,7 @@ func close_popup() -> void:
 #   "pop"    grows in with a little bounce
 #   "help"   a chest that keeps wiggling, with "Help!" floating up out of it
 #   "jump"   leaps up out of the picture's box and lands with a sparkle
+#   "flip"   turns over like a card (for a map card's own picture)
 
 const PICTURE_SIZE := Vector2(110, 110)
 
@@ -745,6 +915,14 @@ func make_popup_picture() -> void:
 	popup_sparkles.emitting = false
 	popup_sparkles.position = PICTURE_SIZE / 2  # The picture's middle.
 	popup_picture.add_child(popup_sparkles)
+	# The tile badge sits just under the title.
+	popup_badge = Label.new()
+	popup_badge.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	popup_badge.add_theme_font_size_override("font_size", 14)
+	popup_badge.visible = false
+	var box := popup_title.get_parent()
+	box.add_child(popup_badge)
+	box.move_child(popup_badge, popup_title.get_index() + 1)
 
 
 # The loot's picture: a material's icon, a key, or the treasure gem.
@@ -823,6 +1001,9 @@ func play_picture(picture: Texture2D, animation: String) -> void:
 			popup_tween.tween_callback(func() -> void: popup_sparkles.restart())
 			popup_tween.tween_property(popup_picture, "scale", Vector2(1.15, 0.85), 0.08)
 			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK)
+		"flip":
+			popup_picture.scale = Vector2(0.0, 1.0)  # Edge on...
+			popup_tween.tween_property(popup_picture, "scale:x", 1.0, 0.25).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
 		_:  # "pop"
 			popup_picture.scale = Vector2.ZERO
 			popup_tween.tween_property(popup_picture, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
@@ -958,7 +1139,7 @@ func refresh_sack() -> void:
 			"Drag into the sack: a slot holds up to %d gold." % GameState.gold_stack()))
 	if dungeon.found_packs > 0:
 		var pack_chip := make_chip("x%d" % dungeon.found_packs, {"kind": "pack"}, "")
-		pack_chip.icon = PACK_ICON  # A Small Plains Booster Pack.
+		pack_chip.icon = PACK_ICON  # A Small Farm Booster Pack.
 		pack_chip.add_theme_constant_override("icon_max_width", 22)
 		pack_chip.tooltip_text = "%d %s. " % [dungeon.found_packs, DungeonRun.PACK_NAME] + pack_chip.tooltip_text
 		found_row.add_child(pack_chip)

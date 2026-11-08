@@ -15,7 +15,9 @@
 #                          (adventurer.csv) -> talents/<class>/<name>.tres
 #   data/enemies/enemies.csv     Every enemy          -> enemies/<name>.tres
 #   data/enemies/moves.csv       Every enemy's moves  -> saved inside those files
-#   data/dungeons/rooms.csv      Each area's room deck -> saved into areas/*.tres
+#   data/dungeons/rooms.csv      Old room decks (the Forest) -> saved into areas/*.tres
+#   (data/dungeons/farm_cards.csv, the Farm's map cards, is NOT imported:
+#   the game reads it when it runs, see map_cards.gd.)
 #
 # The level sheets have exactly the same columns as cards.csv (copy the whole
 # sheet and change the numbers). A row's Name says which card it levels up.
@@ -33,8 +35,6 @@ extends RefCounted
 const CSV_PATH := "res://data/cards.csv"
 const CARDS_FOLDER := "res://cards/"
 const LEVELS_FOLDER := "res://cards/levels/"
-const SUPER_CSV_PATH := "res://data/super_cards.csv"  # Run-only Super cards (see card_data.gd).
-const SUPER_FOLDER := "res://cards/super/"
 const LEVEL_SHEETS := {2: "res://data/cards_level2.csv", 3: "res://data/cards_level3.csv"}
 const CLASS_CARDS_PATH := "res://data/class_cards.csv"
 const CLASSES_FOLDER := "res://classes/"
@@ -73,8 +73,6 @@ static func import_cards() -> int:
 				level_files.append(level_file_name(card_name, level))
 	_remove_old_cards(LEVELS_FOLDER, level_files)
 	_import_class_cards(names)
-	if FileAccess.file_exists(SUPER_CSV_PATH):
-		_import_sheet(SUPER_CSV_PATH, SUPER_FOLDER, 1, [])
 	_import_talents()
 	_import_enemies()
 	_import_progression()
@@ -507,7 +505,7 @@ static func _import_rooms(known: Dictionary) -> void:
 	var types := {}  # "hard fight" -> RoomCard.Type.HARD_FIGHT
 	for type in RoomCard.TYPE_NAMES:
 		types[RoomCard.TYPE_NAMES[type].to_lower()] = type
-	var by_area := {}  # "plains" -> [RoomCard, ...]
+	var by_area := {}  # "forest" -> [RoomCard, ...]
 	for row in rows:
 		var card := RoomCard.new()
 		card.room_name = row.get("room", "Room")
@@ -516,6 +514,7 @@ static func _import_rooms(known: Dictionary) -> void:
 			push_warning("rooms.csv: %s has Type '%s'. Use one of: %s" % [card.room_name, row.get("type", ""), ", ".join(RoomCard.TYPE_NAMES.values())])
 			continue
 		card.type = types[type_text]
+		card.tile = RoomCard.tile_for_type(card.type)  # Fights Unsafe, chests and events Explore.
 		var tier_text: String = row.get("tier", "1").to_lower()
 		card.tier = 0 if tier_text == "boss" else _to_int(tier_text, 1)
 		if tier_text == "guide":

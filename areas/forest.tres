@@ -247,7 +247,7 @@ script = ExtResource("3_ioxcy")
 room_name = "Mossy Strongbox"
 type = 2
 tier = 3
-loot = PackedStringArray("Gold 11-16", "Enchant", "Potion", "Super Card")
+loot = PackedStringArray("Gold 11-16", "Enchant", "Potion")
 
 [sub_resource type="Resource" id="Resource_hidrf"]
 script = ExtResource("3_ioxcy")
@@ -298,8 +298,9 @@ loot = PackedStringArray("Pack")
 [resource]
 script = ExtResource("1_area")
 display_name = "Forest"
-description = "A dark, tangled wood. Wolves hunt here, and the Old Oak is waking up."
-unlock_after = "Plains"
+description = "A dark, tangled wood. Wolves hunt here, and the Old Oak is waking up. (Coming later: it gets its own map cards once the Farm feels right.)"
+unlock_after = "Abandoned Farm"
+coming_later = true
 material = "Lumber"
 sort_order = 1
 icon = ExtResource("2_icon")
