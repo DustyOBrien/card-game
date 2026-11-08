@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A round black bomb with a lit fuse. -->
+  <circle cx="28" cy="38" r="20" fill="#2a2a30" stroke="#0e0e10" stroke-width="2.5"/>
+  <circle cx="21" cy="31" r="5" fill="#ffffff" opacity="0.25"/>
+  <rect x="34" y="14" width="10" height="8" rx="2" transform="rotate(35 39 18)" fill="#6e737c" stroke="#0e0e10" stroke-width="2"/>
+  <path d="M44 14 Q48 6 54 8" stroke="#c9a46a" stroke-width="2.5" fill="none"/>
+  <path d="M54 8 L58 4 M54 8 L60 9 M54 8 L55 2" stroke="#ffb030" stroke-width="2.5" stroke-linecap="round"/>
+</svg>

@@ -53,6 +53,10 @@ const DECK_YOURS := "Yours"  # Your own map cards (from quests and Maps).
 const DECK_CAMPFIRE := "Campfire"  # The campfire hidden on every board.
 const DECK_BOSS := "Boss"  # Dealt onto every board from its Floor on.
 const DECK_DANGER := "Danger"  # Bad cards shuffled in as Danger grows (never in the starting deck).
+const DECK_PERK := "Perk"  # Only in the deck through a place perk (Swap Card).
+const DECK_LINKED := "Linked"  # Only added by another card: the Rusty Lever's Sealed Vault, the Hoard's guards.
+const DECK_ROAMER := "Roamer"  # A mini boss that wanders the board, face down, a square per step.
+const DECK_SECRET := "Secret"  # Only appears when a tool finds it (a bombed wall).
 
 @export var room_name: String = "Room"
 @export var type: Type = Type.EMPTY
@@ -95,6 +99,10 @@ const GUIDE_TIER := -1
 # Events only: the event this card always is (the sheet's Event column),
 # e.g. "Old Well". Empty = a random event, like "Mystery".
 @export var event_name: String = ""
+# GUARDS (map cards): the card dealt next to this one (up to 2), e.g. the
+# Guarded Hoard's "Slime Guard". You can't take this card's loot while one stands.
+@export var guards: String = ""
+const GUARD_COUNT := 2
 
 
 func is_fight() -> bool:

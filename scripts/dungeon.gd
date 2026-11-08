@@ -24,6 +24,11 @@ const POTION_ICON := preload("res://art/potions/potion.svg")
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 const CARD_BACK := preload("res://art/map_cards/card_back.svg")
 const TORCH_ICON := preload("res://art/map_cards/torch.svg")
+const TOOL_ICONS := {
+	DungeonRun.TORCH: TORCH_ICON,
+	DungeonRun.CROWBAR: preload("res://art/map_cards/crowbar.svg"),
+	DungeonRun.BOMB: preload("res://art/map_cards/bomb.svg"),
+}
 
 const SQUARE_SIZE := Vector2(108, 108)
 const GAP := 6
@@ -72,6 +77,10 @@ var _boxes := {}  # Square styles we've already made, so a redraw reuses them.
 var busy := false  # A card is flipping: clicks wait.
 var scouting := false  # The torch is out: the next face-down card you click gets lit up.
 var torch_button: Button
+var tool_mode := ""  # A tool you clicked (Crowbar, Bomb): the next card you click gets it.
+var tool_row: HBoxContainer  # One button per tool you carry (drag it onto a card, or click).
+var journal_button: Button
+var journal_list: ColorRect  # The Journal, while it's open.
 # The Save Sack, Found and enchant/potion rows in the side panel (built in code).
 var sack_row: HBoxContainer
 var found_row: HFlowContainer
@@ -144,6 +153,13 @@ func build_legend() -> void:
 	deck_button.tooltip_text = "Every card in this place's map deck, and how many you haven't seen yet."
 	deck_button.pressed.connect(show_deck_list)
 	legend.add_child(deck_button)
+	journal_button = Button.new()
+	journal_button.custom_minimum_size = Vector2(130, 34)
+	journal_button.add_theme_font_size_override("font_size", 15)
+	journal_button.tooltip_text = "Every tool trick you've found: what a crowbar, a bomb or a torch does to each card."
+	journal_button.pressed.connect(show_journal)
+	journal_button.visible = not dungeon.guided
+	legend.add_child(journal_button)
 	add_child(legend)
 
 
@@ -188,6 +204,44 @@ func make_square(square: Vector2i) -> Button:
 	marker.position = Vector2(4, 4)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(marker)
+	# TOOL TRICKS badge, top right: how many this card has, and how many you've
+	# found ("1/2"). Which ones? Try your tools (the Journal remembers).
+	var badge := PanelContainer.new()
+	badge.name = "Tricks"
+	var badge_box := StyleBoxFlat.new()
+	badge_box.bg_color = Color(0.08, 0.06, 0.04, 0.85)
+	badge_box.border_color = Color(0.85, 0.68, 0.3)
+	badge_box.set_border_width_all(1)
+	badge_box.set_corner_radius_all(6)
+	badge_box.content_margin_left = 3
+	badge_box.content_margin_right = 4
+	badge.add_theme_stylebox_override("panel", badge_box)
+	badge.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT)
+	badge.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	badge.offset_top = 4
+	badge.offset_right = -4
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var badge_row := HBoxContainer.new()
+	badge_row.name = "Row"
+	badge_row.add_theme_constant_override("separation", 2)
+	badge_row.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge.add_child(badge_row)
+	var badge_icon := TextureRect.new()
+	badge_icon.texture = TOOL_ICONS[DungeonRun.CROWBAR]
+	badge_icon.custom_minimum_size = Vector2(16, 16)
+	badge_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	badge_icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	badge_icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge_row.add_child(badge_icon)
+	var badge_label := Label.new()
+	badge_label.name = "Count"
+	badge_label.add_theme_font_size_override("font_size", 12)
+	badge_label.add_theme_color_override("font_color", Color(1, 0.85, 0.45))
+	badge_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	badge_row.add_child(badge_label)
+	button.add_child(badge)
+	# Drop a tool (dragged from the tool buttons) on the square to use it there.
+	button.set_drag_forwarding(Callable(), _can_drop_tool.bind(square), _drop_tool.bind(square))
 	return button
 
 
@@ -212,6 +266,8 @@ func refresh() -> void:
 		lines.append("[color=#a8e0ff]Hunting: %s[/color]" % hunting)
 	if dungeon.boss_here():
 		lines.append("[color=#ff6060]The %s is somewhere on this board![/color]" % dungeon.boss_card().room_name)
+	if dungeon.roamer_here():
+		lines.append("[color=#ff9a60]A %s roams this board! It moves every step you take.[/color]" % dungeon.roamer_card().room_name)
 	stats_label.text = "\n".join(lines)
 	stats_label.tooltip_text = "\n".join([
 		"HP: carries over from fight to fight.",
@@ -219,23 +275,25 @@ func refresh() -> void:
 		"Danger: +1 for every Unsafe card you find, and for some failed choices. Every %d Danger shuffles a bad Danger card into the map deck (it can swap onto the board too), and every %d gives every enemy +1 Strength. It lasts the whole trip." % [dungeon.danger_per_card(), dungeon.danger_per_strength()],
 		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Gold, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
 		"Torches: light up any face-down card to see it first. Each time, a d4 burnout roll: %s, then it always burns out." % torch_targets_text(),
+		"Tools: drag a crowbar, bomb or torch onto a face-up card next to you. The corner badge says how many tool tricks a card has; the Journal remembers the ones you find.",
 		"Scavenge: stand on a wall, field, hay bale... and click it. Free the first time, then push your luck.",
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
 	deck_button.text = "Map Deck (%d)" % (dungeon.deck.size() + dungeon.face_down_count())
+	journal_button.text = "Journal (%d)" % GameState.journal.size()
 	refresh_torch_button()
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
 	refresh_sack()
-	if not dungeon.left_over.is_empty() or dungeon.last_danger_card != null:
+	if not dungeon.left_over.is_empty() or dungeon.last_danger_card != null or not dungeon.last_roamer_news.is_empty():
 		show_news.call_deferred()
 
 
 # Things to tell you once nothing else is going on: loot that didn't fit in
 # the backpack, then a new Danger card.
 func show_news() -> void:
-	if popup.visible or busy or picker or deck_list or not dungeon.result.is_empty():
+	if popup.visible or busy or picker or deck_list or journal_list or not dungeon.result.is_empty():
 		return
 	if not dungeon.left_over.is_empty():
 		show_backpack_full()
@@ -243,6 +301,10 @@ func show_news() -> void:
 		var card := dungeon.last_danger_card
 		dungeon.last_danger_card = null
 		show_popup("Danger card!", danger_news_text(card), [["Uh oh", close_popup]], card_art(card), "flip", card)
+	elif not dungeon.last_roamer_news.is_empty():
+		# The roamer is right next to you (still face down). Not a popup: just a warning.
+		info_label.text = dungeon.last_roamer_news + " The %s is on a face-down card next to you." % dungeon.roamer_card().room_name
+		dungeon.last_roamer_news = ""
 
 
 func danger_news_text(card: RoomCard) -> String:
@@ -260,6 +322,9 @@ func draw_square(square: Vector2i) -> void:
 	var icon: TextureRect = button.get_node("Icon")
 	var label: Label = button.get_node("Name")
 	button.get_node("Player").visible = square == dungeon.position
+	var tricks := trick_counts(square)
+	button.get_node("Tricks").visible = tricks.y > 0
+	button.get_node("Tricks/Row/Count").text = "%d/%d" % [tricks.x, tricks.y]
 	icon.texture = null
 	icon.modulate = Color.WHITE
 	label.text = ""
@@ -318,7 +383,12 @@ func draw_square(square: Vector2i) -> void:
 	# You can click a square you can walk to, and the square you're on (to use
 	# its campfire or chest again).
 	if scouting:
-		button.disabled = not dungeon.can_scout(square)  # Torch out: only cards you can light up.
+		# Torch out: cards you can light up, and face-up cards next to you (try the torch on them).
+		button.disabled = not (dungeon.can_scout(square) or dungeon.can_use_tool(DungeonRun.TORCH, square))
+		if not button.disabled:
+			button.add_theme_stylebox_override("normal", make_box(color, HOVER_BORDER, 3))
+	elif not tool_mode.is_empty():
+		button.disabled = not dungeon.can_use_tool(tool_mode, square)  # A tool out: only cards you can use it on.
 		if not button.disabled:
 			button.add_theme_stylebox_override("normal", make_box(color, HOVER_BORDER, 3))
 	else:
@@ -331,6 +401,10 @@ func describe_square(square: Vector2i) -> String:
 	var room: Dictionary = dungeon.rooms.get(square, {})
 	if scouting and dungeon.can_scout(square):
 		return "Light it up with your torch to see what it is."
+	if scouting and dungeon.can_use_tool(DungeonRun.TORCH, square):
+		return "Try your torch on it (%s)." % trick_hint(square, DungeonRun.TORCH)
+	if not tool_mode.is_empty() and dungeon.can_use_tool(tool_mode, square):
+		return "Use your %s on it (%s)." % [tool_mode.to_lower(), trick_hint(square, tool_mode)]
 	if not room.is_empty() and not room.revealed and room.get("scouted", false) and room.card:
 		var scouted: RoomCard = room.card
 		var scout_lines: Array[String] = ["Scouted: %s  (%s)" % [scouted.room_name, scouted.tile_name()]]
@@ -385,6 +459,13 @@ func describe_square(square: Vector2i) -> String:
 		if room.get("event") != null and card.event_name.is_empty():
 			lines[0] = "%s  (%s)" % [room.event.event_name, card.tile_name()]
 		lines.append("Done." if room.done else "Step on it to see your choices.")
+	elif card.type == RoomCard.Type.TREASURE and not room.done:
+		var guards := dungeon.guards_standing(square)
+		if guards > 0:
+			lines.append("Guarded! Beat the %d %s next to it first." % [guards, card.guards + ("s" if guards > 1 else "")])
+		elif square == dungeon.position:
+			lines.append("Click it to take it.")
+	lines.append_array(trick_lines(square))
 	if card.vanish:
 		lines.append("Vanish: once it's used, it's gone for the rest of this trip.")
 	if not card.loot.is_empty() and not room.done:
@@ -425,6 +506,8 @@ func has_action_here() -> bool:
 	var card: RoomCard = room.card
 	if dungeon.can_scavenge(dungeon.position):
 		return true
+	if dungeon.can_take_treasure(dungeon.position):
+		return true
 	return card != null and card.type == RoomCard.Type.LOCKED_CHEST and not room.done
 
 
@@ -432,7 +515,14 @@ func has_action_here() -> bool:
 
 func _on_square_hovered(square: Vector2i) -> void:
 	if scouting and not busy:
-		info_label.text = "Click it to light it up." if dungeon.can_scout(square) else "Pick a face-down card to light up (click the torch again to put it away)."
+		if dungeon.can_use_tool(DungeonRun.TORCH, square):
+			info_label.text = "Click it to try your torch on it (%s)." % trick_hint(square, DungeonRun.TORCH)
+		else:
+			info_label.text = "Click it to light it up." if dungeon.can_scout(square) else "Pick a face-down card to light up, or a face-up card next to you to try the torch on it (click the torch again to put it away)."
+		return
+	if not tool_mode.is_empty() and not busy:
+		info_label.text = ("Click it to use your %s (%s)." % [tool_mode.to_lower(), trick_hint(square, tool_mode)]) \
+			if dungeon.can_use_tool(tool_mode, square) else dungeon.why_not_tool(tool_mode, square) + "."
 		return
 	if not reach.has(square) or busy:
 		return
@@ -446,7 +536,16 @@ func _on_square_pressed(square: Vector2i) -> void:
 	if popup.visible or picker or deck_list or busy:
 		return
 	if scouting:
-		scout_square(square)
+		if dungeon.can_use_tool(DungeonRun.TORCH, square):
+			scouting = false
+			use_tool(DungeonRun.TORCH, square)
+		else:
+			scout_square(square)
+		return
+	if not tool_mode.is_empty():
+		var tool_name := tool_mode
+		tool_mode = ""
+		use_tool(tool_name, square)
 		return
 	var what := ""
 	if square == dungeon.position:
@@ -454,6 +553,9 @@ func _on_square_pressed(square: Vector2i) -> void:
 			what = "campfire"
 		elif dungeon.can_scavenge(square):
 			what = "scavenge"
+		elif dungeon.can_take_treasure(square):
+			dungeon.take_treasure(square)
+			what = "treasure"
 		else:
 			what = "chest"
 	else:
@@ -486,6 +588,12 @@ func _on_square_pressed(square: Vector2i) -> void:
 			info_label.text = "%s: %s" % [card.room_name, card.text if not card.text.is_empty() else "Nothing here."]
 		"scavenge":
 			show_scavenge()
+		"guarded":
+			var guards := dungeon.guards_standing(square)
+			show_popup(card.room_name, ("%s\n" % card.text if not card.text.is_empty() else "") +
+				"%d %s stand%s guard right next to it. Beat them first, then come back and take it. (Or try a tool on it...)" % [
+				guards, card.guards + ("s" if guards > 1 else ""), "" if guards > 1 else "s"],
+				[["OK", close_popup]], card_art(card), "pop", card)
 		"treasure":
 			var found := dungeon.history[-1].trim_prefix("Treasure! ")
 			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "You find %s." % found
@@ -525,6 +633,7 @@ func _on_torch_pressed() -> void:
 		scouting = false
 	else:
 		scouting = not scouting
+	tool_mode = ""
 	refresh()
 
 
@@ -573,6 +682,224 @@ func scout_square(square: Vector2i) -> void:
 		outcome.roll, outcome.need, how]
 	if guide_label:
 		show_guide_tip("torch", square)
+
+
+# --- Tools -------------------------------------------------------------------------
+# Crowbars and bombs (and your torch) can be used on face-up cards next to
+# you, or the one you're on. Drag a tool button onto a card, or click the
+# button and then the card. Each card's corner badge says how many tool
+# tricks it has ("1/2" = you've found 1 of its 2); which tool does what, you
+# find out by trying. The rules are in dungeon_run.gd (use_tool()) and the
+# tricks in data/dungeons/interactions.csv (see interaction.gd).
+
+# Vector2i(found, total) tool tricks for a face-up card.
+func trick_counts(square: Vector2i) -> Vector2i:
+	if dungeon.guided or not dungeon.is_revealed(square):
+		return Vector2i.ZERO
+	var tricks := dungeon.tricks_on(square)
+	var found := tricks.filter(func(t: Interaction) -> bool: return GameState.journal.has(t.key())).size()
+	return Vector2i(found, tricks.size())
+
+
+# "a trick you know: Open, 60%" / "you don't know what it does yet" / "nothing in your Journal"
+func trick_hint(square: Vector2i, tool_name: String) -> String:
+	var card: RoomCard = dungeon.rooms[square].card
+	var trick := Interaction.find(card.room_name, tool_name)
+	if trick and GameState.journal.has(trick.key()):
+		return "you know this one: %d%%, %s" % [trick.chance, trick.effect if not trick.effect.is_empty() else "nothing"]
+	var counts := trick_counts(square)
+	if counts.y > counts.x:
+		return "%d trick%s here you haven't found yet" % [counts.y - counts.x, "" if counts.y - counts.x == 1 else "s"]
+	return "no tricks left to find here"
+
+
+# The tooltip lines about a card's tool tricks.
+func trick_lines(square: Vector2i) -> Array[String]:
+	var lines: Array[String] = []
+	var counts := trick_counts(square)
+	if counts.y == 0:
+		return lines
+	lines.append("Tool tricks: %d (found %d). Drag a tool onto it to try one." % [counts.y, counts.x])
+	for trick in dungeon.tricks_on(square):
+		if GameState.journal.has(trick.key()):
+			lines.append("  %s" % trick.summary())
+	if counts.y > counts.x:
+		lines.append("  ? %d more to find" % (counts.y - counts.x))
+	return lines
+
+
+# The tool buttons, next to the torch: one for each tool you carry.
+func refresh_tools() -> void:
+	for old in tool_row.get_children():
+		old.queue_free()
+	for tool_name: String in DungeonRun.TOOLS:
+		var have := dungeon.carried(tool_name)
+		if have <= 0:
+			continue
+		var button := Button.new()
+		button.text = "%s (%d)" % [tool_name, have]
+		button.icon = TOOL_ICONS[tool_name]
+		button.expand_icon = true
+		button.custom_minimum_size = Vector2(130, 40)
+		button.toggle_mode = true
+		button.focus_mode = Control.FOCUS_NONE
+		button.set_pressed_no_signal(tool_mode == tool_name)
+		button.disabled = not dungeon.result.is_empty()
+		button.tooltip_text = "Drag it onto a face-up card next to you (or the one you're on), or click it and then the card.\nCards show how many tool tricks they have in the corner. Nothing happens? Then it isn't used up."
+		button.pressed.connect(_on_tool_pressed.bind(tool_name))
+		button.set_drag_forwarding(_drag_tool.bind(tool_name), Callable(), Callable())
+		tool_row.add_child(button)
+
+
+func _on_tool_pressed(tool_name: String) -> void:
+	scouting = false
+	if busy or popup.visible or picker or deck_list or journal_list or not dungeon.result.is_empty():
+		tool_mode = ""
+	else:
+		tool_mode = "" if tool_mode == tool_name else tool_name
+	refresh()
+	if not tool_mode.is_empty():
+		info_label.text = "%s out! Click a face-up card next to you (or the one you're on). Click the button again to put it away." % tool_mode
+
+
+# Dragging a tool button (or the torch): the data says which tool.
+func _drag_tool(_at: Vector2, tool_name: String) -> Variant:
+	if dungeon.carried(tool_name) <= 0 or busy or popup.visible:
+		return null
+	var preview := TextureRect.new()
+	preview.texture = TOOL_ICONS[tool_name]
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.size = Vector2(48, 48)
+	set_drag_preview(preview)
+	return {"tool": tool_name}
+
+
+func _can_drop_tool(_at: Vector2, data: Variant, square: Vector2i) -> bool:
+	return data is Dictionary and data.has("tool") and not busy and not popup.visible \
+		and dungeon.can_use_tool(data.tool, square)
+
+
+func _drop_tool(_at: Vector2, data: Variant, square: Vector2i) -> void:
+	scouting = false
+	tool_mode = ""
+	use_tool(data.tool, square)
+
+
+# Use a tool on a card and show what happened.
+func use_tool(tool_name: String, square: Vector2i) -> void:
+	var before: RoomCard = dungeon.rooms[square].card
+	var outcome := dungeon.use_tool(tool_name, square)
+	refresh()
+	if outcome.is_empty():
+		return
+	if not outcome.found:
+		info_label.text = "You try your %s on the %s. %s" % [tool_name.to_lower(), before.room_name, outcome.text]
+		return
+	var card: RoomCard = dungeon.rooms[square].card  # (A Secret can change it.)
+	var lines: Array[String] = []
+	if outcome.new:
+		lines.append("[New trick! It's in your Journal now.]")
+	if not outcome.text.is_empty():
+		lines.append(outcome.text)
+	lines.append("Your %s is used up." % tool_name.to_lower() if outcome.used else "You keep your %s." % tool_name.to_lower())
+	var heading := "%s: %s" % [tool_name, "it works!" if outcome.worked else "no luck..."]
+	if outcome.fight:
+		lines.append("Enemies: " + enemy_list(dungeon.fight_enemies))
+		show_popup(heading, "\n".join(lines), [["Fight!", start_fight]], card_art(before), "flip", before)
+	elif card != before:
+		show_popup(heading, "\n".join(lines), [["Nice", close_popup]], card_art(card), "flip", card)
+	else:
+		show_popup(heading, "\n".join(lines), [["OK", close_popup]], TOOL_ICONS[tool_name], "pop")
+
+
+# --- The Journal --------------------------------------------------------------------
+# Every tool trick you've ever found (it's saved, so it lasts between trips).
+
+func show_journal() -> void:
+	if journal_list or deck_list or popup.visible or busy:
+		return
+	journal_list = ColorRect.new()
+	journal_list.color = Color(0, 0, 0, 0.82)
+	journal_list.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(journal_list)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.17, 0.14, 0.1, 0.98)
+	style.border_color = Color(0.85, 0.68, 0.3)
+	style.set_border_width_all(3)
+	style.set_corner_radius_all(12)
+	style.set_content_margin_all(20)
+	panel.add_theme_stylebox_override("panel", style)
+	panel.custom_minimum_size = Vector2(660, 0)
+	panel.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	panel.grow_horizontal = Control.GROW_DIRECTION_BOTH
+	panel.grow_vertical = Control.GROW_DIRECTION_BOTH
+	journal_list.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 8)
+	panel.add_child(box)
+	var heading := Label.new()
+	heading.text = "Journal"
+	heading.add_theme_font_size_override("font_size", 30)
+	heading.add_theme_color_override("font_color", Color(1, 0.85, 0.4))
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(heading)
+	var everything := Interaction.load_all()
+	var about := Label.new()
+	about.text = "Tool tricks you've found: %d of %d.\nTry a crowbar, a bomb or a torch on a card to find more. A card's corner badge says how many it has." % [
+		GameState.journal.size(), everything.size()]
+	about.add_theme_font_size_override("font_size", 15)
+	about.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	about.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(about)
+	var scroll := ScrollContainer.new()
+	scroll.custom_minimum_size = Vector2(0, 360)
+	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
+	box.add_child(scroll)
+	var rows := VBoxContainer.new()
+	rows.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	rows.add_theme_constant_override("separation", 6)
+	scroll.add_child(rows)
+	for trick in everything:
+		if GameState.journal.has(trick.key()):
+			rows.add_child(make_journal_row(trick))
+	if GameState.journal.is_empty():
+		var none := make_small_label("Nothing yet. Drag a tool onto a card with a badge in its corner!", Color(1, 1, 1, 0.6))
+		rows.add_child(none)
+	var close := Button.new()
+	close.text = "Close"
+	close.custom_minimum_size = Vector2(160, 44)
+	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	close.pressed.connect(func() -> void:
+		journal_list.queue_free()
+		journal_list = null)
+	box.add_child(close)
+
+
+# One trick: the tool's picture, "Locked Shed + Crowbar  60%", what it does.
+func make_journal_row(trick: Interaction) -> Control:
+	var row := HBoxContainer.new()
+	row.add_theme_constant_override("separation", 10)
+	var picture := TextureRect.new()
+	picture.texture = TOOL_ICONS.get(trick.tool)
+	picture.custom_minimum_size = Vector2(32, 32)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	row.add_child(picture)
+	var words := VBoxContainer.new()
+	words.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	words.add_theme_constant_override("separation", 0)
+	row.add_child(words)
+	var top := make_small_label("%s + %s   %d%%" % [trick.card_name, trick.tool, trick.chance], Color(1, 0.9, 0.6))
+	top.add_theme_font_size_override("font_size", 17)
+	words.add_child(top)
+	var worked := "Works: " + (trick.effect if not trick.effect.is_empty() else "nothing")
+	var failed := "Fails: " + (trick.fail_effect if not trick.fail_effect.is_empty() else "nothing")
+	var used: String = {Interaction.ALWAYS: "used up", Interaction.ON_FAIL: "used up if it fails", Interaction.NEVER: "never used up"}[trick.used_up]
+	var detail := make_small_label("%s  ·  %s  ·  %s" % [worked, failed, used], Color(1, 1, 1, 0.75))
+	detail.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	words.add_child(detail)
+	return row
 
 
 # --- Scavenging ----------------------------------------------------------------------
@@ -1311,7 +1638,11 @@ func build_sack_panel() -> void:
 	torch_button.toggle_mode = true
 	torch_button.focus_mode = Control.FOCUS_NONE
 	torch_button.pressed.connect(_on_torch_pressed)
+	torch_button.set_drag_forwarding(_drag_tool.bind(DungeonRun.TORCH), Callable(), Callable())
 	gear.add_child(torch_button)
+	tool_row = HBoxContainer.new()
+	tool_row.add_theme_constant_override("separation", 8)
+	gear.add_child(tool_row)
 	enchant_button = Button.new()
 	enchant_button.icon = ENCHANT_ICON
 	enchant_button.expand_icon = true
@@ -1378,6 +1709,7 @@ func refresh_sack() -> void:
 	if found_row.get_child_count() == 0:
 		found_row.add_child(make_small_label("nothing yet" if dungeon.found_materials.is_empty() else "only what's in your backpack", Color(1, 1, 1, 0.5)))
 	refresh_backpack()
+	refresh_tools()
 	# Enchants waiting, and potions.
 	enchant_button.text = "Use Enchant (%d)" % dungeon.enchant_drops.size()
 	enchant_button.disabled = dungeon.enchant_drops.is_empty()
@@ -1438,17 +1770,17 @@ func refresh_backpack() -> void:
 		var item: Dictionary = contents[i]
 		slot.text = "x%d" % item.amount
 		slot.add_theme_constant_override("icon_max_width", 20)
-		if item.name == DungeonRun.TORCH:
-			slot.icon = TORCH_ICON
+		if TOOL_ICONS.has(item.name):
+			slot.icon = TOOL_ICONS[item.name]
 		else:
 			var info := GameState.find_material(item.name)
 			if info:
 				slot.icon = info.icon
 				slot.add_theme_color_override("font_color", info.color)
 		slot.tooltip_text = "%d %s. Click to drop it%s." % [item.amount, item.name,
-			" or put it in the Save Sack" if GameState.sack_open() and item.name != DungeonRun.TORCH else ""]
+			" or put it in the Save Sack" if GameState.sack_open() and not TOOL_ICONS.has(item.name) else ""]
 		slot.pressed.connect(show_backpack_slot.bind(item.name))
-		if GameState.sack_open() and item.name != DungeonRun.TORCH:
+		if GameState.sack_open() and not TOOL_ICONS.has(item.name):
 			var data := {"kind": "material", "name": item.name}
 			slot.set_drag_forwarding(func(_at: Vector2) -> Variant:
 				var preview := Label.new()
@@ -1466,7 +1798,7 @@ func show_backpack_slot(item_name: String) -> void:
 	var have := dungeon.carried(item_name)
 	var top := have % DungeonRun.BACKPACK_STACK if have % DungeonRun.BACKPACK_STACK != 0 else DungeonRun.BACKPACK_STACK
 	var choices := [["Drop %d" % top, _on_drop_stack.bind(item_name)]]
-	if GameState.sack_open() and item_name != DungeonRun.TORCH:
+	if GameState.sack_open() and not TOOL_ICONS.has(item_name):
 		choices.append(["Into the Save Sack", _on_backpack_to_sack.bind(item_name)])
 	choices.append(["Keep it", close_popup])
 	show_popup(item_name, "You carry %d %s. Drop a slot's worth (%d) to make room?" % [have, item_name, top], choices, backpack_picture(item_name), "pop")
@@ -1485,8 +1817,8 @@ func _on_backpack_to_sack(item_name: String) -> void:
 
 
 func backpack_picture(item_name: String) -> Texture2D:
-	if item_name == DungeonRun.TORCH:
-		return TORCH_ICON
+	if TOOL_ICONS.has(item_name):
+		return TOOL_ICONS[item_name]
 	var info := GameState.find_material(item_name)
 	return info.icon if info else null
 
@@ -1498,6 +1830,9 @@ func show_backpack_full() -> void:
 	var amount: int = dungeon.left_over[item_name]
 	var choices := [["Leave it", _on_leave_behind]]
 	var names: Array = dungeon.found_materials.keys()
+	for tool_name: String in DungeonRun.TOOLS:
+		if dungeon.carried(tool_name) > 0:
+			names.push_front(tool_name)
 	if dungeon.torches > 0:
 		names.push_front(DungeonRun.TORCH)
 	for other: String in names:

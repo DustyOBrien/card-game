@@ -22,6 +22,10 @@
 #   Blueprint Enchanter   a building's blueprint, yours for good right away
 #   Come Back       the room isn't finished: it goes back into the room deck
 #                   at your next rest, so you can find it again
+#   Add Sealed Vault    that map card (any Deck) joins the board face down
+#                   (or the map deck if there's no room)
+# Tool tricks (interactions.csv, see interaction.gd) can also use:
+#   Open, Clear, Destroy, Secret    (what they do to the card the tool hit)
 # Area "Room" = never picked at random: only a room card that names it
 # (rooms.csv, an Event row with the event's name in Encounters) leads to it.
 # Chance = % that the Effect happens; otherwise the Fail Effect does.

@@ -4,7 +4,8 @@
 # RoomCards (room_card.gd). One row per card, columns:
 #
 #   Place       the area it belongs to ("Abandoned Farm")
-#   Deck        Guide / Base / Filler / Yours / Campfire / Boss (see room_card.gd)
+#   Deck        Guide / Base / Filler / Yours / Campfire / Boss / Danger / Perk /
+#               Linked / Roamer / Secret (see room_card.gd)
 #   Card        its name on the card
 #   Tile        Safe / Unsafe / Explore
 #   Kind        Empty, Treasure, Fight, Hard Fight, Locked Chest, Event,
@@ -20,6 +21,7 @@
 #   Floor       it joins the deck when you reach this floor (blank = 1)
 #   Art         the picture, from the art/ folder: "map_cards/barn.svg"
 #   Text        the flavour text on the card
+#   Guards      a card dealt next to this one (up to 2): beat them to take its loot
 #   Notes       just for you: the game ignores it
 #
 # Unlike the other sheets, this one is read when the game runs (not by the
@@ -63,6 +65,7 @@ static func load_sheet(path: String) -> Array[RoomCard]:
 		card.floor_from = maxi(CardImporter._to_int(row.get("floor", ""), 1), 1)
 		card.text = row.get("text", "")
 		card.event_name = row.get("event", "")
+		card.guards = row.get("guards", "")
 		var art_name: String = row.get("art", "")
 		var art_path := ART_FOLDER + art_name
 		if not art_name.is_empty():

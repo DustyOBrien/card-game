@@ -1,0 +1,17 @@
+Card,Tool,Chance,Effect,Fail Effect,Result,Fail Result,Used Up
+Locked Shed,Crowbar,60,Open,Danger 1,Crack! The padlock pops right off.,The crowbar bends and snaps with a loud CLANG.,On Fail
+Locked Shed,Bomb,60,Open; Danger 2,Destroy; Danger 2,BOOM! The door is gone... but what's inside is fine.,BOOM! The shed is gone. So is everything that was in it.,Always
+Farmer's Stash,Crowbar,100,Open,,You lever up the floorboard.,,Never
+Guarded Hoard,Crowbar,40,Open,Danger 1,You pry it open behind the guards' backs!,Clang! The guards spin around.,On Fail
+Sealed Vault,Bomb,100,Open; Danger 2,,BOOM! The vault door flies off its hinges.,,Always
+Collapsed Wall,Bomb,100,Secret; Danger 1,,BOOM! The rubble falls away... there's a hidden passage behind it!,,Always
+Collapsed Wall,Crowbar,100,Stone 2-3,,You pry a few good stones loose.,,Never
+Old Quarry,Bomb,100,Stone 4-6; Danger 1,,BOOM! A shower of good stone.,,Always
+Slime Puddle,Bomb,75,Clear; Green Ooze 2; Danger 1,Lose HP 3; Danger 1,"Splat! Slime everywhere, and none of it alive.",The slimes bounce away from the blast... and you don't.,Always
+Slime Pond,Bomb,50,Clear; Green Ooze 3; Danger 1,Lose HP 4; Danger 1,The pond is just a pond now.,"The blast only makes them angry, and you're splashed with acid goo.",Always
+Bunny Burrow,Torch,70,Clear; Animal Hair 2,"Fight Bunny Warrior, Bunny Warrior","You smoke them out. They run off, leaving tufts of fur.","Out they come, and they are ANGRY.",Always
+Bunny Warren,Torch,50,Clear; Animal Hair 3,"Fight Bunny Warrior, Bunny Warrior, Slimeling",The whole warren empties out into the fields.,"Out they come, with friends.",Always
+Hay Bale,Torch,100,Destroy; Gold 4-8; Danger 1,,Whoosh! The bale goes up in flames. Something glints in the ashes.,,Always
+Old Well,Crowbar,50,Key; Gold 3-6,,You pry a loose stone from the well. Behind it: a key and some coins!,"Nothing behind the stones, and your crowbar snaps.",On Fail
+Old Barn,Torch,100,Destroy; Gold 6-10; Danger 2,,The old barn burns like a bonfire. Coins tumble out of the loft.,,Always
+Rusty Lever,Crowbar,100,Add Sealed Vault,,The lever is rusted stuck... until your crowbar gets it moving. Somewhere a heavy door grinds open.,,Never

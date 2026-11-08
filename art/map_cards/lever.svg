@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A rusty lever in the ground, with a chain running off. -->
+  <ellipse cx="32" cy="50" rx="26" ry="9" fill="#5f8a3a"/>
+  <rect x="20" y="42" width="24" height="10" rx="2" fill="#6e737c" stroke="#2e3036" stroke-width="2"/>
+  <path d="M30 44 L42 12" stroke="#8a4a22" stroke-width="5" stroke-linecap="round"/>
+  <circle cx="42" cy="12" r="5" fill="#b0482a" stroke="#4a1e0e" stroke-width="2"/>
+  <path d="M44 48 Q52 50 56 56" stroke="#8a8f98" stroke-width="2.5" fill="none" stroke-dasharray="3 2"/>
+</svg>

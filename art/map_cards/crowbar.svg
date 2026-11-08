@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A red crowbar: a thick bent bar with a hook at the top and a flat claw at the bottom. -->
+  <path d="M14 54 L44 16 Q50 6 58 12" stroke="#2a1a14" stroke-width="14" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 54 L44 16 Q50 6 58 12" stroke="#d0402f" stroke-width="9" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M14 54 L5 51" stroke="#2a1a14" stroke-width="12" stroke-linecap="round"/>
+  <path d="M14 54 L5 51" stroke="#b8bcc4" stroke-width="7" stroke-linecap="round"/>
+  <path d="M30 34 L40 21" stroke="#f08a78" stroke-width="3" stroke-linecap="round"/>
+</svg>

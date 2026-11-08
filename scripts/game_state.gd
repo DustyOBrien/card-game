@@ -37,14 +37,20 @@ var map_cards_off := {}
 # Saved loadouts: {"name", "class", "spec", "talents", "deck", "flask", "torches", "map_cards_off"}.
 var loadouts: Array[Dictionary] = []
 var last_loadout := {}  # The setup you last set out with ("Same as last time").
-var preparing := false
+var preparing := false  # Editing your deck/class from the Prepare screen: come back there after.
 # --- Place progression: each place has its own Exp, level and perks ---
 const AREA_MAX_LEVEL := 15
 const AREA_FIRST_LEVEL_EXP := 25  # Exp from level 1 to 2...
 const AREA_LEVEL_EXP_STEP := 15  # ...and each level after needs this much more.
 const AREA_LEVEL_PACK := "Small Farm Booster Pack"  # Every level up gives one.
 var area_exp := {}  # Place name -> its total Exp: {"Abandoned Farm": 140}
-var area_perks := {}  # Place name -> the perks you bought: {"Abandoned Farm": ["Camper"]}  # Editing your deck/class from the Prepare screen: come back there after.
+var area_perks := {}  # Place name -> the perks you bought: {"Abandoned Farm": ["Camper"]}
+# TOOLS you pack on the Prepare screen, paid for from the Bank when you set out.
+const TOOL_COSTS := {"Crowbar": {"Stone": 3}, "Bomb": {"Green Ooze": 2, "Stone": 1}}
+const MAX_PACKED_TOOLS := 3  # Of each tool.
+var packed_tools := {}  # {"Crowbar": 1, "Bomb": 0}
+# The JOURNAL: tool tricks you've found ("Locked Shed|Crowbar"), see interaction.gd.
+var journal: Array[String] = []
 
 # --- The run --------------------------------------------------------------
 # A "run" is one trip into an area's dungeon (see dungeon_run.gd): explore
@@ -253,6 +259,8 @@ func start_fresh() -> void:
 	packed_torches = 2
 	area_exp.clear()
 	area_perks.clear()
+	packed_tools.clear()
+	journal.clear()
 	map_cards_off.clear()
 	loadouts.clear()
 	last_loadout.clear()
@@ -553,6 +561,15 @@ func start_run() -> void:
 		if dungeon.flask:
 			dungeon.flask_stats = flask_stats(dungeon.flask)
 			dungeon.flask_charges = dungeon.flask_stats[Flask.CHARGES]
+		# The tools you packed, paid for from the Bank (as many as you can afford).
+		if not dungeon.guided:
+			for tool_name in packed_tools:
+				for i in packed_tools[tool_name]:
+					var cost: Dictionary = TOOL_COSTS.get(tool_name, {})
+					if not has_materials(cost) or dungeon.pack_item(tool_name, 1) == 0:
+						break
+					spend_materials(cost)
+			dungeon.left_over.clear()
 		# Starter Kit perks: a potion for every trip to this place.
 		for perk in owned_area_perks(current_area):
 			if perk.effect == AreaPerk.START_POTION:
@@ -1507,6 +1524,8 @@ func save_game() -> void:
 		"packed_torches": packed_torches,
 		"area_exp": area_exp,
 		"area_perks": area_perks,
+		"packed_tools": packed_tools,
+		"journal": journal,
 		"map_cards_off": map_cards_off,
 		"loadouts": loadouts,
 		"last_loadout": last_loadout,
@@ -1614,6 +1633,9 @@ func load_game() -> bool:
 	packed_torches = clampi(int(data.get("packed_torches", 2)), 0, MAX_PACKED_TORCHES)
 	var saved_area_exp = data.get("area_exp", {})
 	area_exp = _whole_numbers(saved_area_exp) if saved_area_exp is Dictionary else {}
+	var saved_tools = data.get("packed_tools", {})
+	packed_tools = _whole_numbers(saved_tools) if saved_tools is Dictionary else {}
+	journal.assign(data.get("journal", []))
 	var saved_perks = data.get("area_perks", {})
 	area_perks = saved_perks if saved_perks is Dictionary else {}
 	var saved_off = data.get("map_cards_off", {})
@@ -1958,6 +1980,7 @@ func current_loadout(loadout_name: String = "") -> Dictionary:
 		"deck": deck.map(func(card: CardData) -> String: return card.card_name),
 		"flask": flask.flask_name if flask else "",
 		"torches": packed_torches,
+		"tools": packed_tools.duplicate(),
 		"map_cards_off": map_cards_off.duplicate(true),
 	}
 
@@ -2019,6 +2042,8 @@ func apply_loadout(loadout: Dictionary) -> Array[String]:
 	if flask and is_flask_unlocked(flask):
 		chosen_flask = flask.flask_name
 	packed_torches = clampi(int(loadout.get("torches", 2)), 0, MAX_PACKED_TORCHES)
+	var saved_tools = loadout.get("tools", {})
+	packed_tools = _whole_numbers(saved_tools) if saved_tools is Dictionary else {}
 	var off = loadout.get("map_cards_off", {})
 	if off is Dictionary:
 		map_cards_off = off.duplicate(true)

@@ -5,7 +5,7 @@
 # on this screen, in three columns:
 #   1. Hero:      your class, spec and deck (buttons hop to their screens and come back here).
 #   2. Map Cards: which of YOUR map cards go into the place's map deck.
-#   3. Pack:      your flask, how many torches, and the potions/enchants you bought in town.
+#   3. Pack:      your flask, how many torches and tools, and the potions/enchants you bought in town.
 # Along the bottom: LOADOUTS (save this whole setup by name, load it again
 # later), "Same as last time", Back to the Map and Set Out!
 #
@@ -23,6 +23,10 @@ const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const TALENTS_SCENE := "res://scenes/talents.tscn"
 const PERKS_SCENE := "res://scenes/area_perks.tscn"
 const TORCH_ICON := preload("res://art/map_cards/torch.svg")
+const TOOL_ICONS := {
+	DungeonRun.CROWBAR: preload("res://art/map_cards/crowbar.svg"),
+	DungeonRun.BOMB: preload("res://art/map_cards/bomb.svg"),
+}
 const FLASK_ICON := preload("res://art/potions/flask.svg")
 
 const GOLD_COLOR := Color(1, 0.84, 0.35)
@@ -56,7 +60,7 @@ func start_guide() -> void:
 	ScreenGuide.start(self, "prepare", [
 		{"target": panel_of(hero_box), "text": "PREPARE EXPEDITION: everything you pick before a trip, in one place. HERO: your class, spec and deck. Edit Deck (or Change Class/Spec) and you come straight back here."},
 		{"target": panel_of(cards_box), "text": "MAP CARDS: your own map cards. Ticked ones go into the map deck with the place's base cards. Untick fights for a safer trip, or keep them for more drops."},
-		{"target": panel_of(pack_box), "text": "PACK: your flask, and how many torches you bring. Torches share one backpack slot, so 0 torches = one more slot for loot."},
+		{"target": panel_of(pack_box), "text": "PACK: your flask, how many torches you bring, and tools (crowbars, bombs) made from your Bank materials. Each kind takes a backpack slot, so packing less = more room for loot."},
 		{"target": loadout_row.get_parent(), "text": "LOADOUTS: Save this whole setup by name and load it again with one click. Same as last time puts back what you last set out with."},
 		{"target": perks_button, "text": "PERKS: every trip here gives the place Exp. Each level up gives an Explorer point to spend on this place's perks, and a booster pack."},
 		{"target": set_out_button, "text": "Ready? Set Out!"},
@@ -139,7 +143,7 @@ func build_screen() -> void:
 	bar.add_child(make_label("Loadouts:", 18, GOLD_COLOR))
 	var same := Button.new()
 	same.text = "Same as last time"
-	same.tooltip_text = "Put back the class, deck, flask, torches and map cards you last set out with."
+	same.tooltip_text = "Put back the class, deck, flask, torches, tools and map cards you last set out with."
 	same.disabled = GameState.last_loadout.is_empty()
 	same.pressed.connect(_on_load.bind(GameState.last_loadout, "your last setup"))
 	bar.add_child(same)
@@ -153,7 +157,7 @@ func build_screen() -> void:
 	bar.add_child(name_edit)
 	var save := Button.new()
 	save.text = "Save"
-	save.tooltip_text = "Save this whole setup (class, spec, talents, deck, flask, torches, map cards) to load again later."
+	save.tooltip_text = "Save this whole setup (class, spec, talents, deck, flask, torches, tools, map cards) to load again later."
 	save.pressed.connect(_on_save_loadout)
 	bar.add_child(save)
 	var spacer := Control.new()
@@ -392,10 +396,43 @@ func fill_pack() -> void:
 	more.disabled = GameState.packed_torches >= GameState.MAX_PACKED_TORCHES
 	torch_row.add_child(more)
 	pack_box.add_child(torch_row)
+	# Tools: crowbars and bombs to use on map cards. Made from Bank materials
+	# when you set out (as many as you can afford then).
+	var tool_slots := 0
+	for tool_name: String in DungeonRun.TOOLS:
+		var packed: int = GameState.packed_tools.get(tool_name, 0)
+		tool_slots += DungeonRun.stacks(packed)
+		var cost: Dictionary = GameState.TOOL_COSTS.get(tool_name, {})
+		var row := HBoxContainer.new()
+		row.add_theme_constant_override("separation", 6)
+		var icon := TextureRect.new()
+		icon.texture = TOOL_ICONS[tool_name]
+		icon.custom_minimum_size = Vector2(32, 32)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		row.add_child(icon)
+		var label := make_label("%ss: %d" % [tool_name, packed], 18, Color.WHITE)
+		label.custom_minimum_size = Vector2(110, 0)
+		row.add_child(label)
+		var less := make_button("−", _change_tool.bind(tool_name, -1))
+		less.disabled = packed <= 0
+		row.add_child(less)
+		var plus := make_button("+", _change_tool.bind(tool_name, 1))
+		plus.disabled = packed >= GameState.MAX_PACKED_TOOLS
+		row.add_child(plus)
+		var all_of_them := {}  # What all the packed ones cost together.
+		for material_name: String in cost:
+			all_of_them[material_name] = cost[material_name] * maxi(packed, 1)
+		var afford := GameState.has_materials(all_of_them)
+		var price := make_label("each: %s" % MaterialInfo.costs_text(cost), 14, DIM_COLOR if afford or packed == 0 else Color(1, 0.55, 0.45))
+		price.tooltip_text = "Made from the Bank's materials when you set out.%s" % (
+			"" if afford or packed == 0 else " You can't afford all %d right now: you'll take as many as you can." % packed)
+		price.mouse_filter = Control.MOUSE_FILTER_PASS
+		row.add_child(price)
+		pack_box.add_child(row)
 	var slots := DungeonRun.BACKPACK_SLOTS + GameState.town_bonus(TownBuilding.BACKPACK_SLOTS)
 	var torch_slots := DungeonRun.stacks(GameState.packed_torches)
-	pack_box.add_child(make_label("Backpack: %d slots, %d free for loot. Torches share one slot (up to %d)." % [
-		slots, slots - torch_slots, DungeonRun.BACKPACK_STACK], 15, DIM_COLOR, true))
+	pack_box.add_child(make_label("Backpack: %d slots, %d free for loot. Torches share one slot, and each kind of tool another (up to %d of one thing in a slot)." % [
+		slots, slots - torch_slots - tool_slots, DungeonRun.BACKPACK_STACK], 15, DIM_COLOR, true))
 
 	# What you bought in town for this trip.
 	pack_box.add_child(make_label("Bought in town:", 18, GOLD_COLOR))
@@ -405,7 +442,6 @@ func fill_pack() -> void:
 	for enchant_name in GameState.pending_enchants:
 		bought.append("Enchant: " + enchant_name)
 	pack_box.add_child(make_label(", ".join(bought) if not bought.is_empty() else "Nothing. (Potions at the Alchemist, enchants at the Enchanter.)", 15, DIM_COLOR, true))
-	pack_box.add_child(make_label("More tools to pack (crowbars, bombs...) come later.", 14, DIM_COLOR, true))
 
 
 func fill_loadouts() -> void:
@@ -430,6 +466,16 @@ func _go_to(scene: String) -> void:
 	GameState.save_game()
 	GameState.preparing = true
 	get_tree().change_scene_to_file(scene)
+
+
+func _change_tool(tool_name: String, by: int) -> void:
+	var packed: int = clampi(GameState.packed_tools.get(tool_name, 0) + by, 0, GameState.MAX_PACKED_TOOLS)
+	if packed > 0:
+		GameState.packed_tools[tool_name] = packed
+	else:
+		GameState.packed_tools.erase(tool_name)
+	GameState.save_game()
+	refresh()
 
 
 func _change_torches(by: int) -> void:

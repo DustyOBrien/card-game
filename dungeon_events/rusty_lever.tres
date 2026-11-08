@@ -1,0 +1,15 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+
+[resource]
+script = ExtResource("1_event")
+event_name = "Rusty Lever"
+area = "Room"
+text = "A rusty lever sticks out of the ground. A chain runs from it into the dirt."
+choice_labels = PackedStringArray("Pull it", "Leave it")
+chances = Array[int]([60, 100])
+effects = PackedStringArray("Add Sealed Vault; Danger 1", "Come Back")
+fail_effects = PackedStringArray("Danger 1", "")
+results = PackedStringArray("CLUNK. Somewhere on the farm, a heavy stone door grinds open...", "You leave the lever for now.")
+fail_results = PackedStringArray("It won't budge. Your grunting carries a long way. (A crowbar might help.)", "")

@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- A dark passage through broken stone, with a glint inside. -->
+  <path d="M6 58 L6 20 L14 12 L24 16 L32 8 L42 14 L52 10 L58 20 L58 58 Z" fill="#9a9488" stroke="#3a3630" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M20 58 L20 34 Q32 18 44 34 L44 58 Z" fill="#120e0a"/>
+  <path d="M10 30 L18 32 M46 26 L54 28 M10 46 L16 46 M48 44 L54 46" stroke="#6a655c" stroke-width="2"/>
+  <path d="M32 44 L34 48 L38 48 L35 51 L36 55 L32 52 L28 55 L29 51 L26 48 L30 48 Z" fill="#f5cf4a"/>
+</svg>

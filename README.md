@@ -1066,7 +1066,37 @@ so change it, save, and press Play: no importer needed.
 | Floor | 2 | It joins the deck when you Go Deeper to this floor (blank = 1). For the Boss: the first floor it's dealt on |
 | Art | map_cards/barn.svg | The picture, from the `art/` folder |
 | Text | | The card's flavour text |
+| Guards | Slime Guard | A card (usually Deck **Linked**) dealt on up to 2 squares next to this one. Its treasure can't be taken until they're beaten |
 | Notes | | Just for you: the game ignores it |
+
+### Tool tricks: `data/dungeons/interactions.csv`
+
+Drag a **Crowbar**, a **Bomb** or your **Torch** onto a face-up map card next
+to you. Each row here is one hidden trick: what that tool does to that card.
+A card's corner badge says how many tricks it has (`1/2` = you've found 1 of
+2), but not which tool. The **Journal** (on the board, under the map) saves
+every trick you find, for good. Read when the game runs, like the map cards.
+Crowbars and bombs are packed on the Prepare screen (paid with Bank materials,
+`TOOL_COSTS` in `game_state.gd`) or found as loot (`Crowbar`, `Bomb`).
+
+| Column | Example | What it means |
+|---|---|---|
+| Card | Locked Shed | The map card's name |
+| Tool | Crowbar | **Crowbar**, **Bomb** or **Torch** |
+| Chance | 60 | % it works |
+| Effect | Open | What happens if it works: any event effect (see Events below), plus **Open** (loot it like a chest), **Clear** (a fight dealt with, no fight), **Destroy** (ruined, loot gone), **Secret** (it turns into the place's Secret card), **Add Sealed Vault** (that card joins the board face down) |
+| Fail Effect | Danger 1 | What happens if it doesn't |
+| Result / Fail Result | Crack! | The text for each |
+| Used Up | On Fail | **Always** (default), **On Fail** (a crowbar that snaps) or **Never** |
+
+A tool on a card with no trick for it does nothing, and isn't used up.
+
+**Linked rooms:** the Rusty Lever's event (and a crowbar on it) uses
+`Add Sealed Vault` to bring a vault onto the board. The Guarded Hoard's
+**Guards** column deals Slime Guards next to it. **The roamer:** from Floor 2,
+the Wandering Slime Knight (Deck Roamer) is dealt face down and moves to a
+face-down square next to it every step you take. Flip it to fight it; beat it
+and it's gone for the trip.
 
 ### Room decks: `data/dungeons/rooms.csv`
 

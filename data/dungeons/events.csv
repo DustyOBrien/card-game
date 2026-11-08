@@ -37,3 +37,5 @@ Sinkhole,,,,Jump it,40,Gold 3-6,Lose HP 6; Danger 1,A clean jump! Something shin
 Dark Cellar,Room,1,A cellar door in the grass. The steps go down into the dark.,Light a torch,100,Use Torch; Pack | Card | Potion,,"Your torch shows shelves of old jars, and something better tucked behind them.",,
 Dark Cellar,,,,Feel your way in,50,Gold 5-10; Grain 2,"Fight Slime, Slimeling","Your hands find a coin purse and a sack of grain.","Something cold and squishy grabs your hand!",
 Dark Cellar,,,,Leave it,100,,,You close the door on the dark.,,
+Rusty Lever,Room,1,A rusty lever sticks out of the ground. A chain runs from it into the dirt.,Pull it,60,Add Sealed Vault; Danger 1,Danger 1,"CLUNK. Somewhere on the farm, a heavy stone door grinds open...",It won't budge. Your grunting carries a long way. (A crowbar might help.),
+Rusty Lever,,,,Leave it,100,Come Back,,You leave the lever for now.,,

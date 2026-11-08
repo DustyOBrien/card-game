@@ -58,6 +58,10 @@ const DANGER_CARDS_PER_STRENGTH := 2  # So enemies get +1 Strength every 6 dange
 const BACKPACK_SLOTS := 6
 const BACKPACK_STACK := 5
 const TORCH := "Torch"  # The backpack's name for your torches.
+# TOOLS you drag onto cards (interaction.gd). They take backpack space too.
+const CROWBAR := "Crowbar"
+const BOMB := "Bomb"
+const TOOLS := [CROWBAR, BOMB]
 const KEY_CHANCE := 25  # % chance a fight drops a small key.
 const BREAK_CHANCE := 40  # % chance that breaking a locked chest open works (no key needed, but loud).
 # % chance a won fight drops an enchant / a potion, by card kind.
@@ -103,6 +107,10 @@ var keys := 0  # Small keys: each opens one Locked Chest.
 var danger_points := 0  # From Unsafe cards and failed choices. See enemy_strength().
 var torches := 0  # Torches in your pack (the lit one counts until it burns out).
 var torch_uses := 0  # Cards the lit torch has scouted so far.
+var tools := {}  # Crowbars and bombs you carry: {"Crowbar": 1}.
+var roamer_square := Vector2i(-1, -1)  # Where the roaming mini boss is (face down), or (-1, -1).
+var roamer_beaten := false  # Beaten this trip: it doesn't come back.
+var last_roamer_news := ""  # "You hear stomping nearby..." (dungeon.gd shows it once).
 
 # What you've found, given to you when you Return to Town or beat the Boss.
 var found_gold := 0
@@ -301,9 +309,99 @@ func _deal() -> void:
 	# deeper down it's the campfire you just used, burnt out.
 	rooms[START] = {"card": null, "revealed": true, "cleared": true, "done": true,
 		"campfire": floor_number == 1, "opened": false, "start": true}
+	if not guided:
+		_deal_guards()
+		_deal_roamer()
 	position = START
 	came_from = START
 	just_flipped = Vector2i(-1, -1)
+
+
+# GUARDS: a card with a Guards column (the Guarded Hoard) gets its guards
+# dealt on up to 2 of the squares next to it.
+func _deal_guards() -> void:
+	for square: Vector2i in rooms.keys():
+		var card: RoomCard = rooms[square].card
+		if card == null or card.guards.is_empty():
+			continue
+		var guard := find_card(card.guards)
+		if guard == null:
+			push_warning("%s: no map card called '%s' to guard it" % [card.room_name, card.guards])
+			continue
+		var spots: Array[Vector2i] = []
+		for direction in DIRECTIONS:
+			var next := square + direction
+			if rooms.has(next) and rooms[next].card != null and not rooms[next].campfire \
+					and rooms[next].card.deck_part not in [RoomCard.DECK_BOSS, RoomCard.DECK_LINKED] \
+					and rooms[next].card.guards.is_empty():
+				spots.append(next)
+		spots.shuffle()
+		for next in spots.slice(0, RoomCard.GUARD_COUNT):
+			if _returns_to_deck(rooms[next].card):
+				deck.append(rooms[next].card)
+			rooms[next].card = guard
+	deck.shuffle()
+
+
+# Are any of this card's guards still standing next to it?
+func guards_standing(square: Vector2i) -> int:
+	var card: RoomCard = rooms[square].card
+	if card == null or card.guards.is_empty():
+		return 0
+	var count := 0
+	for direction in DIRECTIONS:
+		var next := square + direction
+		if rooms.has(next) and rooms[next].card != null and rooms[next].card.room_name == card.guards and not rooms[next].cleared:
+			count += 1
+	return count
+
+
+# THE ROAMER: from its Floor on, the place's Roamer card (a mini boss) is
+# dealt face down. Every step you take, it moves to a face-down square next
+# to it (see _roam()). Flip it and you fight it. Beat it and it's gone.
+func roamer_card() -> RoomCard:
+	for card in area.cards():
+		if card.deck_part == RoomCard.DECK_ROAMER:
+			return card
+	return null
+
+
+func _deal_roamer() -> void:
+	roamer_square = Vector2i(-1, -1)
+	var roamer := roamer_card()
+	if roamer == null or roamer_beaten or floor_number < roamer.floor_from:
+		return
+	roamer_square = _swap_onto_board(roamer)
+	if roamer_square.x >= 0:
+		add_log("Heavy footsteps... the %s roams this floor." % roamer.room_name)
+
+
+func roamer_here() -> bool:
+	return roamer_square.x >= 0 and rooms.has(roamer_square) and not rooms[roamer_square].revealed
+
+
+# After each of your steps: the roamer moves to a face-down square next to
+# it (if there is one). Its whole square swaps with that one, so a scouted
+# roamer stays scouted: a torch lets you track it.
+func _roam() -> void:
+	if not roamer_here():
+		return
+	var spots: Array[Vector2i] = []
+	for direction in DIRECTIONS:
+		var next := roamer_square + direction
+		if rooms.has(next) and not rooms[next].revealed and rooms[next].card != null and not rooms[next].campfire \
+				and rooms[next].card.deck_part not in [RoomCard.DECK_BOSS, RoomCard.DECK_LINKED]:
+			spots.append(next)
+	if spots.is_empty():
+		return
+	var next: Vector2i = spots.pick_random()
+	var moved: Dictionary = rooms[roamer_square]
+	rooms[roamer_square] = rooms[next]
+	rooms[next] = moved
+	roamer_square = next
+	if (roamer_square - position).abs().x + (roamer_square - position).abs().y == 1:
+		last_roamer_news = "Something heavy stomps right next to you..."
+		add_log(last_roamer_news)
 
 
 # --- Moving ------------------------------------------------------------------
@@ -358,6 +456,7 @@ func can_move_to(square: Vector2i) -> bool:
 #   "event"    an Explore card with choices (dungeon.gd shows them)
 #   "campfire" Return to Town or Go Deeper
 #   "empty"    a Safe card with nothing on it
+#   "guarded"  treasure with its guards still standing next to it
 #   "scavenge" a card you can scavenge (dungeon.gd offers it)
 #   ""         you can't go there
 func move_to(square: Vector2i) -> String:
@@ -370,7 +469,12 @@ func move_to(square: Vector2i) -> String:
 	just_flipped = Vector2i(-1, -1)
 	if not rooms[square].revealed:
 		_flip(square)
-	return _enter(square)
+	var what := _enter(square)
+	if square == roamer_square:
+		roamer_square = Vector2i(-1, -1)  # Found it: now it's a fight, not a roamer.
+	else:
+		_roam()
+	return what
 
 
 # Turn a card face up. Unsafe cards raise danger the moment you find them.
@@ -418,6 +522,8 @@ func _enter(square: Vector2i) -> String:
 			if room.done:
 				return "walk"
 			room.cleared = true
+			if guards_standing(square) > 0:
+				return "guarded"  # Beat the guards next to it first.
 			room.done = true
 			add_log("Treasure! %s" % take_loot(card))
 			return "treasure"
@@ -511,7 +617,9 @@ func choose(index: int) -> Dictionary:
 
 
 # Do a list of effects (see dungeon_event.gd). Returns {"lines": what happened, "fight": bool}.
-func apply_effects(list: Array[String]) -> Dictionary:
+func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dictionary:
+	if at.x < 0:
+		at = position  # Events happen where you stand; tools on the card you used them on.
 	var lines: Array[String] = []
 	var fight := false
 	var come_back := false
@@ -567,6 +675,39 @@ func apply_effects(list: Array[String]) -> Dictionary:
 				lines.append("Blueprint: %s! Build it back in town." % blueprint)
 			"come":  # "Come Back"
 				come_back = true  # (The event's Result text says so.)
+			"open":  # A tool opened it like a chest.
+				var opened: Dictionary = rooms[at]
+				opened.opened = true
+				opened.done = true
+				opened.cleared = true
+				lines.append("Inside: " + take_loot(opened.card))
+			"clear":  # A tool dealt with a fight card: no fight.
+				rooms[at].cleared = true
+				rooms[at].done = true
+				GameState.record_for_quest(Quest.CLEAR_ROOM, rooms[at].card.room_name)
+				lines.append("%s: dealt with" % rooms[at].card.room_name)
+			"destroy":
+				rooms[at].done = true
+				rooms[at].cleared = true
+				rooms[at].ruined = true
+				lines.append("%s is ruined" % rooms[at].card.room_name)
+			"secret":  # The card becomes the place's Secret card, face up.
+				var secret: RoomCard = null
+				for card in area.cards():
+					if card.deck_part == RoomCard.DECK_SECRET:
+						secret = card
+				if secret:
+					rooms[at] = {"card": secret, "revealed": true, "cleared": true, "done": false,
+						"campfire": false, "opened": false}
+					lines.append("Found: %s!" % secret.room_name)
+			"add":  # "Add Sealed Vault": a card joins the board, face down.
+				var added := find_card(effect.substr(4).strip_edges())
+				if added:
+					var where := _swap_onto_board(added)
+					lines.append("%s is somewhere on the board now" % added.room_name if where.x >= 0 \
+						else "%s is shuffled into the map deck" % added.room_name)
+				else:
+					push_warning("No map card called '%s' to add" % effect.substr(4))
 			"fight":
 				fight_enemies.clear()
 				for enemy_name in effect.substr(5).split(",", false):
@@ -576,6 +717,8 @@ func apply_effects(list: Array[String]) -> Dictionary:
 					else:
 						push_warning("events.csv: no enemy called '%s'" % enemy_name.strip_edges())
 				fight = not fight_enemies.is_empty()
+				if fight:
+					fight_square = at
 			_:
 				# Everything else is a loot word, like a chest: Gold 5-10, Key, Potion...
 				# "Pack | Card | Potion" = one of them, picked at random.
@@ -583,6 +726,103 @@ func apply_effects(list: Array[String]) -> Dictionary:
 				loot_card.loot = CardImporter._parse_list(effect.replace("|", ","))
 				lines.append("You get " + take_loot(loot_card))
 	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint}
+
+
+# --- Tools and hidden interactions ------------------------------------------------
+# Drag a tool (Crowbar, Bomb, Torch) onto a face-up card next to you (or
+# under you). interactions.csv says what happens. See interaction.gd.
+
+# The tool tricks this card has (the card shows how many).
+func tricks_on(square: Vector2i) -> Array[Interaction]:
+	if not rooms.has(square) or rooms[square].card == null:
+		return []
+	return Interaction.for_card(rooms[square].card.room_name)
+
+
+# Can you use this tool on this square now?
+func can_use_tool(tool_name: String, square: Vector2i) -> bool:
+	return why_not_tool(tool_name, square).is_empty()
+
+
+# Why not ("" = you can).
+func why_not_tool(tool_name: String, square: Vector2i) -> String:
+	if not result.is_empty():
+		return "The trip is over"
+	if guided:
+		return "Not on your first trip"
+	if carried(tool_name) <= 0:
+		return "You have no %s" % tool_name.to_lower()
+	if not rooms.has(square) or not rooms[square].revealed or rooms[square].card == null or rooms[square].campfire:
+		return "Use tools on face-up cards"
+	var distance := (square - position).abs()
+	if distance.x + distance.y > 1:
+		return "Get next to it first"
+	if rooms[square].get("tried", []).has(tool_name):
+		return "You already tried your %s here" % tool_name.to_lower()
+	var trick := Interaction.find(rooms[square].card.room_name, tool_name)
+	if trick and trick.effect.to_lower().begins_with("open") and rooms[square].done:
+		return "It's already open"
+	return ""
+
+
+# Use a tool on a card. Returns {"found": false} when nothing happens (the
+# tool isn't used up), or {"found": true, "worked", "text", "fight", "new"
+# (first time you found this trick), "used" (the tool is gone)}.
+func use_tool(tool_name: String, square: Vector2i) -> Dictionary:
+	if not can_use_tool(tool_name, square):
+		return {}
+	var room: Dictionary = rooms[square]
+	var tried: Array = room.get("tried", [])
+	tried.append(tool_name)
+	room.tried = tried
+	var card: RoomCard = room.card
+	var trick := Interaction.find(card.room_name, tool_name)
+	if trick == null:
+		add_log("You try your %s on the %s. Nothing happens." % [tool_name.to_lower(), card.room_name])
+		return {"found": false, "text": "Nothing happens. (Your %s is fine.)" % tool_name.to_lower()}
+	var is_new := not GameState.journal.has(trick.key())
+	if is_new:
+		GameState.journal.append(trick.key())
+		GameState.save_game()
+	var worked := randi_range(1, 100) <= trick.chance
+	var used := trick.used_up == Interaction.ALWAYS or (trick.used_up == Interaction.ON_FAIL and not worked)
+	if used:
+		if tool_name == TORCH:
+			torches -= 1
+			torch_uses = 0
+		else:
+			_add_tool(tool_name, -1)
+	var outcome := apply_effects(DungeonEvent.split_effects(trick.effect if worked else trick.fail_effect), square)
+	var text: String = trick.result if worked else trick.fail_result
+	if not outcome.lines.is_empty():
+		text += ("\n" if not text.is_empty() else "") + "\n".join(outcome.lines)
+	if outcome.fight:
+		rooms[square].cleared = false
+		rooms[square].done = false
+	add_log("%s on the %s: %s" % [tool_name, card.room_name, ", ".join(outcome.lines) if not outcome.lines.is_empty() else ("it worked" if worked else "it didn't work")])
+	return {"found": true, "worked": worked, "text": text, "fight": outcome.fight, "new": is_new, "used": used}
+
+
+# Treasure you're standing on that you couldn't take when you got here (its
+# guards were still up), or that a tool just turned up under you.
+func can_take_treasure(square: Vector2i) -> bool:
+	if not result.is_empty() or not rooms.has(square):
+		return false
+	var room: Dictionary = rooms[square]
+	return room.revealed and room.card != null and room.card.type == RoomCard.Type.TREASURE \
+		and not room.done and guards_standing(square) == 0
+
+
+# Take it. Returns what you got ("" = you can't).
+func take_treasure(square: Vector2i) -> String:
+	if not can_take_treasure(square):
+		return ""
+	var room: Dictionary = rooms[square]
+	room.done = true
+	room.cleared = true
+	var text := take_loot(room.card)
+	add_log("Treasure! %s" % text)
+	return text
 
 
 # --- Torches -----------------------------------------------------------------
@@ -746,23 +986,49 @@ func _add_danger_card() -> void:
 	var card: RoomCard = pool.pick_random()
 	danger_cards_added += 1
 	last_danger_card = card
+	if _swap_onto_board(card).x < 0:
+		add_log("Danger %d! A Danger card is shuffled into the map deck: %s." % [danger_points, card.room_name])
+	else:
+		add_log("Danger %d! A Danger card sneaks onto the board, face down: %s." % [danger_points, card.room_name])
+
+
+# Put a card onto a random face-down (not scouted) square of the board; the
+# card that was there goes back into the deck. If there's no such square, the
+# card goes into the deck. Returns the square, or (-1, -1).
+func _swap_onto_board(card: RoomCard) -> Vector2i:
 	var spots: Array[Vector2i] = []
 	for square: Vector2i in rooms:
 		var room: Dictionary = rooms[square]
 		var here: RoomCard = room.card
 		if here != null and not room.revealed and not room.get("scouted", false) and not room.campfire \
-				and here.deck_part != RoomCard.DECK_BOSS:
+				and here.deck_part not in [RoomCard.DECK_BOSS, RoomCard.DECK_ROAMER, RoomCard.DECK_LINKED] \
+				and square != roamer_square:
 			spots.append(square)
 	if spots.is_empty():
 		deck.append(card)
 		deck.shuffle()
-		add_log("Danger %d! A Danger card is shuffled into the map deck: %s." % [danger_points, card.room_name])
-		return
+		return Vector2i(-1, -1)
 	var square: Vector2i = spots.pick_random()
-	deck.append(rooms[square].card)
-	deck.shuffle()
+	if _returns_to_deck(rooms[square].card):
+		deck.append(rooms[square].card)
+		deck.shuffle()
 	rooms[square].card = card
-	add_log("Danger %d! A Danger card sneaks onto the board, face down: %s." % [danger_points, card.room_name])
+	return square
+
+
+# Linked, Roamer and Secret cards belong to the board they're on: they never
+# go into the deck.
+func _returns_to_deck(card: RoomCard) -> bool:
+	return card != null and card.deck_part not in [RoomCard.DECK_CAMPFIRE, RoomCard.DECK_BOSS, RoomCard.DECK_GUIDE,
+		RoomCard.DECK_LINKED, RoomCard.DECK_ROAMER, RoomCard.DECK_SECRET]
+
+
+# A card of this place by name (any Deck), or null.
+func find_card(card_name: String) -> RoomCard:
+	for card in area.cards():
+		if card.room_name == card_name:
+			return card
+	return null
 
 
 # --- Cards -------------------------------------------------------------------
@@ -779,6 +1045,8 @@ func win_fight() -> String:
 	if card == null:
 		return ""
 	GameState.record_for_quest(Quest.CLEAR_ROOM, card.room_name)
+	if card.deck_part == RoomCard.DECK_ROAMER:
+		roamer_beaten = true
 	if not card.loot.is_empty() and card.is_fight():
 		add_log("Reward: %s" % take_loot(card))
 	if randi_range(1, 100) <= KEY_CHANCE:
@@ -844,8 +1112,8 @@ func go_deeper() -> void:
 	for square: Vector2i in rooms:
 		var room: Dictionary = rooms[square]
 		var card: RoomCard = room.card
-		if card == null or card.deck_part in [RoomCard.DECK_CAMPFIRE, RoomCard.DECK_BOSS, RoomCard.DECK_GUIDE]:
-			continue  # The campfire and the Boss are dealt fresh each floor.
+		if not _returns_to_deck(card):
+			continue  # The campfire and the Boss are dealt fresh each floor; linked cards stay with their board.
 		if card.vanish and room.done:
 			gone.append(card)
 			continue
@@ -1016,6 +1284,11 @@ func take_loot(card: RoomCard) -> String:
 			if pack_item(TORCH, 1) == 0:
 				return "a torch (no room in your backpack)"
 			return "a torch"
+		"crowbar", "bomb":
+			var tool_name := words[0].capitalize()
+			if pack_item(tool_name, 1) == 0:
+				return "a %s (no room in your backpack)" % tool_name.to_lower()
+			return "a %s!" % tool_name.to_lower()
 		"enchant":
 			return "an enchant: " + _drop_enchant()
 		"potion":
@@ -1075,7 +1348,11 @@ func backpack_slots() -> int:
 
 # How many of something you carry (TORCH = your torches).
 func carried(item_name: String) -> int:
-	return torches if item_name == TORCH else found_materials.get(item_name, 0)
+	if item_name == TORCH:
+		return torches
+	if item_name in TOOLS:
+		return tools.get(item_name, 0)
+	return found_materials.get(item_name, 0)
 
 
 # Slots that many of one thing fill: 1-5 = 1 slot, 6-10 = 2...
@@ -1085,6 +1362,8 @@ static func stacks(amount: int) -> int:
 
 func backpack_used() -> int:
 	var used := stacks(torches)
+	for tool_name in tools:
+		used += stacks(tools[tool_name])
 	for material_name in found_materials:
 		used += stacks(found_materials[material_name])
 	return used
@@ -1093,9 +1372,11 @@ func backpack_used() -> int:
 # What's in the backpack, one entry per slot: [{"name": "Stone", "amount": 5}, {"name": "Stone", "amount": 2}...]
 func backpack_contents() -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
-	var names: Array = found_materials.keys()
+	var names: Array = []
 	if torches > 0:
-		names.push_front(TORCH)
+		names.append(TORCH)
+	names.append_array(tools.keys().filter(func(t: String) -> bool: return tools[t] > 0))
+	names.append_array(found_materials.keys())
 	for item_name: String in names:
 		var left := carried(item_name)
 		while left > 0:
@@ -1116,6 +1397,8 @@ func pack_item(item_name: String, amount: int) -> int:
 	var fits := mini(amount, backpack_room(item_name))
 	if item_name == TORCH:
 		torches += fits
+	elif item_name in TOOLS:
+		_add_tool(item_name, fits)
 	elif fits > 0:
 		add_found_material(item_name, fits)
 	if amount > fits:
@@ -1134,10 +1417,18 @@ func drop_stack(item_name: String) -> int:
 		torches -= amount
 		if torches <= 0:
 			torch_uses = 0
+	elif item_name in TOOLS:
+		_add_tool(item_name, -amount)
 	else:
 		add_found_material(item_name, -amount)
 	add_log("You drop %d %s to make room." % [amount, item_name])
 	return amount
+
+
+func _add_tool(tool_name: String, amount: int) -> void:
+	tools[tool_name] = maxi(tools.get(tool_name, 0) + amount, 0)
+	if tools[tool_name] == 0:
+		tools.erase(tool_name)
 
 
 # Try again to fit what was left over (after dropping something).
