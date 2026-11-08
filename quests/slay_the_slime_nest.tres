@@ -11,4 +11,5 @@ objective = "clear room"
 target = "Big Slime Nest"
 start_gift = "Room Abandoned Farm: Big Slime Nest"
 rewards = "Pack Small 4"
-sort_order = 4
+sort_order = 5
+area = "Abandoned Farm"

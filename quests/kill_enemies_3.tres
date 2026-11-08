@@ -12,4 +12,5 @@ target = "Any"
 amount = 30
 rewards = "Pack Large 1"
 quest_type = "Side"
-sort_order = 8
+sort_order = 9
+area = "Abandoned Farm"

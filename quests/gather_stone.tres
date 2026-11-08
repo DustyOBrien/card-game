@@ -12,3 +12,4 @@ target = "Stone"
 amount = 5
 rewards = "Pack Small 1; Blueprint Alchemist"
 starts_after = "Adventurer Trained"
+area = "Abandoned Farm"

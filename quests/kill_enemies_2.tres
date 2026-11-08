@@ -13,4 +13,5 @@ amount = 20
 rewards = "Pack Medium 2"
 next_quest = "Kill Enemies 3"
 quest_type = "Side"
-sort_order = 7
+sort_order = 8
+area = "Abandoned Farm"

@@ -815,6 +815,7 @@ static func _import_progression() -> void:
 		quest.next_quest = row.get("next quest", "")
 		quest.quest_type = row.get("type", "").strip_edges() if not row.get("type", "").strip_edges().is_empty() else "Story"
 		quest.starts_after = row.get("starts after", "").strip_edges()
+		quest.area = row.get("area", "").strip_edges()
 		quests.append(quest)
 	_save_all(quests, QUESTS_FOLDER, func(q: Quest) -> String: return q.quest_name)
 

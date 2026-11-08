@@ -54,6 +54,8 @@ const ANY := "any"  # Defeat Any: every monster counts.
 @export var quest_type: String = "Story"  # Story / Adventurer / Side: groups it on the quest screen.
 @export var starts_after: String = ""  # Also starts when THAT quest is handed in.
 @export var sort_order: int = 0
+# Which place it belongs to ("Abandoned Farm"), for the Inn's tabs. Blank = the town.
+@export var area: String = ""
 
 
 # "Bring home 5 Green Ooze" etc., for the quest panel.

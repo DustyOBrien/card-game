@@ -12,4 +12,5 @@ target = "Green Ooze"
 amount = 5
 rewards = "Pack Small 2; Room Abandoned Farm: Blue Slime Patch"
 next_quest = "Make your first Flask"
-sort_order = 2
+sort_order = 3
+area = "Abandoned Farm"

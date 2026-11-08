@@ -41,10 +41,19 @@ func _ready() -> void:
 
 	next_run_button.text = "← Back to Town"
 	if shop_built():
-		summary_label.text = "Farm packs cost gold AND Stone from the Abandoned Farm (it comes out of your Bank). Open them here or later."
-		for pack in GameState.PACKS:
-			if pack.get("for_sale", true):  # The Foil pack is a reward, never sold.
-				pack_row.add_child(_make_pack(pack))
+		# The stock ROTATES: a new few packs after every trip (GameState.check_shop_stock()).
+		GameState.check_shop_stock()
+		summary_label.text = "Today's stock: %d pack%s, restocked after every trip. Packs cost gold AND Stone from your Bank." % [
+			GameState.shop_stock_size(), "" if GameState.shop_stock_size() == 1 else "s"]
+		summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		for pack_name in GameState.shop_stock:
+			pack_row.add_child(_make_pack(GameState.find_pack(pack_name)))
+		if GameState.shop_stock.is_empty():
+			var sold_out := Label.new()
+			sold_out.text = "Sold out! New stock after your next trip."
+			sold_out.add_theme_font_size_override("font_size", 20)
+			pack_row.add_child(sold_out)
+		add_craft_row()
 	else:
 		summary_label.text = "The Shop isn't built yet, so nothing's for sale. You can still open the packs you have."
 		pack_row.visible = false
@@ -74,8 +83,14 @@ func refresh() -> void:
 	gold_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	gold_label.tooltip_text = essence_tooltip()
 	for panel in pack_row.get_children():
+		if not panel.has_meta("buy_button"):
+			continue
 		var button: Button = panel.get_meta("buy_button")
-		button.disabled = not can_buy(panel.get_meta("pack"))
+		button.disabled = panel.get_meta("sold", false) or not can_buy(panel.get_meta("pack"))
+	if craft_row:
+		for button in craft_row.get_children():
+			if button is Button and button.has_meta("pack"):
+				button.disabled = not GameState.can_craft_pack(button.get_meta("pack"))
 	owned_label.text = "Your packs:" if GameState.pack_count() > 0 else "Your packs: none yet"
 	# The rare pity counter, so bad luck has a visible end.
 	var left := GameState.pity_packs_left()
@@ -131,11 +146,16 @@ func can_buy(pack: Dictionary) -> bool:
 
 
 func buy(pack: Dictionary, panel: Control) -> void:
-	if not can_buy(pack):
+	if not can_buy(pack) or panel.get_meta("sold", false):
 		return
 	GameState.gold -= price_of(pack)
 	GameState.spend_materials(pack.materials)
 	GameState.add_packs(pack.name, 1)
+	GameState.shop_stock.erase(pack.name)  # Sold: it's gone from the stock until the next trip.
+	panel.set_meta("sold", true)
+	var button: Button = panel.get_meta("buy_button")
+	button.text = "Sold"
+	panel.modulate = Color(1, 1, 1, 0.55)
 	GameState.save_game()
 	# A little bounce so you can see what you bought.
 	panel.pivot_offset = panel.size / 2
@@ -144,12 +164,41 @@ func buy(pack: Dictionary, panel: Control) -> void:
 	refresh()
 
 
+# CRAFT PACKS from Farm supplies (card doc): one button per pack size with
+# its recipe from GameState.PACKS ("craft"). The supplies come out of your Bank.
+var craft_row: HBoxContainer
+
+
+func add_craft_row() -> void:
+	craft_row = HBoxContainer.new()
+	craft_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	craft_row.add_theme_constant_override("separation", 10)
+	var heading := Label.new()
+	heading.text = "Or craft from supplies:"
+	heading.add_theme_color_override("font_color", Color(1, 1, 1, 0.75))
+	craft_row.add_child(heading)
+	for pack in GameState.PACKS:
+		if not pack.has("craft"):
+			continue
+		var button := Button.new()
+		button.text = "Craft %s  (%s)" % [pack.size, MaterialInfo.costs_text(pack.craft)]
+		button.tooltip_text = "Makes 1 %s. You have: %s" % [pack.name, ", ".join(pack.craft.keys().map(
+			func(m: String) -> String: return "%d %s" % [GameState.material_count(m), m]))]
+		button.focus_mode = Control.FOCUS_NONE
+		button.set_meta("pack", pack)
+		button.pressed.connect(func() -> void:
+			if GameState.craft_pack(pack):
+				refresh())
+		craft_row.add_child(button)
+	pack_row.add_sibling(craft_row)
+
+
 # One pack for sale: a coloured "packet" with its name, price and a Buy button.
 func _make_pack(pack: Dictionary) -> PanelContainer:
 	var color := FARM_COLOR
 
 	var panel := PanelContainer.new()
-	panel.custom_minimum_size = Vector2(200, 300)
+	panel.custom_minimum_size = Vector2(200, 260)
 	var style := StyleBoxFlat.new()
 	style.bg_color = color.darkened(0.55)
 	style.border_color = color.lightened(0.25)
@@ -167,7 +216,7 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	picture.texture = PACK_ICON
 	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	picture.custom_minimum_size = Vector2(0, 70 + pack.cards * 12)
+	picture.custom_minimum_size = Vector2(0, 50 + pack.cards * 9)
 	picture.tooltip_text = pack.name
 	box.add_child(picture)
 

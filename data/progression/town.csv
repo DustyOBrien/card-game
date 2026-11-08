@@ -3,6 +3,7 @@ Guild Hall,1,0,Bank,1,guild_hall.svg,"Your home base. Build the town from here, 
 Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,Opens quests: the Innkeeper needs your help,Stone 5,Yes
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,Stone 5,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,Stone 10,
+Shop,3,80,Shop Stock,1,,,One more pack in stock after every trip,Stone 15,
 Tailor,1,0,Sack Slots,2,tailor.svg,Sews you a Save Sack: what's in it is kept even if you die.,A Save Sack with 2 slots,Stone 5; Animal Hair 5,Yes
 Tailor,2,40,Backpack Slots,2,,,A bigger backpack: +2 slots on every expedition,Stone 5; Wool 5,
 Tailor,3,50,Gold Stack,10,,,Each Save Sack slot holds 10 more gold,Stone 10,

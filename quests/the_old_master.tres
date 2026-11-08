@@ -11,4 +11,4 @@ objective = "defeat"
 target = "Old Master"
 rewards = "Pack Large 1; Blueprint Dojo; Unlock Talents; Legacy Point 1"
 starts_after = "First Level Up"
-sort_order = 10
+sort_order = 11

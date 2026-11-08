@@ -14,3 +14,4 @@ rewards = "Pack Small 1"
 next_quest = "Clear the Slimes"
 starts_after = "Adventurer Trained"
 sort_order = 1
+area = "Abandoned Farm"

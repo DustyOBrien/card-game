@@ -846,20 +846,55 @@ func close_overlay() -> void:
 
 const QUEST_TYPE_ORDER := ["Story", "Adventurer", "Side"]
 const QUEST_TYPE_TITLES := {"Story": "Story", "Adventurer": "Adventurer Quests", "Side": "Side Quests"}
+const ALL_TAB := "All"
+const TOWN_TAB := "Town"
+var quest_tab := ALL_TAB  # The Inn's quest tab you're looking at.
+
+
+# A quest's tab: its place (quests.csv Area), or the town.
+func quest_tab_of(quest: Quest) -> String:
+	return quest.area if not quest.area.is_empty() else TOWN_TAB
 
 
 func show_quest_board() -> void:
 	var box := open_overlay(820)
 	box.add_child(make_label("Quests", 32, GOLD_COLOR))
+	# TABS by place: the town's own quests, then each place's (quests.csv Area).
+	var all_active := GameState.quests_active()
+	var tabs: Array[String] = [ALL_TAB]
+	for quest in all_active:
+		var tab := quest_tab_of(quest)
+		if not tabs.has(tab):
+			tabs.append(tab)
+	if not tabs.has(quest_tab):
+		quest_tab = ALL_TAB
+	if tabs.size() > 2:  # Only worth tabs when quests come from more than one place.
+		var tab_row := HBoxContainer.new()
+		tab_row.alignment = BoxContainer.ALIGNMENT_CENTER
+		tab_row.add_theme_constant_override("separation", 8)
+		box.add_child(tab_row)
+		for tab in tabs:
+			var in_tab := all_active.filter(func(q: Quest) -> bool: return tab == ALL_TAB or quest_tab_of(q) == tab)
+			var ready_count := in_tab.filter(GameState.quest_ready).size()
+			var button := Button.new()
+			button.text = "%s (%d)%s" % [tab, in_tab.size(), "  ✓%d" % ready_count if ready_count > 0 else ""]
+			button.toggle_mode = true
+			button.button_pressed = tab == quest_tab
+			button.theme_type_variation = &"PrimaryButton" if tab == quest_tab else &""
+			button.pressed.connect(func() -> void:
+				quest_tab = tab
+				close_overlay()
+				show_quest_board())
+			tab_row.add_child(button)
 	var scroll := ScrollContainer.new()
-	scroll.custom_minimum_size = Vector2(0, 470)
+	scroll.custom_minimum_size = Vector2(0, 430 if tabs.size() > 2 else 470)
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	box.add_child(scroll)
 	var list := VBoxContainer.new()
 	list.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	list.add_theme_constant_override("separation", 10)
 	scroll.add_child(list)
-	var active := GameState.quests_active()
+	var active := all_active.filter(func(q: Quest) -> bool: return quest_tab == ALL_TAB or quest_tab_of(q) == quest_tab)
 	# Quests that are done go at the top, so you see them first.
 	var ready := active.filter(GameState.quest_ready)
 	if not ready.is_empty():
@@ -1014,6 +1049,10 @@ func quest_reward_text(text: String) -> String:
 			"legacy":
 				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
 				parts.append("%d Legacy Talent Point%s" % [points, "s" if points > 1 else ""])
+			"binder":  # "Binder Card Abandoned Farm 1"
+				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
+				parts.append("%d card%s you've never found" % [count, "" if count == 1 else "s"])
+			"plan": parts.append("a Plan (" + rest + ")")
 			_: parts.append(reward)
 	return ", ".join(parts)
 

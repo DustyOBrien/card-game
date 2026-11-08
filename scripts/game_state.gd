@@ -124,19 +124,44 @@ const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, Ca
 # Legendary instead. So every pack has at least 1 Uncommon, and only Medium
 # and Large packs can hold a Rare.
 # "pity": the pack counts toward the RARE PITY COUNTER (Small packs don't: Dusty).
+# "craft": the Farm supplies that make one at the Shop (card doc: crafting packs).
 # "foil": one card is always a foil (a reward, never sold: "for_sale" false).
 const PACKS := [
 	{"name": "Small Farm Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}, "booster": "Farm",
-		"slots": ["C", "C", "U"], "pity": false},
+		"slots": ["C", "C", "U"], "pity": false, "craft": {"Hay": 3, "Stone": 1}},
 	{"name": "Medium Farm Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}, "booster": "Farm",
-		"slots": ["C", "C", "C", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 15, CardData.Rarity.LEGENDARY: 1}, "pity": true},
+		"slots": ["C", "C", "C", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 15, CardData.Rarity.LEGENDARY: 1}, "pity": true,
+		"craft": {"Wool": 3, "Grain": 2, "Stone": 1}},
 	{"name": "Large Farm Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}, "booster": "Farm",
-		"slots": ["C", "C", "C", "C", "U", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 25, CardData.Rarity.LEGENDARY: 2}, "pity": true},
+		"slots": ["C", "C", "C", "C", "U", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 25, CardData.Rarity.LEGENDARY: 2}, "pity": true,
+		"craft": {"Wool": 5, "Grain": 4, "Stone": 2}},
 	{"name": "Foil Farm Booster Pack", "size": "Foil", "cards": 5, "price": 0, "materials": {}, "booster": "Farm",
 		"slots": ["C", "C", "C", "U", "U+"], "plus_odds": {CardData.Rarity.RARE: 15, CardData.Rarity.LEGENDARY: 1}, "pity": true,
 		"foil": true, "for_sale": false},
 ]
 var collection := {}
+
+# --- The Shop's stock ------------------------------------------------------------
+# The Shop doesn't sell every pack all the time: after each trip it puts out a
+# small ROTATING stock (card doc). Shop upgrades ("Shop Stock" in town.csv) add
+# more. Each pack in stock can be bought once; the rest wait for the next trip.
+const BASE_SHOP_STOCK := 2
+const SHOP_STOCK_WEIGHTS := {"Small": 50, "Medium": 35, "Large": 15}  # How often each size shows up.
+var shop_stock: Array[String] = []  # Pack names for sale right now (duplicates allowed).
+var trips_done := 0  # Trips that ended (home, Boss or dead): a new stock after each.
+var shop_stock_trip := -1  # The trips_done the stock was made for.
+
+# --- Crafting ---------------------------------------------------------------------
+# Fill out a playset of a card you've FOUND (you own at least 1) with Essence
+# of its school plus supplies (card doc "Crafting and Plans"):
+#   Commons and Uncommons: Essence + supplies.
+#   Rares and Legendaries: only with a PLAN for that card (one Plan = one
+#   copy), plus Essence. Plans drop from bosses (rarely, until Hard Mode).
+# Foils can never be crafted: a crafted copy is always plain.
+const CRAFT_ESSENCE := {CardData.Rarity.COMMON: 3, CardData.Rarity.UNCOMMON: 6, CardData.Rarity.RARE: 10, CardData.Rarity.LEGENDARY: 20}
+const CRAFT_MATERIALS := {CardData.Rarity.COMMON: {"Stone": 1}, CardData.Rarity.UNCOMMON: {"Stone": 2, "Grain": 1},
+	CardData.Rarity.RARE: {"Stone": 3}, CardData.Rarity.LEGENDARY: {"Stone": 5}}
+var plans := {}  # Card name -> Plans you have for it: {"Iron Wall": 1}
 
 # --- Essence -------------------------------------------------------------------
 # A copy past a card's rarity limit turns into ESSENCE of its school(s):
@@ -315,6 +340,10 @@ func start_fresh() -> void:
 	explorer_bonus.clear()
 	spec_exp.clear()
 	track_claimed.clear()
+	plans.clear()
+	shop_stock.clear()
+	trips_done = 0
+	shop_stock_trip = -1
 	booster_packs.clear()
 	saved_decks.clear()
 	talent_ranks.clear()
@@ -636,6 +665,126 @@ func _read_deck_names(names: Array) -> Dictionary:
 			if is_foil:
 				foil_counts[card_name] = foil_counts.get(card_name, 0) + 1
 	return {"cards": cards, "foils": foil_counts}
+
+
+# --- Crafting -------------------------------------------------------------------------
+
+# What one crafted copy costs: {"essence": {"Strength": 3}, "materials": {"Stone": 1}, "plan": false}.
+func craft_cost(card: CardData) -> Dictionary:
+	var amount: int = CRAFT_ESSENCE.get(card.rarity, 3)
+	var essence_cost := {}
+	for school_name in essence_for(card):  # Its school(s), or Neutral.
+		essence_cost[school_name] = amount
+	return {"essence": essence_cost, "materials": CRAFT_MATERIALS.get(card.rarity, {}),
+		"plan": card.rarity >= CardData.Rarity.RARE}
+
+
+# "6 Strength Essence, 2 Stone, 1 Grain" (+ ", a Plan").
+func craft_cost_text(card: CardData) -> String:
+	var cost := craft_cost(card)
+	var parts: Array[String] = []
+	for school_name in cost.essence:
+		parts.append("%d %s Essence" % [cost.essence[school_name], school_name])
+	if not cost.materials.is_empty():
+		parts.append(MaterialInfo.costs_text(cost.materials))
+	if cost.plan:
+		parts.append("a Plan")
+	return ", ".join(parts)
+
+
+# Why can't you craft a copy of this card? "" = you can.
+func why_cant_craft(card: CardData) -> String:
+	if card.is_class_card():
+		return "Class cards come from spec levels"
+	if owned(card) == 0:
+		return "Find it first"
+	if owned(card) >= card.copy_limit():
+		return "You have the most (%d)" % card.copy_limit()
+	var cost := craft_cost(card)
+	if cost.plan and plans.get(card.card_name, 0) <= 0:
+		return "Needs a Plan (bosses drop them)"
+	for school_name in cost.essence:
+		if essence.get(school_name, 0) < cost.essence[school_name]:
+			return "Needs %d %s Essence" % [cost.essence[school_name], school_name]
+	if not has_materials(cost.materials):
+		return "Needs " + MaterialInfo.costs_text(cost.materials)
+	return ""
+
+
+# Craft one plain copy. Returns false if you can't.
+func craft_card(card: CardData) -> bool:
+	if not why_cant_craft(card).is_empty():
+		return false
+	var cost := craft_cost(card)
+	for school_name in cost.essence:
+		essence[school_name] -= cost.essence[school_name]
+	spend_materials(cost.materials)
+	if cost.plan:
+		plans[card.card_name] -= 1
+		if plans[card.card_name] <= 0:
+			plans.erase(card.card_name)
+	add_card(card)
+	save_game()
+	return true
+
+
+# A random Rare or Legendary from this place's binder, for a Plan (null if none).
+func random_plan_card(area: Area) -> CardData:
+	if area == null:
+		return null
+	var choices := binder_cards(area).filter(func(c: CardData) -> bool: return c.rarity >= CardData.Rarity.RARE)
+	return choices.pick_random() if not choices.is_empty() else null
+
+
+func _area_named(place: String) -> Area:
+	for area in load_areas():
+		if area.display_name.to_lower() == place.to_lower():
+			return area
+	return null
+
+
+# Craft a booster pack from supplies (the pack's "craft" in PACKS).
+func can_craft_pack(pack: Dictionary) -> bool:
+	return pack.has("craft") and has_materials(pack.craft)
+
+
+func craft_pack(pack: Dictionary) -> bool:
+	if not can_craft_pack(pack):
+		return false
+	spend_materials(pack.craft)
+	add_packs(pack.name, 1)
+	save_game()
+	return true
+
+
+# --- The Shop's stock --------------------------------------------------------------
+
+func shop_stock_size() -> int:
+	return BASE_SHOP_STOCK + town_bonus(TownBuilding.SHOP_STOCK)
+
+
+# A trip ended (DungeonRun.claim_loot()): the Shop restocks next time you look.
+func trip_ended() -> void:
+	trips_done += 1
+
+
+# Make a new stock if a trip has ended since the last one (the Shop calls this).
+func check_shop_stock() -> void:
+	if shop_stock_trip == trips_done:
+		return
+	shop_stock_trip = trips_done
+	shop_stock.clear()
+	var total := 0
+	for size in SHOP_STOCK_WEIGHTS:
+		total += SHOP_STOCK_WEIGHTS[size]
+	for i in shop_stock_size():
+		var roll := randi_range(1, total)
+		for size in SHOP_STOCK_WEIGHTS:
+			roll -= SHOP_STOCK_WEIGHTS[size]
+			if roll <= 0:
+				shop_stock.append(find_pack(size).name)
+				break
+	save_game()
 
 
 # --- Binders ----------------------------------------------------------------------
@@ -1269,6 +1418,29 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 				for i in maxi(count, 1):
 					var got := add_card(card)
 					lines.append(card.card_name + (" (%s)" % essence_text(got.essence) if not got.essence.is_empty() else ""))
+			"plan":  # "Plan Iron Wall" (a Plan for that card) or "Plan Abandoned Farm" (a random one from its binder).
+				var plan_card := find_card(rest)
+				if plan_card == null:
+					plan_card = random_plan_card(_area_named(rest))
+				if plan_card == null:
+					continue
+				plans[plan_card.card_name] = plans.get(plan_card.card_name, 0) + 1
+				lines.append("a Plan: %s (crafts 1 copy)" % plan_card.card_name)
+			"binder":  # "Binder Card Abandoned Farm 1": cards you haven't found yet, from that binder.
+				var count := 1
+				var place := rest.trim_prefix("Card").strip_edges()
+				if place.get_slice(" ", place.get_slice_count(" ") - 1).is_valid_int():
+					count = place.get_slice(" ", place.get_slice_count(" ") - 1).to_int()
+					place = place.substr(0, place.rfind(" ")).strip_edges()
+				var area := _area_named(place)
+				for i in maxi(count, 1):
+					var unfound := binder_cards(area).filter(func(c: CardData) -> bool: return owned(c) == 0) if area else []
+					if unfound.is_empty():
+						lines.append_array(give_rewards("Pack Small 1"))  # The binder's full: a pack instead.
+						continue
+					var got := add_card(unfound.pick_random())
+					lines.append("a new card for your binder: %s" % got.card.card_name)
+					lines.append_array(got.binder)
 			"explorer":  # "Explorer Abandoned Farm 1": extra Explorer points for that place's perks.
 				var points := 1
 				var place := rest
@@ -1919,6 +2091,10 @@ func save_game() -> void:
 		"explorer_bonus": explorer_bonus,
 		"spec_exp": spec_exp,
 		"track_claimed": track_claimed,
+		"plans": plans,
+		"shop_stock": shop_stock,
+		"trips_done": trips_done,
+		"shop_stock_trip": shop_stock_trip,
 		"booster_packs": booster_packs,
 		"decks": saved_decks,
 		"talents": talent_ranks,
@@ -1985,6 +2161,10 @@ func load_game() -> bool:
 	binder_claimed = _whole_numbers(_dict_or_empty(data.get("binder_claimed", {})))
 	explorer_bonus = _whole_numbers(_dict_or_empty(data.get("explorer_bonus", {})))
 	track_claimed = _whole_numbers(_dict_or_empty(data.get("track_claimed", {})))
+	plans = _whole_numbers(_dict_or_empty(data.get("plans", {})))
+	shop_stock.assign(data.get("shop_stock", []))
+	trips_done = int(data.get("trips_done", 0))
+	shop_stock_trip = int(data.get("shop_stock_trip", -1))
 	spec_exp.clear()
 	var saved_spec_exp := _dict_or_empty(data.get("spec_exp", {}))
 	for class_key in saved_spec_exp:

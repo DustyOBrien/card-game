@@ -14,4 +14,5 @@ rewards = "Pack Small 1"
 next_quest = "Kill Enemies 2"
 quest_type = "Side"
 starts_after = "Adventurer Trained"
-sort_order = 6
+sort_order = 7
+area = "Abandoned Farm"

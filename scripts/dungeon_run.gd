@@ -66,6 +66,12 @@ const KEY_CHANCE := 25  # % chance a fight drops a small key.
 const BREAK_CHANCE := 40  # % chance that breaking a locked chest open works (no key needed, but loud).
 # % chance a won fight drops an enchant / a potion, by card kind.
 const ENCHANT_CHANCE := {RoomCard.Type.FIGHT: 35, RoomCard.Type.HARD_FIGHT: 60, RoomCard.Type.MINI_BOSS: 100}
+# BOSS PACKS (card doc: bosses and mini bosses drop packs): every Boss and
+# Mini Boss drops one of these on top of its own loot...
+const BOSS_PACKS := {RoomCard.Type.MINI_BOSS: "Small", RoomCard.Type.BOSS: "Medium"}
+# ...and has this % chance of a PLAN (crafts a Rare or Legendary from this
+# place's binder). Low on purpose until Hard Mode exists (card doc).
+const PLAN_CHANCE := {RoomCard.Type.MINI_BOSS: 3, RoomCard.Type.BOSS: 10}
 const POTION_CHANCE := {RoomCard.Type.FIGHT: 25, RoomCard.Type.HARD_FIGHT: 35, RoomCard.Type.MINI_BOSS: 50}
 # Torches: how many you set out with, and the burnout roll (a d4) each time
 # the lit torch scouts a card: 2+ the 1st time, 3+ the 2nd... 5+ = always out.
@@ -115,6 +121,10 @@ var last_roamer_news := ""  # "You hear stomping nearby..." (dungeon.gd shows it
 # What you've found, given to you when you Return to Town or beat the Boss.
 var found_gold := 0
 var found_packs := 0
+# Bigger packs from bosses and mini bosses: {"Medium Farm Booster Pack": 1}.
+# Like everything found, lost if you die (they can't go in the Save Sack).
+var found_boss_packs := {}
+var found_plans: Array[String] = []  # Plans from bosses (card names). Lost if you die too.
 var found_materials := {}  # Materials found this run: {"Green Ooze": 3}. Lost if you die (unless sacked). In the backpack.
 # Things that didn't fit in the backpack: {"Hay": 2}. dungeon.gd asks what to
 # drop to make room, or leaves them behind (leave_behind()).
@@ -1084,6 +1094,15 @@ func win_fight() -> String:
 		add_log("An enchant! %s" % _drop_enchant())
 	if GameState.potions_open() and randi_range(1, 100) <= POTION_CHANCE.get(card.type, 0):
 		add_log("A potion! %s" % _drop_potion())
+	if BOSS_PACKS.has(card.type):
+		var pack_name: String = GameState.find_pack(BOSS_PACKS[card.type]).name
+		found_boss_packs[pack_name] = found_boss_packs.get(pack_name, 0) + 1
+		add_log("The %s drops a %s!" % ["Boss" if card.type == RoomCard.Type.BOSS else "Mini Boss", pack_name])
+	if randi_range(1, 100) <= PLAN_CHANCE.get(card.type, 0):
+		var plan_card := GameState.random_plan_card(area)
+		if plan_card:
+			found_plans.append(plan_card.card_name)
+			add_log("A PLAN! You can craft a %s with it (in the Binder)." % plan_card.card_name)
 	if card.type == RoomCard.Type.BOSS:
 		result = "won"
 		add_log("You beat the boss! The %s is cleared." % area.display_name)
@@ -1234,6 +1253,8 @@ func die() -> String:
 	result = "died"
 	found_gold = 0
 	found_packs = 0
+	found_boss_packs.clear()
+	found_plans.clear()
 	found_cards.clear()
 	found_materials.clear()
 	_empty_sack()  # The sack's contents become the only thing "found"...
@@ -1576,6 +1597,11 @@ func claim_loot() -> void:
 	GameState.run_gold += found_gold
 	if found_packs > 0:
 		GameState.add_packs(PACK_NAME, found_packs)
+	for pack_name in found_boss_packs:
+		GameState.add_packs(pack_name, found_boss_packs[pack_name])
+	for card_name in found_plans:
+		GameState.plans[card_name] = GameState.plans.get(card_name, 0) + 1
+	GameState.trip_ended()  # The Shop restocks after every trip.
 	for card in found_cards:
 		GameState.add_card(card)
 	for material_name in found_materials:
@@ -1624,6 +1650,10 @@ func loot_text() -> String:
 		parts.append("%d gold" % found_gold)
 	if found_packs > 0:
 		parts.append("%d pack%s" % [found_packs, "s" if found_packs > 1 else ""])
+	for pack_name in found_boss_packs:
+		parts.append("%d %s" % [found_boss_packs[pack_name], pack_name])
+	for card_name in found_plans:
+		parts.append("a Plan: " + card_name)
 	if not found_cards.is_empty():
 		parts.append("%d card%s" % [found_cards.size(), "s" if found_cards.size() > 1 else ""])
 	for material_name in found_materials:

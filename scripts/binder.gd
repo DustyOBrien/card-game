@@ -9,6 +9,10 @@
 # 25% of the binder gives a reward (data/progression/binder_rewards.csv).
 # Both happen in GameState.add_card(); this screen only draws them.
 #
+# CRAFTING: a Craft button under every card you've found makes one more plain
+# copy for Essence of its school plus supplies (GameState.craft_cost()).
+# Rares and Legendaries also need a PLAN for that card, which bosses drop.
+#
 # Like the Prepare screen, everything is built in code. The Back button goes
 # to GameState.screen_return_scene (the Shop, Prepare or town set it).
 extends Control
@@ -71,12 +75,14 @@ func build_screen() -> void:
 	title_row.add_child(back)
 
 	page.add_child(make_milestones())
+	page.add_child(make_label(wallet_text(), 16, GOLD, true))
 	page.add_child(make_label("Every NEW card you find gives the %s Exp (Common %d, Uncommon %d, Rare %d, Legendary %d). Packs come from %s level ups, quests, chests and the Shop." % [
 		area.display_name, GameState.BINDER_EXP[CardData.Rarity.COMMON], GameState.BINDER_EXP[CardData.Rarity.UNCOMMON],
 		GameState.BINDER_EXP[CardData.Rarity.RARE], GameState.BINDER_EXP[CardData.Rarity.LEGENDARY], area.booster], 15, DIM, true))
 
 	# --- The pages: one cell per card ---
 	var scroll := ScrollContainer.new()
+	scroll.name = "Pages"
 	scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	scroll.horizontal_scroll_mode = ScrollContainer.SCROLL_MODE_DISABLED
 	page.add_child(scroll)
@@ -160,6 +166,63 @@ func make_cell(grid: GridContainer, number: int, card_data: CardData) -> void:
 	var rarity := make_label(card_data.get_rarity_text(), 13, CardData.RARITY_COLORS[card_data.rarity])
 	rarity.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	cell.add_child(rarity)
+	if owned > 0:
+		cell.add_child(make_craft_button(card_data))
+
+
+# "Craft" for one more copy. Greyed out with the reason when you can't; the
+# tooltip always shows the cost.
+func make_craft_button(card_data: CardData) -> Button:
+	var button := Button.new()
+	var why := GameState.why_cant_craft(card_data)
+	var has_plan: int = GameState.plans.get(card_data.card_name, 0)
+	button.text = "Craft" + (" (Plan %d)" % has_plan if has_plan > 0 else "")
+	button.add_theme_font_size_override("font_size", 13)
+	button.disabled = not why.is_empty()
+	button.tooltip_text = "Costs: " + GameState.craft_cost_text(card_data) + ("" if why.is_empty() else "\n" + why)
+	button.pressed.connect(func() -> void:
+		if GameState.craft_card(card_data):
+			rebuild())
+	return button
+
+
+# Your Essence (by school), supplies used for crafting, and Plans.
+func wallet_text() -> String:
+	var parts: Array[String] = []
+	for school_name in GameState.essence:
+		if GameState.essence[school_name] > 0:
+			parts.append("%d %s" % [GameState.essence[school_name], school_name])
+	var text := "Essence: " + (", ".join(parts) if not parts.is_empty() else "none")
+	text += "   ·   Stone %d, Grain %d" % [GameState.materials.get("Stone", 0), GameState.materials.get("Grain", 0)]
+	var plan_parts: Array[String] = []
+	for card_name in GameState.plans:
+		plan_parts.append("%s ×%d" % [card_name, GameState.plans[card_name]])
+	text += "   ·   Plans: " + (", ".join(plan_parts) if not plan_parts.is_empty() else "none (bosses drop them)")
+	return text + "   ·   Craft: Common %s, Uncommon %s." % [_cost_hint(CardData.Rarity.COMMON), _cost_hint(CardData.Rarity.UNCOMMON)]
+
+
+func _cost_hint(rarity: int) -> String:
+	var hint := "%d Essence" % GameState.CRAFT_ESSENCE[rarity]
+	var materials: Dictionary = GameState.CRAFT_MATERIALS.get(rarity, {})
+	if not materials.is_empty():
+		hint += " + " + MaterialInfo.costs_text(materials)
+	return hint
+
+
+# Draw the whole screen again (after crafting), keeping the scroll spot.
+func rebuild() -> void:
+	var scroll_spot := 0
+	var scroll := find_child("Pages", true, false) as ScrollContainer
+	if scroll:
+		scroll_spot = scroll.scroll_vertical
+	for child in get_children():
+		remove_child(child)
+		child.queue_free()
+	build_screen()
+	scroll = find_child("Pages", true, false) as ScrollContainer
+	if scroll:
+		await get_tree().process_frame
+		scroll.scroll_vertical = scroll_spot
 
 
 func make_label(text: String, font_size: int, color: Color, wrap := false) -> Label:
