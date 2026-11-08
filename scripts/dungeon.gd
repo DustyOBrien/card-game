@@ -42,7 +42,6 @@ const ICONS := {
 }
 const OPEN_CHEST_ICON := preload("res://art/rooms/open_chest.svg")
 const KEY_ICON := preload("res://art/rooms/key.svg")
-const START_ICON := preload("res://art/rooms/start.svg")
 const PLAYER_ICON := preload("res://art/rooms/player.svg")
 
 # Square colours.
@@ -262,8 +261,8 @@ func draw_square(square: Vector2i) -> void:
 		border = Color(0.79, 0.64, 0.29, 0.9) if reachable else Color(0.3, 0.24, 0.14)
 	elif card == null:
 		if room.get("start", false):
-			icon.texture = ICONS[RoomCard.Type.CAMPFIRE] if room.campfire else START_ICON
-			label.text = "Way Home" if room.campfire else "Start"
+			icon.texture = ICONS[RoomCard.Type.CAMPFIRE]  # Lit on Floor 1, burnt out deeper down.
+			label.text = "Way Home" if room.campfire else "Burnt Out"
 			color = CAMPFIRE_COLOR if room.campfire else CARD_COLOR
 			if not room.campfire:
 				icon.modulate = USED_TINT  # Your old campfire, burnt out.

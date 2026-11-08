@@ -119,7 +119,7 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 		if GameState.is_area_unlocked(area) and GameState.is_guided_run(area):
 			info_label.text += "  (Your first trip: the Innkeeper's Stone and Hops. Tips show you how the map cards work.)"
 		elif area.coming_later:
-			info_label.text += "  (Coming later: it doesn't have its map cards yet.)"
+			pass  # Its description already says "Coming later".
 		elif not GameState.adventurers_here():
 			info_label.text += "  (Build the Inn in town first!)"
 		elif not GameState.is_area_unlocked(area):
