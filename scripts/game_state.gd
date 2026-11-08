@@ -108,26 +108,34 @@ var _potions: Array[Potion] = []
 # own. Cards marked Unlocked in the spreadsheet start in your collection (as
 # many as their Copies column, so you own your starter deck), and you find the
 # rest in booster packs.
-const MAX_COPIES := 3  # The most copies of one card you can own (and put in a deck).
+# How many copies you can own depends on the card's RARITY (CardData.RARITY_LIMITS:
+# Common 3, Uncommon 3, Rare 2, Legendary 1). MAX_COPIES is the biggest of them.
+const MAX_COPIES := 3
 # The chance of each rarity for every card in a pack. They add up to 100.
-const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 10, CardData.Rarity.SUPER: 0}  # Super cards never come from packs.
+const PACK_ODDS := {CardData.Rarity.COMMON: 60, CardData.Rarity.UNCOMMON: 30, CardData.Rarity.RARE: 9, CardData.Rarity.LEGENDARY: 1}
 # The booster packs: how many cards each holds, and its Shop price: gold
 # AND Farm Stone ("materials"), so you farm the Farm for Farm packs.
 # Quest rewards name them by size ("Pack Medium 2"). Every pack uses PACK_ODDS.
 const PACKS := [
-	{"name": "Small Farm Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}},
-	{"name": "Medium Farm Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}},
-	{"name": "Large Farm Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}},
+	{"name": "Small Farm Booster Pack", "size": "Small", "cards": 3, "price": 5, "materials": {"Stone": 1}, "booster": "Farm"},
+	{"name": "Medium Farm Booster Pack", "size": "Medium", "cards": 5, "price": 8, "materials": {"Stone": 2}, "booster": "Farm"},
+	{"name": "Large Farm Booster Pack", "size": "Large", "cards": 7, "price": 11, "materials": {"Stone": 3}, "booster": "Farm"},
 ]
 var collection := {}
 
-# --- Card Exp ------------------------------------------------------------------
-# Opening a copy of a card you already own 3 of gives that card 1 Exp instead.
-# Enough Exp levels it up, and the level counts for EVERY copy of it.
-# CARD_LEVEL_EXP[n] is the total Exp needed for level n + 1:
-#   Level 1 at 0, Level 2 at 3, Level 3 at 3 + 5 = 8.
-const CARD_LEVEL_EXP: Array[int] = [0, 3, 8]
-var card_exp := {}  # {"Strike": 4}
+# --- Essence -------------------------------------------------------------------
+# A copy past a card's rarity limit turns into ESSENCE of its school(s):
+# Strength (red), Agility (green), Intellect (blue), Wisdom (purple), or
+# Neutral (grey) for cards with no school. A card with two schools gives the
+# full amount of each. Later it crafts cards and gear (see the card doc).
+const NEUTRAL := "Neutral"
+const ESSENCE_NAMES := ["Strength", "Agility", "Intellect", "Wisdom", NEUTRAL]
+const ESSENCE_COLORS := {
+	"Strength": Color(0.9, 0.35, 0.3), "Agility": Color(0.4, 0.8, 0.45),
+	"Intellect": Color(0.4, 0.6, 1.0), "Wisdom": Color(0.7, 0.45, 0.95), NEUTRAL: Color(0.75, 0.75, 0.75),
+}
+const ESSENCE_PER_EXTRA := {CardData.Rarity.COMMON: 1, CardData.Rarity.UNCOMMON: 2, CardData.Rarity.RARE: 5, CardData.Rarity.LEGENDARY: 10}
+var essence := {}  # {"Strength": 4, "Neutral": 2}
 
 # --- Class Exp -----------------------------------------------------------------
 # Each class levels up on its own. Leveling up is how a class gets its class
@@ -239,7 +247,7 @@ func _ready() -> void:
 func start_fresh() -> void:
 	gold = 0
 	collection.clear()
-	card_exp.clear()
+	essence.clear()
 	class_exp.clear()
 	booster_packs.clear()
 	saved_decks.clear()
@@ -299,7 +307,7 @@ func give_starter_cards() -> Array[CardData]:
 	var given: Array[CardData] = []
 	for card in load_all_cards():
 		if card.unlocked:
-			collection[card.card_name] = maxi(owned(card), clampi(card.copies, 1, MAX_COPIES))
+			collection[card.card_name] = maxi(owned(card), clampi(card.copies, 1, card.copy_limit()))
 			given.append(card)
 	return given
 
@@ -319,25 +327,42 @@ func owned(card: CardData) -> int:
 	return collection.get(card.card_name, 0)
 
 
-# Add one copy of a card to your collection. Once you own 3, it gives the
-# card 1 Exp instead. Returns what happened, for the screen to show:
-#   {"card": CardData, "new": true/false, "owned": 2, "exp": false, "level_up": false}
+# Add one copy of a card to your collection. Past its rarity limit (Common 3,
+# Uncommon 3, Rare 2, Legendary 1) it turns into Essence instead. Returns what
+# happened, for the screen to show:
+#   {"card": CardData, "new": true/false, "owned": 2, "essence": {"Strength": 2}}
 func add_card(card: CardData) -> Dictionary:
-	var result := {"card": card, "new": owned(card) == 0, "exp": false, "level_up": false}
-	if owned(card) < MAX_COPIES:
+	var result := {"card": card, "new": owned(card) == 0, "essence": {}}
+	if owned(card) < card.copy_limit():
 		collection[card.card_name] = owned(card) + 1
 	else:
-		var level_before := card_level(card)
-		card_exp[card.card_name] = card_exp.get(card.card_name, 0) + 1
-		result.exp = true
-		result.level_up = card_level(card) > level_before
+		result.essence = essence_for(card)
+		for school_name in result.essence:
+			essence[school_name] = essence.get(school_name, 0) + result.essence[school_name]
 	# Write down the numbers NOW. If the same card comes out twice in one pack,
-	# the shop shows each one with the numbers it had at that moment, not the
-	# final numbers after the whole pack was opened.
+	# the shop shows each one with the numbers it had at that moment.
 	result.owned = owned(card)
-	result.level = card_level(card)
-	result.exp_text = card_exp_text(card)
 	return result
+
+
+# The Essence one extra copy of this card gives: {"Strength": 2}.
+func essence_for(card: CardData) -> Dictionary:
+	var amount: int = ESSENCE_PER_EXTRA.get(card.rarity, 1)
+	var result := {}
+	for school in CardData.School.values():
+		if card.schools & school:
+			result[CardData.School.find_key(school).capitalize()] = amount
+	if result.is_empty():
+		result[NEUTRAL] = amount
+	return result
+
+
+# "+2 Strength Essence"
+static func essence_text(amounts: Dictionary) -> String:
+	var parts: Array[String] = []
+	for school_name in amounts:
+		parts.append("+%d %s" % [amounts[school_name], school_name])
+	return ", ".join(parts) + " Essence"
 
 
 # The pack with this size ("Small") or name. Unknown = the Small one.
@@ -361,7 +386,7 @@ func pack_count() -> int:
 
 # Open one booster pack you own (its card count from PACKS), each card added
 # to your collection with add_card(). Returns what you got, for the shop to show.
-# Any card can come out, even one you already own 3 of (that's how cards get Exp).
+# Any card can come out, even one you already own the most of (it gives Essence).
 func open_pack(pack_name: String) -> Array[Dictionary]:
 	var opened: Array[Dictionary] = []
 	if booster_packs.get(pack_name, 0) <= 0:
@@ -370,8 +395,9 @@ func open_pack(pack_name: String) -> Array[Dictionary]:
 	if booster_packs[pack_name] <= 0:
 		booster_packs.erase(pack_name)  # None of that pack left.
 	record_for_quest(Quest.OPEN_PACKS, pack_name)
-	for i in find_pack(pack_name).cards:
-		var card := _pick_pack_card()
+	var pack := find_pack(pack_name)
+	for i in pack.cards:
+		var card := _pick_pack_card(pack.get("booster", ""))
 		if card:  # null only if there are no cards that can come from packs at all.
 			opened.append(add_card(card))
 	save_game()
@@ -382,10 +408,13 @@ func open_pack(pack_name: String) -> Array[Dictionary]:
 # any card of that rarity. If the spreadsheet has no cards of some rarity, its
 # odds are shared out among the rarities that do have cards.
 # Class cards never come from packs: classes get them by leveling up.
-func _pick_pack_card() -> CardData:
+# A card with a Booster ("Farm") only comes from that place's packs.
+func _pick_pack_card(booster := "") -> CardData:
 	var by_rarity := {}  # Rarity -> the cards of that rarity.
 	for card in load_all_cards():
 		if card.is_class_card():
+			continue
+		if not card.booster.is_empty() and card.booster.to_lower() != booster.to_lower():
 			continue
 		if not by_rarity.has(card.rarity):
 			by_rarity[card.rarity] = []
@@ -402,36 +431,6 @@ func _pick_pack_card() -> CardData:
 		if roll <= 0:
 			return by_rarity[rarity].pick_random()
 	return null
-
-
-# A card's level (1 to 3), from its Exp.
-func card_level(card: CardData) -> int:
-	var exp_total: int = card_exp.get(card.card_name, 0)
-	var level := 1
-	for i in CARD_LEVEL_EXP.size():
-		if exp_total >= CARD_LEVEL_EXP[i]:
-			level = i + 1
-	return level
-
-
-# e.g. "Exp 1 / 3" (towards the next level), or "Max level".
-func card_exp_text(card: CardData) -> String:
-	var level := card_level(card)
-	if level >= CARD_LEVEL_EXP.size():
-		return "Max level"
-	return "Exp %d / %d" % [card_exp.get(card.card_name, 0), CARD_LEVEL_EXP[level]]
-
-
-# The version of a card you actually play with: its level 2 or 3 file from
-# cards/levels/ once it's leveled up. If that level isn't in the level sheet
-# yet, it falls back to the highest level that is (or the level 1 card).
-func leveled(card: CardData) -> CardData:
-	var base_name := card.resource_path.get_file().get_basename()  # "strike"
-	for level in range(card_level(card), 1, -1):  # e.g. 3, then 2
-		var path := CardImporter.LEVELS_FOLDER + "%s_lv%d.tres" % [base_name, level]
-		if ResourceLoader.exists(path):
-			return load(path)
-	return card
 
 
 # How much Exp it takes to go from `level` to the next one: 100, 150, 200...
@@ -521,7 +520,7 @@ func _give_level_cards(character_class: CharacterClass, level: int) -> Array[Dic
 	return given
 
 
-# The level 1 card with this name, or null.
+# The card with this name, or null.
 func find_card(card_name: String) -> CardData:
 	if _cards_by_name.is_empty():
 		for card in load_all_cards():
@@ -1171,7 +1170,7 @@ func roll_enchant_choices() -> Array[Enchant]:
 func enchantable_cards(enchant: Enchant) -> Array[int]:
 	var found: Array[int] = []
 	for i in deck.size():
-		if not vanished.has(i) and not run_enchants.has(i) and enchant.fits(leveled(deck[i])):
+		if not vanished.has(i) and not run_enchants.has(i) and enchant.fits(deck[i]):
 			found.append(i)
 	return found
 
@@ -1478,11 +1477,11 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # Folder in the editor takes you there). JSON is the same format Python's
 # json module reads and writes.
 #
-# What's saved: gold, your collection, card Exp, class Exp, unopened packs,
+# What's saved: gold, your collection, Essence, class Exp, unopened packs,
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 6  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn.
+const SAVE_VERSION := 7  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp).
 
 
 func save_game() -> void:
@@ -1492,7 +1491,7 @@ func save_game() -> void:
 		"version": SAVE_VERSION,
 		"gold": gold,
 		"collection": collection,
-		"card_exp": card_exp,
+		"essence": essence,
 		"class_exp": class_exp,
 		"booster_packs": booster_packs,
 		"decks": saved_decks,
@@ -1553,7 +1552,8 @@ func load_game() -> bool:
 	# JSON stores every number as a float (3.0), so int() turns them back.
 	gold = int(data.get("gold", 0))
 	collection = _whole_numbers(data.get("collection", {}))
-	card_exp = _whole_numbers(data.get("card_exp", {}))
+	var saved_essence = data.get("essence", {})
+	essence = _whole_numbers(saved_essence) if saved_essence is Dictionary else {}
 	class_exp = _whole_numbers(data.get("class_exp", {}))
 	booster_packs = _whole_numbers(data.get("booster_packs", {}))
 	saved_decks = data.get("decks", {})
@@ -1654,7 +1654,7 @@ func load_game() -> bool:
 	# shows up in your collection (once you've had your starter cards).
 	for card in load_all_cards():
 		if tutorial_done and card.unlocked and owned(card) == 0:
-			collection[card.card_name] = clampi(card.copies, 1, MAX_COPIES)
+			collection[card.card_name] = clampi(card.copies, 1, card.copy_limit())
 	return true
 
 

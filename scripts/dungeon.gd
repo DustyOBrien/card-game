@@ -682,6 +682,22 @@ func scout_square(square: Vector2i) -> void:
 		outcome.roll, outcome.need, how]
 	if guide_label:
 		show_guide_tip("torch", square)
+	elif dungeon.can_swap_scouted(square):
+		# Don't like it? Swap it for a new face-down card (noisy: Danger +1).
+		show_popup(card.room_name, "Your torch shows %s (%s).\n%s\nLeave it there, or SWAP it: it goes back into the map deck and a new face-down card takes its place. Shuffling cards is noisy: Danger +%d." % [
+			card.room_name, card.tile_name(), "Torch: " + how, DungeonRun.TORCH_SWAP_DANGER],
+			[["Leave it", close_popup], ["Swap it (Danger +%d)" % DungeonRun.TORCH_SWAP_DANGER, _on_swap_scouted.bind(square)]],
+			card_art(card), "flip", card)
+
+
+func _on_swap_scouted(square: Vector2i) -> void:
+	var old: RoomCard = dungeon.rooms[square].card
+	close_popup()
+	if dungeon.swap_scouted(square) == null:
+		return
+	await flip_square(square)  # It turns over and is a fresh face-down card.
+	refresh()
+	info_label.text = "The %s goes back into the map deck. A new face-down card takes its place. Danger is now %d." % [old.room_name, dungeon.danger()]
 
 
 # --- Tools -------------------------------------------------------------------------
@@ -1962,7 +1978,7 @@ func pick_card_for(enchant: Enchant) -> void:
 	for i in fits:
 		var card: Card = CARD_SCENE.instantiate()
 		cards.add_child(card)
-		card.setup(GameState.leveled(GameState.deck[i]))
+		card.setup(GameState.deck[i])
 		card.clicked.connect(_on_enchant_card_chosen.bind(i, enchant))
 	if fits.is_empty():
 		about.text += "\n\nNo card in your deck can take this enchant (it needs a card with dice, or one that deals damage)."

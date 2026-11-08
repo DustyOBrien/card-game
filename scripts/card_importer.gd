@@ -5,10 +5,8 @@
 # You don't run this file directly. Run tools/import_cards.gd from the Godot
 # editor instead (see the instructions at the top of that file).
 #
-# There are up to four sheets. Only the first one is required:
-#   data/cards.csv         Level 1 of every card -> cards/<name>.tres
-#   data/cards_level2.csv  Level 2 versions      -> cards/levels/<name>_lv2.tres
-#   data/cards_level3.csv  Level 3 versions      -> cards/levels/<name>_lv3.tres
+# The sheets (only the first one is required):
+#   data/cards.csv         Every card            -> cards/<name>.tres
 #   data/class_cards.csv   Which card each class gets at each class level
 #                          -> saved into classes/*.tres (level_cards)
 #   data/talents/<class>.csv  Each class's talent tree, one sheet per class
@@ -19,9 +17,8 @@
 #   (data/dungeons/farm_cards.csv, the Farm's map cards, is NOT imported:
 #   the game reads it when it runs, see map_cards.gd.)
 #
-# The level sheets have exactly the same columns as cards.csv (copy the whole
-# sheet and change the numbers). A row's Name says which card it levels up.
-# Leave a card out and its level 2 just plays like level 1.
+# (Card levels and their level 2/3 sheets were removed in the card system
+# redesign: copies past a card's rarity limit give Essence instead.)
 #
 # How a card sheet is read:
 #   1. Read the CSV one row at a time. Row 1 holds the column names.
@@ -34,8 +31,6 @@ extends RefCounted
 
 const CSV_PATH := "res://data/cards.csv"
 const CARDS_FOLDER := "res://cards/"
-const LEVELS_FOLDER := "res://cards/levels/"
-const LEVEL_SHEETS := {2: "res://data/cards_level2.csv", 3: "res://data/cards_level3.csv"}
 const CLASS_CARDS_PATH := "res://data/class_cards.csv"
 const CLASSES_FOLDER := "res://classes/"
 const TALENT_SHEETS_FOLDER := "res://data/talents/"
@@ -60,18 +55,11 @@ const EVENTS_SHEET := "res://data/dungeons/events.csv"
 const EVENTS_FOLDER := "res://dungeon_events/"
 
 
-# Reads every sheet and writes the files. Returns how many level 1 cards were made.
+# Reads every sheet and writes the files. Returns how many cards were made.
 static func import_cards() -> int:
-	var names := _import_sheet(CSV_PATH, CARDS_FOLDER, 1, [])
+	var names := _import_sheet(CSV_PATH, CARDS_FOLDER)
 	if names.is_empty():
 		return 0
-	# Level sheets: same columns, saved next to each other in cards/levels/.
-	var level_files: Array[String] = []
-	for level in LEVEL_SHEETS:
-		if FileAccess.file_exists(LEVEL_SHEETS[level]):
-			for card_name in _import_sheet(LEVEL_SHEETS[level], LEVELS_FOLDER, level, names):
-				level_files.append(level_file_name(card_name, level))
-	_remove_old_cards(LEVELS_FOLDER, level_files)
 	_import_class_cards(names)
 	_import_talents()
 	_import_enemies()
@@ -80,15 +68,9 @@ static func import_cards() -> int:
 	return names.size()
 
 
-# The file name of a card's level 2 or 3 version: "Quick Strike", 2 -> "quick_strike_lv2.tres".
-static func level_file_name(card_name: String, level: int) -> String:
-	return _file_name_for(card_name).get_basename() + "_lv%d.tres" % level
-
-
-# Read one card sheet and save a .tres for every row. `known_names` is the
-# list of level 1 cards: a level sheet's rows must match one of them.
+# Read the card sheet and save a .tres for every row.
 # Returns the names of the cards it made.
-static func _import_sheet(csv_path: String, folder: String, level: int, known_names: Array[String]) -> Array[String]:
+static func _import_sheet(csv_path: String, folder: String) -> Array[String]:
 	var made_names: Array[String] = []
 	var file := FileAccess.open(csv_path, FileAccess.READ)
 	if file == null:
@@ -112,13 +94,9 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 		var card_name := _cell(row, columns, "name")
 		if card_name.is_empty():
 			continue  # Skip blank rows.
-		if level > 1 and not known_names.has(card_name):
-			push_warning("%s: there's no card called \"%s\" in cards.csv, skipped" % [csv_path.get_file(), card_name])
-			continue
 
 		var card := CardData.new()
 		card.card_name = card_name
-		card.level = level
 		card.copies = _to_int(_cell(row, columns, "copies"), 1)
 		card.cost = _to_int(_cell(row, columns, "cost"))
 		card.schools = _parse_flags(_cell(row, columns, "school"), CardData.School)
@@ -154,6 +132,7 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 		card.class_only = _parse_list(_cell(row, columns, "class"))
 		card.rarity = _parse_rarity(_cell(row, columns, "rarity"))
 		card.unlocked = _parse_yes_no(_cell(row, columns, "unlocked"), true)
+		card.booster = _cell(row, columns, "booster")
 		card.color = _pick_color(card.schools)
 		var critical := _cell(row, columns, "critical effect")
 		if critical.is_empty():
@@ -164,7 +143,7 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 		if card.effect.is_empty():
 			card.effect = card.make_description()
 
-		var path := folder + (_file_name_for(card_name) if level == 1 else level_file_name(card_name, level))
+		var path := folder + _file_name_for(card_name)
 		var error := ResourceSaver.save(card, path)
 		if error != OK:
 			push_error("Couldn't save %s (error %d)" % [path, error])
@@ -173,8 +152,7 @@ static func _import_sheet(csv_path: String, folder: String, level: int, known_na
 		made_names.append(card_name)
 		print("Imported ", card_name, " -> ", path)
 
-	if level == 1:
-		_remove_old_cards(folder, made_files)
+	_remove_old_cards(folder, made_files)
 	return made_names
 
 
@@ -689,6 +667,8 @@ static func _parse_rarity(text: String) -> CardData.Rarity:
 	var key := text.strip_edges().to_upper()
 	if key.is_empty():
 		return CardData.Rarity.COMMON
+	if key == "SUPER":
+		key = "LEGENDARY"  # The old name.
 	if not CardData.Rarity.has(key):
 		push_warning("Unknown rarity '%s', using Common" % text)
 		return CardData.Rarity.COMMON

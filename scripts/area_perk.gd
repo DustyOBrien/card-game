@@ -19,6 +19,7 @@
 #   Campfire Heal      Going Deeper heals you Amount HP first
 #   Campfire Flask     Going Deeper refills Amount flask charges
 #   Campfire Vanished  Going Deeper brings back your Vanished cards
+#   Campfire Remove    Going Deeper throws Amount Danger cards out of the map deck
 #   Enemy HP           enemies whose name has Target in it get Amount % less HP
 #   Enemy Strength     ...get Amount Strength (use a minus number: -1 hits for 1 less)
 #   Unlock Card        your map card Target is unlocked (like a Map)
@@ -34,13 +35,14 @@ extends RefCounted
 const CAMPFIRE_HEAL := "campfire heal"
 const CAMPFIRE_FLASK := "campfire flask"
 const CAMPFIRE_VANISHED := "campfire vanished"
+const CAMPFIRE_REMOVE := "campfire remove"
 const ENEMY_HP := "enemy hp"
 const ENEMY_STRENGTH := "enemy strength"
 const UNLOCK_CARD := "unlock card"
 const START_POTION := "start potion"
 const START_KEY := "start key"
 const SWAP_CARD := "swap card"
-const EFFECTS := [CAMPFIRE_HEAL, CAMPFIRE_FLASK, CAMPFIRE_VANISHED, ENEMY_HP, ENEMY_STRENGTH,
+const EFFECTS := [CAMPFIRE_HEAL, CAMPFIRE_FLASK, CAMPFIRE_VANISHED, CAMPFIRE_REMOVE, ENEMY_HP, ENEMY_STRENGTH,
 	UNLOCK_CARD, START_POTION, START_KEY, SWAP_CARD]
 
 var perk_name := ""

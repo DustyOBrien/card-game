@@ -179,7 +179,7 @@ func build_pool() -> void:
 		card.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 		cell.add_child(card)
 		# Show the level 2 or 3 version once the card has leveled up...
-		card.setup(GameState.leveled(card_data))
+		card.setup(card_data)
 		# ...but always add the level 1 card to the deck (the battle swaps in
 		# the leveled one). A lambda lets us pass card_data instead of what
 		# the card shows.
@@ -266,7 +266,7 @@ func refresh_pool(deck: Array[CardData]) -> void:
 			limit = mini(limit, rules.max_cards_per_school)
 		# The dots always show all the copies you OWN, even when your class
 		# can only put fewer in the deck (the Adventurer's 1 per school).
-		parts.pips.text = "[center]%s[/center]" % make_pips(count, owned, GameState.MAX_COPIES)
+		parts.pips.text = "[center]%s[/center]" % make_pips(count, owned, card_data.copy_limit())
 
 		var reason := rules.why_not(deck, card_data)
 		card.disabled = not reason.is_empty()
@@ -285,7 +285,8 @@ func refresh_pool(deck: Array[CardData]) -> void:
 			note.add_theme_color_override("font_color", REASON_COLOR)
 		else:
 			card.modulate = Color.WHITE
-			note.text = "Lv %d  ·  %s" % [GameState.card_level(card_data), GameState.card_exp_text(card_data)]
+			# Its rarity, and how many copies you can own (3 / 3 / 2 / 1).
+			note.text = "%s  ·  own %d / %d" % [card_data.get_rarity_text(), owned, card_data.copy_limit()]
 			note.add_theme_color_override("font_color", DIM_TEXT)
 
 		parts.cell.visible = matches_filter(card_data)
@@ -295,7 +296,7 @@ func refresh_pool(deck: Array[CardData]) -> void:
 
 
 # The copy dots as BBCode: `in_deck` gold dots, then grey ones up to
-# `owned`, then hollow ones up to `limit` (3).
+# `owned`, then hollow ones up to `limit` (the card's rarity limit: 3, 2 or 1).
 func make_pips(in_deck: int, owned: int, limit: int) -> String:
 	var text := ""
 	for i in limit:
@@ -470,9 +471,6 @@ func make_deck_row(card_data: CardData) -> Button:
 
 	var name_label := Label.new()
 	name_label.text = card_data.card_name
-	var level := GameState.card_level(card_data)
-	if level > 1:
-		name_label.text += "  (Lv %d)" % level
 	name_label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
 	name_label.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	name_label.size_flags_vertical = Control.SIZE_SHRINK_CENTER

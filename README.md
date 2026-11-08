@@ -417,12 +417,14 @@ In the **Shop**:
 **Unlocked** in the spreadsheet, as many copies as its **Copies** column
 (`GameState.give_starter_cards()`): 3 Strike, 3 Full Guard, 3 Bandage, Reroll,
 Master of None, Punch, Kick, Fortify and Insight;
-every other card has to come from a booster pack. You can own up to **3** of a
-card. The deck builder only shows cards you own, and a deck can't hold more
+every other card has to come from a booster pack. How many copies of a card you
+can own (and put in a deck) depends on its **rarity**: Common 3, Uncommon 3,
+Rare 2, Legendary 1 (`RARITY_LIMITS` in `card_data.gd`). A class or talent can
+only lower it. The deck builder only shows cards you own, and a deck can't hold more
 copies than you own (or than your class allows). The whole collection is shared
 by every class. It lives in `GameState.collection`.
 
-**Saving.** Your gold, collection, card Exp, class Exp, unopened packs and the
+**Saving.** Your gold, collection, Essence, class Exp, unopened packs and the
 last deck you built for each class are saved to `user://save.json` (on
 Windows: `%APPDATA%\Godot\app_userdata\Card Game\`; in the editor,
 **Project > Open User Data Folder**). It saves when you win a fight, buy or
@@ -432,11 +434,12 @@ unlock with Maps are saved. To start over,
 press **Reset Save** in the top corner of Character Select. The code is under
 "Saving" in `game_state.gd`.
 
-**Card Exp.** Opening a card you already own 3 of gives that card **1 Exp**.
-**3 Exp** makes it **Level 2**, and **5 more** (8 in total) makes it **Level 3**.
-The level counts for every copy, and leveled cards say so ("Common · Lv 2").
-What a level does comes from the level sheets (see "Card levels" below).
-The numbers are `CARD_LEVEL_EXP` in `game_state.gd`.
+**Essence.** Opening a card you already own the most of turns it into
+**Essence** of its school: Strength, Agility, Intellect, Wisdom, or Neutral for
+cards with no school (a two-school card gives both). Common 1, Uncommon 2,
+Rare 5, Legendary 10 (`ESSENCE_PER_EXTRA` in `game_state.gd`). The pack opening
+shows orbs flying into the counter. Nothing spends Essence yet: crafting comes
+later. (Card Exp and card levels were removed in the card system redesign.)
 
 **Class Exp.** Your class gets **10 Exp** for every enemy you beat and **25** more for
 finishing a run. Level 2 needs 100 Exp, and each level after needs 50 more
@@ -685,7 +688,7 @@ Every card has these fields:
 | Next Defense Bonus | Extra Block for your next Defense card (Brace) |
 | Copies | How many go in the Starter Deck (a class may allow fewer) |
 | Class Only | Which classes may use it, e.g. Knight. Empty = every class |
-| Rarity | Common, Uncommon or Rare. Shown at the bottom of the card (grey, blue, gold) |
+| Rarity | Common, Uncommon, Rare or Legendary. Shown at the bottom of the card (grey, blue, gold, orange). Sets how many copies you can own: 3 / 3 / 2 / 1 |
 | Unlocked | Off = the deck builder shows the card as **Locked** and you can't add it |
 | Energy | Energy you gain when you play it (Adrenaline) |
 | Lose HP | HP you lose when you play it. Block doesn't stop it (Reckless Swing) |
@@ -781,7 +784,8 @@ spreadsheet directly; an **importer** turns each row into a card file in `cards/
 | School | Neutral | Strength, Agility, Intellect, Wisdom or Neutral. Several allowed, separated by `,` or `/`. Blank = Neutral |
 | Type | Attack | Attack, Defense, Ability. Several allowed, like School |
 | Class | Adventurer | Only these classes can use the card. Several allowed, like School. Blank = every class |
-| Rarity | Rare | Common, Uncommon or Rare. Blank = Common |
+| Rarity | Rare | Common, Uncommon, Rare or Legendary (copy limits 3 / 3 / 2 / 1). Blank = Common |
+| Booster | Farm | Optional. Only that place's booster packs can drop it (blank = any pack) |
 | Unlocked | TRUE | TRUE/FALSE or Yes/No. TRUE = you start owning it (as many as Copies). FALSE = you have to find it in a booster pack first (until then it's hidden in the deck builder). Blank = TRUE |
 | Description | Deal d3x2 Damage | Hover text in the deck list. **Leave it blank** and it's written for you from the numbers |
 | Attack | d3, d3 | A number (`6`) or dice: `d3` = one 3-sided die, `2d6+1` = two 6-sided dice plus 1. Several hits separated by commas: `d3, d3` = two hits, each rolled on its own (Multi Strike) |
@@ -819,18 +823,6 @@ warning in Godot's Output panel and skips that part.
 spreadsheet gets deleted when you import. So make new cards by adding rows,
 not by duplicating `.tres` files in Godot.
 
-### Card levels: `cards_level2.csv` and `cards_level3.csv`
-
-These two sheets have **exactly the same columns** as `cards.csv`. The easiest
-way to make one: copy your card sheet, change the numbers, and save it as
-`data/cards_level2.csv` (or `cards_level3.csv`). The **Name** says which card
-a row levels up, so it must match a card in `cards.csv`. You only need rows for
-cards that change: a card that isn't in the level 2 sheet plays like level 1.
-(A level 3 card that isn't in the level 3 sheet uses its level 2 row.)
-
-The importer saves them in `cards/levels/` (e.g. `strike_lv2.tres`). Battles
-and the deck builder show the version that matches the card's level.
-
 ### Class cards: `class_cards.csv`
 
 One row per card a class gets when it reaches a level:
@@ -842,7 +834,7 @@ One row per card a class gets when it reaches a level:
 
 - **Class** is the class's name, **Card** is a card's Name from `cards.csv`.
 - **Level 1** cards are given right at the start.
-- **Copies** is optional (1 if blank). Copies past 3 turn into card Exp.
+- **Copies** is optional (1 if blank). Copies past the card's rarity limit turn into Essence.
 - Give class cards a **Class** in `cards.csv` (e.g. `Knight`) if only that class
   should use them, and **Unlocked = FALSE** so they don't start in the collection.
   Class cards never come out of booster packs.

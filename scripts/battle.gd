@@ -312,8 +312,7 @@ func start_battle() -> void:
 	for i in GameState.deck.size():
 		if GameState.vanished.has(i):
 			continue  # This card Vanished earlier in the run.
-		# leveled() swaps in the card's level 2 or 3 version once it has leveled up.
-		var card: CardData = GameState.leveled(GameState.deck[i]).duplicate()
+		var card: CardData = GameState.deck[i].duplicate()
 		# set_meta() tags the copy with where it came from in the deck,
 		# so if it Vanishes we know which deck card to leave out next fight.
 		card.set_meta("deck_index", i)
@@ -340,7 +339,11 @@ func start_battle() -> void:
 	message_label.text = "%s appear%s!" % [enemy_names(), "s" if enemy_views.size() == 1 else ""]
 	var enemy_list: Array[String] = []
 	for view in enemy_views:
-		enemy_list.append("%s (%d HP)" % [view.data.display_name, view.data.max_hp])
+		# The HP it really has, after perks (Slime Hunter makes slimes weaker).
+		var hp_text := "%d HP" % view.combatant.max_hp
+		if view.combatant.max_hp < view.data.max_hp:
+			hp_text += ", was %d" % view.data.max_hp
+		enemy_list.append("%s (%s)" % [view.data.display_name, hp_text])
 	battle_log.add("%s, floor %d: %s" % [GameState.current_area.display_name,
 		dungeon.floor_number, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
 	if dungeon.enemy_strength() > 0:
@@ -1487,8 +1490,8 @@ func show_exp_gain(before_level: int, before_progress: Vector2i, amount: int, le
 		battle_log.add(line, BattleLog.PLAYER_COLOR)
 		for item in level_up.cards:
 			var card_line := "New class card: %s" % item.card.card_name
-			if item.exp:
-				card_line = "%s: +1 card Exp" % item.card.card_name  # You already had 3.
+			if not item.essence.is_empty():
+				card_line = "%s: %s" % [item.card.card_name, GameState.essence_text(item.essence)]  # You already had the most.
 			line += "\n" + card_line
 			battle_log.add(card_line, BattleLog.PLAYER_COLOR)
 		reward_label.text += "\n" + line

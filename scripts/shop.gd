@@ -22,6 +22,8 @@ const FARM_COLOR := Color(0.36, 0.58, 0.27)  # Farm packs are grassy green.
 const PACK_ICON := preload("res://icons/booster.svg")  # A Farm booster pack.
 
 @onready var gold_label: Label = %GoldLabel
+var essence_counter: Label  # "Essence 12" on the pack opening screen (the orbs fly into it).
+var _shown_essence := 0
 @onready var summary_label: Label = %SummaryLabel
 @onready var pack_row: HBoxContainer = %PackRow
 @onready var owned_label: Label = %OwnedLabel
@@ -59,7 +61,9 @@ func shop_built() -> bool:
 
 # Update the gold, the Buy buttons and the "you own" line.
 func refresh() -> void:
-	gold_label.text = "Gold %d   Stone %d" % [GameState.gold, GameState.material_count("Stone")]
+	gold_label.text = "Gold %d   Stone %d   Essence %d" % [GameState.gold, GameState.material_count("Stone"), essence_total()]
+	gold_label.mouse_filter = Control.MOUSE_FILTER_PASS
+	gold_label.tooltip_text = essence_tooltip()
 	for panel in pack_row.get_children():
 		var button: Button = panel.get_meta("buy_button")
 		button.disabled = not can_buy(panel.get_meta("pack"))
@@ -143,8 +147,9 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(name_label)
 
 	var blurb := Label.new()
-	blurb.text = "%d cards\nCommon %d%%  ·  Uncommon %d%%  ·  Rare %d%%" % [pack.cards,
-		GameState.PACK_ODDS[CardData.Rarity.COMMON], GameState.PACK_ODDS[CardData.Rarity.UNCOMMON], GameState.PACK_ODDS[CardData.Rarity.RARE]]
+	blurb.text = "%d cards\nCommon %d%%  ·  Uncommon %d%%  ·  Rare %d%%  ·  Legendary %d%%" % [pack.cards,
+		GameState.PACK_ODDS[CardData.Rarity.COMMON], GameState.PACK_ODDS[CardData.Rarity.UNCOMMON],
+		GameState.PACK_ODDS[CardData.Rarity.RARE], GameState.PACK_ODDS[CardData.Rarity.LEGENDARY]]
 	blurb.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	blurb.add_theme_font_size_override("font_size", 13)
 	blurb.add_theme_color_override("font_color", Color(1, 1, 1, 0.65))
@@ -190,6 +195,12 @@ func open_pack(pack_name: String) -> void:
 	if opened.is_empty():
 		return
 	refresh()
+	# The Essence counter starts at what you had BEFORE this pack, and counts
+	# up as each extra card's orbs fly into it.
+	_shown_essence = essence_total()
+	for item in opened:
+		for school_name in item.essence:
+			_shown_essence -= item.essence[school_name]
 	var color := FARM_COLOR
 	_skip = false
 
@@ -202,6 +213,18 @@ func open_pack(pack_name: String) -> void:
 			_skip = true)
 	add_child(reveal_layer)
 	create_tween().tween_property(reveal_layer, "color:a", 0.85, 0.25)
+	essence_counter = Label.new()
+	essence_counter.text = "Essence %d" % _shown_essence
+	essence_counter.add_theme_font_size_override("font_size", 26)
+	essence_counter.add_theme_color_override("font_color", Color(0.85, 0.8, 1.0))
+	essence_counter.add_theme_color_override("font_outline_color", Color.BLACK)
+	essence_counter.add_theme_constant_override("outline_size", 6)
+	essence_counter.horizontal_alignment = HORIZONTAL_ALIGNMENT_RIGHT
+	essence_counter.size = Vector2(260, 40)
+	essence_counter.position = Vector2(get_viewport_rect().size.x - 290, 130)
+	essence_counter.pivot_offset = essence_counter.size / 2
+	essence_counter.visible = opened.any(func(item: Dictionary) -> bool: return not item.essence.is_empty())
+	reveal_layer.add_child(essence_counter)
 	var middle := reveal_layer.size / 2 if reveal_layer.size.x > 0 else get_viewport_rect().size / 2
 
 	var title := Label.new()
@@ -321,7 +344,7 @@ func _make_slot(item: Dictionary) -> Control:
 	var card: Card = CARD_SCENE.instantiate()
 	card.name = "Face"
 	slot.add_child(card)
-	card.setup(GameState.leveled(item.card))  # Its level 2 or 3 version, if it has one.
+	card.setup(item.card)
 	card.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Just for looking at.
 	# Force the exact size: some cards have more on them than others, and
 	# without this a busy card grows a little bigger than its neighbours.
@@ -368,7 +391,11 @@ func _flip(slot: Control, item: Dictionary) -> void:
 	var rarity: CardData.Rarity = item.card.rarity
 	var color: Color = CardData.RARITY_COLORS[rarity]
 	var centre := slot.position + CARD_SIZE / 2
-	if rarity == CardData.Rarity.RARE:
+	if rarity == CardData.Rarity.LEGENDARY:
+		_sparkles(centre, color, 90, 380.0)
+		_flash(Color(1, 0.55, 0.2, 0.6), 0.6)
+		_shake_screen()
+	elif rarity == CardData.Rarity.RARE:
 		_sparkles(centre, color, 50, 300.0)
 		_flash(Color(1, 0.85, 0.4, 0.45), 0.4)
 		_shake_screen()
@@ -382,14 +409,15 @@ func _flip(slot: Control, item: Dictionary) -> void:
 		pulse.tween_property(slot.get_node("Glow"), "modulate:a", 1.0, 0.6)
 
 	# e.g. "NEW!  Rare" or "Owned 2 / 3  Common", in the rarity's colour.
-	# A card you already own 3 of gives it Exp instead: "+1 Exp (2 / 3)".
-	var owned_text := "Owned %d / %d" % [item.owned, GameState.MAX_COPIES]
+	# A card you already own the most of (its rarity limit) turns into
+	# Essence instead: "+2 Strength Essence", and orbs fly up to the counter.
+	var owned_text := "Owned %d / %d" % [item.owned, item.card.copy_limit()]
 	if item.new:
 		owned_text = "NEW!"
-	elif item.level_up:
-		owned_text = "LEVEL UP! Lv %d" % item.level
-	elif item.exp:
-		owned_text = "+1 Exp  (%s)" % item.exp_text.trim_prefix("Exp ")
+	elif not item.essence.is_empty():
+		owned_text = GameState.essence_text(item.essence)
+		for school_name: String in item.essence:
+			_essence_orbs(centre, GameState.ESSENCE_COLORS.get(school_name, Color.WHITE), mini(item.essence[school_name] + 2, 8), item.essence[school_name])
 	var note := Label.new()
 	note.text = "%s\n%s" % [owned_text, item.card.get_rarity_text()]
 	note.add_theme_font_size_override("font_size", 18)
@@ -410,6 +438,60 @@ func _flip(slot: Control, item: Dictionary) -> void:
 		bob.tween_property(note, "position:y", note.position.y - 5, 0.4)
 		bob.tween_property(note, "position:y", note.position.y, 0.4)
 	await grow.finished
+
+
+# ESSENCE: little glowing orbs fly from the card up to the counter at the top.
+func _essence_orbs(from: Vector2, color: Color, count: int, amount: int) -> void:
+	var to := essence_counter.position + Vector2(essence_counter.size.x - 30, 10)
+	for i in count:
+		var orb := Panel.new()
+		var style := StyleBoxFlat.new()
+		style.bg_color = color
+		style.set_corner_radius_all(9)
+		style.shadow_color = Color(color, 0.7)
+		style.shadow_size = 8
+		orb.add_theme_stylebox_override("panel", style)
+		orb.size = Vector2(18, 18)
+		orb.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		orb.position = from + Vector2(randf_range(-40, 40), randf_range(-50, 50))
+		reveal_layer.add_child(orb)
+		var fly := create_tween()
+		fly.tween_interval(0.15 + i * 0.07)
+		fly.tween_property(orb, "position", to, 0.55).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+		fly.parallel().tween_property(orb, "scale", Vector2(0.5, 0.5), 0.55)
+		fly.tween_callback(orb.queue_free)
+	var update := create_tween()
+	update.tween_interval(0.8 + count * 0.07)
+	update.tween_callback(_count_up.bind(amount))
+
+
+# The orbs landed: the counter goes up and pops.
+func _count_up(amount: int) -> void:
+	if not is_instance_valid(essence_counter):
+		return
+	_shown_essence += amount
+	essence_counter.text = "Essence %d" % _shown_essence
+	var pop := create_tween()
+	pop.tween_property(essence_counter, "scale", Vector2(1.25, 1.25), 0.1)
+	pop.tween_property(essence_counter, "scale", Vector2.ONE, 0.15)
+
+
+func essence_total() -> int:
+	var total := 0
+	for school_name in GameState.essence:
+		total += GameState.essence[school_name]
+	return total
+
+
+# "Essence: copies past a card's rarity limit turn into Essence of its school.
+#  Strength 3, Neutral 2"
+func essence_tooltip() -> String:
+	var parts: Array[String] = []
+	for school_name in GameState.ESSENCE_NAMES:
+		if GameState.essence.get(school_name, 0) > 0:
+			parts.append("%s %d" % [school_name, GameState.essence[school_name]])
+	return "Essence: copies past a card's rarity limit (Common 3, Uncommon 3, Rare 2, Legendary 1) turn into Essence of its school.\n" + \
+		(", ".join(parts) if not parts.is_empty() else "None yet.")
 
 
 # A quick full-screen flash of colour that fades away.

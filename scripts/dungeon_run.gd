@@ -827,6 +827,34 @@ func take_treasure(square: Vector2i) -> String:
 
 # --- Torches -----------------------------------------------------------------
 
+# TORCH SWAP: a card your torch showed you (still face down) can go back into
+# the map deck, and a new face-down card is drawn in its place. Shuffling
+# cards around is noisy: Danger +1 (TORCH_SWAP_DANGER).
+const TORCH_SWAP_DANGER := 1
+
+func can_swap_scouted(square: Vector2i) -> bool:
+	if guided or not result.is_empty() or not rooms.has(square) or deck.is_empty():
+		return false
+	var room: Dictionary = rooms[square]
+	return not room.revealed and room.get("scouted", false) and _returns_to_deck(room.card) \
+		and not room.campfire and square != roamer_square
+
+
+# Swap it. Returns the new card (face down, not scouted), or null.
+func swap_scouted(square: Vector2i) -> RoomCard:
+	if not can_swap_scouted(square):
+		return null
+	var old: RoomCard = rooms[square].card
+	var new_card: RoomCard = deck.pop_back()
+	deck.append(old)
+	deck.shuffle()
+	rooms[square] = {"card": new_card, "revealed": false, "cleared": false, "done": false,
+		"campfire": false, "opened": false}
+	raise_danger(TORCH_SWAP_DANGER)
+	add_log("You shuffle the %s back into the map deck and a new card takes its place. Danger +%d." % [old.room_name, TORCH_SWAP_DANGER])
+	return new_card
+
+
 # Can you light up this square with a torch? (Face down and not scouted yet.)
 func can_scout(square: Vector2i) -> bool:
 	return torches > 0 and result.is_empty() and rooms.has(square) \
@@ -1144,6 +1172,21 @@ func _campfire_perks() -> void:
 	if GameState.area_perk_total(area, AreaPerk.CAMPFIRE_VANISHED) > 0 and not GameState.vanished.is_empty():
 		add_log("Second Wind: %d Vanished card%s come back." % [GameState.vanished.size(), "" if GameState.vanished.size() == 1 else "s"])
 		GameState.vanished.clear()
+	# Clean Camp: throw Danger cards out of the map deck.
+	var cleanup := GameState.area_perk_total(area, AreaPerk.CAMPFIRE_REMOVE)
+	var thrown: Array[String] = []
+	for i in cleanup:
+		var bad := -1
+		for k in deck.size():
+			if deck[k].deck_part == RoomCard.DECK_DANGER:
+				bad = k
+				break
+		if bad < 0:
+			break
+		thrown.append(deck[bad].room_name)
+		deck.remove_at(bad)
+	if not thrown.is_empty():
+		add_log("You clean up camp: %s thrown out of the map deck." % ", ".join(thrown))
 
 
 # THE PLACE'S EXP for this trip: 1 per card you flipped, 3 per fight won, 10

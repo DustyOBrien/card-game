@@ -40,8 +40,9 @@ extends Resource
 # Which schools' cards this class may put in its deck. Same checkboxes as on cards.
 @export_flags("Strength", "Agility", "Intellect", "Wisdom") var allowed_schools: int = 15  # 15 = all four.
 @export var allow_neutral: bool = true  # Can it use cards with no school?
-# Every class can use up to 3 copies of a card (GameState.MAX_COPIES), so
-# that isn't a class setting. Classes differ in WHICH cards they may use.
+# How many copies of a card a deck can hold comes from the card's rarity
+# (CardData.RARITY_LIMITS), so that isn't a class setting. A talent can lower
+# it (Pack Rat: 1). Classes differ in WHICH cards they may use.
 # Most cards from any ONE school in the deck (all its cards added up). 0 = no limit.
 @export var max_cards_per_school: int = 0
 @export var min_deck_size: int = 12  # Can't start a battle with fewer cards.
@@ -54,18 +55,20 @@ func max_copies_of(card: CardData) -> int:
 	if card.is_class_card() and not card.class_only.has(display_name):
 		return 0
 	if card.is_neutral():
-		return copies_per_card() if allow_neutral else 0
+		return copies_per_card(card) if allow_neutral else 0
 	# A card with several schools is allowed if ANY of its schools is allowed.
 	for school in CardData.School.values():
 		if card.has_school(school) and school_limit(school) != 0:
-			return copies_per_card()
+			return copies_per_card(card)
 	return 0
 
 
-# Copies of one card a deck may hold: 3, unless a talent says fewer (Pack Rat: 1).
-func copies_per_card() -> int:
+# Copies of one card a deck may hold: its rarity limit (3/3/2/1), unless a
+# talent says fewer (Pack Rat: 1). A class can only LOWER the rarity limit.
+func copies_per_card(card: CardData = null) -> int:
+	var most := card.copy_limit() if card else GameState.MAX_COPIES
 	var limit := GameState.talent_copy_limit(self)
-	return GameState.MAX_COPIES if limit == 0 else mini(limit, GameState.MAX_COPIES)
+	return most if limit == 0 else mini(limit, most)
 
 
 # The most cards the deck can hold: max_deck_size, plus Max Deck Size talents (Pack Rat).
@@ -181,7 +184,7 @@ func get_rules_text() -> String:
 		lines.append("At most %d card(s) from each school" % max_cards_per_school)
 	if allow_neutral:
 		lines.append("Neutral cards")
-	lines.append("Up to %d copies of each card" % copies_per_card() if copies_per_card() > 1 else "Only 1 copy of each card")
+	lines.append("Copies of each card: up to its rarity limit (Common 3, Uncommon 3, Rare 2, Legendary 1)" if copies_per_card() > 1 else "Only 1 copy of each card")
 	lines.append("Deck size: %d to %d cards" % [min_deck_size, deck_size_limit()])
 	lines.append("HP: %d" % max_hp)
 	if armor > 0:

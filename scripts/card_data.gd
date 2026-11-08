@@ -44,22 +44,20 @@ const NEUTRAL_COLOR := Color(0.4, 0.4, 0.42)
 enum Target { SINGLE, ALL, RANDOM }
 
 # Rarity is just one value per card, so it's a normal enum (0, 1, 2, 3), not flags.
-# SUPER: the old run-only boss drops. Removed for now (Dusty, 2026-11-08), so
-# no card uses it; it stays in the list so the numbers saved in card files
-# don't shift. The card system redesign will bring a Legendary rarity.
-enum Rarity { COMMON, UNCOMMON, RARE, SUPER }
+# LEGENDARY took the old SUPER slot (number 3), so saved card files still match.
+enum Rarity { COMMON, UNCOMMON, RARE, LEGENDARY }
 const RARITY_COLORS := {
 	Rarity.COMMON: Color(0.85, 0.85, 0.85),
 	Rarity.UNCOMMON: Color(0.45, 0.75, 1.0),
 	Rarity.RARE: Color(1.0, 0.8, 0.3),
-	Rarity.SUPER: Color(1.0, 0.45, 0.2),
+	Rarity.LEGENDARY: Color(1.0, 0.45, 0.2),
 }
+# RARITY LIMITS: the most copies of each card you can OWN (and so put in a
+# deck). A class or spec rule can only lower it. Copies past it give Essence.
+const RARITY_LIMITS := {Rarity.COMMON: 3, Rarity.UNCOMMON: 3, Rarity.RARE: 2, Rarity.LEGENDARY: 1}
 
 # @export makes a variable show up in the Inspector so you can edit it there.
 @export var card_name: String = "New Card"
-# 1, 2 or 3. Level 2 and 3 versions come from the level sheets (cards/levels/).
-# See GameState.leveled() for how a card's Exp picks which one you play with.
-@export var level: int = 1
 @export var cost: int = 1  # Energy needed to play the card.
 
 # @export_flags shows one checkbox per name in the Inspector.
@@ -118,6 +116,8 @@ var enchant_color := Color.WHITE
 # true = you own 3 of it from the start. false = you have to find it in
 # booster packs before it shows up in the deck builder (see GameState.collection).
 @export var unlocked: bool = true
+# Booster: which place's booster packs it can come from ("Farm"). Blank = any.
+@export var booster: String = ""
 # Classes allowed to use this card, e.g. ["Knight"]. Empty means every class.
 @export var class_only: PackedStringArray = []
 @export_multiline var effect: String = ""  # Rules text shown on the card.
@@ -369,3 +369,8 @@ func get_school_text() -> String:
 		if has_school(School[school_name]):
 			names.append(school_name.substr(0, 3))  # "STRENGTH" -> "STR"
 	return " ".join(names)
+
+
+# The most copies of this card you can own (its rarity limit).
+func copy_limit() -> int:
+	return RARITY_LIMITS.get(rarity, 3)
