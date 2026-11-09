@@ -470,15 +470,14 @@ func refresh() -> void:
 
 # --- The intro banner, spotlights and keyword pop-ups ----------------------------
 
-# The stage's big intro banner: "STAGE 1: ATTACK!", with its goals.
+# The stage's big intro banner: "STAGE 1: ATTACK!". (The goals aren't listed
+# on it: a long list pushed its button off the bottom of the screen. They're
+# in the panel, top left.)
 func show_intro() -> void:
 	var info: Dictionary = STAGES[GameState.tutorial_stage - 1]
-	var goal_list: Array[String] = []
-	for step: Dictionary in info.goals:
-		goal_list.append("•  " + step.text)
 	intro_open = true
 	UnlockBanner.show_in(battle, info.title.to_upper(), "Adventurer training  ·  %d of %d" % [GameState.tutorial_stage, STAGES.size()],
-		load(info.icon), info.intro + "\n\nYour goals:\n" + "\n".join(goal_list), "Let's go!", func() -> void:
+		load(info.icon), info.intro + "\n\nYour %d goals are in the panel at the top left." % info.goals.size(), "Let's go!", func() -> void:
 			intro_open = false
 			start_goal())
 
