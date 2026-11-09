@@ -41,6 +41,10 @@ var draggable := false  # true in battle: drag to play instead of clicking.
 # The battle fills this in, because only it knows about bonuses like Rage.
 var preview_text := ""
 var zoom_tween: Tween  # The running hover zoom animation, if any.
+# true while THIS hover zoom has made the card bigger. Only then does moving
+# the mouse off shrink it back, so cards that other screens show at their own
+# size (the Binder's 0.85, the deck builder's 1.08) keep that size.
+var zoomed := false
 
 # @onready means "fill this in when the node is ready", because child nodes
 # don't exist yet when the script is first created.
@@ -238,7 +242,8 @@ func _on_mouse_entered() -> void:
 
 
 func _on_mouse_exited() -> void:
-	set_zoom(1.0, true)
+	if zoomed:
+		set_zoom(1.0, true)
 
 
 func set_zoom(amount: float, animate: bool) -> void:
@@ -247,6 +252,7 @@ func set_zoom(amount: float, animate: bool) -> void:
 	pivot_offset = Vector2(size.x / 2, size.y)
 	# z_index draws the zoomed card on top of its neighbours.
 	z_index = 1 if amount > 1.0 else 0
+	zoomed = amount > 1.0
 	if zoom_tween:
 		zoom_tween.kill()  # Stop a zoom that's still running, so they don't fight.
 	if animate:
