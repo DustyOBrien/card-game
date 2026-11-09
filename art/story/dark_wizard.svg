@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="180" height="220" viewBox="0 0 180 220">
+  <!-- The Dark Wizard: a tall black-purple robe, glowing eyes, a staff with a green orb. -->
+  <!-- Glow behind him -->
+  <circle cx="90" cy="100" r="86" fill="#7a2fd0" opacity="0.18"/>
+  <!-- Staff -->
+  <rect x="140" y="40" width="7" height="170" rx="3" fill="#2a1a30" stroke="#0a0510" stroke-width="2.5"/>
+  <circle cx="143.5" cy="34" r="13" fill="#7cff6a" opacity="0.35"/>
+  <circle cx="143.5" cy="34" r="8" fill="#9dff8a" stroke="#1e5a14" stroke-width="2.5"/>
+  <!-- Robe -->
+  <path d="M60 80 Q90 66 120 80 L146 210 Q90 220 34 210 Z" fill="#2c1840" stroke="#0a0510" stroke-width="3"/>
+  <path d="M84 84 L96 84 L104 208 L76 208 Z" fill="#4a2a6a"/>
+  <!-- Arms out, casting -->
+  <path d="M64 92 L22 70 L18 82 L60 110 Z" fill="#2c1840" stroke="#0a0510" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="18" cy="74" r="10" fill="#c060ff" opacity="0.5"/>
+  <path d="M116 92 L142 104 L138 116 L114 108 Z" fill="#2c1840" stroke="#0a0510" stroke-width="3" stroke-linejoin="round"/>
+  <!-- Hood / hat -->
+  <path d="M90 2 L122 72 Q90 82 58 72 Z" fill="#3a2054" stroke="#0a0510" stroke-width="3" stroke-linejoin="round"/>
+  <path d="M68 66 Q90 58 112 66 L110 84 Q90 92 70 84 Z" fill="#120818" stroke="#0a0510" stroke-width="2.5"/>
+  <!-- Glowing eyes -->
+  <ellipse cx="82" cy="74" rx="4" ry="2.5" fill="#9dff8a"/>
+  <ellipse cx="98" cy="74" rx="4" ry="2.5" fill="#9dff8a"/>
+</svg>

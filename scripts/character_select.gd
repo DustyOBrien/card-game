@@ -28,8 +28,12 @@ func _ready() -> void:
 		class_list.add_child(make_class_panel(character_class, all_cards))
 	add_reset_button()
 	add_tutorial_button()
+	add_story_button()
+	# A brand-new game: the story cutscene first (story_intro.gd), then the town.
+	if GameState.story_intro_due():
+		get_tree().change_scene_to_file.call_deferred(STORY_SCENE)
 	# No adventurer yet: nobody to play. You're running the town, so go there.
-	if not GameState.adventurers_here():
+	elif not GameState.adventurers_here():
 		get_tree().change_scene_to_file.call_deferred(TOWN_SCENE)
 	# The Adventurer just arrived: their training (the tutorial) comes first (they can Skip it).
 	elif not GameState.tutorial_done:
@@ -38,6 +42,7 @@ func _ready() -> void:
 
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 const TOWN_SCENE := "res://scenes/town.tscn"
+const STORY_SCENE := "res://scenes/story_intro.tscn"
 
 
 func start_tutorial() -> void:
@@ -54,6 +59,18 @@ func add_tutorial_button() -> void:
 	button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	button.position.x -= 150  # Left of Reset Save.
 	button.pressed.connect(start_tutorial)
+	add_child(button)
+
+
+# "Story" left of Tutorial: watch the story cutscene again.
+func add_story_button() -> void:
+	var button := Button.new()
+	button.text = "Story"
+	button.tooltip_text = "Watch the story intro again."
+	button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
+	button.grow_horizontal = Control.GROW_DIRECTION_BEGIN
+	button.position.x -= 250  # Left of Tutorial.
+	button.pressed.connect(func() -> void: get_tree().change_scene_to_file(STORY_SCENE))
 	add_child(button)
 
 

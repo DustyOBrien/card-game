@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="180" viewBox="0 0 120 180">
+  <!-- An architect: a builder's tunic, a cap, a hammer at the belt and a rolled blueprint. -->
+  <ellipse cx="60" cy="172" rx="38" ry="6" fill="#000" opacity="0.25"/>
+  <!-- Legs -->
+  <rect x="44" y="128" width="13" height="42" rx="4" fill="#5a4030" stroke="#2a1a10" stroke-width="2.5"/>
+  <rect x="63" y="128" width="13" height="42" rx="4" fill="#5a4030" stroke="#2a1a10" stroke-width="2.5"/>
+  <!-- Tunic -->
+  <path d="M36 74 Q60 64 84 74 L88 136 L32 136 Z" fill="#d88a2a" stroke="#4a2a0a" stroke-width="3" stroke-linejoin="round"/>
+  <rect x="34" y="112" width="52" height="7" fill="#6b4520" stroke="#2a1a10" stroke-width="2"/>
+  <!-- Hammer -->
+  <rect x="76" y="110" width="5" height="30" fill="#8a5a30" stroke="#2a1a10" stroke-width="1.5"/>
+  <rect x="70" y="106" width="17" height="9" rx="2" fill="#9aa3ad" stroke="#2a3038" stroke-width="2"/>
+  <!-- Arm holding the blueprint -->
+  <path d="M38 82 L20 106 L28 112 L44 94 Z" fill="#d88a2a" stroke="#4a2a0a" stroke-width="2.5" stroke-linejoin="round"/>
+  <rect x="6" y="96" width="34" height="12" rx="6" transform="rotate(-30 23 102)" fill="#5a9be0" stroke="#1a3a6a" stroke-width="2.5"/>
+  <!-- Head -->
+  <circle cx="60" cy="50" r="18" fill="#f1c9a0" stroke="#3a2010" stroke-width="3"/>
+  <circle cx="54" cy="50" r="2.3" fill="#2a1a10"/>
+  <circle cx="66" cy="50" r="2.3" fill="#2a1a10"/>
+  <path d="M54 59 Q60 63 66 59" fill="none" stroke="#3a2010" stroke-width="2" stroke-linecap="round"/>
+  <!-- Cap -->
+  <path d="M41 44 Q42 26 60 26 Q78 26 79 44 Z" fill="#e8c040" stroke="#5a4008" stroke-width="3"/>
+  <rect x="38" y="41" width="46" height="6" rx="3" fill="#e8c040" stroke="#5a4008" stroke-width="2.5"/>
+</svg>

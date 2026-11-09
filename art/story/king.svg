@@ -1,0 +1,26 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="140" height="190" viewBox="0 0 140 190">
+  <!-- The King: a big red cape, a gold crown and a grey beard. -->
+  <ellipse cx="70" cy="182" rx="48" ry="7" fill="#000" opacity="0.25"/>
+  <!-- Cape -->
+  <path d="M30 70 Q70 58 110 70 L124 178 Q70 188 16 178 Z" fill="#a82828" stroke="#3a1010" stroke-width="3"/>
+  <!-- Fur trim -->
+  <path d="M30 72 Q70 60 110 72 L108 86 Q70 76 32 86 Z" fill="#f2efe6" stroke="#3a1010" stroke-width="2.5"/>
+  <!-- Robe front -->
+  <path d="M52 86 L88 86 L94 176 L46 176 Z" fill="#3a5fb0" stroke="#152448" stroke-width="2.5"/>
+  <rect x="48" y="118" width="44" height="8" fill="#e8b830" stroke="#6b4d0c" stroke-width="2"/>
+  <!-- Head -->
+  <circle cx="70" cy="52" r="20" fill="#f1c9a0" stroke="#3a2010" stroke-width="3"/>
+  <!-- Beard -->
+  <path d="M50 54 Q52 84 70 88 Q88 84 90 54 Q80 66 70 64 Q60 66 50 54 Z" fill="#c9c4bb" stroke="#4a4540" stroke-width="2.5"/>
+  <!-- Eyes -->
+  <circle cx="63" cy="50" r="2.5" fill="#2a1a10"/>
+  <circle cx="77" cy="50" r="2.5" fill="#2a1a10"/>
+  <!-- Crown -->
+  <path d="M50 36 L52 16 L61 28 L70 12 L79 28 L88 16 L90 36 Z" fill="#f2c434" stroke="#6b4d0c" stroke-width="3" stroke-linejoin="round"/>
+  <circle cx="70" cy="28" r="3.5" fill="#d03a3a"/>
+  <circle cx="58" cy="31" r="2.5" fill="#3a8fd0"/>
+  <circle cx="82" cy="31" r="2.5" fill="#3a8fd0"/>
+  <!-- Scepter -->
+  <rect x="110" y="70" width="6" height="90" rx="3" fill="#e8b830" stroke="#6b4d0c" stroke-width="2"/>
+  <circle cx="113" cy="66" r="8" fill="#d03a3a" stroke="#6b1010" stroke-width="2.5"/>
+</svg>

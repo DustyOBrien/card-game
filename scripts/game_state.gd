@@ -299,6 +299,7 @@ const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the train
 # Story beat: the FIRST TRIP to the Farm is done (you came home with the
 # Innkeeper's Stone and Hops). Until then, every Farm trip is that guided one.
 const FIRST_TRIP := "First Farm Trip"
+const STORY_INTRO := "Story Intro"  # The story cutscene (story_intro.gd) has been seen or skipped.
 const FIRST_LEVEL_UP := "First Level Up"  # Any class reached level 2: the Old Master appears.
 # Monsters you've beaten in the dungeons (not the training dummies). Saved.
 # The Old Master is impressed by it.
@@ -1339,6 +1340,12 @@ func _start_quests_after(done_name: String) -> void:
 	for other in load_quests():
 		if other.starts_after == done_name:
 			start_quest(other.quest_name)
+
+
+# Play the story cutscene? Only for a brand-new game: not if you've seen it,
+# and not on an older save that already got the town's welcome ("Welcome").
+func story_intro_due() -> bool:
+	return not story_beats.has(STORY_INTRO) and not story_beats.has("Welcome")
 
 
 # A one-time story moment (a STORY BEAT) has happened. Returns false if it
