@@ -413,8 +413,8 @@ func draw_square(square: Vector2i) -> void:
 	var room: Dictionary = dungeon.rooms.get(square, {})
 	var card: RoomCard = room.get("card")
 	var reachable := reach.has(square)
-	var face_up := not room.is_empty() and room.revealed
-	var scouted := not face_up and not room.is_empty() and room.get("scouted", false) and card != null
+	var face_up: bool = not room.is_empty() and room.revealed
+	var scouted: bool = not face_up and not room.is_empty() and room.get("scouted", false) and card != null
 	var color := FACE_COLOR
 	var border := Color(0, 0, 0, 0.6)
 	var ink := INK
