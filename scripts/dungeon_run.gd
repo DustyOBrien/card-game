@@ -19,7 +19,8 @@
 #      every card on the board is shuffled back into the deck (beaten
 #      Unsafe cards come back Unsafe), a fresh board is dealt one FLOOR
 #      down, and a new campfire is hidden on it. Your burnt-out campfire is
-#      where you start, so the only way home is to find the next one!
+#      where you start, so the only way home is to find the next one! (On
+#      Floor 1 you start at the Farm Gate, which isn't a way home either.)
 #      Cards with VANISH (mini bosses, the very best loot) don't come back.
 #   5. DANGER. Every 3 danger gives every enemy +1 Strength (it never goes
 #      down by itself, so the longer you stay, the harder it gets). Deeper
@@ -132,6 +133,7 @@ var left_over := {}
 var danger_cards_added := 0  # Danger cards shuffled in so far this run.
 var last_danger_card: RoomCard = null  # The newest one (dungeon.gd shows it), null once shown.
 var found_cards: Array[CardData] = []
+var last_loot_entry := ""  # The loot entry take_loot() picked last ("Stone 1-2"), for scavenge finds.
 
 # The SAVE SACK: what's in it survives if you die. Each slot holds one
 # thing: {"kind": "pack"}, {"kind": "card", "card": CardData},
@@ -315,10 +317,12 @@ func _deal() -> void:
 		else:
 			# The deck ran out: bare, trampled ground.
 			rooms[squares[i]] = {"card": null, "revealed": true, "cleared": true, "done": true, "campfire": false, "opened": false}
-	# Where you start. On Floor 1 it's the way back to town (a campfire);
-	# deeper down it's the campfire you just used, burnt out.
+	# Where you start. On Floor 1 it's the Farm Gate: just the way in, NOT a
+	# way home (Dusty's playtest: the player has to FIND the campfire, so
+	# getting home is part of the adventure). Deeper down it's the campfire
+	# you just used, burnt out.
 	rooms[START] = {"card": null, "revealed": true, "cleared": true, "done": true,
-		"campfire": floor_number == 1, "opened": false, "start": true}
+		"campfire": false, "opened": false, "start": true}
 	if not guided:
 		_deal_guards()
 		_deal_roamer()
@@ -945,12 +949,16 @@ func scavenge() -> Dictionary:
 	var loot_card := RoomCard.new()
 	loot_card.loot = card.scavenge_table(luck)
 	var text := take_loot(loot_card)
+	# Learn what this kind of card gives: its "?" on the board becomes an icon.
+	var item := RoomCard.loot_item_name(last_loot_entry)
+	var new_find := GameState.learn_find(area, card.room_name, item)
 	var over := not can_scavenge(position)
 	if over:
 		room.done = true  # Picked clean.
 	add_log("Scavenging %s (Luck %d, %s): %s%s" % [card.room_name, luck, luck_name(luck), text,
 		"" if need == 0 else " (rolled %d, needed %d+)" % [roll, need]])
-	return {"roll": roll, "need": need, "worked": true, "luck": luck, "text": text, "over": over}
+	return {"roll": roll, "need": need, "worked": true, "luck": luck, "text": text, "over": over,
+		"item": item, "new_find": new_find}
 
 
 static func luck_name(luck: int) -> String:
@@ -1320,6 +1328,7 @@ func take_loot(card: RoomCard) -> String:
 	if entries.is_empty():
 		return "nothing"
 	var entry: String = entries.pick_random()
+	last_loot_entry = entry
 	var words := entry.strip_edges().split(" ", false)
 	match words[0].to_lower():
 		"gold":

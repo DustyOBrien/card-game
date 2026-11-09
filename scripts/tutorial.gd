@@ -3,26 +3,36 @@
 # The Adventurer's TRAINING: three short fights against Training Dummies,
 # using the normal battle screen (battle.gd) with this panel on top. It
 # starts when the first Adventurer arrives (after the Inn is built).
-#   Stage 1, Attack: Strikes (dice on cards, a guaranteed Critical), then on
-#                    turn 2 Punch, Kick and Reroll (card Schools, rerolls)
-#   Stage 2, Block:  turn 1 Full Guard (Wild cards), turn 2 Master of None
-#                    and Fortify ("+ next roll" bonuses, Armor)
-#   Stage 3, Heal:   Bandage and Insight (healing, Advantage, Vanish)
-# Each stage opens with a big intro banner (unlock_banner.gd), then SPOTLIGHTS
-# (screen_guide.gd) dim the screen and point at the real thing each turn:
-# a card, its dice, your Energy, End Turn... The first time something special
-# happens (a Critical, a Wild roll, Armor...), a KEYWORD POP-UP celebrates it.
-# Each stage draws its cards in a set order ("draw"), and can fix one die
-# ("rig") so the lesson always shows up. At the end: the NEW CARDS screen
-# (your first cards), then the Spec screen and the Deck Builder.
+#
+# Dusty's first playtest: "make it more scripted, with clear goals in each
+# section", and the old blocking stage (take no damage 2 turns in a row,
+# with random dice) was a mess. So now every stage is a SCRIPT of GOALS:
+#   - The panel lists the stage's goals: ✓ done, ▶ the one you're on, ○ next.
+#   - Each goal can SPOTLIGHT things (screen_guide.gd) when it starts.
+#   - Each goal says which cards you may play right now ("only"); the rest
+#     are greyed out, so you can't wander off the script. End Turn only
+#     works when a goal asks for it ("end_turn").
+#   - Dice are RIGGED ("rig": card name -> the first die's number, one per
+#     copy in draw order) and the draw order is fixed ("draw"), so every
+#     goal always works out. Even a Reroll is rigged ("rig_reroll"), and
+#     Wild cards are rigged when you play them.
+# Showing one card from each School stayed in (Dusty liked it):
+#   Stage 1, Attack: Strike (crit), Reroll, Punch (Strength), Kick (Agility)
+#   Stage 2, Block:  Guard, Master of None, Fortify (Wisdom), Full Guard (Wild)
+#   Stage 3, Heal:   Insight (Intellect), Bandage (Advantage, Vanish)
+# The first time something special happens (a Critical, a Wild roll,
+# Armor...), a KEYWORD POP-UP celebrates it. At the end: the NEW CARDS
+# screen (your first cards), then the Spec screen and the Deck Builder.
 # Skip ends it at any time (you still get the cards), and the Tutorial
 # button on Character Select plays it again.
 #
 # How it plugs in: Tutorial.begin(1) swaps in a practice deck and the
 # dummies, remembering your real class/deck/run so finish() can put them
 # back. battle.gd sees GameState.tutorial_stage > 0, adds this panel, and
-# tells it when cards are drawn, when enemies die, when the enemy turn ends,
-# and when the screen updates. Nothing in the tutorial gives gold or Exp.
+# asks it what may be played (allows_play / allows_end_turn /
+# allows_reroll_pick), and tells it when cards are drawn and played,
+# when enemies die and when the enemy turn ends. Nothing in the tutorial
+# gives gold or Exp.
 class_name Tutorial
 extends PanelContainer
 
@@ -32,18 +42,33 @@ const TOWN_SCENE := "res://scenes/town.tscn"  # Back to town after the training,
 const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")
-const CLEAN_TURNS_NEEDED := 2  # Stage 2: enemy turns in a row with no damage.
-const HEAL_NEEDED := 6  # Stage 3.
 const GOLD := Color(1, 0.84, 0.35)
+const DONE_COLOR := Color(0.55, 0.95, 0.55)
 
-# Each stage: its title, goal and intro banner (icon, text), the SPOTLIGHTS
-# for each turn ("spots": turn -> steps; see show_spots()), what it taught
-# ("learned", for the Stage Complete banner), the practice deck, the order you
-# draw it in ("draw", first card first; the rest come after, shuffled), dice
-# to fix ("rig": card name -> the first die's number for the first copy drawn,
-# or a list of numbers for the first few copies), the enemies, and the HP you start with (-1 = full).
+# Each stage: its title and intro banner (icon, text), what it taught
+# ("learned", for the Stage Complete banner), the practice deck, the order
+# you draw it in ("draw", first card first), the rigged dice, the enemies,
+# the HP you start with (-1 = full), and its GOALS, in order.
 #
-# A spotlight step is {"at": what to point at, "text": what to say}. "at" can be:
+# A goal:
+#   "text"      what the goal list says
+#   "turn"      the turn it starts on (it waits for that turn's hand)
+#   "spots"     spotlights when it starts: [{"at": ..., "text": ...}]
+#   "do"        what finishes it:
+#                 "play"      play the card "card" (with "roll": only the
+#                             copy whose first die rolled that number)
+#                 "play_all"  play every card in "cards"
+#                 "spend"     use up all your Energy
+#                 "reroll"    Reroll the card "card"
+#                 "block"     have "amount" Block
+#                 "heal"      heal "amount" HP since the fight started
+#                 "end_turn"  press End Turn (done once the enemy's turn is over)
+#                 "kill"      defeat every enemy
+#   "only"      the cards you may play while it's on (["*"] = any). Leave
+#               it out and no card can be played (an End Turn goal).
+#   "end_turn"  true = End Turn works while it's on.
+#
+# A spotlight's "at" can be:
 #   "enemy"         the first enemy        "energy"   your Energy
 #   "card:Strike"   that card in your hand  "end turn" the End Turn button
 #   "dice:Strike"   that card's dice (the   "block"    your Block (and Armor)
@@ -51,78 +76,124 @@ const GOLD := Color(1, 0.84, 0.35)
 const STAGES := [
 	{
 		"title": "Stage 1: Attack!",
-		"goal": "Defeat the Training Dummy.",
 		"icon": "res://icons/attack.svg",
 		"intro": "Time to learn how a fight works: play cards, roll dice, hit hard. Knock down the Training Dummy!",
-		"learned": "Energy, dice, Criticals, card Schools and Reroll.",
-		"spots": {
-			1: [
-				{"at": "enemy", "text": "This is a Training Dummy. Bring its HP down to 0 to win. It won't hit back... yet."},
-				{"at": "card:Strike", "text": "This is STRIKE, an Attack card. To play it, DRAG it onto the dummy."},
-				{"at": "energy", "text": "Every card costs ENERGY: the number in its top-left corner. You get 3 Energy every turn."},
-				{"at": "dice:Strike", "text": "Dice cards ROLL when you draw them. This Strike rolled a 3, the top number of its d3: a CRITICAL! It deals +1 Damage. Play it first!"},
-				{"at": "end turn", "text": "Out of Energy? Press END TURN. The enemy takes its turn, then you draw a fresh hand."},
-			],
-			2: [
-				{"at": "card:Punch", "text": "New cards! Every card has a SCHOOL. PUNCH is Strength (red): big dice, big hits."},
-				{"at": "card:Kick", "text": "KICK is Agility (green): quick and cheap. Neutral cards (grey) fit any deck."},
-				{"at": "card:Reroll", "text": "Don't like a roll? Play REROLL, then click a card in your hand to roll its dice again."},
-			],
-		},
+		"learned": "Energy, dice, Criticals, Reroll, and the Strength and Agility schools.",
 		"deck": {"Strike": 7, "Punch": 1, "Kick": 1, "Reroll": 1},
-		"draw": ["Strike", "Strike", "Strike", "Strike", "Strike", "Punch", "Kick", "Reroll"],
-		"rig": {"Strike": 3},
+		"draw": ["Strike", "Strike", "Strike", "Strike", "Strike", "Punch", "Kick", "Reroll", "Strike", "Strike"],
+		# Turn 1: one Strike crits (3 on a d3), the others roll 1. Turn 2: Punch
+		# rolls a sad 1 (so you Reroll it into a 6), Kick rolls 2. That's
+		# 4 + 1 + 1 + 8 + 2 = 16 damage: exactly the dummy's HP.
+		"rig": {"Strike": [3, 1, 1, 1, 1, 2, 2], "Punch": [1], "Kick": [2]},
+		"rig_reroll": {"Punch": 6},
 		"enemies": ["Training Dummy"],
 		"hp": -1,
+		"goals": [
+			{"text": "Play the Strike that rolled a CRITICAL", "turn": 1, "do": "play", "card": "Strike", "roll": 3, "only": ["Strike"],
+				"spots": [
+					{"at": "enemy", "text": "This is a Training Dummy. Bring its HP down to 0 to win. It won't hit back... yet."},
+					{"at": "dice:Strike", "text": "Cards with dice ROLL when you draw them. This Strike rolled a 3, the top number of its d3: a CRITICAL! A crit adds the card's bonus (+1 Damage)."},
+					{"at": "card:Strike", "text": "Play it: DRAG the card up onto the dummy and let go."},
+				]},
+			{"text": "Use up your Energy: play 2 more Strikes", "turn": 1, "do": "spend", "only": ["Strike"],
+				"spots": [
+					{"at": "energy", "text": "Every card costs ENERGY (the number in its top-left corner). You get 3 every turn. You have 2 left: spend them on Strikes."},
+				]},
+			{"text": "Press End Turn", "turn": 1, "do": "end_turn", "end_turn": true,
+				"spots": [
+					{"at": "end turn", "text": "Out of Energy? Press END TURN. The enemy takes its turn, then you draw a fresh hand of 5."},
+				]},
+			{"text": "Punch rolled a 1: Reroll it", "turn": 2, "do": "reroll", "card": "Punch", "only": ["Reroll"],
+				"spots": [
+					{"at": "card:Punch", "text": "New cards! Every card has a SCHOOL. PUNCH is Strength (red): big dice, big hits. But this one rolled a 1..."},
+					{"at": "card:Kick", "text": "KICK is Agility (green): quick and cheap. Strike and Reroll are Neutral (grey): they fit any deck."},
+					{"at": "card:Reroll", "text": "Bad roll? Play REROLL (drag it up), then CLICK Punch to roll its dice again."},
+				]},
+			{"text": "Play Punch (Strength) and Kick (Agility)", "turn": 2, "do": "play_all", "cards": ["Punch", "Kick"], "only": ["Punch", "Kick"],
+				"spots": [
+					{"at": "dice:Punch", "text": "A 6! The top of its d6: another CRITICAL (+2 Damage). Now hit the dummy with Punch and Kick!"},
+				]},
+			{"text": "Knock down the Training Dummy", "turn": 2, "do": "kill", "only": ["*"], "end_turn": true, "spots": []},
+		],
 	},
 	{
 		"title": "Stage 2: Block!",
-		"goal": "Take NO damage for 2 enemy turns in a row.",
 		"icon": "res://icons/block.svg",
-		"intro": "This dummy hits back! Learn to Block its attacks and soak up the damage.",
-		"learned": "Block, Wild cards, roll bonuses and Armor.",
-		"spots": {
-			1: [
-				{"at": "enemy", "text": "Look under the dummy's name: it will ATTACK 6 this turn. Enemies always show you what they're about to do."},
-				{"at": "card:Full Guard", "text": "FULL GUARD gives you Block. It's WILD: its die rolls when you PLAY it, not when you draw it. Riskier, but its Crit gives you 1 Energy back."},
-				{"at": "block", "text": "Your BLOCK shows here. Block soaks up damage before your HP does. Get it to 6 before you End Turn!"},
-			],
-			2: [
-				{"at": "card:Master of None", "text": "MASTER OF NONE costs 0 and gives +1 to your NEXT roll."},
-				{"at": "dice:Fortify", "text": "This Fortify rolled a 5 on its d6. Play Master of None first: +1 turns that 5 into a 6, a CRITICAL! Fortify's crit gives you +1 ARMOR."},
-			],
-			3: [
-				{"at": "block", "text": "Your Block fades at the start of each turn, but your ARMOR keeps that much of it. That's why you still have some!"},
-			],
-		},
-		# Turn 1: only Full Guards. Turn 2: Master of None and Fortify arrive together.
-		"deck": {"Master of None": 1, "Fortify": 2, "Full Guard": 7},
-		"draw": ["Full Guard", "Full Guard", "Full Guard", "Full Guard", "Full Guard",
-			"Master of None", "Fortify", "Fortify", "Full Guard", "Full Guard"],
-		# The first Fortify rolls 5 (a crit with Master of None), the second a
-		# plain 3, so the lesson isn't spoiled by a lucky natural 6.
-		"rig": {"Fortify": [5, 3]},
-		"enemies": ["Sparring Dummy"],
+		"intro": "This dummy hits back! Learn to BLOCK its attacks: Block soaks up damage before your HP does.",
+		"learned": "Enemy intents, Block, roll bonuses, Armor, and Wild cards (and the Wisdom school).",
+		# Turn 1: three Guards. Turn 2: Master of None, Fortify and a Guard. Turn 3:
+		# Full Guard. The Strikes are only there to fill your hand.
+		"deck": {"Guard": 4, "Master of None": 1, "Fortify": 1, "Full Guard": 1, "Strike": 8},
+		"draw": ["Guard", "Guard", "Guard", "Strike", "Strike",
+			"Master of None", "Fortify", "Guard", "Strike", "Strike",
+			"Full Guard", "Strike", "Strike", "Strike", "Strike"],
+		# Guards: 2 + 2 + 2 = 6 Block on turn 1, then a crit (3) on turn 2.
+		# Fortify rolls 5: +1 from Master of None makes it a 6, a CRITICAL.
+		# Full Guard (Wild) is rigged when you play it: a 6.
+		"rig": {"Guard": [2, 2, 2, 3], "Fortify": [5], "Full Guard": [6]},
+		"enemies": ["Sparring Dummy"],  # In Order: Swing 6, Heavy Swing 8, Swing 6.
 		"hp": -1,
+		"goals": [
+			{"text": "Get 6 Block", "turn": 1, "do": "block", "amount": 6, "only": ["Guard"],
+				"spots": [
+					{"at": "enemy", "text": "Look under the dummy's name: it will ATTACK for 6 this turn. Enemies always show what they're about to do, so you can plan."},
+					{"at": "card:Guard", "text": "GUARD gives you Block. Drag it up anywhere above your hand to play it. (Attacking can wait!)"},
+					{"at": "block", "text": "Your BLOCK shows here. Block soaks up damage before your HP does. Play all 3 Guards to get 6 Block: enough to stop the whole hit."},
+				]},
+			{"text": "End Turn and block the hit", "turn": 1, "do": "end_turn", "end_turn": true,
+				"spots": [
+					{"at": "end turn", "text": "6 Block vs. 6 damage. Press END TURN and watch your Block soak it all up!"},
+				]},
+			{"text": "Play Master of None (+1 to your next roll)", "turn": 2, "do": "play", "card": "Master of None", "only": ["Master of None"],
+				"spots": [
+					{"at": "enemy", "text": "HEAVY SWING 8: it hits harder this turn. You'll need 8 Block."},
+					{"at": "dice:Fortify", "text": "FORTIFY (Wisdom, purple) rolled a 5 on its d6. So close to a crit..."},
+					{"at": "card:Master of None", "text": "MASTER OF NONE costs 0 and gives +1 to your NEXT roll. Play it first!"},
+				]},
+			{"text": "Play Fortify: 5 + 1 = 6, a CRITICAL!", "turn": 2, "do": "play", "card": "Fortify", "only": ["Fortify"],
+				"spots": [
+					{"at": "dice:Fortify", "text": "See the glow? +1 turns its 5 into a 6: a CRITICAL! Fortify's crit gives you +1 ARMOR. Play it!"},
+				]},
+			{"text": "Get 8 Block", "turn": 2, "do": "block", "amount": 8, "only": ["Guard"],
+				"spots": [
+					{"at": "card:Guard", "text": "This Guard rolled a 3: a crit, +1 Block. That's 6 + 4 = 10 Block. More than enough!"},
+				]},
+			{"text": "End Turn and block the hit", "turn": 2, "do": "end_turn", "end_turn": true, "spots": []},
+			{"text": "Play Full Guard (a Wild card)", "turn": 3, "do": "play", "card": "Full Guard", "only": ["Full Guard"],
+				"spots": [
+					{"at": "block", "text": "You KEPT 2 Block from last turn! Block fades at the start of each turn, but your ARMOR saves up to that much. Fortify's crit made your Armor 4."},
+					{"at": "card:Full Guard", "text": "FULL GUARD is WILD: its die rolls when you PLAY it, not when you draw it. Riskier, but it rolls a d6! Play it."},
+				]},
+			{"text": "End Turn and block the hit", "turn": 3, "do": "end_turn", "end_turn": true, "spots": []},
+		],
 	},
 	{
 		"title": "Stage 3: Heal!",
-		"goal": "Heal 6 HP.",
 		"icon": "res://icons/heal.svg",
 		"intro": "Ouch, you're hurt! Patch yourself up, and learn how to make every heal count.",
-		"learned": "Healing, Advantage and Vanish.",
-		"spots": {
-			1: [
-				{"at": "hp", "text": "You're down to 13 HP. Heal 6 to finish the training."},
-				{"at": "card:Insight", "text": "INSIGHT gives your next roll ADVANTAGE: it rolls twice and keeps the better one. Play it first!"},
-				{"at": "card:Bandage", "text": "BANDAGE heals d3. Drag it into the middle of the screen. Careful: it VANISHES once played."},
-			],
-		},
+		"learned": "Healing, Advantage, Vanish, and the Intellect school.",
 		"deck": {"Insight": 1, "Bandage": 5},
 		"draw": ["Insight", "Bandage", "Bandage", "Bandage", "Bandage", "Bandage"],
-		"rig": {},
+		# The first Bandage rolls a 1 (Advantage gives it a second chance), then
+		# 3, 2, 3: any two of those heal at least 6 with the first.
+		"rig": {"Bandage": [1, 3, 2, 3]},
 		"enemies": ["Training Dummy"],
 		"hp": 13,
+		"goals": [
+			{"text": "Play Insight: your next roll gets Advantage", "turn": 1, "do": "play", "card": "Insight", "only": ["Insight"],
+				"spots": [
+					{"at": "hp", "text": "You're down to 13 HP. Time to heal!"},
+					{"at": "card:Insight", "text": "INSIGHT (Intellect, blue) gives your next roll ADVANTAGE: it rolls twice and keeps the better one. Play it first!"},
+				]},
+			{"text": "Play the Bandage that rolled a 1", "turn": 1, "do": "play", "card": "Bandage", "roll": 1, "only": ["Bandage"],
+				"spots": [
+					{"at": "dice:Bandage", "text": "This Bandage rolled a 1. With Advantage it rolls again and keeps the better one. Drag it into the middle of the screen. Careful: Bandages VANISH once played."},
+				]},
+			{"text": "Heal 6 HP", "turn": 1, "do": "heal", "amount": 6, "only": ["Bandage"],
+				"spots": [
+					{"at": "hp", "text": "Keep going: play more Bandages until you've healed 6 HP."},
+				]},
+		],
 	},
 ]
 
@@ -138,15 +209,18 @@ const KEYWORDS := {
 }
 
 var battle: Node  # The battle screen this panel sits on (battle.gd).
-var progress_label: Label
+var goal_box: VBoxContainer  # The goal list.
+var goal_rows: Array[Label] = []
+var goal := 0  # Which goal you're on (an index into the stage's "goals").
+var goal_started := -1  # The goal whose spotlights have shown.
 var intro_open := false  # The stage's intro banner is up: spotlights wait for it.
-var spots_waiting := false  # A turn's spotlights wait for the intro banner to close.
-var spotted_turns: Array[int] = []  # Turns whose spotlights already showed.
+var hand_turn := 0  # The last turn whose hand is dealt (goals wait for their turn's hand).
+var played: Array[String] = []  # Cards played for a "play_all" goal.
+var rerolled: Array[String] = []  # Cards Rerolled this stage.
 var keywords_seen: Array[String] = []  # Keyword pop-ups already shown this stage.
 var keyword_queue: Array[String] = []  # Waiting to pop up (one at a time).
 var keyword_layer: Control  # The keyword pop-up on screen (null when none).
 var rigged := {}  # Card name -> how many copies we've already fixed this stage.
-var clean_turns := 0
 var start_hp := 0
 var won := false
 
@@ -231,9 +305,14 @@ func _ready() -> void:
 	skip.tooltip_text = "Jump straight to the game. (Replay it from Character Select.)"
 	skip.pressed.connect(_on_skip)
 	header.add_child(skip)
-	box.add_child(make_label("Goal: " + info.goal, 16, Color.WHITE))
-	progress_label = make_label("", 18, Color(0.55, 0.95, 0.55))
-	box.add_child(progress_label)
+	box.add_child(make_label("GOALS", 14, Color(1, 1, 1, 0.6)))
+	goal_box = VBoxContainer.new()
+	goal_box.add_theme_constant_override("separation", 3)
+	box.add_child(goal_box)
+	for step: Dictionary in info.goals:
+		var row := make_label("", 16, Color.WHITE)
+		goal_box.add_child(row)
+		goal_rows.append(row)
 	start_hp = GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
 	refresh()
 	show_intro.call_deferred()  # Once the battle screen is up.
@@ -249,43 +328,170 @@ func make_label(text: String, font_size: int, color: Color) -> Label:
 	return label
 
 
+# --- The goals --------------------------------------------------------------------
+
+func goals() -> Array:
+	return STAGES[GameState.tutorial_stage - 1].goals
+
+
+# The goal you're on ({} once they're all done).
+func current_goal() -> Dictionary:
+	return goals()[goal] if goal < goals().size() else {}
+
+
+# Is this goal done? ("play" goals are ticked in card_played(), and
+# "end_turn" goals in after_enemy_turn(), so they say no here.)
+func goal_met(step: Dictionary) -> bool:
+	if step.is_empty() or battle.turn < step.get("turn", 1):
+		return false
+	match step.do:
+		"spend":
+			return battle.energy <= 0
+		"block":
+			return battle.player.block >= step.amount
+		"heal":
+			return healed() >= step.amount
+		"kill":
+			return battle.living_enemies().is_empty()
+		"play_all":
+			return step.cards.all(func(card_name: String) -> bool: return played.has(card_name))
+		"reroll":
+			return rerolled.has(step.card)
+	return false
+
+
+# HP healed since the stage started (before turn 1 your HP isn't set yet).
+func healed() -> int:
+	return maxi(battle.player.hp - start_hp, 0) if battle.turn > 0 else 0
+
+
+# The goal you're on is done: tick it (with a little gold flash), move to
+# the next one, and keep going while the next ones are done too (a hit that
+# defeats the dummy finishes "play Punch and Kick" AND "knock it down").
+# The last one wins the stage.
+func complete_goal() -> void:
+	if won or goal >= goals().size():
+		return
+	var row := goal_rows[goal]
+	goal += 1
+	played.clear()
+	refresh()
+	row.modulate = Color(2, 1.8, 0.7)
+	row.create_tween().tween_property(row, "modulate", Color.WHITE, 0.6)
+	if goal >= goals().size():
+		stage_won.call_deferred()  # After the card finishes.
+		return
+	if goal_met(current_goal()):
+		complete_goal()
+		return
+	battle.update_ui()  # Grey out the cards the new goal doesn't use.
+	start_goal()
+
+
+# Show the goal's spotlights, once its turn's hand is dealt, the intro
+# banner is gone and no keyword pop-up is up. (If it's too early,
+# turn_ready() or _close_keyword() calls this again.)
+func start_goal() -> void:
+	if won or goal >= goals().size() or goal_started == goal:
+		return
+	var step := current_goal()
+	if intro_open or keyword_layer != null or hand_turn < step.get("turn", 1):
+		return
+	goal_started = goal
+	var steps := []
+	for spot: Dictionary in step.get("spots", []):
+		var target := spot_target(spot.at)
+		if target:  # (A card you don't have in hand right now is skipped.)
+			steps.append({"target": target, "text": spot.text})
+	ScreenGuide.start(battle, "training %d goal %d" % [GameState.tutorial_stage, goal], steps)
+
+
+# --- What battle.gd asks -------------------------------------------------------------
+
+# May this card be played right now? Only the ones the goal you're on uses.
+func allows_play(card: CardData) -> bool:
+	if won:
+		return false
+	var step := current_goal()
+	if step.is_empty():
+		return true
+	var only: Array = step.get("only", [])
+	if only.has("*"):
+		return true
+	if not only.has(card.card_name):
+		return false
+	# "Play the Strike that rolled a 3": only that copy.
+	if step.has("roll") and step.get("card", "") == card.card_name:
+		return first_die(card) == step.roll
+	return true
+
+
+func allows_end_turn() -> bool:
+	return not won and current_goal().get("end_turn", false)
+
+
+# Reroll: which card may you click? The one the goal is about.
+func allows_reroll_pick(card: CardData) -> bool:
+	var step := current_goal()
+	return step.get("do", "") != "reroll" or step.card == card.card_name
+
+
+# The number on a card's first die (-1 if it hasn't rolled).
+func first_die(card: CardData) -> int:
+	if card.roll_result.is_empty():
+		return -1
+	var dice: Array = card.roll_result.values()[0]
+	return dice[0] if not dice.is_empty() else -1
+
+
+# The goal list: ✓ done (green), ▶ the one you're on (gold), ○ still to come.
+# Block and heal goals show how far along you are.
+func refresh() -> void:
+	if battle == null or goal_box == null:
+		return
+	for i in goals().size():
+		var step: Dictionary = goals()[i]
+		var row := goal_rows[i]
+		var text: String = step.text
+		if i == goal and step.do == "block":
+			text += "  (%d/%d)" % [mini(battle.player.block, step.amount), step.amount]
+		elif i == goal and step.do == "heal":
+			text += "  (%d/%d)" % [mini(healed(), step.amount), step.amount]
+		if i < goal or won:
+			row.text = "✓  " + text
+			row.add_theme_color_override("font_color", DONE_COLOR)
+		elif i == goal:
+			row.text = "▶  " + text
+			row.add_theme_color_override("font_color", GOLD)
+		else:
+			row.text = "○  " + text
+			row.add_theme_color_override("font_color", Color(1, 1, 1, 0.5))
+
+
 # --- The intro banner, spotlights and keyword pop-ups ----------------------------
 
-# The stage's big intro banner: "STAGE 1: ATTACK!".
+# The stage's big intro banner: "STAGE 1: ATTACK!", with its goals.
 func show_intro() -> void:
 	var info: Dictionary = STAGES[GameState.tutorial_stage - 1]
+	var goal_list: Array[String] = []
+	for step: Dictionary in info.goals:
+		goal_list.append("•  " + step.text)
 	intro_open = true
 	UnlockBanner.show_in(battle, info.title.to_upper(), "Adventurer training  ·  %d of %d" % [GameState.tutorial_stage, STAGES.size()],
-		load(info.icon), info.intro + "\n\nGoal: " + info.goal, "Let's fight!", func() -> void:
+		load(info.icon), info.intro + "\n\nYour goals:\n" + "\n".join(goal_list), "Let's go!", func() -> void:
 			intro_open = false
-			if spots_waiting:
-				spots_waiting = false
-				show_spots(battle.turn))
+			start_goal())
 
 
 # battle.gd: your new hand is dealt and its dice have landed.
 func turn_ready() -> void:
 	if won:
 		return
-	if intro_open:
-		spots_waiting = true  # After the intro banner.
+	hand_turn = battle.turn
+	if goal_met(current_goal()):
+		complete_goal()  # (Armor's leftover Block could already be enough.)
 	else:
-		show_spots(battle.turn)
-
-
-# This turn's spotlights: the screen dims, a glowing box points at each thing
-# in turn, with a line of text and a Next button (screen_guide.gd).
-func show_spots(turn: int) -> void:
-	var spots: Dictionary = STAGES[GameState.tutorial_stage - 1].spots
-	if not spots.has(turn) or spotted_turns.has(turn):
-		return
-	spotted_turns.append(turn)
-	var steps := []
-	for spot: Dictionary in spots[turn]:
-		var target := spot_target(spot.at)
-		if target:  # (A card you don't have in hand right now is skipped.)
-			steps.append({"target": target, "text": spot.text})
-	ScreenGuide.start(battle, "training %d turn %d" % [GameState.tutorial_stage, turn], steps)
+		start_goal()
 
 
 # What a spotlight's "at" points at on the battle screen (null = not there).
@@ -302,7 +508,7 @@ func spot_target(at: String) -> Control:
 		"hp":
 			return battle.player_hp_label
 	var card_name := at.get_slice(":", 1)
-	var view := hand_card(card_name, at.begins_with("dice:"))
+	var view := hand_card(card_name, true)  # The rigged copy, if there is one (the crit Strike).
 	if view == null:
 		return null
 	return view.dice_row if at.begins_with("dice:") else view
@@ -347,6 +553,16 @@ func card_played(card: CardData, result: Dictionary, had_advantage: bool) -> voi
 			keyword_queue.append(keyword)
 	if keyword_layer == null:
 		show_next_keyword()
+	# Did that finish the goal you're on?
+	var step := current_goal()
+	if step.get("do", "") == "play_all" and step.cards.has(card.card_name) and not played.has(card.card_name):
+		played.append(card.card_name)
+	if step.get("do", "") == "play" and step.card == card.card_name and battle.turn >= step.get("turn", 1):
+		complete_goal()
+	elif goal_met(step):
+		complete_goal()
+	else:
+		refresh()
 
 
 # A big gold word pops in over the battle, with sparkles and a line of text.
@@ -419,6 +635,8 @@ func _close_keyword() -> void:
 		keyword_layer.queue_free()
 		keyword_layer = null
 	show_next_keyword()
+	if keyword_layer == null:
+		start_goal()  # The next goal's spotlights were waiting for the pop-ups.
 
 
 # --- What battle.gd tells us ---------------------------------------------------
@@ -439,8 +657,8 @@ func arrange_draw_pile(draw_pile: Array[CardData]) -> void:
 	draw_pile.append_array(picked)
 
 
-# A card was just drawn and rolled: fix its first die if the stage says so
-# (only the first copy), so the lesson (a Critical...) always happens.
+# A card was just rolled (when drawn, or a Wild card when played): fix its
+# first die if the stage says so, so the lesson (a Critical...) always happens.
 func rig_roll(card: CardData) -> void:
 	var rig: Dictionary = STAGES[GameState.tutorial_stage - 1].get("rig", {})
 	if not rig.has(card.card_name) or card.roll_result.is_empty():
@@ -457,46 +675,33 @@ func rig_roll(card: CardData) -> void:
 		dice[0] = numbers[done]
 
 
-# Called whenever the battle screen updates: show progress, check stage 3.
-func refresh() -> void:
-	if battle == null or won:
-		return
-	var before := progress_label.text
-	match GameState.tutorial_stage:
-		1:
-			progress_label.text = "Dummies left: %d" % battle.living_enemies().size()
-		2:
-			progress_label.text = "Turns with no damage: %d / %d" % [clean_turns, CLEAN_TURNS_NEEDED]
-		3:
-			var healed: int = maxi(battle.player.hp - start_hp, 0) if battle.turn > 0 else 0
-			progress_label.text = "Healed: %d / %d" % [mini(healed, HEAL_NEEDED), HEAL_NEEDED]
-			if healed >= HEAL_NEEDED and battle.turn > 0:  # (Before turn 1 your HP isn't set yet.)
-				stage_won.call_deferred()  # After the card finishes.
-	# Progress changed: give it a little gold flash.
-	if progress_label.text != before and not before.is_empty():
-		progress_label.modulate = Color(2, 1.7, 0.6)
-		progress_label.create_tween().tween_property(progress_label, "modulate", Color.WHITE, 0.6)
+# Reroll just rolled this card's dice again. The stage can fix that roll too
+# ("rig_reroll"), so Punch's sad 1 always becomes a 6.
+func rig_reroll(card: CardData) -> void:
+	var rig: Dictionary = STAGES[GameState.tutorial_stage - 1].get("rig_reroll", {})
+	if rig.has(card.card_name) and not card.roll_result.is_empty() and not rerolled.has(card.card_name):
+		var dice: Array = card.roll_result.values()[0]
+		if not dice.is_empty():
+			dice[0] = rig[card.card_name]
+	rerolled.append(card.card_name)
 
 
 func enemy_died() -> void:
-	refresh()
-	if GameState.tutorial_stage == 1 and battle.living_enemies().is_empty():
+	if battle.living_enemies().is_empty() and goals().any(func(step: Dictionary) -> bool: return step.do == "kill"):
+		# Down it goes! Every goal left is done.
+		goal = goals().size()
+		refresh()
 		stage_won()
 
 
-# The enemies just finished their turn: how much did you lose?
+# The enemies just finished their turn: an End Turn goal is done. (The
+# script makes sure your Block is enough, but just in case it wasn't...)
 func after_enemy_turn(damage_taken: int) -> void:
-	if GameState.tutorial_stage != 2:
+	if won:
 		return
-	if damage_taken > 0:
-		clean_turns = 0
-		battle.message_label.text = "Ouch, %d damage! The count starts over: Block more next time." % damage_taken
-	else:
-		clean_turns += 1
-		battle.message_label.text = "Blocked it all!"
-	refresh()
-	if clean_turns >= CLEAN_TURNS_NEEDED:
-		stage_won()
+	battle.message_label.text = "Blocked it all!" if damage_taken == 0 else "Ouch, %d damage! More Block next time." % damage_taken
+	if current_goal().get("do", "") == "end_turn":
+		complete_goal()
 
 
 # Losing in the tutorial just starts the stage again.
@@ -513,7 +718,7 @@ func stage_won() -> void:
 	won = true
 	battle.game_over = true  # Stops cards and End Turn.
 	battle.end_turn_button.disabled = true
-	progress_label.text = "Done!"
+	refresh()  # Every goal ticked.
 	_close_keyword_now()
 	var info: Dictionary = STAGES[GameState.tutorial_stage - 1]
 	var last := GameState.tutorial_stage >= STAGES.size()

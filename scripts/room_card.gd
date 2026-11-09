@@ -122,6 +122,37 @@ func scavenge_table(luck: int) -> PackedStringArray:
 	return scavenge_uncommon if not scavenge_uncommon.is_empty() else scavenge_rare
 
 
+# The loot words that aren't materials ("Gold 5-10", "Torch", "Card"...).
+const LOOT_WORDS := ["gold", "card", "pack", "key", "torch", "crowbar", "bomb", "enchant", "potion", "map"]
+
+
+# What one loot entry gives, without the amount: "Stone 1-2" -> "Stone",
+# "Gold 5-10" -> "Gold", "Golden Fleece 1" -> "Golden Fleece", "Torch" -> "Torch".
+static func loot_item_name(entry: String) -> String:
+	var words := entry.strip_edges().split(" ", false)
+	if words.is_empty():
+		return ""
+	if words[0].to_lower() in LOOT_WORDS:
+		return words[0].capitalize()
+	var last := words[-1].split("-")
+	if words.size() > 1 and last[0].is_valid_int():
+		return " ".join(words.slice(0, -1))
+	return entry.strip_edges()
+
+
+# Every DIFFERENT thing you could scavenge here, from all three tables, in
+# order (Common first). The board shows one "?" per thing, and swaps each "?"
+# for the thing's icon once you've found it here (GameState.scavenge_finds).
+func scavenge_items() -> Array[String]:
+	var items: Array[String] = []
+	for table: PackedStringArray in [scavenge_common, scavenge_uncommon, scavenge_rare]:
+		for entry in table:
+			var item := loot_item_name(entry)
+			if not item.is_empty() and not items.has(item):
+				items.append(item)
+	return items
+
+
 func type_name() -> String:
 	return TYPE_NAMES[type]
 
