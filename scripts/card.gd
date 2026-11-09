@@ -88,7 +88,7 @@ func setup(data: CardData) -> void:
 		rarity_label.add_theme_color_override("font_color", data.enchant_color)
 	if data.rarity == CardData.Rarity.LEGENDARY:
 		rarity_label.text = "★ Legendary"
-	_show_super_glow(data.rarity == CardData.Rarity.LEGENDARY)
+	_show_legendary_glow(data.rarity == CardData.Rarity.LEGENDARY)
 	if data.is_foil:
 		rarity_label.text = "✦ Foil " + rarity_label.text
 		rarity_label.add_theme_color_override("font_color", FOIL_GOLD)
@@ -326,7 +326,7 @@ func make_drag_preview(at_position: Vector2) -> Control:
 
 # Legendary cards get a glowing orange frame, so they stand out in your hand.
 # Made the first time it's needed, then just shown or hidden.
-func _show_super_glow(show_it: bool) -> void:
+func _show_legendary_glow(show_it: bool) -> void:
 	var glow: Panel = get_node_or_null("SuperGlow")
 	if glow == null:
 		if not show_it:

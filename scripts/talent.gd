@@ -102,10 +102,6 @@ func effect_slots() -> Array[Dictionary]:
 	return slots
 
 
-func has_effect(effect_name: String) -> bool:
-	return effect_slots().any(func(slot: Dictionary) -> bool: return slot.effect == effect_name)
-
-
 # How much of one effect this talent gives at this rank (0 if it doesn't have it).
 # Pass a card to only count it if the School matches the card, or a school
 # flag to only count it for that school ("All" always counts).

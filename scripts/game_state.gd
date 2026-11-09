@@ -79,7 +79,6 @@ const BASE_SACK_SLOTS := 0  # No Save Sack until the Tailor is built (town.csv: 
 const BASE_GOLD_STACK := 5  # Gold one Save Sack slot holds before the Tailor.
 const BASE_POTION_SLOTS := 3  # Potions you can carry before the Alchemist.
 const ENCHANT_PRICE := 15  # At the Enchanter.
-const POTION_PRICE := 8  # At the Alchemist.
 const MAP_PRICE := 25  # At the Mapmaker.
 var town_stages := {}  # Building name -> stage restored: {"Tailor": 2}
 # Bought in town for your next run (names): they go into the dungeon when it starts.
@@ -795,6 +794,8 @@ func binder_cards(area: Area) -> Array[CardData]:
 	var cards: Array[CardData] = []
 	if area == null or area.booster.is_empty():
 		return cards
+	if _binders.has(area.booster):  # Worked out once per booster, then remembered.
+		return _binders[area.booster]
 	for card in load_all_cards():
 		if card.is_class_card():
 			continue  # Class cards come from spec levels, not packs.
@@ -804,6 +805,7 @@ func binder_cards(area: Area) -> Array[CardData]:
 		if a.rarity != b.rarity:
 			return a.rarity < b.rarity
 		return a.card_name < b.card_name)
+	_binders[area.booster] = cards
 	return cards
 
 
@@ -828,10 +830,23 @@ func binder_percent(area: Area) -> int:
 	return 0 if total == 0 else floori(100.0 * binder_found(area) / total)
 
 
+# A sheet read while the game runs (binder rewards, class cards, the class
+# track): read from disk once, then remembered. Screens like the Class Track
+# ask for these many times while they draw.
+var _sheets := {}
+var _binders := {}  # Booster name -> its binder_cards(), sorted.
+
+
+func _sheet(path: String) -> Array[Dictionary]:
+	if not _sheets.has(path):
+		_sheets[path] = CardImporter._read_sheet(path)
+	return _sheets[path]
+
+
 # The binder rewards for this place: [{"percent": 25, "rewards": "Pack Medium 1"}], lowest first.
 func binder_rewards(area: Area) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
-	for row in CardImporter._read_sheet(BINDER_REWARDS_SHEET):
+	for row in _sheet(BINDER_REWARDS_SHEET):
 		if row.get("area", "").to_lower() == area.display_name.to_lower():
 			list.append({"percent": CardImporter._to_int(row.get("percent", ""), 100), "rewards": row.get("rewards", ""),
 				"text": row.get("text", "")})
@@ -917,9 +932,6 @@ func class_max_level(for_class: CharacterClass) -> int:
 
 
 # The Exp bar's progress for the spec that's getting Exp now.
-func class_exp_progress(for_class: CharacterClass) -> Vector2i:
-	return spec_exp_progress(for_class, exp_spec(for_class))
-
 
 # Is the spec you'd get Exp for already at the top? Then Exp is wasted
 # (the Prepare screen warns you before you set out).
@@ -957,7 +969,7 @@ func add_class_exp(amount: int) -> Array[Dictionary]:
 # The spec reward rows for this class: [{"spec", "level", "card", "copies", "pack"}].
 func spec_reward_rows(for_class: CharacterClass) -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
-	for row in CardImporter._read_sheet(CLASS_CARDS_SHEET):
+	for row in _sheet(CLASS_CARDS_SHEET):
 		if row.get("class", "").to_lower() != for_class.display_name.to_lower():
 			continue
 		rows.append({"spec": row.get("spec", ""), "level": CardImporter._to_int(row.get("level", ""), 2),
@@ -988,7 +1000,7 @@ func give_spec_rewards(for_class: CharacterClass, spec_name: String, level: int)
 # Every level also gives 1 talent point (talent_points_earned() counts those).
 func class_track(for_class: CharacterClass) -> Array[Dictionary]:
 	var rows: Array[Dictionary] = []
-	for row in CardImporter._read_sheet(CLASS_TRACK_SHEET):
+	for row in _sheet(CLASS_TRACK_SHEET):
 		if row.get("class", "").to_lower() == for_class.display_name.to_lower():
 			rows.append({"level": CardImporter._to_int(row.get("level", ""), 0), "rewards": row.get("rewards", ""),
 				"text": row.get("text", "")})
@@ -1231,13 +1243,6 @@ func find_quest(quest_name: String) -> Quest:
 
 # The STORY quest you're on (null = none). Side and class quests run
 # alongside it: see quests_active().
-func current_quest() -> Quest:
-	for quest in quests_active():
-		if quest.quest_type == "Story":
-			return quest
-	return null
-
-
 # Every quest you're on, story first, in quests.csv order.
 func quests_active() -> Array[Quest]:
 	var list: Array[Quest] = []
@@ -2400,12 +2405,18 @@ func monster_next_level_exp(monster: String) -> int:
 
 
 func find_enemy(enemy_name: String) -> EnemyData:
+	load_enemies()
+	return _enemies_by_name.get(enemy_name.to_lower())
+
+
+# Every monster file (read once, then remembered).
+func load_enemies() -> Array:
 	if _enemies_by_name.is_empty():
 		for file_name in ResourceLoader.list_directory(ENEMIES_FOLDER):
 			if file_name.ends_with(".tres"):
 				var enemy: EnemyData = load(ENEMIES_FOLDER + file_name)
 				_enemies_by_name[enemy.display_name.to_lower()] = enemy
-	return _enemies_by_name.get(enemy_name.to_lower())
+	return _enemies_by_name.values()
 
 
 # Every area, loaded from the areas/ folder, in their sort_order (the order along the road).

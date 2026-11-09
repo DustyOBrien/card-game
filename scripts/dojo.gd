@@ -49,10 +49,7 @@ func _ready() -> void:
 func book_order() -> Array[EnemyData]:
 	var met: Array[EnemyData] = []
 	var unknown: Array[EnemyData] = []
-	for file_name in ResourceLoader.list_directory(GameState.ENEMIES_FOLDER):
-		if not file_name.ends_with(".tres"):
-			continue
-		var enemy: EnemyData = load(GameState.ENEMIES_FOLDER + file_name)
+	for enemy: EnemyData in GameState.load_enemies():
 		if enemy.display_name.ends_with("Dummy"):
 			continue  # Training dummies aren't monsters.
 		if GameState.bestiary.has(enemy.display_name):

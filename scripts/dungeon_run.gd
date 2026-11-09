@@ -453,10 +453,6 @@ func reachable() -> Dictionary:
 	return found
 
 
-func can_move_to(square: Vector2i) -> bool:
-	return result.is_empty() and reachable().has(square)
-
-
 # Walk to a square (flipping it if it's face down). Returns what happened
 # there, for the dungeon screen:
 #   "walk"     onto a card you've already dealt with
