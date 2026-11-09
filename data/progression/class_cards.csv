@@ -1,12 +1,16 @@
 Class,Spec,Level,Card,Copies,Pack
-Adventurer,Jack of All Trades,2,Trail Rations,2,Small 1
-Adventurer,Master of None,2,Plain Strike,2,Small 1
-Adventurer,Pack Rat,2,Rummage,1,Small 1
+Adventurer,Jack of All Trades,2,Odd Jobs,2,Small 1
+Adventurer,Master of None,2,Simple Strike,2,Small 1
+Adventurer,Pack Rat,2,Sticky Fingers,1,Small 1
 Adventurer,,3,,,Small 1
 Adventurer,,4,,,Medium 1
-Adventurer,,5,,,Small 1
+Adventurer,Jack of All Trades,5,Adapt,2,Small 1
+Adventurer,Master of None,5,Back to Basics,2,Small 1
+Adventurer,Pack Rat,5,Bottomless Bag,1,Small 1
 Adventurer,,6,,,Small 1
 Adventurer,,7,,,Medium 1
-Adventurer,,8,,,Small 1
+Adventurer,Jack of All Trades,8,Jack's Gambit,1,Small 1
+Adventurer,Master of None,8,Nothing Special,1,Small 1
+Adventurer,Pack Rat,8,Trinket Throw,1,Small 1
 Adventurer,,9,,,Medium 1
 Adventurer,,10,,,Large 1
