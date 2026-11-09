@@ -251,6 +251,16 @@ func make_square(square: Vector2i) -> Button:
 	finds.add_theme_constant_override("separation", 5)
 	finds.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(finds)
+	# The PILE: things you scavenged here and left lying (bottom right).
+	var pile := TextureRect.new()
+	pile.name = "Pile"
+	pile.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	pile.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	pile.size = Vector2(30, 30)
+	pile.position = Vector2(CARD_SIZE.x - 32, ART_RECT.end.y - 26)
+	pile.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	pile.visible = false
+	button.add_child(pile)
 	# The player's marker, in the top-left corner of the card you're on.
 	var marker := TextureRect.new()
 	marker.name = "Player"
@@ -343,7 +353,7 @@ func refresh() -> void:
 		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Gold, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
 		"Torches: light up any face-down card to see it first. Each time, a d4 burnout roll: %s, then it always burns out." % torch_targets_text(),
 		"Tools: drag a crowbar, bomb or torch onto a face-up card next to you. The corner badge says how many tool tricks a card has; the Journal remembers the ones you find.",
-		"Scavenge: stand on a wall, field, hay bale... and click it. Free the first time, then push your luck.",
+		"Scavenge: stand on a wall, field, hay bale... and click it. The first dig is free, then push your luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card.",
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
@@ -363,7 +373,7 @@ func refresh() -> void:
 # Things to tell you once nothing else is going on: loot that didn't fit in
 # the backpack, then a new Danger card.
 func show_news() -> void:
-	if popup.visible or busy or picker or deck_list or journal_list or not dungeon.result.is_empty():
+	if popup.visible or busy or picker or deck_list or journal_list or scav_layer or not dungeon.result.is_empty():
 		return
 	if not dungeon.left_over.is_empty():
 		show_backpack_full()
@@ -404,6 +414,10 @@ func draw_square(square: Vector2i) -> void:
 	var label: Label = button.get_node("Name")
 	button.get_node("Player").visible = square == dungeon.position
 	button.get_node("Scouted").visible = false
+	var pile_icon: TextureRect = button.get_node("Pile")
+	pile_icon.visible = not dungeon.pile_at(square).is_empty() and dungeon.is_revealed(square)
+	if pile_icon.visible and pile_icon.texture == null:
+		pile_icon.texture = load(PILE_ICON_PATH)
 	var tricks := trick_counts(square)
 	button.get_node("Tricks").visible = tricks.y > 0
 	button.get_node("Tricks/Row/Count").text = "%d/%d" % [tricks.x, tricks.y]
@@ -648,9 +662,15 @@ func describe_square(square: Vector2i) -> String:
 		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
 	if card.can_scavenge():
 		lines.append(finds_text(card))
+	var pile := dungeon.pile_at(square)
+	if not pile.is_empty():
+		var left: Array[String] = []
+		for find: Dictionary in pile:
+			left.append(DungeonRun.find_text(find))
+		lines.append("Left here: %s. Walk back to pick it up." % ", ".join(left))
 	if dungeon.can_scavenge(square):
-		lines.append("Scavenge here (stand on it and click it). Next try: %s." % scavenge_odds(square))
-	elif card.can_scavenge() and room.get("scavenges", 0) > 0:
+		lines.append("Scavenge here: stand on it and click it. %s." % scavenge_odds(square))
+	elif card.can_scavenge() and room.get("scavenges", 0) > 0 and pile.is_empty():
 		lines.append("Scavenged: nothing more to find here.")
 	return "\n".join(lines.filter(func(line: String) -> bool: return not line.is_empty()))
 
@@ -699,7 +719,7 @@ func has_action_here() -> bool:
 	if room.campfire:
 		return true
 	var card: RoomCard = room.card
-	if dungeon.can_scavenge(dungeon.position):
+	if dungeon.can_scavenge(dungeon.position) or not dungeon.pile_at(dungeon.position).is_empty():
 		return true
 	if dungeon.can_take_treasure(dungeon.position):
 		return true
@@ -728,7 +748,7 @@ func _on_square_hovered(square: Vector2i) -> void:
 
 
 func _on_square_pressed(square: Vector2i) -> void:
-	if popup.visible or picker or deck_list or busy:
+	if popup.visible or picker or deck_list or busy or scav_layer:
 		return
 	if scouting:
 		if dungeon.can_use_tool(DungeonRun.TORCH, square):
@@ -746,7 +766,7 @@ func _on_square_pressed(square: Vector2i) -> void:
 	if square == dungeon.position:
 		if dungeon.rooms[square].campfire:
 			what = "campfire"
-		elif dungeon.can_scavenge(square):
+		elif dungeon.can_scavenge(square) or not dungeon.pile_at(square).is_empty():
 			what = "scavenge"
 		elif dungeon.can_take_treasure(square):
 			dungeon.take_treasure(square)
@@ -768,8 +788,7 @@ func _on_square_pressed(square: Vector2i) -> void:
 	match what:
 		"fight":
 			var heading := "Boss!" if card.type == RoomCard.Type.BOSS else ("Mini Boss!" if card.type == RoomCard.Type.MINI_BOSS else card.room_name)
-			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "Enemies: " + enemy_list(dungeon.fight_enemies)
-			text += "\nUnsafe cards are always a fight. Danger is now %d." % dungeon.danger()
+			var text := "Enemies: %s\nDanger is now %d." % [enemy_list(dungeon.fight_enemies), dungeon.danger()]
 			if dungeon.last_danger_card != null:
 				text += "\nDanger card! A %s was shuffled into the map deck." % dungeon.last_danger_card.room_name
 				dungeon.last_danger_card = null
@@ -781,9 +800,14 @@ func _on_square_pressed(square: Vector2i) -> void:
 		"event":
 			show_event()
 		"empty":
-			info_label.text = "%s: %s" % [card.room_name, card.text if not card.text.is_empty() else "Nothing here."]
+			show_card_badge(square)
+		"walk":
+			if not dungeon.pile_at(square).is_empty():
+				open_scav_box()  # Back for what you left here.
+			else:
+				show_card_badge(square)
 		"scavenge":
-			show_scavenge()
+			open_scav_box()
 		"guarded":
 			var guards := dungeon.guards_standing(square)
 			show_popup(card.room_name, ("%s\n" % card.text if not card.text.is_empty() else "") +
@@ -792,7 +816,7 @@ func _on_square_pressed(square: Vector2i) -> void:
 				[["OK", close_popup]], card_art(card), "pop", card)
 		"treasure":
 			var found := dungeon.history[-1].trim_prefix("Treasure! ")
-			var text := ("%s\n" % card.text if not card.text.is_empty() else "") + "You find %s." % found
+			var text := "You find %s." % found
 			if dungeon.guided and dungeon.guide_goal_met():
 				text += "\n" + guide_goal_text()
 			if card.loot.has("Key"):
@@ -1111,71 +1135,616 @@ func make_journal_row(trick: Interaction) -> Control:
 	return row
 
 
-# --- Scavenging ----------------------------------------------------------------------
-# Push your luck: the first try is free, then each try needs a higher d6
-# roll. Every success raises your Luck here (better loot). A fail ends it
-# and raises Danger. The rules are in dungeon_run.gd (scavenge()).
+# --- Scavenging: the SCAVENGE BOX ------------------------------------------------
+# Stand on a wall, field, hay bale... and click it: the box opens on top of
+# the board. Push your luck: the first dig is free, then each one needs a
+# higher d6 roll. Every success drops a new "?" into the box (you don't know
+# what it is yet) and raises your Luck (better finds). A fail adds Danger.
+# Stop (or fail, or run out of tries) and the ?s flip over one by one,
+# glowing by rarity. Then drag what you want into your backpack (or click
+# it). Whatever you leave lies on the card (a little pile icon) for later.
+# The rules are in dungeon_run.gd (scavenge(), take_from_pile()).
 
-# "free, always works, finds Common things" or "4+ on a d6 (50%), finds Uncommon things"
+const SLOT_SIZE := Vector2(96, 96)
+const RARITY_COLORS := {
+	"Common": Color(0.8, 0.8, 0.8),
+	"Uncommon": Color(0.4, 0.9, 0.4),
+	"Rare": Color(1, 0.75, 0.25),
+}
+const PILE_ICON_PATH := "res://art/map_cards/pile.svg"  # load()ed: a new picture, Godot imports it on first open.
+
+var scav_layer: ColorRect  # The box, while it's open (null when closed).
+var scav_mode := ""  # "dig" (still scavenging: ?s) or "loot" (open: take what you want).
+var scav_status: Label  # One line under the title: the odds, or what just happened.
+var scav_cells: Array[Control] = []  # One cell per slot in the box.
+var scav_pack: PanelContainer  # The backpack drop zone.
+var scav_pack_label: Label
+var scav_buttons: HBoxContainer
+
+
+# "4+ on a d6 (50%) · finds Uncommon things"
 func scavenge_odds(square: Vector2i) -> String:
 	var need := dungeon.scavenge_need(square)
 	var finds := DungeonRun.luck_name(dungeon.next_scavenge_luck(square))
 	if need <= 0:
-		return "free, always works, finds %s things" % finds
+		return "Free dig · finds %s things" % finds
 	var chance := roundi((DungeonRun.SCAVENGE_DIE - need + 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
-	return "%d+ on a d6 (%d%%), finds %s things" % [need, chance, finds]
+	return "Next dig: %d+ on a d6 (%d%%) · finds %s things · a fail adds Danger" % [need, chance, finds]
 
 
-# The scavenge popup for the card you're standing on. found = what the last
-# try dug up (shown at the top).
-func show_scavenge(found := "") -> void:
-	var square := dungeon.position
-	var card: RoomCard = dungeon.rooms[square].card
-	var lines: Array[String] = []
-	if not found.is_empty():
-		lines.append("You found %s!" % found)
-	elif not card.text.is_empty():
-		lines.append(card.text)
-	if not dungeon.can_scavenge(square):
-		lines.append("Nothing more to find here: it's picked clean.")
-		show_popup(card.room_name, "\n".join(lines), [["OK", close_popup]], card_art(card), "pop", card)
-		return
-	lines.append("Luck here: %d.  Next try: %s." % [dungeon.scavenge_luck(square), scavenge_odds(square)])
-	lines.append("Each success raises your Luck: Luck 2 finds Uncommon things, Luck 3 Rare ones. A fail ends scavenging here, and Danger +1.")
-	var need := dungeon.scavenge_need(square)
-	var label := "Scavenge (free)" if need <= 0 else "Push your luck (%d+)" % need
-	show_popup(card.room_name, "\n".join(lines), [[label, _on_scavenge], ["Stop", close_popup]], card_art(card), "pop", card)
+func rarity_of(find: Dictionary) -> String:
+	return DungeonRun.luck_name(int(find.get("luck", 0)))
 
 
-func _on_scavenge() -> void:
-	if busy:
+func open_scav_box() -> void:
+	if scav_layer:
 		return
 	var card: RoomCard = dungeon.rooms[dungeon.position].card
+	scav_mode = "dig" if dungeon.can_scavenge(dungeon.position) else "loot"
+	scav_layer = ColorRect.new()
+	scav_layer.color = Color(0, 0, 0, 0.6)
+	scav_layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(scav_layer)
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	scav_layer.add_child(center)
+	var panel := PanelContainer.new()
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.2, 0.15, 0.09, 0.98)  # Old leather.
+	style.border_color = Color(0.55, 0.38, 0.18)
+	style.set_border_width_all(4)
+	style.set_corner_radius_all(14)
+	style.set_content_margin_all(18)
+	panel.add_theme_stylebox_override("panel", style)
+	center.add_child(panel)
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 10)
+	panel.add_child(box)
+	# The header: the card's picture, its name and Safe/Unsafe.
+	var head := HBoxContainer.new()
+	head.add_theme_constant_override("separation", 10)
+	head.alignment = BoxContainer.ALIGNMENT_CENTER
+	box.add_child(head)
+	var picture := TextureRect.new()
+	picture.texture = card_art(card)
+	picture.custom_minimum_size = Vector2(52, 52)
+	picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	picture.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	head.add_child(picture)
+	var title := Label.new()
+	title.text = card.room_name
+	title.add_theme_font_size_override("font_size", 28)
+	title.add_theme_color_override("font_color", Color(1, 0.9, 0.65))
+	head.add_child(title)
+	var tile := Label.new()
+	tile.text = card.tile_name().to_upper()
+	tile.add_theme_font_size_override("font_size", 15)
+	tile.add_theme_color_override("font_color", RoomCard.TILE_COLORS[card.tile])
+	head.add_child(tile)
+	scav_status = Label.new()
+	scav_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scav_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	scav_status.custom_minimum_size = Vector2(560, 0)
+	scav_status.add_theme_font_size_override("font_size", 16)
+	box.add_child(scav_status)
+	# The slots: like a backpack's grid, one per dig you can make.
+	var grid_box := PanelContainer.new()
+	var grid_style := StyleBoxFlat.new()
+	grid_style.bg_color = Color(0.1, 0.07, 0.04, 0.9)
+	grid_style.set_corner_radius_all(10)
+	grid_style.set_content_margin_all(10)
+	grid_box.add_theme_stylebox_override("panel", grid_style)
+	grid_box.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
+	box.add_child(grid_box)
+	var slots := HBoxContainer.new()
+	slots.add_theme_constant_override("separation", 10)
+	grid_box.add_child(slots)
+	scav_cells.clear()
+	for i in maxi(DungeonRun.SCAVENGE_TARGETS.size(), dungeon.pile_at(dungeon.position).size()):
+		var cell := Control.new()  # Holds a slot at a free position, so it can drop in.
+		cell.custom_minimum_size = SLOT_SIZE
+		var frame := Panel.new()  # The empty slot's outline.
+		frame.size = SLOT_SIZE
+		frame.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		frame.add_theme_stylebox_override("panel", make_box(Color(0, 0, 0, 0.35), Color(0.4, 0.3, 0.18), 2))
+		cell.add_child(frame)
+		slots.add_child(cell)
+		scav_cells.append(cell)
+	# The backpack: drag finds onto it.
+	scav_pack = PanelContainer.new()
+	scav_pack.add_theme_stylebox_override("panel", make_box(Color(0.14, 0.2, 0.12, 0.95), Color(0.45, 0.65, 0.35), 2))
+	scav_pack.custom_minimum_size = Vector2(0, 48)
+	scav_pack.set_drag_forwarding(Callable(), _can_drop_find, _drop_find)
+	box.add_child(scav_pack)
+	scav_pack_label = Label.new()
+	scav_pack_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	scav_pack_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	scav_pack_label.add_theme_font_size_override("font_size", 16)
+	scav_pack.add_child(scav_pack_label)
+	scav_buttons = HBoxContainer.new()
+	scav_buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	scav_buttons.add_theme_constant_override("separation", 12)
+	box.add_child(scav_buttons)
+	# Pop in.
+	panel.pivot_offset = panel.get_combined_minimum_size() / 2
+	panel.scale = Vector2(0.85, 0.85)
+	panel.modulate.a = 0
+	var tween := panel.create_tween().set_parallel()
+	tween.tween_property(panel, "scale", Vector2.ONE, 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(panel, "modulate:a", 1.0, 0.15)
+	if scav_mode == "dig":
+		for i in dungeon.rooms[dungeon.position].get("box", []).size():
+			put_slot(i, {}, true)
+	else:
+		var pile := dungeon.pile_at(dungeon.position)
+		for i in pile.size():
+			put_slot(i, pile[i], false)
+	scav_update()
+	if guide_label:
+		ScreenGuide.start(self, "farm trip scavenge box", [
+			{"target": grid_box, "text": "The SCAVENGE BOX. Every dig that works drops a ? in here. You don't know what it is until you stop!"},
+			{"target": scav_buttons, "text": "The first dig is free. After that, PUSH YOUR LUCK: each dig needs a higher roll, but finds better things. A failed roll adds Danger and ends the dig. Stop whenever you like."},
+		])
+
+
+# The status line, the backpack line and the buttons, for the mode we're in.
+func scav_update() -> void:
+	if scav_layer == null:
+		return
+	for old in scav_buttons.get_children():
+		old.queue_free()
+	scav_pack_label.text = "Backpack  %d / %d slots%s" % [dungeon.backpack_used(), dungeon.backpack_slots(),
+		"   ·   drag finds here (or click them)" if scav_mode == "loot" else ""]
+	var hidden: int = dungeon.rooms[dungeon.position].get("box", []).size()
+	if scav_mode == "dig":
+		scav_status.text = scavenge_odds(dungeon.position)
+		var need := dungeon.scavenge_need(dungeon.position)
+		add_scav_button("Dig (free)" if need <= 0 else "Push your luck (%d+)" % need, _on_scav_dig, true)
+		add_scav_button("Stop & look" if hidden > 0 else "Leave", _on_scav_stop, false)
+	else:
+		var pile := dungeon.pile_at(dungeon.position)
+		if pile.is_empty():
+			scav_status.text = "All taken!"
+		else:
+			scav_status.text = "Take what you want. Whatever you leave stays on the card: come back for it later."
+		var take_all := add_scav_button("Take all", _on_scav_take_all, true)
+		take_all.disabled = pile.is_empty()
+		add_scav_button("Done", close_scav_box, pile.is_empty())
+
+
+func add_scav_button(text: String, action: Callable, primary: bool) -> Button:
+	var button := Button.new()
+	button.text = text
+	button.custom_minimum_size = Vector2(190, 46)
+	button.focus_mode = Control.FOCUS_NONE
+	button.disabled = busy
+	if primary:
+		button.theme_type_variation = &"PrimaryButton"
+	button.pressed.connect(action)
+	scav_buttons.add_child(button)
+	return button
+
+
+func set_scav_buttons_disabled(off: bool) -> void:
+	for button: Button in scav_buttons.get_children():
+		button.disabled = off
+
+
+# Put a slot in cell i: a "?" (hidden) or the find itself, face up.
+func put_slot(i: int, find: Dictionary, hidden: bool) -> Button:
+	var cell := scav_cells[i]
+	if cell.has_node("Slot"):
+		var old := cell.get_node("Slot")
+		cell.remove_child(old)
+		old.queue_free()
+	var slot := Button.new()
+	slot.name = "Slot"
+	slot.size = SLOT_SIZE
+	slot.pivot_offset = SLOT_SIZE / 2
+	slot.focus_mode = Control.FOCUS_NONE
+	slot.clip_contents = true
+	cell.add_child(slot)
+	var mark := Label.new()  # The "?"
+	mark.name = "Mark"
+	mark.text = "?"
+	mark.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	mark.add_theme_font_size_override("font_size", 52)
+	mark.add_theme_color_override("font_color", Color(1, 0.85, 0.45))
+	mark.add_theme_color_override("font_outline_color", Color(0.25, 0.15, 0.05))
+	mark.add_theme_constant_override("outline_size", 8)
+	mark.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(mark)
+	var face := VBoxContainer.new()  # The find: its picture and how many.
+	face.name = "Face"
+	face.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	face.offset_top = 6
+	face.offset_bottom = -4
+	face.alignment = BoxContainer.ALIGNMENT_CENTER
+	face.add_theme_constant_override("separation", 0)
+	face.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	slot.add_child(face)
+	if not find.is_empty():
+		var icon := TextureRect.new()
+		icon.texture = find_icon(find)
+		icon.custom_minimum_size = Vector2(48, 48)
+		icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		face.add_child(icon)
+		var words := Label.new()
+		words.text = find_label(find)
+		words.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		words.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
+		words.custom_minimum_size = Vector2(SLOT_SIZE.x - 8, 0)
+		words.add_theme_font_size_override("font_size", 13)
+		words.add_theme_color_override("font_color", INK)
+		words.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		face.add_child(words)
+		if find.get("new_find", false):
+			var tag := Label.new()  # First time you've found it on this kind of card.
+			tag.text = "NEW!"
+			tag.position = Vector2(4, 2)
+			tag.add_theme_font_size_override("font_size", 12)
+			tag.add_theme_color_override("font_color", Color(1, 0.85, 0.3))
+			tag.add_theme_color_override("font_outline_color", Color.BLACK)
+			tag.add_theme_constant_override("outline_size", 4)
+			tag.name = "New"
+			tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			slot.add_child(tag)
+		slot.tooltip_text = "%s (%s)" % [DungeonRun.find_text(find), rarity_of(find)]
+	show_slot_face(slot, find, hidden)
+	if not hidden and scav_mode == "loot":
+		slot.pressed.connect(_take_find.bind(i))
+		slot.set_drag_forwarding(_drag_find.bind(i), Callable(), Callable())
+		slot.mouse_default_cursor_shape = Control.CURSOR_POINTING_HAND
+	return slot
+
+
+# Show a slot as a "?" or as its find, with a border in its rarity's colour.
+func show_slot_face(slot: Button, find: Dictionary, hidden: bool) -> void:
+	slot.get_node("Mark").visible = hidden
+	slot.get_node("Face").visible = not hidden
+	if slot.has_node("New"):
+		slot.get_node("New").visible = not hidden
+	var color := Color(0.32, 0.22, 0.12, 1)
+	var border := Color(0.7, 0.5, 0.25)
+	var width := 2
+	if not hidden:
+		color = Color(0.86, 0.79, 0.62, 1)  # Parchment, like a face-up map card.
+		border = RARITY_COLORS[rarity_of(find)]
+		width = 4
+	for state in ["normal", "hover", "pressed", "disabled"]:
+		slot.add_theme_stylebox_override(state, make_box(color.lightened(0.08) if state == "hover" else color, border, width))
+
+
+func find_icon(find: Dictionary) -> Texture2D:
+	match find.kind:
+		"card":
+			return CARD_ICON
+		"material", "other":
+			return item_icon(find.name)
+	return item_icon(String(find.kind).capitalize())
+
+
+# Under the picture: "x3 Stone", "7 gold", "Strike"...
+func find_label(find: Dictionary) -> String:
+	match find.kind:
+		"gold":
+			return "%d gold" % find.amount
+		"card":
+			return find.card.card_name
+		"material":
+			return "x%d %s" % [find.amount, find.name]
+	return String(find.name)
+
+
+# Dig! The die rolls (after the free one), and a success drops a new ? in.
+func _on_scav_dig() -> void:
+	if busy or scav_layer == null:
+		return
 	var outcome := dungeon.scavenge()
 	if outcome.is_empty():
-		close_popup()
 		return
-	popup.hide()
+	busy = true
+	set_scav_buttons_disabled(true)
 	var worked: bool = outcome.worked
 	if outcome.need > 0:
-		busy = true
 		await roll_die(DungeonRun.SCAVENGE_DIE, outcome.roll, "Lucky!" if worked else "Noise!",
 			Color(0.55, 0.95, 0.55) if worked else Color(1, 0.45, 0.4))
-		busy = false
-	if worked and outcome.get("new_find", false):
-		new_find_square = dungeon.position  # Its "?" turns into this icon, with a pop.
-		new_find_item = outcome.item
-	refresh()
-	if guide_label:
-		show_guide_tip("scavenged", dungeon.position)
 	if worked:
-		var found_text := "%s (Luck %d: %s)" % [outcome.text, outcome.luck, DungeonRun.luck_name(outcome.luck)]
-		if outcome.get("new_find", false):
-			found_text += ".\nNEW FIND! The card now shows %s instead of a ?, so you'll know next time" % outcome.item
-		show_scavenge(found_text)
+		var count := scav_question_count() + 1
+		var slot := put_slot(count - 1, {}, true)
+		await drop_in(slot)
+	elif not outcome.lost.is_empty():
+		var last := scav_question_count() - 1  # The newest ? is lost in the noise.
+		if last >= 0:
+			var lost: Control = scav_cells[last].get_node("Slot")
+			var fade := lost.create_tween()
+			fade.tween_property(lost, "modulate:a", 0.0, 0.4)
+			await fade.finished
+			scav_cells[last].remove_child(lost)
+			lost.queue_free()
+	busy = false
+	refresh()  # Danger, the log, the board...
+	if not worked:
+		scav_status.text = "Something heard that... Danger +1. The dig is over."
+	if outcome.over:
+		await reveal_box()
 	else:
-		show_popup("Nothing but noise!", "You rolled %d (needed %d+). Something heard that... Danger +1, and the %s has nothing more for you." % [
-			outcome.roll, outcome.need, card.room_name], [["OK", close_popup]], card_art(card), "pop", card)
+		scav_update()
+
+
+func scav_question_count() -> int:
+	var count := 0
+	for cell in scav_cells:
+		if cell.has_node("Slot"):
+			count += 1
+	return count
+
+
+# A new ? drops into its slot from above, lands with a thunk (a squash and a
+# shake of the box).
+func drop_in(slot: Control) -> void:
+	slot.position.y = -120
+	slot.modulate.a = 0
+	var tween := slot.create_tween()
+	tween.set_parallel()
+	tween.tween_property(slot, "position:y", 0.0, 0.32).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	tween.tween_property(slot, "modulate:a", 1.0, 0.12)
+	tween.chain().tween_property(slot, "scale", Vector2(1.18, 0.8), 0.06)  # Thunk!
+	tween.chain().tween_property(slot, "scale", Vector2.ONE, 0.22).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	await tween.finished
+	var shake := create_tween()
+	for cell in scav_cells:
+		if cell.has_node("Slot") and cell.get_node("Slot") != slot:
+			var other: Control = cell.get_node("Slot")
+			shake.parallel().tween_property(other, "rotation", randf_range(-0.08, 0.08), 0.05)
+	shake.tween_interval(0.05)
+	for cell in scav_cells:
+		if cell.has_node("Slot"):
+			shake.parallel().tween_property(cell.get_node("Slot"), "rotation", 0.0, 0.1)
+	await shake.finished
+
+
+# Stop: the box opens. (With nothing in it yet, Leave just closes it.)
+func _on_scav_stop() -> void:
+	if busy:
+		return
+	if dungeon.rooms[dungeon.position].get("box", []).is_empty():
+		close_scav_box()
+		return
+	dungeon.stop_scavenging()
+	refresh()
+	await reveal_box()
+
+
+# The ?s flip over one by one, like cards, each glowing in its rarity's colour.
+func reveal_box() -> void:
+	busy = true
+	scav_mode = "loot"
+	set_scav_buttons_disabled(true)
+	var pile := dungeon.pile_at(dungeon.position)
+	for i in pile.size():
+		var find: Dictionary = pile[i]
+		var slot: Button = scav_cells[i].get_node("Slot") if scav_cells[i].has_node("Slot") else put_slot(i, {}, true)
+		var flip := slot.create_tween()
+		flip.tween_property(slot, "scale:x", 0.0, FLIP_TIME).set_ease(Tween.EASE_IN)
+		await flip.finished
+		slot = put_slot(i, find, false)
+		slot.scale.x = 0.0
+		flip = slot.create_tween()
+		flip.tween_property(slot, "scale:x", 1.0, FLIP_TIME).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_BACK)
+		await flip.finished
+		glow(slot, rarity_of(find))
+		if find.get("new_find", false):
+			new_find_square = dungeon.position  # Its "?" on the board turns into this icon, with a pop.
+			new_find_item = find.name
+		await get_tree().create_timer(0.12).timeout
+	for i in range(pile.size(), scav_cells.size()):  # A ? lost in the noise leaves an empty slot.
+		if scav_cells[i].has_node("Slot"):
+			var old := scav_cells[i].get_node("Slot")
+			scav_cells[i].remove_child(old)
+			old.queue_free()
+	busy = false
+	refresh()
+	scav_update()
+	if guide_label:
+		ScreenGuide.start(self, "farm trip loot", [
+			{"target": scav_pack, "text": "Now DRAG what you want into your BACKPACK (or click it). Whatever you leave stays lying on the card, and you can come back for it with more room."},
+		])
+
+
+# A flash of the rarity's colour around a slot. Rare finds sparkle too.
+func glow(slot: Control, rarity: String) -> void:
+	var color: Color = RARITY_COLORS[rarity]
+	slot.modulate = color.lightened(0.5) * 1.6
+	var tween := slot.create_tween()
+	tween.tween_property(slot, "modulate", Color.WHITE, 0.5)
+	if rarity == "Common":
+		return
+	var sparkles := CPUParticles2D.new()
+	sparkles.position = SLOT_SIZE / 2
+	sparkles.amount = 30 if rarity == "Rare" else 14
+	sparkles.one_shot = true
+	sparkles.explosiveness = 0.9
+	sparkles.lifetime = 0.8
+	sparkles.spread = 180
+	sparkles.initial_velocity_min = 60
+	sparkles.initial_velocity_max = 160
+	sparkles.gravity = Vector2(0, 120)
+	sparkles.scale_amount_min = 2
+	sparkles.scale_amount_max = 4
+	sparkles.color = color
+	slot.get_parent().add_child(sparkles)
+	sparkles.emitting = true
+	get_tree().create_timer(1.2).timeout.connect(sparkles.queue_free)
+
+
+func _drag_find(_at: Vector2, index: int) -> Variant:
+	if busy:
+		return null
+	var pile := dungeon.pile_at(dungeon.position)
+	if index >= pile.size():
+		return null
+	var preview := TextureRect.new()
+	preview.texture = find_icon(pile[index])
+	preview.size = Vector2(56, 56)
+	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	scav_layer.set_drag_preview(preview)
+	return {"kind": "scav_find", "index": index}
+
+
+func _can_drop_find(_at: Vector2, data: Variant) -> bool:
+	return scav_mode == "loot" and data is Dictionary and data.get("kind", "") == "scav_find"
+
+
+func _drop_find(_at: Vector2, data: Variant) -> void:
+	_take_find(int(data.index))
+
+
+# Take one find off the pile into your backpack (if there's room).
+func _take_find(index: int) -> void:
+	if busy or scav_layer == null:
+		return
+	var pile := dungeon.pile_at(dungeon.position)
+	if index >= pile.size():
+		return
+	var find: Dictionary = pile[index]
+	var text := dungeon.take_from_pile(index) if dungeon.has_room_for(find) else ""
+	if text.is_empty():
+		scav_status.text = "No room in your backpack for that. Leave it here and come back, or drop something from your backpack first."
+		var flash := scav_pack.create_tween()
+		scav_pack.modulate = Color(1.6, 0.6, 0.5)
+		flash.tween_property(scav_pack, "modulate", Color.WHITE, 0.5)
+		return
+	# It flies into the backpack, then the slots close up.
+	var slot: Control = scav_cells[index].get_node("Slot")
+	var target := scav_pack.get_global_rect().get_center()
+	slot.top_level = true
+	slot.global_position = scav_cells[index].global_position
+	busy = true
+	var tween := slot.create_tween().set_parallel()
+	tween.tween_property(slot, "global_position", target - SLOT_SIZE / 4, 0.25).set_ease(Tween.EASE_IN)
+	tween.tween_property(slot, "scale", Vector2(0.5, 0.5), 0.25)
+	tween.tween_property(slot, "modulate:a", 0.2, 0.25)
+	await tween.finished
+	busy = false
+	redraw_pile()
+	refresh()
+	scav_update()
+	scav_status.text = "You take %s." % text
+
+
+func _on_scav_take_all() -> void:
+	if busy:
+		return
+	var taken: Array[String] = []
+	var pile := dungeon.pile_at(dungeon.position)
+	var i := 0
+	while i < pile.size():
+		var before := pile.size()
+		var text := dungeon.take_from_pile(i) if dungeon.has_room_for(pile[i]) else ""
+		if not text.is_empty():
+			taken.append(text)
+		if pile.size() == before:
+			i += 1  # Still there (no room, or only some fitted): next one.
+	redraw_pile()
+	refresh()
+	scav_update()
+	if not taken.is_empty():
+		scav_status.text = "You take %s." % ", ".join(taken)
+	if not pile.is_empty():
+		scav_status.text += ("  " if not taken.is_empty() else "") + "No room for the rest: it stays here."
+
+
+# Lay the pile out again, face up (after taking something).
+func redraw_pile() -> void:
+	var pile := dungeon.pile_at(dungeon.position)
+	for i in scav_cells.size():
+		if i < pile.size():
+			put_slot(i, pile[i], false)
+		elif scav_cells[i].has_node("Slot"):
+			var old := scav_cells[i].get_node("Slot")
+			scav_cells[i].remove_child(old)
+			old.queue_free()
+
+
+func close_scav_box() -> void:
+	if busy or scav_layer == null:
+		return
+	var left := dungeon.pile_at(dungeon.position).size()
+	scav_layer.queue_free()
+	scav_layer = null
+	scav_cells.clear()
+	refresh()
+	if left > 0:
+		info_label.text = "You leave %d thing%s on the card (see the pile icon). Come back for %s." % [left, "" if left == 1 else "s", "it" if left == 1 else "them"]
+
+
+# --- The step BADGE ---------------------------------------------------------------
+# Stepping onto a card: a small badge over it (name, Safe/Unsafe, the ? row)
+# that fades away by itself. The details are in the card's hover tooltip.
+
+func show_card_badge(square: Vector2i) -> void:
+	var room: Dictionary = dungeon.rooms.get(square, {})
+	var card: RoomCard = room.get("card")
+	if card == null or not squares.has(square):
+		return
+	var badge := PanelContainer.new()
+	badge.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.1, 0.08, 0.06, 0.95)
+	style.border_color = RoomCard.TILE_COLORS[card.tile]
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(6)
+	badge.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.add_theme_constant_override("separation", 0)
+	badge.add_child(box)
+	var name_label := make_small_label(card.room_name, Color(1, 0.92, 0.7))
+	name_label.add_theme_font_size_override("font_size", 16)
+	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(name_label)
+	var tile := make_small_label(card.tile_name().to_upper(), RoomCard.TILE_COLORS[card.tile])
+	tile.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(tile)
+	if card.can_scavenge():
+		var finds := HBoxContainer.new()
+		finds.alignment = BoxContainer.ALIGNMENT_CENTER
+		finds.add_theme_constant_override("separation", 4)
+		finds.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		box.add_child(finds)
+		for item in card.scavenge_items():
+			var known := GameState.knows_find(dungeon.area, card.room_name, item)
+			var chip: Control
+			if known and item_icon(item) != null:
+				var icon := TextureRect.new()
+				icon.texture = item_icon(item)
+				icon.custom_minimum_size = Vector2(18, 18)
+				icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+				icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+				chip = icon
+			else:
+				chip = make_chip_letter("?", false)
+			chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			finds.add_child(chip)
+	add_child(badge)
+	badge.reset_size()
+	var card_rect: Rect2 = squares[square].get_global_rect()
+	badge.position = Vector2(card_rect.get_center().x - badge.size.x / 2, card_rect.position.y - badge.size.y + 6)
+	badge.position.y = maxf(badge.position.y, 4)
+	badge.modulate.a = 0
+	var tween := badge.create_tween()
+	tween.tween_property(badge, "modulate:a", 1.0, 0.15)
+	tween.parallel().tween_property(badge, "position:y", badge.position.y - 8, 0.2)
+	tween.tween_interval(1.6)
+	tween.tween_property(badge, "modulate:a", 0.0, 0.4)
+	tween.tween_callback(badge.queue_free)
 
 
 # --- The Map Deck list -------------------------------------------------------------
@@ -1308,7 +1877,7 @@ func make_deck_row(entry: Dictionary) -> Control:
 # id, text, and the hint shown while it's the goal you're on.
 const FARM_GOALS := [
 	{"id": "flip", "text": "Flip a map card", "hint": "Click a card with a gold border, next to you. You step onto it and it flips over."},
-	{"id": "Stone", "text": "Scavenge Stone", "hint": "Collapsed Walls (green border) always give Stone the first time. Step on one, then click it again to scavenge."},
+	{"id": "Stone", "text": "Scavenge Stone", "hint": "Collapsed Walls (green border) give Stone. Step on one and dig, then Stop and drag the Stone into your backpack."},
 	{"id": "key", "text": "Find a key", "hint": "Keys lie around in the mud. Keep flipping cards!"},
 	{"id": "Hops", "text": "Open the sheds for Hops", "hint": "Locked Sheds (gold border) hold the Hops. Walk to one with your key and use it."},
 	{"id": "torch", "text": "Peek at a card with your torch", "hint": "Click Light Torch (right), then ANY face-down card: you see what it is without stepping on it."},
@@ -1500,7 +2069,7 @@ func guide_spotlight(what: String, square: Vector2i) -> void:
 	match what:
 		"scavenge":
 			steps = [
-				{"target": squares[square], "text": "A COLLAPSED WALL: a Safe card (green border) you can SCAVENGE. Each ? along the bottom is something you can dig up here."},
+				{"target": squares[square], "text": "A COLLAPSED WALL: a Safe card (green border) you can SCAVENGE. Each ? along the bottom is something you can dig up here. Let's dig!"},
 				{"target": squares[square].get_node("Finds"), "text": "Find one, and its ? turns into a picture of it, for good. Next time you'll know what this kind of card gives!"},
 			]
 		"fight":
@@ -1525,7 +2094,7 @@ func guide_spotlight(what: String, square: Vector2i) -> void:
 
 # The torch: once you've flipped a few cards, a spotlight on the torch button.
 func guide_torch_nudge() -> void:
-	if guide_label == null or popup.visible or busy or farm_goal_done("torch") or dungeon.torches <= 0:
+	if guide_label == null or popup.visible or busy or scav_layer or farm_goal_done("torch") or dungeon.torches <= 0:
 		return
 	if get_children().any(func(child: Node) -> bool: return child is ScreenGuide or child is UnlockBanner):
 		return  # Another spotlight or banner is up: wait for the next click.

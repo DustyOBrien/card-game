@@ -83,6 +83,9 @@ const TORCH_TARGETS: Array[int] = [2, 3, 4, 5]
 # first try). After the last one, the spot is picked clean.
 const SCAVENGE_DIE := 6
 const SCAVENGE_TARGETS: Array[int] = [0, 3, 4, 5, 6]
+# A failed scavenge costs Danger +1 (Dusty's call, 2026-11-09). Flip this to
+# true to ALSO lose the newest find in the box, if everyone always pushes.
+const SCAVENGE_FAIL_LOSES_ITEM := false
 const LUCK_NAMES := ["Common", "Common", "Uncommon", "Rare"]  # Luck 3 and up = Rare.
 const PACK_NAME := "Small Farm Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
 const CAMPFIRE_ART := preload("res://art/rooms/campfire.svg")
@@ -105,6 +108,8 @@ var gone: Array[RoomCard] = []  # Used cards with Vanish: out of the deck for th
 #   opened:   a Locked Chest you've opened (or broken)
 #   scouted:  lit by a torch: you can see its face, but it hasn't flipped yet
 #   scavenges: how many times you've scavenged it (its Luck = this - 1)
+#   box:      hidden finds while you're scavenging it (shown as "?")
+#   pile:     finds lying on it, face up: take them, or leave them for later
 var rooms := {}
 var position := START  # Where you are.
 var came_from := START  # The square you stepped from.
@@ -133,7 +138,6 @@ var left_over := {}
 var danger_cards_added := 0  # Danger cards shuffled in so far this run.
 var last_danger_card: RoomCard = null  # The newest one (dungeon.gd shows it), null once shown.
 var found_cards: Array[CardData] = []
-var last_loot_entry := ""  # The loot entry take_loot() picked last ("Stone 1-2"), for scavenge finds.
 
 # The SAVE SACK: what's in it survives if you die. Each slot holds one
 # thing: {"kind": "pack"}, {"kind": "card", "card": CardData},
@@ -543,6 +547,8 @@ func _enter(square: Vector2i) -> String:
 	room.cleared = true
 	if can_scavenge(square):
 		return "scavenge" if square == just_flipped else "walk"
+	if not room.get("pile", []).is_empty():
+		return "walk"  # Things you left here: dungeon.gd opens the box again.
 	room.done = true
 	return "empty" if square == just_flipped else "walk"
 
@@ -927,8 +933,14 @@ func next_scavenge_luck(square: Vector2i) -> int:
 	return rooms[square].get("scavenges", 0)
 
 
-# Scavenge where you stand. Returns {"roll", "need", "worked", "luck",
-# "text" (what you found), "over" (the spot is finished)}, or {} if you can't.
+# Scavenge where you stand: one roll. A success drops a new hidden find
+# (a "?") into the spot's SCAVENGE BOX (room.box): you don't see what it is
+# yet. A fail ends scavenging there, Danger +1, and the box opens. So does
+# stop_scavenging(), and running out of tries. Once the box is open its
+# finds sit in the spot's PILE (room.pile): drag them into your backpack
+# (take_from_pile()), and whatever you leave stays on the card for later.
+# Returns {"roll", "need", "worked", "luck", "over" (the box opened),
+# "lost" (a find lost to the fail, or {})}, or {} if you can't scavenge.
 func scavenge() -> Dictionary:
 	if not can_scavenge(position) or not result.is_empty():
 		return {}
@@ -938,27 +950,87 @@ func scavenge() -> Dictionary:
 	var need := scavenge_need(position)
 	var roll := randi_range(1, SCAVENGE_DIE) if need > 0 else 0
 	var worked := need == 0 or roll >= need
+	if not room.has("box"):
+		room.box = []
 	if not worked:
-		room.scavenge_over = true
-		room.done = true
 		raise_danger(1)
+		var lost := {}
+		if SCAVENGE_FAIL_LOSES_ITEM and not room.box.is_empty():
+			lost = room.box.pop_back()
 		add_log("Scavenging %s: rolled %d (needed %d+). Nothing but noise! Danger +1." % [card.room_name, roll, need])
-		return {"roll": roll, "need": need, "worked": false, "luck": scavenge_luck(position), "text": "", "over": true}
+		_open_box(position)
+		return {"roll": roll, "need": need, "worked": false, "luck": scavenge_luck(position), "over": true, "lost": lost}
 	var luck := tries  # The free try finds at Luck 0, the next at 1...
 	room.scavenges = tries + 1
-	var loot_card := RoomCard.new()
-	loot_card.loot = card.scavenge_table(luck)
-	var text := take_loot(loot_card)
-	# Learn what this kind of card gives: its "?" on the board becomes an icon.
-	var item := RoomCard.loot_item_name(last_loot_entry)
-	var new_find := GameState.learn_find(area, card.room_name, item)
-	var over := not can_scavenge(position)
-	if over:
-		room.done = true  # Picked clean.
-	add_log("Scavenging %s (Luck %d, %s): %s%s" % [card.room_name, luck, luck_name(luck), text,
+	var find := roll_loot(card.scavenge_table(luck))
+	if not find.is_empty():
+		find.luck = luck
+		room.box.append(find)
+	add_log("Scavenging %s (Luck %d, %s): you dig something up%s" % [card.room_name, luck, luck_name(luck),
 		"" if need == 0 else " (rolled %d, needed %d+)" % [roll, need]])
-	return {"roll": roll, "need": need, "worked": true, "luck": luck, "text": text, "over": over,
-		"item": item, "new_find": new_find}
+	var over: bool = room.scavenges >= SCAVENGE_TARGETS.size()  # Out of tries: the box opens by itself.
+	if over:
+		_open_box(position)
+	return {"roll": roll, "need": need, "worked": true, "luck": luck, "over": over, "lost": {}}
+
+
+# Stop pushing your luck: the box opens and you see what you found.
+func stop_scavenging() -> void:
+	if rooms.has(position) and not rooms[position].get("scavenge_over", false):
+		_open_box(position)
+
+
+# The box opens: scavenging here is over, and every hidden find goes on the
+# pile, face up. Each thing you find teaches you what this kind of card
+# gives (its "?" on the board becomes an icon): "new_find" marks those.
+func _open_box(square: Vector2i) -> void:
+	var room: Dictionary = rooms[square]
+	room.scavenge_over = true
+	var pile: Array = room.get("pile", [])
+	for find: Dictionary in room.get("box", []):
+		find.new_find = GameState.learn_find(area, room.card.room_name, find.name)
+		pile.append(find)
+	room.pile = pile
+	room.box = []
+	_check_picked_clean(square)
+
+
+# A spot is used up once you can't scavenge it and nothing's left on its pile.
+func _check_picked_clean(square: Vector2i) -> void:
+	var room: Dictionary = rooms[square]
+	if not can_scavenge(square) and room.get("pile", []).is_empty() and room.get("box", []).is_empty():
+		room.done = true
+
+
+# Things lying on a card (scavenged but left behind).
+func pile_at(square: Vector2i) -> Array:
+	return rooms[square].get("pile", []) if rooms.has(square) else []
+
+
+# Take one thing off the pile where you stand, into your backpack. Things
+# that need backpack room only go in as far as they fit: the rest stays on
+# the pile. Returns what you took ("2 Stone"), or "" if there was no room.
+func take_from_pile(index: int) -> String:
+	var pile := pile_at(position)
+	if index < 0 or index >= pile.size():
+		return ""
+	var find: Dictionary = pile[index]
+	var before: int = find.amount
+	var text := collect_find(find, false)
+	if find.amount >= before:
+		return ""  # Nothing fitted.
+	if find.amount <= 0:
+		pile.remove_at(index)
+	add_log("You take %s." % text)
+	_check_picked_clean(position)
+	return text
+
+
+# Could this find go in right now? (Gold, cards, packs and keys always can.)
+func has_room_for(find: Dictionary) -> bool:
+	if find.kind in ["material", "torch", "crowbar", "bomb"]:
+		return backpack_room(find_pack_name(find)) > 0
+	return true
 
 
 static func luck_name(luck: int) -> String:
@@ -1315,71 +1387,120 @@ func _material_find_bonus() -> int:
 # Pick one of the card's loot entries and add it to what you've found.
 # Returns what you got, as text: "12 gold", "a card: Strike", "a Map!"...
 func take_loot(card: RoomCard) -> String:
-	if card == null or card.loot.is_empty():
+	if card == null:
 		return "nothing"
+	var find := roll_loot(card.loot)
+	return collect_find(find) if not find.is_empty() else "nothing"
+
+
+# Pick ONE thing from a loot list and roll how much ("Gold 5-10" -> 7 gold),
+# without taking it yet. Scavenging keeps these hidden in its box until you
+# stop. Returns {"kind" (gold, card, pack, key, torch, crowbar, bomb,
+# enchant, potion, map, material, other), "name" ("Stone"), "amount",
+# "card" (for a card), "entry"}, or {} if there's nothing.
+func roll_loot(loot: PackedStringArray) -> Dictionary:
 	# No enchants until the Enchanter is built, no potions until the Alchemist.
-	var entries := Array(card.loot).filter(func(e: String) -> bool:
+	var entries := Array(loot).filter(func(e: String) -> bool:
 		var word := e.strip_edges().to_lower()
 		if word.begins_with("enchant"):
 			return GameState.enchants_open()
 		if word.begins_with("potion"):
 			return GameState.potions_open()
-		return true)
+		return not word.is_empty())
 	if entries.is_empty():
-		return "nothing"
+		return {}
 	var entry: String = entries.pick_random()
-	last_loot_entry = entry
 	var words := entry.strip_edges().split(" ", false)
-	match words[0].to_lower():
+	var find := {"entry": entry, "kind": words[0].to_lower(), "name": RoomCard.loot_item_name(entry), "amount": 1}
+	match find.kind:
 		"gold":
 			# "Gold 5-10" or "Gold 8".
 			var amounts := words[1].split("-") if words.size() > 1 else PackedStringArray(["5"])
-			var amount := randi_range(amounts[0].to_int(), amounts[-1].to_int())
-			found_gold += amount
-			return "%d gold" % amount
+			find.amount = randi_range(amounts[0].to_int(), amounts[-1].to_int())
 		"card":
-			var found := GameState._pick_pack_card()
-			if found == null:
-				return "nothing"
-			found_cards.append(found)
-			return "a card: %s" % found.card_name
+			var card := GameState._pick_pack_card()
+			if card == null:
+				return {}
+			find.card = card
+		"pack", "key", "torch", "crowbar", "bomb", "enchant", "potion", "map":
+			pass
+		_:
+			# A material: "Stone 2", "Stone 1-3" or "Green Ooze 2" (the name can have spaces).
+			find.kind = "material" if GameState.find_material(find.name) else "other"
+			var last := words[-1].split("-")
+			if words.size() > 1 and last[0].is_valid_int():
+				find.amount = randi_range(last[0].to_int(), last[-1].to_int())
+			if find.kind == "material" and not guided and randi_range(1, 100) <= _material_find_bonus():
+				find.amount += 1  # Rock Hound: a sharp eye for good finds.
+	return find
+
+
+# What a find is called: "7 gold", "2 Stone", "a torch", "a card: Strike".
+static func find_text(find: Dictionary) -> String:
+	match find.get("kind", ""):
+		"gold":
+			return "%d gold" % find.amount
+		"card":
+			return "a card: %s" % find.card.card_name
 		"pack":
-			found_packs += 1
 			return "a %s" % PACK_NAME
 		"key":
-			keys += 1
 			return "a small key"
-		"torch":
-			if pack_item(TORCH, 1) == 0:
-				return "a torch (no room in your backpack)"
-			return "a torch"
-		"crowbar", "bomb":
-			var tool_name := words[0].capitalize()
-			if pack_item(tool_name, 1) == 0:
-				return "a %s (no room in your backpack)" % tool_name.to_lower()
-			return "a %s!" % tool_name.to_lower()
+		"torch", "crowbar", "bomb":
+			return "a %s" % find.kind
+		"material":
+			return "%d %s" % [find.amount, find.name]
+	return find.get("entry", "something")
+
+
+# The backpack name of a find that takes backpack room ("Torch", "Bomb", "Stone").
+func find_pack_name(find: Dictionary) -> String:
+	if find.kind == "torch":
+		return TORCH
+	if find.kind in ["crowbar", "bomb"]:
+		return String(find.kind).capitalize()
+	return find.name
+
+
+# Take a find: it goes into your backpack / Found list. Backpack things go
+# in as far as they fit. With overflow, the rest waits in left_over (the
+# "no room" popup asks what to drop); without, find.amount is cut down to
+# what DIDN'T fit, so the caller can leave it lying there. Returns the text.
+func collect_find(find: Dictionary, overflow := true) -> String:
+	var text := find_text(find)
+	match find.kind:
+		"gold":
+			found_gold += find.amount
+		"card":
+			found_cards.append(find.card)
+		"pack":
+			found_packs += 1
+		"key":
+			keys += 1
+		"torch", "crowbar", "bomb", "material":
+			var item_name := find_pack_name(find)
+			var want: int = find.amount
+			var fits := pack_item(item_name, want, overflow)
+			if not overflow:
+				find.amount = want - fits  # The rest stays where it lies.
+				return text if fits == want else "%d %s" % [fits, item_name]
+			if fits < want and find.kind == "material":
+				text = "%d %s (only %d fit%s in your backpack)" % [want, item_name, fits, "s" if fits == 1 else ""]
+			elif fits < want:
+				text += " (no room in your backpack)"
 		"enchant":
-			return "an enchant: " + _drop_enchant()
+			text = "an enchant: " + _drop_enchant()
 		"potion":
-			return _drop_potion()
+			text = _drop_potion()
 		"map":
 			var room := GameState.unlock_random_room(area)
 			if room == null:
 				found_gold += 5  # Every card is already unlocked.
-				return "an old map of places you know (5 gold instead)"
-			return "a Map! A new map card for the %s: %s" % [area.display_name, room.room_name]
-	# A material: "Stone 2", "Stone 1-3" or "Green Ooze 2" (the name can have spaces).
-	var last := words[-1].split("-")
-	var material_name := " ".join(words.slice(0, -1)) if words.size() > 1 and last[0].is_valid_int() else entry.strip_edges()
-	if GameState.find_material(material_name):
-		var amount := randi_range(last[0].to_int(), last[-1].to_int()) if words.size() > 1 and last[0].is_valid_int() else 1
-		if not guided and randi_range(1, 100) <= _material_find_bonus():
-			amount += 1  # Rock Hound: a sharp eye for good finds.
-		var fits := pack_item(material_name, amount)
-		if fits < amount:
-			return "%d %s (only %d fit%s in your backpack)" % [amount, material_name, fits, "s" if fits == 1 else ""]
-		return "%d %s" % [amount, material_name]
-	return entry
+				text = "an old map of places you know (5 gold instead)"
+			else:
+				text = "a Map! A new map card for the %s: %s" % [area.display_name, room.room_name]
+	find.amount = 0
+	return text
 
 
 func _drop_enchant() -> String:
@@ -1462,7 +1583,7 @@ func backpack_room(item_name: String) -> int:
 
 # Put something you found in the backpack. What doesn't fit goes to
 # left_over (dungeon.gd asks what to do with it). Returns how many fit.
-func pack_item(item_name: String, amount: int) -> int:
+func pack_item(item_name: String, amount: int, overflow := true) -> int:
 	var fits := mini(amount, backpack_room(item_name))
 	if item_name == TORCH:
 		torches += fits
@@ -1470,7 +1591,7 @@ func pack_item(item_name: String, amount: int) -> int:
 		_add_tool(item_name, fits)
 	elif fits > 0:
 		add_found_material(item_name, fits)
-	if amount > fits:
+	if amount > fits and overflow:
 		left_over[item_name] = left_over.get(item_name, 0) + amount - fits
 	return fits
 
