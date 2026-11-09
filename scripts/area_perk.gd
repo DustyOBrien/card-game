@@ -9,6 +9,12 @@
 #   Perk     its name
 #   Cost     Explorer points
 #   Needs    another perk you must own first (blank = none)
+#   Requires something you must have UNLOCKED before the perk even shows on
+#            the Perks screen (blank = always shown). A perk about flasks
+#            means nothing before you've brewed one, so it stays hidden:
+#              Flask               you've brewed (unlocked) a flask
+#              Potions             the Alchemist is built (potions drop)
+#              Map Card: <name>    that map card is unlocked (Bunny Burrow)
 #   Effect   what it does (see the list below)
 #   Target   who or what it's about: an enemy name part ("Slime"), a card...
 #   Amount   how much
@@ -48,6 +54,7 @@ const EFFECTS := [CAMPFIRE_HEAL, CAMPFIRE_FLASK, CAMPFIRE_VANISHED, CAMPFIRE_REM
 var perk_name := ""
 var cost := 1
 var needs := ""
+var requires := ""  # See "Requires" above. GameState.perk_shown() checks it.
 var effect := ""
 var target := ""
 var amount := 0
@@ -69,6 +76,7 @@ static func load_sheet(path: String) -> Array[AreaPerk]:
 				continue
 			perk.cost = maxi(CardImporter._to_int(row.get("cost", ""), 1), 0)
 			perk.needs = row.get("needs", "")
+			perk.requires = row.get("requires", "").strip_edges()
 			perk.effect = row.get("effect", "").to_lower()
 			if not perk.effect in EFFECTS:
 				push_warning("%s: %s has Effect '%s'. Use one of: %s" % [path.get_file(), perk.perk_name, row.get("effect", ""), ", ".join(EFFECTS)])

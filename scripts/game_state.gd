@@ -51,6 +51,9 @@ const MAX_PACKED_TOOLS := 3  # Of each tool.
 var packed_tools := {}  # {"Crowbar": 1, "Bomb": 0}
 # The JOURNAL: tool tricks you've found ("Locked Shed|Crowbar"), see interaction.gd.
 var journal: Array[String] = []
+# What you've SCAVENGED from each kind of map card, ever: "Abandoned Farm/Collapsed Wall"
+# -> ["Stone", "Gold"]. The board turns a card's "?" into that thing's icon.
+var scavenge_finds := {}
 
 # --- The run --------------------------------------------------------------
 # A "run" is one trip into an area's dungeon (see dungeon_run.gd): explore
@@ -363,6 +366,7 @@ func start_fresh() -> void:
 	area_perks.clear()
 	packed_tools.clear()
 	journal.clear()
+	scavenge_finds.clear()
 	map_cards_off.clear()
 	loadouts.clear()
 	last_loadout.clear()
@@ -2132,6 +2136,7 @@ func save_game() -> void:
 		"area_perks": area_perks,
 		"packed_tools": packed_tools,
 		"journal": journal,
+		"scavenge_finds": scavenge_finds,
 		"map_cards_off": map_cards_off,
 		"loadouts": loadouts,
 		"last_loadout": last_loadout,
@@ -2256,6 +2261,8 @@ func load_game() -> bool:
 	var saved_tools = data.get("packed_tools", {})
 	packed_tools = _whole_numbers(saved_tools) if saved_tools is Dictionary else {}
 	journal.assign(data.get("journal", []))
+	var saved_finds = data.get("scavenge_finds", {})
+	scavenge_finds = saved_finds if saved_finds is Dictionary else {}
 	var saved_perks = data.get("area_perks", {})
 	area_perks = saved_perks if saved_perks is Dictionary else {}
 	var saved_off = data.get("map_cards_off", {})
@@ -2539,6 +2546,57 @@ func add_area_exp(area: Area, amount: int) -> Array[int]:
 
 func area_perk_list(area: Area) -> Array[AreaPerk]:
 	return AreaPerk.load_sheet(area.perk_sheet)
+
+
+# The perks the Perks screen shows: the ones whose Requires is met (plus any
+# you already own). Perks for things you haven't unlocked yet stay hidden, so
+# a new player isn't offered Water Skins before they've ever seen a flask.
+func shown_area_perks(area: Area) -> Array[AreaPerk]:
+	return area_perk_list(area).filter(func(perk: AreaPerk) -> bool:
+		return has_area_perk(area, perk) or perk_requirement_met(area, perk))
+
+
+# Have you unlocked what this perk is about? (Its Requires column.)
+func perk_requirement_met(area: Area, perk: AreaPerk) -> bool:
+	var need := perk.requires.to_lower()
+	if need.is_empty():
+		return true
+	if need == "flask":
+		return current_flask() != null  # null = no flask brewed yet.
+	if need == "potions":
+		return potions_open()
+	if need.begins_with("map card"):
+		var card_name := perk.requires.get_slice(":", 1).strip_edges()
+		for card in area.cards():
+			if card.room_name == card_name:
+				return is_room_unlocked(area, card)
+		return false
+	push_warning("Perk %s: unknown Requires '%s' (use Flask, Potions or Map Card: <name>)" % [perk.perk_name, perk.requires])
+	return true
+
+
+# --- Scavenge finds (the "?" on map cards) ---------------------------------------
+
+func _finds_key(area: Area, card_name: String) -> String:
+	return "%s/%s" % [area.display_name, card_name]
+
+
+# Have you ever found this item on this kind of card?
+func knows_find(area: Area, card_name: String, item: String) -> bool:
+	return scavenge_finds.get(_finds_key(area, card_name), []).has(item)
+
+
+# You just found it. Returns true if it's NEW (its "?" turns into an icon).
+# Saved straight away: what you learn about the farm stays, even if you die.
+func learn_find(area: Area, card_name: String, item: String) -> bool:
+	if item.is_empty() or knows_find(area, card_name, item):
+		return false
+	var key := _finds_key(area, card_name)
+	var list: Array = scavenge_finds.get(key, [])
+	list.append(item)
+	scavenge_finds[key] = list
+	save_game()
+	return true
 
 
 func owned_area_perks(area: Area) -> Array[AreaPerk]:

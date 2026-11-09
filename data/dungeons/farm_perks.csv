@@ -1,16 +1,16 @@
-Place,Perk,Cost,Needs,Effect,Target,Amount,Into,Text
-Abandoned Farm,Camper,1,,Campfire Heal,,5,,Going Deeper at a campfire heals 5 HP first.
-Abandoned Farm,Camper II,2,Camper,Campfire Heal,,5,,Going Deeper heals 5 more (10 in all).
-Abandoned Farm,Water Skins,2,,Campfire Flask,,1,,Going Deeper refills 1 flask charge.
-Abandoned Farm,Second Wind,3,Camper,Campfire Vanished,,1,,Going Deeper brings back the cards that Vanished this trip.
-Abandoned Farm,Clean Camp,2,Camper,Campfire Remove,,1,,Going Deeper throws 1 Danger card out of the map deck.
-Abandoned Farm,Slime Hunter,1,,Enemy HP,Slime,15,,Every slime on the Farm has 15% less HP.
-Abandoned Farm,Bunny Hunter,1,,Enemy Strength,Bunny,-1,,Bunny Warriors on the Farm hit for 1 less.
-Abandoned Farm,Old Map: Deep Well,2,,Unlock Card,Deep Well,1,,"Adds the Deep Well to your map cards: it fills your flask right up."
-Abandoned Farm,Old Map: Farmer's Stash,2,,Unlock Card,Farmer's Stash,1,,Adds the Farmer's Stash to your map cards: a hidden chest of good loot.
-Abandoned Farm,Old Map: Dark Cellar,2,,Unlock Card,Dark Cellar,1,,"Adds the Dark Cellar to your map cards: bring a torch, or feel your way in."
-Abandoned Farm,Starter Kit: Potion,2,,Start Potion,Healing Potion,1,,Start every Farm trip with a Healing Potion.
-Abandoned Farm,Starter Kit: Spare Key,1,,Start Key,,1,,Start every Farm trip with a small key.
-Abandoned Farm,Clear the Weeds,1,,Swap Card,Empty Field,2,Grain Field,2 Empty Fields in the Farm's deck become Grain Fields (better scavenging).
-Abandoned Farm,Drain the Puddles,2,,Swap Card,Slime Puddle,1,Grain Field,1 Slime Puddle becomes a Grain Field: one less fight.
-Abandoned Farm,Mend the Fence,2,,Swap Card,Overgrown Path,2,Sheep Pen,2 Overgrown Paths (Filler) become Sheep Pens: Wool!
+Place,Perk,Cost,Needs,Requires,Effect,Target,Amount,Into,Text
+Abandoned Farm,Camper,1,,,Campfire Heal,,5,,Going Deeper at a campfire heals 5 HP first.
+Abandoned Farm,Camper II,2,Camper,,Campfire Heal,,5,,Going Deeper heals 5 more (10 in all).
+Abandoned Farm,Water Skins,2,,Flask,Campfire Flask,,1,,Going Deeper refills 1 flask charge.
+Abandoned Farm,Second Wind,3,Camper,,Campfire Vanished,,1,,Going Deeper brings back the cards that Vanished this trip.
+Abandoned Farm,Clean Camp,2,Camper,,Campfire Remove,,1,,Going Deeper throws 1 Danger card out of the map deck.
+Abandoned Farm,Slime Hunter,1,,,Enemy HP,Slime,15,,Every slime on the Farm has 15% less HP.
+Abandoned Farm,Bunny Hunter,1,,Map Card: Bunny Burrow,Enemy Strength,Bunny,-1,,Bunny Warriors on the Farm hit for 1 less.
+Abandoned Farm,Old Map: Deep Well,2,,Flask,Unlock Card,Deep Well,1,,Adds the Deep Well to your map cards: it fills your flask right up.
+Abandoned Farm,Old Map: Farmer's Stash,2,,,Unlock Card,Farmer's Stash,1,,Adds the Farmer's Stash to your map cards: a hidden chest of good loot.
+Abandoned Farm,Old Map: Dark Cellar,2,,,Unlock Card,Dark Cellar,1,,"Adds the Dark Cellar to your map cards: bring a torch, or feel your way in."
+Abandoned Farm,Starter Kit: Potion,2,,Potions,Start Potion,Healing Potion,1,,Start every Farm trip with a Healing Potion.
+Abandoned Farm,Starter Kit: Spare Key,1,,,Start Key,,1,,Start every Farm trip with a small key.
+Abandoned Farm,Clear the Weeds,1,,,Swap Card,Empty Field,2,Grain Field,2 Empty Fields in the Farm's deck become Grain Fields (better scavenging).
+Abandoned Farm,Drain the Puddles,2,,,Swap Card,Slime Puddle,1,Grain Field,1 Slime Puddle becomes a Grain Field: one less fight.
+Abandoned Farm,Mend the Fence,2,,,Swap Card,Overgrown Path,2,Sheep Pen,2 Overgrown Paths (Filler) become Sheep Pens: Wool!

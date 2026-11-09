@@ -30,7 +30,11 @@ const TOOL_ICONS := {
 	DungeonRun.BOMB: preload("res://art/map_cards/bomb.svg"),
 }
 
-const SQUARE_SIZE := Vector2(108, 108)
+# Each map card is a WIDE card (Dusty's playtest: the old small squares were
+# hard to read): its picture on top, its name under it, and a row of "?" for
+# the things you can scavenge there.
+const CARD_SIZE := Vector2(148, 112)
+const ART_RECT := Rect2(6, 6, 136, 58)  # Where the picture sits on the card.
 const GAP := 6
 const FLIP_TIME := 0.14  # Seconds for each half of a card flip.
 
@@ -48,16 +52,26 @@ const ICONS := {
 const OPEN_CHEST_ICON := preload("res://art/rooms/open_chest.svg")
 const KEY_ICON := preload("res://art/rooms/key.svg")
 const PLAYER_ICON := preload("res://art/rooms/player.svg")
+const GATE_ICON_PATH := "res://art/map_cards/gate.svg"  # load()ed when drawn (a new picture: Godot imports it on first open)
+const GOLD_ICON := preload("res://icons/gold.svg")
+const CARD_ICON := preload("res://icons/draw.svg")
+const MAP_ICON := preload("res://art/map/world_map.svg")
 
 # Square colours.
-const BACK_COLOR := Color(0.16, 0.12, 0.08, 0.95)  # A face-down card.
-const CARD_COLOR := Color(0.3, 0.26, 0.2, 0.96)  # A face-up card.
-const DANGER_CARD_COLOR := Color(0.45, 0.16, 0.14, 0.96)  # A fight you haven't won yet.
-const CAMPFIRE_COLOR := Color(0.5, 0.32, 0.1, 0.96)
+# VISITED or NOT? Face-down cards (not visited yet) are DARK wood. Face-up
+# cards (you've been there) are LIGHT parchment. Torchlit (scouted) cards stay
+# dark: you've only peeked at them, you haven't been there.
+const BACK_COLOR := Color(0.13, 0.1, 0.07, 0.97)  # A face-down card.
+const FACE_COLOR := Color(0.86, 0.79, 0.62, 0.98)  # A face-up card: parchment.
+const FACE_DANGER_COLOR := Color(0.92, 0.6, 0.53, 0.98)  # A fight you haven't won yet.
+const FACE_CAMPFIRE_COLOR := Color(1.0, 0.74, 0.4, 0.98)
+const FACE_DONE_COLOR := Color(0.62, 0.59, 0.52, 0.98)  # Used up (looted, picked clean...).
 const GROUND_COLOR := Color(0.12, 0.11, 0.1, 0.9)  # A square with no card (the deck ran out).
+const INK := Color(0.2, 0.13, 0.06)  # Dark writing on a face-up card.
+const SCOUTED_TINT := Color(0.62, 0.68, 0.85, 0.55)  # A torchlit picture: ghostly blue.
 const HOVER_BORDER := Color(1.0, 0.85, 0.35)
 const HERE_BORDER := Color(0.55, 0.9, 1.0)
-const USED_TINT := Color(1, 1, 1, 0.4)  # A card you've used up (looted, beaten...).
+const USED_TINT := Color(1, 1, 1, 0.45)  # The picture on a card you've used up.
 
 @onready var background: TextureRect = %Background
 @onready var grid: GridContainer = %Grid
@@ -75,6 +89,8 @@ var squares := {}  # Vector2i -> the Button drawn for that square.
 var reach := {}  # Where you can step to: dungeon.reachable(), worked out once per refresh().
 var _boxes := {}  # Square styles we've already made, so a redraw reuses them.
 var busy := false  # A card is flipping: clicks wait.
+var new_find_square := Vector2i(-1, -1)  # A card whose "?" just turned into an icon (it pops in).
+var new_find_item := ""
 var scouting := false  # The torch is out: the next face-down card you click gets lit up.
 var torch_button: Button
 var tool_mode := ""  # A tool you clicked (Crowbar, Bomb): the next card you click gets it.
@@ -82,7 +98,7 @@ var tool_row: HBoxContainer  # One button per tool you carry (drag it onto a car
 var journal_button: Button
 var journal_list: ColorRect  # The Journal, while it's open.
 # The Save Sack, Found and enchant/potion rows in the side panel (built in code).
-var sack_row: HBoxContainer
+var sack_row: HFlowContainer
 var found_row: HFlowContainer
 var backpack_title: Label
 var backpack_row: HFlowContainer  # One button per backpack slot.
@@ -147,14 +163,28 @@ func build_legend() -> void:
 		}[tile]
 		name_label.mouse_filter = Control.MOUSE_FILTER_PASS
 		legend.add_child(name_label)
+	# Dark card = not visited yet, light card = you've been there.
+	for look: Array in [[BACK_COLOR, "Not visited", "Face down: you haven't been there yet. (Torchlit cards stay dark too, with a SCOUTED tag.)"],
+			[FACE_COLOR, "Visited", "Face up: you've been there."]]:
+		var swatch := ColorRect.new()
+		swatch.color = look[0]
+		swatch.custom_minimum_size = Vector2(20, 16)
+		swatch.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+		legend.add_child(swatch)
+		var look_label := Label.new()
+		look_label.text = look[1]
+		look_label.tooltip_text = look[2]
+		look_label.mouse_filter = Control.MOUSE_FILTER_PASS
+		look_label.add_theme_font_size_override("font_size", 14)
+		legend.add_child(look_label)
 	deck_button = Button.new()
-	deck_button.custom_minimum_size = Vector2(150, 34)
+	deck_button.custom_minimum_size = Vector2(130, 34)
 	deck_button.add_theme_font_size_override("font_size", 15)
 	deck_button.tooltip_text = "Every card in this place's map deck, and how many you haven't seen yet."
 	deck_button.pressed.connect(show_deck_list)
 	legend.add_child(deck_button)
 	journal_button = Button.new()
-	journal_button.custom_minimum_size = Vector2(130, 34)
+	journal_button.custom_minimum_size = Vector2(110, 34)
 	journal_button.add_theme_font_size_override("font_size", 15)
 	journal_button.tooltip_text = "Every tool trick you've found: what a crowbar, a bomb or a torch does to each card."
 	journal_button.pressed.connect(show_journal)
@@ -165,45 +195,82 @@ func build_legend() -> void:
 
 func make_square(square: Vector2i) -> Button:
 	var button := Button.new()
-	button.custom_minimum_size = SQUARE_SIZE
+	button.custom_minimum_size = CARD_SIZE
 	button.focus_mode = Control.FOCUS_NONE
 	button.clip_contents = true
-	button.pivot_offset = SQUARE_SIZE / 2  # Flips turn around the middle.
+	button.pivot_offset = CARD_SIZE / 2  # Flips turn around the middle.
 	button.pressed.connect(_on_square_pressed.bind(square))
 	button.mouse_entered.connect(_on_square_hovered.bind(square))
 	button.mouse_exited.connect(func() -> void: info_label.text = default_info())
-	# Inside each square: a picture in the middle and a name at the bottom.
-	# They ignore the mouse, so clicks go through to the button.
-	var icon := TextureRect.new()
-	icon.name = "Icon"
-	icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	icon.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	icon.offset_left = 22
-	icon.offset_right = -22
-	icon.offset_top = 10
-	icon.offset_bottom = -30
-	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	button.add_child(icon)
+	# Everything inside ignores the mouse, so clicks go through to the button.
+	# The BACK: the compass on a face-down card, filling the whole card.
+	var back := TextureRect.new()
+	back.name = "Back"
+	back.texture = CARD_BACK
+	back.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	back.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	back.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	back.offset_top = 8
+	back.offset_bottom = -8
+	back.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(back)
+	# The FACE: a window at the top with the card's picture in it...
+	var window := Panel.new()
+	window.name = "Window"
+	window.position = ART_RECT.position
+	window.size = ART_RECT.size
+	window.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(window)
+	var art := TextureRect.new()
+	art.name = "Art"
+	art.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+	art.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	art.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	art.offset_top = 3
+	art.offset_bottom = -3
+	art.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	window.add_child(art)
+	# ...its name under the picture...
 	var label := Label.new()
 	label.name = "Name"
-	label.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
-	label.offset_top = -28
-	label.offset_bottom = -4
+	label.position = Vector2(4, ART_RECT.end.y + 1)
+	label.size = Vector2(CARD_SIZE.x - 8, 22)
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	label.text_overrun_behavior = TextServer.OVERRUN_TRIM_ELLIPSIS
-	label.add_theme_font_size_override("font_size", 13)
+	label.add_theme_font_size_override("font_size", 15)
 	label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(label)
-	# The player's marker, in the top-left corner of the square you're on.
+	# ...and the FINDS row along the bottom: one "?" per thing you can
+	# scavenge here, or that thing's icon once you've found it (draw_finds()).
+	var finds := HBoxContainer.new()
+	finds.name = "Finds"
+	finds.position = Vector2(6, CARD_SIZE.y - 25)
+	finds.size = Vector2(CARD_SIZE.x - 12, 20)
+	finds.alignment = BoxContainer.ALIGNMENT_CENTER
+	finds.add_theme_constant_override("separation", 5)
+	finds.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(finds)
+	# The player's marker, in the top-left corner of the card you're on.
 	var marker := TextureRect.new()
 	marker.name = "Player"
 	marker.texture = PLAYER_ICON
 	marker.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
-	marker.size = Vector2(38, 38)
-	marker.position = Vector2(4, 4)
+	marker.size = Vector2(34, 34)
+	marker.position = Vector2(2, 2)
 	marker.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	button.add_child(marker)
+	# SCOUTED tag: your torch showed this card, but you haven't been there.
+	var tag := Label.new()
+	tag.name = "Scouted"
+	tag.text = "SCOUTED"
+	tag.add_theme_font_size_override("font_size", 11)
+	tag.add_theme_color_override("font_color", Color(1, 0.8, 0.45))
+	tag.add_theme_color_override("font_outline_color", Color.BLACK)
+	tag.add_theme_constant_override("outline_size", 4)
+	tag.position = Vector2(8, 6)
+	tag.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	button.add_child(tag)
 	# TOOL TRICKS badge, top right: how many this card has, and how many you've
 	# found ("1/2"). Which ones? Try your tools (the Journal remembers).
 	var badge := PanelContainer.new()
@@ -286,6 +353,9 @@ func refresh() -> void:
 	info_label.text = default_info()
 	log_label.text = "\n".join(dungeon.history.slice(-14))
 	refresh_sack()
+	if guide_label:
+		refresh_goals()
+		guide_torch_nudge.call_deferred()  # Once any popup from this click is up (it waits for those).
 	if not dungeon.left_over.is_empty() or dungeon.last_danger_card != null or not dungeon.last_roamer_news.is_empty():
 		show_news.call_deferred()
 
@@ -317,63 +387,86 @@ func card_art(card: RoomCard) -> Texture2D:
 	return card.art if card.art else ICONS.get(card.type)
 
 
+# How one card looks. Three looks, easy to tell apart at a glance:
+#   FACE DOWN (not visited)  dark wood with a gold compass. The ones you can
+#                            step onto right now glow with a gold border.
+#   SCOUTED (torchlit)       still dark wood (you haven't been there!), with
+#                            a ghostly picture, its name in grey and a
+#                            "SCOUTED" tag.
+#   FACE UP (visited)        light parchment, the picture in a window, the
+#                            name in dark ink, and a border in its tile's
+#                            colour. Used-up cards go grey.
 func draw_square(square: Vector2i) -> void:
 	var button: Button = squares[square]
-	var icon: TextureRect = button.get_node("Icon")
+	var back: TextureRect = button.get_node("Back")
+	var window: Panel = button.get_node("Window")
+	var art: TextureRect = button.get_node("Window/Art")
 	var label: Label = button.get_node("Name")
 	button.get_node("Player").visible = square == dungeon.position
+	button.get_node("Scouted").visible = false
 	var tricks := trick_counts(square)
 	button.get_node("Tricks").visible = tricks.y > 0
 	button.get_node("Tricks/Row/Count").text = "%d/%d" % [tricks.x, tricks.y]
-	icon.texture = null
-	icon.modulate = Color.WHITE
+	art.modulate = Color.WHITE
 	label.text = ""
 	button.tooltip_text = describe_square(square)  # Shown when you hover the square for a moment.
 	var room: Dictionary = dungeon.rooms.get(square, {})
 	var card: RoomCard = room.get("card")
 	var reachable := reach.has(square)
-	var color := CARD_COLOR
+	var face_up := not room.is_empty() and room.revealed
+	var scouted := not face_up and not room.is_empty() and room.get("scouted", false) and card != null
+	var color := FACE_COLOR
 	var border := Color(0, 0, 0, 0.6)
-	if not room.is_empty() and not room.revealed and room.get("scouted", false) and card:
-		# SCOUTED: still face down (it flips when you step on it), but your
-		# torch showed what it is: its picture, a bit dim, with its tile border.
+	var ink := INK
+	back.visible = not face_up and not scouted
+	window.visible = face_up or scouted
+	if scouted:
 		color = BACK_COLOR
-		icon.texture = card_art(card)
-		icon.modulate = Color(0.85, 0.8, 0.65) if reachable else Color(0.6, 0.57, 0.5)
+		art.texture = card_art(card)
+		art.modulate = SCOUTED_TINT if reachable else SCOUTED_TINT.darkened(0.3)
 		label.text = card.room_name
-		border = RoomCard.TILE_COLORS[card.tile].darkened(0.0 if reachable else 0.35)
-	elif room.is_empty() or not room.revealed:
-		# FACE DOWN: just the card's back. The ones you can step onto glow gold.
+		ink = Color(0.7, 0.72, 0.8)
+		border = RoomCard.TILE_COLORS[card.tile].darkened(0.45)
+		button.get_node("Scouted").visible = true
+		window.add_theme_stylebox_override("panel", window_box(Color(0.06, 0.05, 0.04, 0.9), border))
+	elif not face_up:
 		color = BACK_COLOR
-		icon.texture = CARD_BACK
-		icon.modulate = Color.WHITE if reachable else Color(0.6, 0.6, 0.6)
-		border = Color(0.79, 0.64, 0.29, 0.9) if reachable else Color(0.3, 0.24, 0.14)
+		back.modulate = Color.WHITE if reachable else Color(0.5, 0.5, 0.5)
+		border = Color(0.95, 0.75, 0.3) if reachable else Color(0.25, 0.2, 0.12)
 	elif card == null:
 		if room.get("start", false):
-			icon.texture = ICONS[RoomCard.Type.CAMPFIRE]  # Lit on Floor 1, burnt out deeper down.
-			label.text = "Way Home" if room.campfire else "Burnt Out"
-			color = CAMPFIRE_COLOR if room.campfire else CARD_COLOR
-			if not room.campfire:
-				icon.modulate = USED_TINT  # Your old campfire, burnt out.
+			# Floor 1: the Farm Gate you came in by. Deeper: your old campfire,
+			# burnt out. Neither takes you home: find this floor's campfire!
+			art.texture = load(GATE_ICON_PATH) if dungeon.floor_number == 1 else ICONS[RoomCard.Type.CAMPFIRE]
+			label.text = "Farm Gate" if dungeon.floor_number == 1 else "Burnt Out"
+			if dungeon.floor_number > 1:
+				art.modulate = USED_TINT
+			color = FACE_DONE_COLOR
 		else:
 			color = GROUND_COLOR
+			window.visible = false
 			label.text = "Bare ground"
+			ink = Color(0.6, 0.58, 0.54)
 	else:
-		# FACE UP: its picture, its name, and a border in its tile's colour.
 		label.text = card.room_name
-		icon.texture = card_art(card)
-		border = RoomCard.TILE_COLORS[card.tile]
+		art.texture = card_art(card)
+		border = RoomCard.TILE_COLORS[card.tile].darkened(0.15)
 		if card.type == RoomCard.Type.EVENT and room.get("event") != null and card.event_name.is_empty():
 			label.text = room.event.event_name  # A Mystery, once you know what it is.
 		if room.campfire:
-			color = CAMPFIRE_COLOR
+			color = FACE_CAMPFIRE_COLOR
 		elif card.is_fight() and not room.cleared:
-			color = DANGER_CARD_COLOR
-		elif card.type == RoomCard.Type.LOCKED_CHEST and room.opened and not room.get("ruined", false) and card.art == null:
-			icon.texture = OPEN_CHEST_ICON
-		if room.done and not room.campfire:
-			icon.modulate = USED_TINT  # Used up: faded out.
-	var width := 4 if square == dungeon.position else (3 if reachable or room.get("revealed", false) else 2)
+			color = FACE_DANGER_COLOR
+		elif room.done:
+			color = FACE_DONE_COLOR
+			art.modulate = USED_TINT  # Used up: faded out.
+		if card.type == RoomCard.Type.LOCKED_CHEST and room.opened and not room.get("ruined", false) and card.art == null:
+			art.texture = OPEN_CHEST_ICON
+	if window.visible and not scouted:
+		window.add_theme_stylebox_override("panel", window_box(color.darkened(0.12), border.darkened(0.2)))
+	label.add_theme_color_override("font_color", ink)
+	draw_finds(button.get_node("Finds"), square, card if (face_up or scouted) else null)
+	var width := 4 if square == dungeon.position else (3 if reachable or face_up else 2)
 	if square == dungeon.position:
 		border = HERE_BORDER
 	button.add_theme_stylebox_override("normal", make_box(color, border, width))
@@ -396,6 +489,89 @@ func draw_square(square: Vector2i) -> void:
 	button.mouse_default_cursor_shape = Control.CURSOR_ARROW if button.disabled else Control.CURSOR_POINTING_HAND
 
 
+# The FINDS row: one chip per different thing this card can be scavenged for.
+# A "?" until you've found it on this kind of card (ever, on any trip), then
+# the thing's own icon. Once the spot is picked clean, the row fades.
+func draw_finds(row: HBoxContainer, square: Vector2i, card: RoomCard) -> void:
+	for old in row.get_children():
+		row.remove_child(old)
+		old.queue_free()
+	if card == null or not card.can_scavenge():
+		row.visible = false
+		return
+	row.visible = true
+	var room: Dictionary = dungeon.rooms[square]
+	var face_up: bool = room.revealed
+	row.modulate.a = 1.0 if dungeon.can_scavenge(square) or not face_up else 0.4
+	for item in card.scavenge_items():
+		var chip: Control
+		if GameState.knows_find(dungeon.area, card.room_name, item):
+			var icon := TextureRect.new()
+			icon.texture = item_icon(item)
+			icon.custom_minimum_size = Vector2(18, 18)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			chip = icon
+			if icon.texture == null:  # No picture for it: its first letter.
+				chip = make_chip_letter(item.left(1), face_up)
+		else:
+			chip = make_chip_letter("?", face_up)
+		chip.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		row.add_child(chip)
+		# Just found it? The new icon pops in, big and gold, then settles.
+		if square == new_find_square and item == new_find_item:
+			chip.pivot_offset = Vector2(9, 9)
+			chip.scale = Vector2(2.4, 2.4)
+			chip.modulate = Color(2, 1.7, 0.6)
+			var tween := chip.create_tween().set_parallel()
+			tween.tween_property(chip, "scale", Vector2.ONE, 0.45).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+			tween.tween_property(chip, "modulate", Color.WHITE, 0.8)
+	if square == new_find_square:
+		new_find_square = Vector2i(-1, -1)  # Only pop it once.
+
+
+func make_chip_letter(text: String, on_face: bool) -> Label:
+	var mark := Label.new()
+	mark.text = text
+	mark.custom_minimum_size = Vector2(18, 18)
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	mark.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	mark.add_theme_font_size_override("font_size", 16)
+	mark.add_theme_color_override("font_color", INK if on_face else Color(0.85, 0.85, 0.9))
+	return mark
+
+
+# The picture for a thing you can find: a material's icon, gold, a torch...
+func item_icon(item: String) -> Texture2D:
+	match item:
+		"Gold": return GOLD_ICON
+		"Card": return CARD_ICON
+		"Pack": return PACK_ICON
+		"Key": return KEY_ICON
+		"Torch": return TORCH_ICON
+		"Potion": return POTION_ICON
+		"Enchant": return ENCHANT_ICON
+		"Map": return MAP_ICON
+	if TOOL_ICONS.has(item):
+		return TOOL_ICONS[item]
+	var info := GameState.find_material(item)
+	return info.icon if info else null
+
+
+# The picture window's frame on a face-up card.
+func window_box(color: Color, border: Color) -> StyleBoxFlat:
+	var key := "window %s %s" % [color.to_html(), border.to_html()]
+	if _boxes.has(key):
+		return _boxes[key]
+	var box := StyleBoxFlat.new()
+	_boxes[key] = box
+	box.bg_color = color
+	box.border_color = border
+	box.set_border_width_all(1)
+	box.set_corner_radius_all(5)
+	return box
+
+
 # The tooltip for a square: what it is and what you can do with it.
 func describe_square(square: Vector2i) -> String:
 	var room: Dictionary = dungeon.rooms.get(square, {})
@@ -413,7 +589,7 @@ func describe_square(square: Vector2i) -> String:
 		if scouted.is_fight():
 			scout_lines.append("Stepping on it starts a fight, and Danger +1.")
 		if scouted.can_scavenge():
-			scout_lines.append("You can scavenge it.")
+			scout_lines.append("You can scavenge it. " + finds_text(scouted))
 		scout_lines.append("Still face down: step on it to flip it.")
 		return "\n".join(scout_lines)
 	if room.is_empty() or not room.revealed:
@@ -424,8 +600,8 @@ func describe_square(square: Vector2i) -> String:
 	var card: RoomCard = room.card
 	if card == null:
 		if room.get("start", false):
-			return "Where you came in. Return to Town from here." if room.campfire \
-				else "Your campfire from the floor above, burnt out. Find this floor's campfire to get home!"
+			return "The Farm Gate, where you came in. It's not a way home: find the campfire hidden on the board to Return to Town." \
+				if dungeon.floor_number == 1 else "Your campfire from the floor above, burnt out. Find this floor's campfire to get home!"
 		return "Bare ground: the map deck ran out of cards."
 	var lines: Array[String] = ["%s  (%s)" % [card.room_name, card.tile_name()]]
 	if not card.text.is_empty():
@@ -470,11 +646,30 @@ func describe_square(square: Vector2i) -> String:
 		lines.append("Vanish: once it's used, it's gone for the rest of this trip.")
 	if not card.loot.is_empty() and not room.done:
 		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
+	if card.can_scavenge():
+		lines.append(finds_text(card))
 	if dungeon.can_scavenge(square):
 		lines.append("Scavenge here (stand on it and click it). Next try: %s." % scavenge_odds(square))
 	elif card.can_scavenge() and room.get("scavenges", 0) > 0:
 		lines.append("Scavenged: nothing more to find here.")
 	return "\n".join(lines.filter(func(line: String) -> bool: return not line.is_empty()))
+
+
+# "Finds here: Stone, Gold, and 1 thing you haven't found yet (?)."
+func finds_text(card: RoomCard) -> String:
+	var known: Array[String] = []
+	var unknown := 0
+	for item in card.scavenge_items():
+		if GameState.knows_find(dungeon.area, card.room_name, item):
+			known.append(item)
+		else:
+			unknown += 1
+	var parts: Array[String] = []
+	if not known.is_empty():
+		parts.append(", ".join(known))
+	if unknown > 0:
+		parts.append("%d thing%s you haven't found yet (?)" % [unknown, "" if unknown == 1 else "s"])
+	return "Finds here: %s." % " and ".join(parts)
 
 
 func make_box(color: Color, border: Color, width: int) -> StyleBoxFlat:
@@ -567,6 +762,7 @@ func _on_square_pressed(square: Vector2i) -> void:
 	refresh()
 	if guide_label:
 		show_guide_tip(what, square)
+		await guide_spotlight(what, square)  # The first time: point right at it.
 	var room: Dictionary = dungeon.rooms[square]
 	var card: RoomCard = room.card
 	match what:
@@ -610,9 +806,6 @@ func _on_square_pressed(square: Vector2i) -> void:
 func flip_square(square: Vector2i) -> void:
 	busy = true
 	var button: Button = squares[square]
-	var icon: TextureRect = button.get_node("Icon")
-	icon.texture = CARD_BACK
-	button.get_node("Name").text = ""
 	var tween := create_tween()
 	tween.tween_property(button, "scale:x", 0.0, FLIP_TIME).set_ease(Tween.EASE_IN)
 	await tween.finished
@@ -969,11 +1162,17 @@ func _on_scavenge() -> void:
 		await roll_die(DungeonRun.SCAVENGE_DIE, outcome.roll, "Lucky!" if worked else "Noise!",
 			Color(0.55, 0.95, 0.55) if worked else Color(1, 0.45, 0.4))
 		busy = false
+	if worked and outcome.get("new_find", false):
+		new_find_square = dungeon.position  # Its "?" turns into this icon, with a pop.
+		new_find_item = outcome.item
 	refresh()
 	if guide_label:
 		show_guide_tip("scavenged", dungeon.position)
 	if worked:
-		show_scavenge("%s (Luck %d: %s)" % [outcome.text, outcome.luck, DungeonRun.luck_name(outcome.luck)])
+		var found_text := "%s (Luck %d: %s)" % [outcome.text, outcome.luck, DungeonRun.luck_name(outcome.luck)]
+		if outcome.get("new_find", false):
+			found_text += ".\nNEW FIND! The card now shows %s instead of a ?, so you'll know next time" % outcome.item
+		show_scavenge(found_text)
 	else:
 		show_popup("Nothing but noise!", "You rolled %d (needed %d+). Something heard that... Danger +1, and the %s has nothing more for you." % [
 			outcome.roll, outcome.need, card.room_name], [["OK", close_popup]], card_art(card), "pop", card)
@@ -1091,29 +1290,249 @@ func make_deck_row(entry: Dictionary) -> Control:
 # The Adventurer's first trip to the Farm, for the Innkeeper's first two
 # quests: Stone (from Collapsed Walls) and Hops (locked in sheds, so you
 # learn keys). The board is always the same (the Guide rows of
-# farm_cards.csv) and a box under the stats explains each new thing the
-# first time you meet it. Its campfires only offer Return to Town, and only
-# once you have everything the quests need.
+# farm_cards.csv). Dusty's playtest asked for it to be flashier and clearer,
+# so it's built like the battle training:
+#   1. A big intro banner ("THE ABANDONED FARM"), then a SPOTLIGHT TOUR
+#      (screen_guide.gd) of the board, your marker, the cards you can step
+#      on, your stats, and the goal list.
+#   2. A GOAL LIST in the side panel (FARM_GOALS). Each goal ticks off by
+#      itself (worked out from the board, see farm_goal_done()), with a big
+#      gold "GOAL COMPLETE!" and sparkles. The first goal not done yet is
+#      lit up, with a hint under it saying how to do it.
+#   3. The first time you meet something new (a wall to scavenge, a fight,
+#      a shed, the campfire...), a spotlight points right at it before its
+#      popup opens (guide_spotlight()).
+# Its campfires only offer Return to Town, and only once you have
+# everything the quests need.
 
-const GUIDE_START := "Welcome to the Abandoned Farm! This board is made of MAP CARDS, all face down. Click a glowing card next to you to flip it over. The Innkeeper needs 5 Stone (scavenge it from Collapsed Walls) and 3 Hops (locked in sheds)."
+# id, text, and the hint shown while it's the goal you're on.
+const FARM_GOALS := [
+	{"id": "flip", "text": "Flip a map card", "hint": "Click a card with a gold border, next to you. You step onto it and it flips over."},
+	{"id": "Stone", "text": "Scavenge Stone", "hint": "Collapsed Walls (green border) always give Stone the first time. Step on one, then click it again to scavenge."},
+	{"id": "key", "text": "Find a key", "hint": "Keys lie around in the mud. Keep flipping cards!"},
+	{"id": "Hops", "text": "Open the sheds for Hops", "hint": "Locked Sheds (gold border) hold the Hops. Walk to one with your key and use it."},
+	{"id": "torch", "text": "Peek at a card with your torch", "hint": "Click Light Torch (right), then ANY face-down card: you see what it is without stepping on it."},
+	{"id": "campfire", "text": "Find the hidden campfire", "hint": "There's no way home where you came in. The campfire is somewhere on the board: keep exploring!"},
+	{"id": "home", "text": "Return to Town", "hint": "Stand on the campfire and click it, then Return to Town."},
+]
+const GUIDE_GOLD := Color(1, 0.84, 0.35)
+
+var goal_rows := {}  # Goal id -> its Label in the goal list.
+var goals_done: Array[String] = []  # Goals already ticked (so each one celebrates once).
+
 
 func build_guide() -> void:
 	var panel := PanelContainer.new()
 	var style := StyleBoxFlat.new()
 	style.bg_color = Color(0.2, 0.17, 0.08, 0.95)
-	style.border_color = Color(1, 0.84, 0.35)
+	style.border_color = GUIDE_GOLD
 	style.set_border_width_all(2)
 	style.set_corner_radius_all(8)
-	style.set_content_margin_all(10)
+	style.set_content_margin_all(8)
 	panel.add_theme_stylebox_override("panel", style)
-	guide_label = Label.new()
+	var box := VBoxContainer.new()
+	box.add_theme_constant_override("separation", 1)
+	panel.add_child(box)
+	var heading := make_small_label("YOUR FIRST TRIP: GOALS", GUIDE_GOLD)
+	box.add_child(heading)
+	for goal: Dictionary in FARM_GOALS:
+		var row := make_small_label("", Color.WHITE)
+		row.add_theme_font_size_override("font_size", 14)
+		box.add_child(row)
+		goal_rows[goal.id] = row
+	guide_label = Label.new()  # The hint for the goal you're on.
 	guide_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	guide_label.add_theme_font_size_override("font_size", 16)
-	guide_label.text = "Guide:  " + GUIDE_START
-	panel.add_child(guide_label)
-	var box := info_label.get_parent()
-	box.add_child(panel)
-	box.move_child(panel, info_label.get_index() + 1)
+	guide_label.add_theme_font_size_override("font_size", 14)
+	guide_label.add_theme_color_override("font_color", Color(1, 0.92, 0.7))
+	box.add_child(guide_label)
+	var side := info_label.get_parent()
+	side.add_child(panel)
+	side.move_child(panel, info_label.get_index() + 1)
+	# Goals already done (coming back from a fight) don't celebrate again.
+	for goal: Dictionary in FARM_GOALS:
+		if farm_goal_done(goal.id):
+			goals_done.append(goal.id)
+	refresh_goals()
+	if dungeon.cards_flipped == 0:
+		start_farm_tour.call_deferred()  # Once the board is laid out.
+
+
+# Is this goal done? Worked out from the board itself, so nothing extra has
+# to be saved (and it's still right after a fight, when this screen is
+# built again).
+func farm_goal_done(id: String) -> bool:
+	var needs := dungeon.guide_needs()
+	match id:
+		"flip":
+			return dungeon.cards_flipped > 0
+		"key":
+			return dungeon.keys > 0 or dungeon.rooms.values().any(func(room: Dictionary) -> bool: return room.opened)
+		"torch":
+			return dungeon.rooms.values().any(func(room: Dictionary) -> bool: return room.get("scouted", false))
+		"campfire":
+			return dungeon.rooms.values().any(func(room: Dictionary) -> bool: return room.campfire and room.revealed)
+		"home":
+			return false  # Done when you leave.
+	# A material the quests need (Stone, Hops).
+	if not needs.has(id):
+		return true  # This quest isn't asking for it: nothing to do.
+	return dungeon.material_total(id) + GameState.material_count(id) >= needs[id]
+
+
+# Redraw the goal list: ✓ done, ▶ the one you're on (gold), ○ the rest.
+# Material goals show how many you have ("3/5"). New ticks celebrate.
+func refresh_goals() -> void:
+	if guide_label == null:
+		return
+	var current := ""
+	var needs := dungeon.guide_needs()
+	for goal: Dictionary in FARM_GOALS:
+		var done := farm_goal_done(goal.id)
+		var row: Label = goal_rows[goal.id]
+		var text: String = goal.text
+		if needs.has(goal.id):
+			var have := mini(dungeon.material_total(goal.id) + GameState.material_count(goal.id), needs[goal.id])
+			text += "  %d/%d" % [have, needs[goal.id]]
+		if done:
+			row.text = "✓  " + text
+			row.add_theme_color_override("font_color", Color(0.55, 0.9, 0.55))
+		elif current.is_empty():
+			current = goal.id
+			row.text = "▶  " + text
+			row.add_theme_color_override("font_color", GUIDE_GOLD)
+		else:
+			row.text = "○  " + text
+			row.add_theme_color_override("font_color", Color(1, 1, 1, 0.6))
+		if done and not goals_done.has(goal.id):
+			goals_done.append(goal.id)
+			celebrate_goal(goal.text)
+	for goal: Dictionary in FARM_GOALS:
+		if goal.id == current:
+			guide_label.text = goal.hint
+
+
+# GOAL COMPLETE! A big gold word over the board, sparkles, then it floats
+# away by itself. It doesn't stop you clicking (mouse_filter IGNORE).
+func celebrate_goal(goal_text: String) -> void:
+	var layer := Control.new()
+	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	add_child(layer)
+	var box := VBoxContainer.new()
+	box.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	layer.add_child(box)
+	var word := Label.new()
+	word.text = "GOAL COMPLETE!"
+	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	word.add_theme_font_size_override("font_size", 52)
+	word.add_theme_color_override("font_color", GUIDE_GOLD)
+	word.add_theme_color_override("font_outline_color", Color(0.35, 0.18, 0))
+	word.add_theme_constant_override("outline_size", 12)
+	box.add_child(word)
+	var line := Label.new()
+	line.text = "✓ " + goal_text
+	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	line.add_theme_font_size_override("font_size", 24)
+	line.add_theme_color_override("font_outline_color", Color.BLACK)
+	line.add_theme_constant_override("outline_size", 6)
+	box.add_child(line)
+	box.reset_size()
+	var middle := grid.get_global_rect().get_center()
+	box.position = middle - box.size / 2
+	box.pivot_offset = box.size / 2
+	box.scale = Vector2(2, 2)
+	box.modulate.a = 0
+	var sparkles := CPUParticles2D.new()
+	sparkles.position = middle
+	sparkles.amount = 40
+	sparkles.one_shot = true
+	sparkles.explosiveness = 0.95
+	sparkles.lifetime = 1.1
+	sparkles.spread = 180
+	sparkles.initial_velocity_min = 160
+	sparkles.initial_velocity_max = 380
+	sparkles.gravity = Vector2(0, 300)
+	sparkles.scale_amount_min = 3
+	sparkles.scale_amount_max = 6
+	sparkles.color = GUIDE_GOLD
+	layer.add_child(sparkles)
+	layer.move_child(sparkles, 0)
+	sparkles.emitting = true
+	var tween := layer.create_tween()
+	tween.set_parallel()
+	tween.tween_property(box, "scale", Vector2.ONE, 0.35).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+	tween.tween_property(box, "modulate:a", 1.0, 0.2)
+	tween.chain().tween_interval(1.3)
+	tween.chain().tween_property(box, "position:y", box.position.y - 40, 0.5)
+	tween.parallel().tween_property(box, "modulate:a", 0.0, 0.5)
+	tween.chain().tween_callback(layer.queue_free)
+
+
+# The first thing you see: a big banner, then a spotlight tour.
+func start_farm_tour() -> void:
+	UnlockBanner.show_in(self, "THE ABANDONED FARM", "Your first trip", dungeon.area.icon,
+		"The Innkeeper needs %s.\nFind it all, then find the campfire to get home with it. Watch out: if you fall, you lose what you found!" % dungeon.hunting_text(),
+		"Let's explore! →", func() -> void:
+			var reachable_card: Control = null
+			for square: Vector2i in reach:
+				if not dungeon.is_revealed(square):
+					reachable_card = squares[square]
+					break
+			ScreenGuide.start(self, "farm trip tour", [
+				{"target": grid, "text": "This is the farm, laid out as MAP CARDS. Dark cards are face down: places you haven't been yet."},
+				{"target": squares[dungeon.position], "text": "You're HERE, at the Farm Gate. It's only the way in, not the way home: there's a campfire hidden somewhere on the board. Find it to get home!"},
+				{"target": reachable_card, "text": "Cards with a GOLD border are right next to you. Click one to step onto it: it flips over and turns light. Light cards = places you've been."},
+				{"target": stats_label, "text": "Your HP, keys and torches. And DANGER: red cards (Unsafe) are always a fight and raise it. The more Danger, the stronger the monsters."},
+				{"target": guide_label.get_parent().get_parent(), "text": "Your GOALS. Each one ticks off by itself. The gold one is what to do next, with a hint under it."},
+			]))
+
+
+# The first time you meet something new, a spotlight points right at it
+# before its popup opens. `await` it: it returns once you've read it (or
+# straight away if there's nothing to show, or you've seen it before).
+func guide_spotlight(what: String, square: Vector2i) -> void:
+	if guide_label == null:
+		return
+	var card: RoomCard = dungeon.rooms[square].card if dungeon.rooms.has(square) else null
+	var steps := []
+	var guide_name := "farm trip " + what
+	match what:
+		"scavenge":
+			steps = [
+				{"target": squares[square], "text": "A COLLAPSED WALL: a Safe card (green border) you can SCAVENGE. Each ? along the bottom is something you can dig up here."},
+				{"target": squares[square].get_node("Finds"), "text": "Find one, and its ? turns into a picture of it, for good. Next time you'll know what this kind of card gives!"},
+			]
+		"fight":
+			steps = [
+				{"target": squares[square], "text": "An UNSAFE card (red border): always a fight. Win, and it's safe to walk over."},
+				{"target": stats_label, "text": "Finding it raised your DANGER. Every %d Danger makes every monster stronger, for the whole trip. Greedy explorers beware!" % dungeon.danger_per_strength()},
+			]
+		"treasure":
+			if card and card.loot.has("Key"):
+				guide_name = "farm trip key"
+				steps = [{"target": stats_label, "text": "A small KEY! Your keys show here. Each key opens one Locked Shed or chest."}]
+		"chest":
+			steps = [{"target": squares[square], "text": "A LOCKED SHED: an Explore card (gold border). Explore cards give you a choice. Got a key? Open it! No key yet? Come back later: it waits for you."}]
+		"campfire":
+			steps = [{"target": squares[square], "text": "THE CAMPFIRE! Every board hides one. It's your way home: stand on it and click it to Return to Town with everything you found."}]
+	if steps.is_empty():
+		return
+	var guide := ScreenGuide.start(self, guide_name, steps)
+	if guide:
+		await guide.finished
+
+
+# The torch: once you've flipped a few cards, a spotlight on the torch button.
+func guide_torch_nudge() -> void:
+	if guide_label == null or popup.visible or busy or farm_goal_done("torch") or dungeon.torches <= 0:
+		return
+	if get_children().any(func(child: Node) -> bool: return child is ScreenGuide or child is UnlockBanner):
+		return  # Another spotlight or banner is up: wait for the next click.
+	if dungeon.cards_flipped < 3 or GameState.seen_guides.has("farm trip torch"):
+		return
+	ScreenGuide.start(self, "farm trip torch", [{"target": torch_button,
+		"text": "Your TORCH! Click it, then click ANY face-down card on the board: you see what it is, without stepping on it. Then it rolls to keep burning (harder each time)."}])
 
 
 # "Stone 3 / 5  Hops 1 / 3" for the guide, from what the quests need.
@@ -1123,42 +1542,13 @@ func guide_progress() -> String:
 
 # Once you have it all: back to a campfire.
 func guide_goal_text() -> String:
-	return "You have the Stone and the Hops! Walk back to the campfire where you started (or find the hidden one) and Return to Town."
+	return "You have the Stone and the Hops! Find the campfire hidden somewhere on the board and Return to Town."
 
 
-# A tip for what just happened, the first time each thing happens.
-func show_guide_tip(what: String, square: Vector2i) -> void:
-	var card: RoomCard = dungeon.rooms[square].card if dungeon.rooms.has(square) else null
-	var tip := ""
-	match what:
-		"treasure":
-			if card and card.loot.has("Key"):
-				tip = "A small key! Each key opens one locked shed or chest. Face-up Safe cards can be walked over for free, so you can go back for the sheds."
-			else:
-				tip = "Treasure! What you find shows on the right under Found. It's only yours once you get home: if you fall, you lose it."
-		"scavenge":
-			tip = "A SAFE card (green border) you can SCAVENGE. The first try is free and always works (a wall always has Stone). After that, push your luck: each try needs a higher roll, but finds better things. Fail, and Danger goes up."
-		"scavenged":
-			tip = "Found it! It's only yours once you get home: if you fall, you lose it. Push your luck for something better, or Stop and come back later (click the card you're standing on)."
-		"torch":
-			tip = "Your TORCH shows a card before you step on it (it stays face down). After each card it rolls a d4 to keep burning, and it gets harder each time. Use it to find the sheds, or to spot fights before they find you."
-		"fight":
-			tip = "An UNSAFE card (red border): always a fight, and it raises DANGER. Every %d Danger makes every enemy stronger, for the whole trip. Once you win, the card is safe to walk over." % dungeon.danger_per_strength()
-		"chest":
-			tip = "An EXPLORE card (gold border): you choose what to do. Use a key to open it." if dungeon.keys > 0 \
-				else "An EXPLORE card (gold border): a locked shed, and no key yet. Keep exploring, then come back: it waits for you."
-		"event":
-			tip = "Another EXPLORE card: pick a choice. Some choices are a gamble: the % shows the chance it works."
-		"empty":
-			tip = "Nothing here, just the farm. Try the Light Torch button: it shows a face-down card before you step on it."
-		"campfire":
-			tip = "A campfire! Campfires are your way home. On later trips, they also let you GO DEEPER: a fresh board, one floor down." if not dungeon.guide_goal_met() else guide_goal_text()
-		"opened":
-			tip = "The key opened it! Sheds and chests hold the good stuff: here, the Innkeeper's Hops."
-	if dungeon.guide_goal_met() and what != "campfire":
-		tip = guide_goal_text()
-	if not tip.is_empty():
-		guide_label.text = "Guide:  %s\n(%s)" % [tip, guide_progress()]
+# Called after anything happens on the first trip: tick the goals.
+# (The old version wrote a tip here; now the hint under the goals does that.)
+func show_guide_tip(_what: String, _square: Vector2i) -> void:
+	refresh_goals()
 
 
 # The first trip's campfire: Return to Town is the only choice, greyed out
@@ -1624,8 +2014,9 @@ func build_sack_panel() -> void:
 	sack_title.add_child(sack_picture)
 	sack_title.add_child(make_small_label("Save Sack: kept even if you die", Color(1, 0.85, 0.5)))
 	sack_title.tooltip_text = "Drag what you've found into a slot (or click it). If you die, you keep what's in the sack.\nEach slot holds a pack, a card, or up to %d gold. The Tailor in town makes it bigger." % GameState.gold_stack()
-	sack_row = HBoxContainer.new()
-	sack_row.add_theme_constant_override("separation", 6)
+	sack_row = HFlowContainer.new()  # Wraps onto a second line when the Tailor adds slots.
+	sack_row.add_theme_constant_override("h_separation", 6)
+	sack_row.add_theme_constant_override("v_separation", 4)
 	# No Save Sack until the Tailor sews one: then the title and slots show.
 	if GameState.sack_open():
 		nodes.append(sack_title)
@@ -1645,8 +2036,11 @@ func build_sack_panel() -> void:
 	backpack_row.add_theme_constant_override("v_separation", 4)
 	nodes.append(backpack_row)
 
-	var gear := HBoxContainer.new()
-	gear.add_theme_constant_override("separation", 8)
+	# HFlowContainer: like an HBox, but wraps onto a new line when it runs out
+	# of room (the side panel got narrower when the map cards got bigger).
+	var gear := HFlowContainer.new()
+	gear.add_theme_constant_override("h_separation", 8)
+	gear.add_theme_constant_override("v_separation", 6)
 	torch_button = Button.new()
 	torch_button.icon = TORCH_ICON
 	torch_button.expand_icon = true

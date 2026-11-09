@@ -33,7 +33,9 @@ Thorn Treant,Thorn Lash,3,,4-6,,,,,,,,,
 Thorn Treant,Bramble Wall,1,1,,,6,,,3,,,,Block for itself and its friends
 Thorn Treant,Take Root,1,1,,,,,5,,,,,Heals 5
 Training Dummy,Stand Still,1,,,,,,,,,,,Tutorial: does nothing
-Sparring Dummy,Swing,1,,6,,,,,,,,,Tutorial: always hits for 6
+Sparring Dummy,Swing,1,,6,,,,,,,,,Tutorial (In Order): turn 1 hits for 6
+Sparring Dummy,Heavy Swing,1,,8,,,,,,,,,Tutorial: turn 2 hits for 8 (Fortify + Guard block it)
+Sparring Dummy,Swing,1,,6,,,,,,,,,Tutorial: turn 3 hits for 6 again (Armor kept some Block)
 Old Master,Measured Strike,3,,5-7,,,,,,,,,"A clean, hard hit"
 Old Master,Iron Stance,2,1,,,8,,,,,,,"Blocks 8, never twice in a row"
 Old Master,Teach a Lesson,1,1,3,,,1,,,,,,"A light hit, and +1 Strength for the rest of the fight"

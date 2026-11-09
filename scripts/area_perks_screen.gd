@@ -101,11 +101,41 @@ func refresh() -> void:
 	points_label.add_theme_color_override("font_color", GOLD_COLOR if points > 0 else Color.WHITE)
 	for old in grid.get_children():
 		old.queue_free()
-	var perks := GameState.area_perk_list(area)
+	# Only the perks for things you've unlocked (GameState.shown_area_perks):
+	# the rest wait, hidden, until you have what they're about.
+	var perks := GameState.shown_area_perks(area)
 	if perks.is_empty():
 		grid.add_child(make_label("No perks here yet.", 18, DIM_COLOR))
 	for perk in perks:
 		grid.add_child(make_perk_panel(perk))
+	var hidden := GameState.area_perk_list(area).size() - perks.size()
+	if hidden > 0:
+		grid.add_child(make_hidden_panel(hidden))
+
+
+# A dim "?" panel at the end: there are more perks, for things you haven't
+# found yet. (It doesn't say what, so it's a little surprise when they show.)
+func make_hidden_panel(count: int) -> Control:
+	var panel := PanelContainer.new()
+	panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	panel.custom_minimum_size = Vector2(0, 128)
+	var style := StyleBoxFlat.new()
+	style.bg_color = Color(0.08, 0.07, 0.06, 0.7)
+	style.border_color = BORDER_COLOR.darkened(0.3)
+	style.set_border_width_all(2)
+	style.set_corner_radius_all(8)
+	style.set_content_margin_all(10)
+	panel.add_theme_stylebox_override("panel", style)
+	var box := VBoxContainer.new()
+	box.alignment = BoxContainer.ALIGNMENT_CENTER
+	panel.add_child(box)
+	var mark := make_label("?", 40, DIM_COLOR)
+	mark.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(mark)
+	var text := make_label("%d more perk%s will show up as you unlock new things in town." % [count, "" if count == 1 else "s"], 15, DIM_COLOR, true)
+	text.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	box.add_child(text)
+	return panel
 
 
 func make_perk_panel(perk: AreaPerk) -> Control:

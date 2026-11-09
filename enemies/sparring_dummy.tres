@@ -10,6 +10,18 @@ move_name = "Swing"
 attack_min = 6
 attack_max = 6
 
+[sub_resource type="Resource" id="Resource_heavy"]
+script = ExtResource("1_ksxax")
+move_name = "Heavy Swing"
+attack_min = 8
+attack_max = 8
+
+[sub_resource type="Resource" id="Resource_swing2"]
+script = ExtResource("1_ksxax")
+move_name = "Swing"
+attack_min = 6
+attack_max = 6
+
 [resource]
 script = ExtResource("2_52ib6")
 display_name = "Sparring Dummy"
@@ -17,6 +29,7 @@ max_hp = 99
 texture = ExtResource("3_m7ewi")
 sprite_size = Vector2(120, 163)
 name_color = Color(1, 0.6039216, 0.41568628, 1)
-moves = Array[ExtResource("1_ksxax")]([SubResource("Resource_hdw4v")])
+moves = Array[ExtResource("1_ksxax")]([SubResource("Resource_hdw4v"), SubResource("Resource_heavy"), SubResource("Resource_swing2")])
+move_order = 1
 exp = 0
 drops = PackedStringArray()

@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- The Farm Gate: where every trip starts. A wooden gate in a fence, standing open. -->
+  <path d="M2 44 L62 44 L62 62 L2 62 Z" fill="#5f8a36"/>
+  <path d="M26 44 Q24 54 30 62 L40 62 Q36 54 38 44 Z" fill="#b08d58"/>
+  <rect x="6" y="18" width="6" height="30" rx="1" fill="#7a5530" stroke="#3b2a1a" stroke-width="1.5"/>
+  <rect x="52" y="18" width="6" height="30" rx="1" fill="#7a5530" stroke="#3b2a1a" stroke-width="1.5"/>
+  <path d="M12 24 L24 26 L24 44 L12 42 Z" fill="#a8743f" stroke="#3b2a1a" stroke-width="1.5"/>
+  <path d="M12 33 L24 35" stroke="#3b2a1a" stroke-width="1.5"/>
+  <path d="M12 42 L24 26" stroke="#3b2a1a" stroke-width="1.5"/>
+  <path d="M52 24 L40 26 L40 44 L52 42 Z" fill="#a8743f" stroke="#3b2a1a" stroke-width="1.5"/>
+  <path d="M52 33 L40 35" stroke="#3b2a1a" stroke-width="1.5"/>
+  <path d="M52 42 L40 26" stroke="#3b2a1a" stroke-width="1.5"/>
+  <circle cx="9" cy="16" r="3" fill="#7a5530" stroke="#3b2a1a" stroke-width="1.5"/>
+  <circle cx="55" cy="16" r="3" fill="#7a5530" stroke="#3b2a1a" stroke-width="1.5"/>
+</svg>

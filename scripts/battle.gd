@@ -485,6 +485,8 @@ func start_player_turn() -> void:
 func _on_end_turn_pressed() -> void:
 	if game_over or busy:
 		return
+	if tutorial and not tutorial.allows_end_turn():
+		return  # The training wants you to finish the goal you're on first.
 	end_turn_button.disabled = true
 	dice_tray.hide()  # Clear this turn's dice.
 
@@ -768,6 +770,8 @@ func roll_text(card: CardData) -> String:
 func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 	if busy or game_over or card.cost > energy:
 		return
+	if tutorial and not tutorial.allows_play(card):
+		return  # The training's goal you're on doesn't use this card.
 	if not hand.has(card):
 		return  # Only cards really in your hand can be played.
 
@@ -790,6 +794,8 @@ func _on_card_played(card: CardData, target: EnemyView = null) -> void:
 	var animate := not card.is_rolled()
 	if card.has_dice() and not card.is_rolled():
 		card.roll_result = CardRoller.roll(card, CardRoller.mode_for(card, next_roll_advantage))
+		if tutorial:
+			tutorial.rig_roll(card)  # The training can fix a Wild card's roll too.
 	elif card.has_dice() and next_roll_advantage and CardRoller.mode_for(card, true) == CardRoller.ADVANTAGE \
 			and not card.advantage:
 		# It already rolled when drawn, and now has Advantage: roll a second set
@@ -972,6 +978,8 @@ func choose_rerolls(count: int) -> void:
 		choosing_reroll = false
 		var before := roll_text(picked)
 		picked.roll_result = CardRoller.roll(picked, CardRoller.mode_for(picked, false))
+		if tutorial:
+			tutorial.rig_reroll(picked)  # The training's Punch always rerolls into a 6.
 		battle_log.add("You re-roll %s: %s → %s" % [picked.card_name, before, roll_text(picked)])
 		message_label.text = ""
 		for view: Card in hand_box.get_children():
@@ -986,6 +994,8 @@ func can_reroll(card: CardData) -> bool:
 
 
 func _on_hand_card_clicked(card: CardData) -> void:
+	if tutorial and not tutorial.allows_reroll_pick(card):
+		return
 	if choosing_reroll and can_reroll(card):
 		reroll_picked.emit(card)
 
@@ -1343,13 +1353,20 @@ func update_ui() -> void:
 		if card.is_queued_for_deletion():
 			continue
 		card.disabled = game_over or card.card_data.cost > energy
+		if tutorial and not tutorial.allows_play(card.card_data):
+			card.disabled = true  # The training's goal you're on doesn't use it.
 		if choosing_reroll:
 			card.disabled = not can_reroll(card.card_data)  # Only the ones you can pick.
+			if tutorial and not tutorial.allows_reroll_pick(card.card_data):
+				card.disabled = true
 		card.preview_text = describe_card(card.card_data)
 		if card.card_data.is_rolled():
 			# Light up dice that a bonus (like Master of None's +1) turns into crits.
 			card.show_crits(CardRoller.resolve(card.card_data, card.card_data.roll_result, get_bonuses(card.card_data)).rolls)
 
+	# The training: End Turn only works when the goal you're on asks for it.
+	if tutorial and not busy and not game_over:
+		end_turn_button.disabled = not tutorial.allows_end_turn()
 	show_drag_preview()
 
 
