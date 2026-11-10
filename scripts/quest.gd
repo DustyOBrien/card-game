@@ -25,7 +25,12 @@
 #   Reach Tier   3              get to that floor in any dungeon (Go Deeper)
 #   Gather       Have Stone 5; Have Sticks 2; Deliver Hops 2
 #                several things at once, as a CHECKLIST. Each part is Have
-#                (you keep it) or Deliver (you hand it over). Amount is ignored.
+#                (you keep it), Deliver (you hand it over), or Reach (a story
+#                moment has happened: "Reach Cellar Opened"). Amount is ignored.
+#
+# Seed Cards: map cards this quest puts on the board when it's the run's
+# goal (picked on the Prepare screen), e.g. "Dark Cellar". Only STORY quests
+# are picked like that; every other quest counts on every run.
 #
 # Rewards and Start Gift (several, split by ";"):
 #   Gold 20, Pack Small 2 (Small / Medium / Large Farm Booster Packs),
@@ -43,6 +48,7 @@ const DEFEAT := "defeat"
 const REACH_TIER := "reach tier"
 const OPEN_PACKS := "open packs"
 const GATHER := "gather"
+const REACH := "reach"  # A Gather part: a story beat (GameState.story_beats) has happened.
 const OBJECTIVES := [BUILD, HAVE, DELIVER, BREW, CLEAR_ROOM, DEFEAT, REACH_TIER, OPEN_PACKS, GATHER]
 const ANY := "any"  # Defeat Any: every monster counts.
 
@@ -58,6 +64,7 @@ const ANY := "any"  # Defeat Any: every monster counts.
 @export var quest_type: String = "Story"  # Story / Adventurer / Side: groups it on the quest screen.
 @export var starts_after: String = ""  # Also starts when THAT quest is handed in.
 @export var sort_order: int = 0
+@export var seed_cards: String = ""  # "Dark Cellar; Old Well": put on the board when it's the run's goal.
 # Which place it belongs to ("Abandoned Farm"), for the Inn's tabs. Blank = the town.
 @export var area: String = ""
 
@@ -75,10 +82,21 @@ func objective_text() -> String:
 		REACH_TIER: return "Reach Floor %d of a dungeon" % amount
 		GATHER:
 			var items: Array[String] = []
+			var reach: Array[String] = []
 			for part in parts():
-				items.append("%d %s" % [part.amount, part.name])
-			return "Bring home " + ", ".join(items)
+				if part.verb == REACH:
+					reach.append(REACH_TEXTS.get(part.name, part.name))
+				else:
+					items.append("%d %s" % [part.amount, part.name])
+			var text := ("Bring home " + ", ".join(items)) if not items.is_empty() else ""
+			if not reach.is_empty():
+				text += ("; " if not text.is_empty() else "") + "; ".join(reach)
+			return text
 	return "%s %s" % [objective, target]
+
+
+# What a Reach part says on the quest screen.
+const REACH_TEXTS := {"Cellar Opened": "open the Dark Cellar with Kale's key", "Dark Cellar Cleared": "clear out the Dark Cellar (beat what lives at the bottom)"}
 
 
 # A Gather quest's checklist: "Have Stone 5; Deliver Hops 2" ->
@@ -95,6 +113,10 @@ func parts() -> Array[Dictionary]:
 		if words.size() < 2:
 			continue
 		var verb := words[0].to_lower()
+		if verb == REACH:
+			words.remove_at(0)
+			list.append({"verb": REACH, "name": " ".join(words), "amount": 1})
+			continue
 		if not verb in [HAVE, DELIVER]:
 			verb = HAVE  # "Stone 5" on its own means Have.
 		else:

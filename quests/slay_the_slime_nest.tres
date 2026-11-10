@@ -15,5 +15,6 @@ rewards = "Pack Small 4"
 next_quest = ""
 quest_type = "Story"
 starts_after = ""
-sort_order = 4
+sort_order = 5
+seed_cards = ""
 area = "Abandoned Farm"

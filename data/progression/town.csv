@@ -1,6 +1,6 @@
 Building,Stage,Cost,Effect,Amount,Icon,Description,Stage Text,Materials,Blueprint
 Guild Hall,1,0,Bank,1,guild_hall.svg,"Your home base. Build the town from here, and its Bank keeps your materials safe.","Build and upgrade the town, and the Bank keeps your materials",,
-Inn,1,0,Inn,1,inn.svg,"Kale's Inn. Rest your feet and find quests here.","Repaired: Kale can give you quests",Stone 5,Yes
+Inn,1,0,Inn,1,inn.svg,Kale's Inn. Rest your feet and find quests here.,Repaired: Kale can give you quests,Stone 5,Yes
 Inn,2,0,Inn,1,,,"A proper roof and a working tap: Kale's ale is flowing, and the Inn is ready for guests",Stone 5,
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,Stone 5,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,Stone 10,
@@ -15,4 +15,4 @@ Alchemist,1,0,Alchemist,1,alchemist.svg,Brews flasks and potions.,"Brew flasks, 
 Alchemist,2,60,Potion Slots,1,,,Carry 1 more potion,Stone 10,
 Mapmaker,1,40,Mapmaker,1,mapmaker.svg,Draws maps of the dungeons.,Buy maps that unlock new map cards,Stone 5,Yes
 Mapmaker,2,70,Danger Steps,1,,,Danger builds slower: a Danger card every 4 Danger instead of 3,Stone 10,
-Dojo,1,20,Dojo,1,dojo.svg,A training hall where the Old Master teaches. Your talents and the Monster Book live here.,Talents + the Monster Book (every monster you meet),Stone 10,Yes
+Dojo,1,0,Dojo,1,dojo.svg,The Old Master's training hall. Your talents and the Monster Book live here.,Talents + the Monster Book (every monster you meet),Stone 5,Yes

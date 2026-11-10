@@ -57,6 +57,8 @@ const DECK_PERK := "Perk"  # Only in the deck through a place perk (Swap Card).
 const DECK_LINKED := "Linked"  # Only added by another card: the Rusty Lever's Sealed Vault, the Hoard's guards.
 const DECK_ROAMER := "Roamer"  # A mini boss that wanders the board, face down, a square per step.
 const DECK_SECRET := "Secret"  # Only appears when a tool finds it (a bombed wall).
+const DECK_QUEST := "Quest"  # Only on the board when the trip's Main quest seeds it (Prepare screen).
+const DECK_INSIDE := "Inside"  # The cards INSIDE an Explore tile (the Dark Cellar's own little map).
 
 @export var room_name: String = "Room"
 @export var type: Type = Type.EMPTY
@@ -107,6 +109,8 @@ const GUIDE_TIER := -1
 # GUARDS (map cards): the card dealt next to this one (up to 2), e.g. the
 # Guarded Hoard's "Slime Guard". You can't take this card's loot while one stands.
 @export var guards: String = ""
+# Inside rows: the Explore tile this card is inside of ("Dark Cellar").
+@export var inside_of: String = ""
 const GUARD_COUNT := 2
 
 

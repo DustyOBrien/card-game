@@ -32,6 +32,13 @@ var current_area: Area
 const MAX_PACKED_TORCHES := 3  # Torches you can pack (they take backpack space).
 const MAX_LOADOUTS := 6
 var packed_torches := 2  # How many torches you take (DungeonRun.STARTING_TORCHES on the first trip).
+# KEY ITEMS: story things that sit in their own slot (not the Bank) and are
+# never used up or lost: the Mysterious Orb, Kale's Cellar Key. Saved.
+var key_items: Array[String] = []
+# The run's MAIN QUEST, picked on the Prepare screen ("" = none). Its Seed
+# Cards go on the board, and while you're out only it (of the Story quests)
+# counts kills and rooms. Side quests always count. Saved.
+var run_quest := ""
 # Your own map cards you've taken OUT of the map deck, per place: {"Abandoned Farm": ["Bunny Warren"]}.
 var map_cards_off := {}
 # Saved loadouts: {"name", "class", "spec", "talents", "deck", "flask", "torches", "map_cards_off"}.
@@ -308,12 +315,24 @@ const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the train
 const FIRST_TRIP := "First Farm Trip"
 # CHAPTER 1: THE INN (town.gd plays it). The beats in order:
 const MEDALLION_CHEST := "Medallion Chest"  # Opened the chest in the Guild Hall (Stone, Sticks, Wool, the orb).
-const CRAFTING_OPEN := "Crafting Bench"  # Kale showed you the crafting bench (make a Torch).
-const SENT_OFF := "Off to the Farm"  # Kale explained the map: the road out of town opens.
-const SUPPLIES_QUEST := "Supplies for the Inn"  # Kale's Chapter 1 quest: the Inn's upgrade waits for it.
-const INN_UPGRADED := "Inn Upgraded"  # You upgraded the Inn with the Stone from your first trip: Chapter 1 is done.
+const CRAFTING_OPEN := "Crafting Bench"  # Chapter 2: Kale showed you the crafting bench (make a Torch).
+const SENT_OFF := "Off to the Farm"  # Kale gave you his Cellar Key: the road out of town opens.
+const SUPPLIES_QUEST := "Supplies for the Inn"  # Kale's Chapter 1 quest (it ends at the Dark Cellar).
+const CELLAR_QUEST := "The Dark Cellar"  # Kale's Chapter 2 quest: the Inn's upgrade waits for it.
 const STORY_INTRO := "Story Intro"  # The story cutscene (story_intro.gd) has been seen or skipped.
 const FIRST_LEVEL_UP := "First Level Up"  # Any class reached level 2: the Old Master appears.
+# The end of Chapter 1: on the first trip you open the Dark Cellar with
+# Kale's key, the slimes pour out, the orb glows and you slam the door.
+# (A "Reach" part of Kale's Supplies quest.)
+const CELLAR_OPENED := "Cellar Opened"
+# CHAPTER 2: THE GLOWING ORB AND THE MASTER (town.gd plays it).
+const CHAPTER_2 := "Chapter 2"  # The title card has shown.
+const ORB_EXPLAINED := "Orb Explained"  # The Old Master told you about the orbs: the Adventurer is unlocked.
+const MASTER_TRAINING := "Master Training"  # The Dojo is built: off to the Master's training fight.
+const CHAPTER_2_DONE := "Chapter 2 Done"  # You cleared the Dark Cellar and told Kale: the old quests start.
+const ORB := "Mysterious Orb"  # Key items.
+const ORB_AWAKE := "Orb of the Adventurer"  # What the orb turns out to be.
+const CELLAR_KEY := "Cellar Key"
 # Monsters you've beaten in the dungeons (not the training dummies). Saved.
 # The Old Master is impressed by it.
 var monsters_slain := 0
@@ -389,6 +408,8 @@ func start_fresh() -> void:
 	unlocked_features.clear()
 	seen_guides.clear()
 	story_beats.clear()
+	key_items.clear()
+	run_quest = ""
 	active_quests.clear()
 	quest_progress.clear()
 	unseen_quests.clear()
@@ -1216,10 +1237,10 @@ func restore_blocked(building: TownBuilding) -> String:
 		return "Fully restored"
 	if not has_blueprint(building):
 		return "Not unlocked yet"
-	# Chapter 1: the Inn's upgrade is the UPGRADE lesson, after Kale's supplies
-	# (so the first Stone isn't spent before the quest can be handed in).
-	if building.building_name == "Inn" and stage == 1 and not quests_done.has(SUPPLIES_QUEST):
-		return "First bring Kale his supplies"
+	# The Inn's upgrade waits for the end of Chapter 2 (so the first trip's
+	# Stone goes on the Old Master's Dojo).
+	if building.building_name == "Inn" and stage == 1 and not quests_done.has(CELLAR_QUEST):
+		return "First clear out Kale's Dark Cellar"
 	if gold < building.cost_of_next(stage):
 		return "Needs %d coins" % building.cost_of_next(stage)
 	var needs := building.materials_for_next(stage)
@@ -1337,7 +1358,10 @@ func quest_status(quest: Quest) -> Vector2i:
 			# Every line of the checklist, added up: Stone 3/5 + Hops 2/2 = 5/7.
 			var status := Vector2i.ZERO
 			for part in quest.parts():
-				status += Vector2i(mini(material_count(part.name), part.amount), part.amount)
+				if part.verb == Quest.REACH:  # A story moment: done or not.
+					status += Vector2i(1 if story_beats.has(part.name) else 0, 1)
+				else:
+					status += Vector2i(mini(material_count(part.name), part.amount), part.amount)
 			return status
 		Quest.BREW:
 			var flask := find_flask(quest.target)
@@ -1360,7 +1384,7 @@ func quests_ready_count() -> int:
 # Count something for every quest it fits: a kill, a beaten room, a pack, a tier.
 func record_for_quest(objective: String, target: String, value: int = 1) -> void:
 	for quest in quests_active():
-		if quest.objective != objective:
+		if quest.objective != objective or not counts_this_run(quest):
 			continue
 		var count: int = quest_progress.get(quest.quest_name, 0)
 		if objective == Quest.REACH_TIER:
@@ -1368,6 +1392,33 @@ func record_for_quest(objective: String, target: String, value: int = 1) -> void
 		elif quest.target.to_lower() == target.to_lower() or quest.target.to_lower() == Quest.ANY \
 				or (objective == Quest.OPEN_PACKS and target.to_lower().contains(quest.target.to_lower())):
 			quest_progress[quest.quest_name] = count + value
+
+
+# Out on a trip, only the MAIN quest you picked on the Prepare screen counts
+# of the Story quests. Side quests (kill X...) always count (Dusty).
+func counts_this_run(quest: Quest) -> bool:
+	if quest.quest_type != "Story" or dungeon == null or not dungeon.result.is_empty():
+		return true
+	return run_quest.is_empty() or run_quest == quest.quest_name
+
+
+# The Story quests you can pick as a trip's MAIN QUEST for this place
+# (Prepare screen): active ones that belong to it (or to no place).
+func main_quests_for(area: Area) -> Array[Quest]:
+	var list: Array[Quest] = []
+	for quest in quests_active():
+		if quest.quest_type == "Story" and (quest.area.is_empty() or (area and quest.area == area.display_name)):
+			list.append(quest)
+	return list
+
+
+# The trip's main quest, if it's still on (else the first one you could pick).
+func current_run_quest(area: Area) -> Quest:
+	var list := main_quests_for(area)
+	for quest in list:
+		if quest.quest_name == run_quest:
+			return quest
+	return list[0] if not list.is_empty() else null
 
 
 # Nothing to do here yet: quests are handed in at the Inn (town.gd).
@@ -1424,8 +1475,11 @@ func reach_milestone(beat: String) -> bool:
 func guide_needs() -> Dictionary:
 	var needs := {}
 	for quest in quests_active():
+		if not counts_this_run(quest):
+			continue
 		for part in quest.parts():
-			needs[part.name] = needs.get(part.name, 0) + part.amount
+			if part.verb != Quest.REACH:  # A story moment, not something to bring home.
+				needs[part.name] = needs.get(part.name, 0) + part.amount
 	return needs
 
 
@@ -1442,7 +1496,7 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 		if words.is_empty():
 			continue
 		var rest := reward.substr(words[0].length()).strip_edges()
-		if unlocks_only and not words[0].to_lower() in ["blueprint", "room", "unlock"]:
+		if unlocks_only and not words[0].to_lower() in ["blueprint", "room", "unlock", "key"]:
 			continue
 		match words[0].to_lower():
 			"gold":
@@ -1524,6 +1578,11 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
 				legacy_talent_points += points
 				lines.append("%d Legacy Talent Point%s" % [points, "s" if points > 1 else ""])
+			"key":  # "Key Item Cellar Key": a story item for the key item slot.
+				var item := rest.trim_prefix("Item").strip_edges()
+				if not key_items.has(item):
+					key_items.append(item)
+				lines.append("Key item: " + item)
 			"unlock":  # "Unlock Talents": opens up a part of the game.
 				if not unlocked_features.has(rest):
 					unlocked_features.append(rest)
@@ -2151,7 +2210,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 9  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp). 8 = foils, binders, the rare pity counter and spec levels (class Exp goes into specs). 9 = Chapter 1: Kale, the medallion chest, crafting, and the Architect's no-combat first trip.
+const SAVE_VERSION := 10  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp). 8 = foils, binders, the rare pity counter and spec levels (class Exp goes into specs). 9 = Chapter 1: Kale, the medallion chest, crafting, and the Architect's no-combat first trip. 10 = Chapter 2: the Dark Cellar, key items, the Old Master and the Adventurer's orb.
 
 
 func save_game() -> void:
@@ -2199,6 +2258,8 @@ func save_game() -> void:
 		"unlocked_features": unlocked_features,
 		"seen_guides": seen_guides,
 		"story_beats": story_beats,
+		"key_items": key_items,
+		"run_quest": run_quest,
 		"packed_torches": packed_torches,
 		"area_exp": area_exp,
 		"area_perks": area_perks,
@@ -2317,6 +2378,8 @@ func load_game() -> bool:
 			give_rewards(quest.rewards, true)
 	seen_guides.assign(data.get("seen_guides", []))
 	story_beats.assign(data.get("story_beats", []))
+	key_items.assign(data.get("key_items", []))
+	run_quest = str(data.get("run_quest", ""))
 	# Quests whose Starts After is a milestone you've already reached.
 	for beat in story_beats:
 		_start_quests_after(beat)
@@ -2396,8 +2459,8 @@ func load_classes() -> Array[CharacterClass]:
 func is_area_unlocked(area: Area) -> bool:
 	if area.coming_later:
 		return false  # Still being built.
-	if not adventurers_here():
-		return is_guided_run(area)  # Chapter 1: only the Architect's first trip (no fighting).
+	if not adventurers_here() or not tutorial_done:
+		return is_guided_run(area)  # Chapter 1: only the Architect's first trip (no fighting). Chapter 2: train first.
 	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
 
 
@@ -2674,7 +2737,33 @@ func is_dark(card: RoomCard) -> bool:
 		return false
 	var event := find_event(card.event_name)
 	return event != null and Array(event.effects).any(func(effects: String) -> bool:
-		return effects.to_lower().contains("use torch"))
+		return effects.to_lower().contains("use torch") or effects.to_lower().contains("enter "))
+
+
+# A place a KEY ITEM opens ("Key Item Cellar Key" in its event): that
+# item's name, or "". (The first trip's Dark Cellar: Kale's key, no torch.)
+func key_item_needed(card: RoomCard) -> String:
+	if card == null or card.event_name.is_empty():
+		return ""
+	var event := find_event(card.event_name)
+	if event == null:
+		return ""
+	for effects in event.effects:
+		for effect in DungeonEvent.split_effects(effects):
+			if effect.to_lower().begins_with("key item "):
+				return effect.substr(9).strip_edges()
+	return ""
+
+
+# The tag on a map card: "LOCKED (Cellar Key)" while you still need to open
+# it with a key item, "DARK (needs a torch)" for a dark place, or "".
+func card_tag(card: RoomCard) -> String:
+	var item := key_item_needed(card)
+	if not item.is_empty() and not story_beats.has(CELLAR_OPENED):
+		return "LOCKED (%s)" % item
+	if is_dark(card):
+		return "DARK (needs a torch)"
+	return ""
 
 
 # Have you ever found this item on this kind of card?

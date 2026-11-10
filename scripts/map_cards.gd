@@ -5,7 +5,7 @@
 #
 #   Place       the area it belongs to ("Abandoned Farm")
 #   Deck        Guide / Base / Filler / Yours / Campfire / Boss / Danger / Perk /
-#               Linked / Roamer / Secret (see room_card.gd)
+#               Linked / Roamer / Secret / Quest / Inside (see room_card.gd)
 #   Card        its name on the card
 #   Tile        Safe / Unsafe / Explore
 #   Kind        Empty, Treasure, Fight, Hard Fight, Locked Chest, Event,
@@ -24,6 +24,8 @@
 #   Art         the picture, from the art/ folder: "map_cards/barn.svg"
 #   Text        the flavour text on the card
 #   Guards      a card dealt next to this one (up to 2): beat them to take its loot
+#   Inside      Deck "Inside" rows: the Explore tile they're inside of
+#               ("Dark Cellar"). Step inside it and they're its own 3x3 map
 #   Notes       just for you: the game ignores it
 #
 # Unlike the other sheets, this one is read when the game runs (not by the
@@ -69,6 +71,7 @@ static func load_sheet(path: String) -> Array[RoomCard]:
 		card.event_name = row.get("event", "")
 		card.event_chance = clampi(CardImporter._to_int(row.get("event chance", ""), 100), 0, 100)
 		card.guards = row.get("guards", "")
+		card.inside_of = row.get("inside", "").strip_edges()
 		var art_name: String = row.get("art", "")
 		var art_path := ART_FOLDER + art_name
 		if not art_name.is_empty():

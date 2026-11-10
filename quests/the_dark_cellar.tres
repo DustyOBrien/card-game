@@ -1,0 +1,20 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+quest_name = "The Dark Cellar"
+giver = "Kale"
+text = "\"Those slimes came out of the cellar, so that's where they live. Go back with a torch and clear them out. There's bound to be a BIG one down there. And if any of my Hops survived... bring me 2!\" Pick this quest on the Prepare screen: it puts the Dark Cellar on your board. You need a torch to go in."
+objective = "gather"
+target = "Reach Dark Cellar Cleared; Deliver Hops 2"
+amount = 1
+start_gift = ""
+rewards = "Blueprint Alchemist; Pack Small 2"
+next_quest = ""
+quest_type = "Story"
+starts_after = "Adventurer Trained"
+sort_order = 1
+seed_cards = "Dark Cellar"
+area = "Abandoned Farm"

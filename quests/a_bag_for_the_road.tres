@@ -15,5 +15,6 @@ rewards = "Pack Small 1; Room Abandoned Farm: Trapped Chest"
 next_quest = ""
 quest_type = "Side"
 starts_after = "Make your first Flask"
-sort_order = 9
+sort_order = 10
+seed_cards = ""
 area = ""

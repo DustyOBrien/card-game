@@ -15,5 +15,6 @@ rewards = "Pack Large 1"
 next_quest = ""
 quest_type = "Side"
 starts_after = ""
-sort_order = 8
+sort_order = 9
+seed_cards = ""
 area = "Abandoned Farm"

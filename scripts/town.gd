@@ -12,30 +12,38 @@
 # Click the Inn for the QUEST SCREEN (every quest you're on). The road at the
 # bottom-right (town_road.gd) leads out to the map.
 #
-# THE START OF THE GAME is CHAPTER 1: THE INN, a few one-time STORY BEATS
+# THE START OF THE GAME is told in CHAPTERS, a few one-time STORY BEATS
 # played here in order (play_story()). Each is remembered in
-# GameState.story_beats once seen:
-#   1. Welcome      You're the King's Architect. Kale runs a makeshift Inn,
-#                   then the Inn blueprint pops up. A guide explains building
-#                   and points at the Guild Hall.
+# GameState.story_beats once seen.
+# CHAPTER 1: THE INN
+#   1. Welcome      The CHAPTER 1 title card. You're the King's Architect.
+#                   Kale runs a makeshift Inn, and its ruins appear. Kale
+#                   sends you to the Guild Hall.
 #   2. Medallion Chest   Your first visit to the Guild Hall: the chest that
 #                   only opens for your medallion. 5 Stone, 2 Sticks, 2 Wool
-#                   and a Mysterious Orb go in the Bank, and a guide shows
-#                   you how to BUILD the Inn (the building lesson).
-#   3. Inn Built    Kale thanks you and wants ale: the QUEST tutorial, then
-#                   his quest "Supplies for the Inn" (quests.csv).
-#   4. Crafting Bench    Kale wants you to take a Torch: the crafting bench
-#                   opens in the Guild Hall (1 Sticks + 1 Wool = 1 Torch).
-#   5. Off to the Farm   Once you have a Torch: the road out of town opens.
-#                   (The map deck screen and the first trip are map_deck.gd
-#                   and dungeon.gd. The trip ends with slimes and the orb.)
-#   6. Home Again   Back from the first trip: Kale hears about the slimes,
-#                   and you hand in his supplies.
-#   7. Upgrade Lesson    The Stone you brought home upgrades the Inn (the
-#                   upgrading lesson). Then "CHAPTER 1 COMPLETE!".
-#   Until Chapter 2 is written, the old start carries on from there: the
-#   first ADVENTURER checks in, their training, Kale's farm quests, and
-#   after your first level up the Old Master (click him to duel).
+#                   go in the Bank, the Mysterious Orb in your KEY ITEMS, and
+#                   a guide shows you how to BUILD the Inn.
+#   3. Inn Built    Kale thanks you: the QUEST tutorial, then his quest
+#                   "Supplies for the Inn" (quests.csv).
+#   4. Off to the Farm   Kale gives you his CELLAR KEY (a key item), and the
+#                   road out of town opens. (The first trip is map_deck.gd,
+#                   prepare.gd and dungeon.gd. It ends when you open the
+#                   Dark Cellar: slimes, the orb glows, you slam the door.)
+# CHAPTER 2: THE GLOWING ORB AND THE MASTER
+#   5. Chapter 2    The title card. Kale hears about the cellar, and you hand
+#                   in his supplies.
+#   6. Orb Explained   The OLD MASTER, drinking in the Inn, explains the
+#                   orbs: yours is the ORB OF THE ADVENTURER. The Adventurer
+#                   class unlocks, and he wants a DOJO (built with the Stone
+#                   from your trip).
+#   7. Master Training   The Dojo is built: his training fight (tutorial.gd),
+#                   your first cards, spec and deck.
+#   8. Crafting Bench   Back in town, Kale teaches you to SEE: the crafting
+#                   bench, and your first Torch.
+#   9. Adventurer Trained   With a Torch: Kale's quest "The Dark Cellar" (go
+#                   back in and clear it). Its hand-in ends Chapter 2, and
+#                   the farm quests start (Starts After "Chapter 2 Done").
+# After that, your first level up brings the Old Master's duel.
 extends Control
 
 const SHOP_SCENE := "res://scenes/shop.tscn"
@@ -62,9 +70,10 @@ const MASTER_MET := "Old Master Met"  # Story beat: his arrival banner has playe
 # because quests.csv can name them in Starts After.
 const WELCOME := "Welcome"
 # What's in the medallion chest in the Guild Hall (story beat 2).
-const CHEST_GIFT := "Material Stone 5; Material Sticks 2; Material Wool 2; Material Mysterious Orb 1"
-const HOME_AGAIN := "Home Again"  # Story beat: Kale heard about your first trip.
-const UPGRADE_LESSON := "Upgrade Lesson"  # Story beat: Kale asked you to upgrade the Inn.
+const CHEST_GIFT := "Material Stone 5; Material Sticks 2; Material Wool 2; Key Item Mysterious Orb"
+const CHEST_SHOW := "Stone 5; Sticks 2; Wool 2; Mysterious Orb 1"  # What pops out of the chest.
+const OLD_MASTER_NAME := "The Old Master"
+const DOJO := "Dojo"
 const ORB_ICON := preload("res://art/materials/orb.svg")
 const KALE := "Kale"  # The Innkeeper.
 const GOLD_COLOR := Color(1, 0.84, 0.35)
@@ -171,8 +180,8 @@ func refresh() -> void:
 	var can_go := GameState.load_areas().any(func(area: Area) -> bool: return GameState.is_area_unlocked(area))
 	road.set_open(can_go)
 	# No adventurer yet: you're running the town, so there's no deck or flask to look at.
-	deck_button.visible = GameState.adventurers_here()
-	flask_button.visible = GameState.adventurers_here()
+	deck_button.visible = GameState.adventurers_here() and GameState.tutorial_done
+	flask_button.visible = GameState.adventurers_here() and GameState.tutorial_done
 	# The Old Master waits at the edge of town while his quest is on and not yet won.
 	var master_quest := GameState.find_quest(OLD_MASTER_QUEST)
 	master_button.visible = master_quest != null and GameState.active_quests.has(OLD_MASTER_QUEST) \
@@ -361,8 +370,8 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 	if not GameState.story_beats.has(GameState.INN_BUILT) and building.bonus(TownBuilding.INN, stage) > 0:
 		get_tree().create_timer(2.0).timeout.connect(play_story)  # After the build animation.
 		return
-	# The Inn's upgrade: the end of Chapter 1.
-	if chapter_end_due():
+	# The Dojo: the Old Master wants to see what you can do.
+	if master_training_due():
 		get_tree().create_timer(1.6).timeout.connect(play_story)
 		return
 	# Building what a quest asked for: straight to the quests, to hand it in.
@@ -1089,7 +1098,7 @@ func show_next_story(back_to_board: bool) -> void:
 			GameState.unseen_quests.pop_front()  # Gone from the sheet, or already done.
 			quest = null
 	if quest == null:
-		if story_waiting():  # Chapter 1 carries on (the crafting bench, the upgrade).
+		if story_waiting():  # The story carries on (the Old Master, the end of Chapter 2).
 			close_overlay()
 			refresh()
 			play_story()
@@ -1232,6 +1241,8 @@ func show_guild_hall() -> void:
 			chips.add_child(make_chip(info, "%s %d" % [info.material_name, count], info.color, info.description))
 	bank_box = chips
 	box.add_child(chips)
+	if not GameState.key_items.is_empty():  # Story things: never spent, never lost.
+		box.add_child(_left(make_label("Key items:  " + ", ".join(GameState.key_items), 16, Color(0.62, 0.85, 1))))
 
 	# The Build list.
 	box.add_child(_left(make_label("Build & Upgrade", 20, Color.WHITE)))
@@ -1278,9 +1289,9 @@ func show_guild_hall() -> void:
 	elif bench_box and GameState.material_count(DungeonRun.TORCH) == 0:
 		ScreenGuide.start(self, "crafting_bench", [{"target": bench_box, "text":
 			"The CRAFTING BENCH turns materials into things you can use. A Torch takes 1 Sticks and 1 Wool, and you have both from the chest. Press Craft!"}])
-	elif GameState.story_beats.has(UPGRADE_LESSON) and build_rows.has("Inn"):
-		ScreenGuide.start(self, "inn_upgrade", [{"target": build_rows["Inn"], "text":
-			"Buildings have STAGES. Each upgrade costs more, and opens something new. The Inn's next stage takes 5 Stone: the Stone you brought home from the farm. Press Upgrade!"}])
+	elif dojo_waiting() and build_rows.has(DOJO):
+		ScreenGuide.start(self, "dojo_build", [{"target": build_rows[DOJO], "text":
+			"The Old Master's DOJO. It takes 5 Stone: the Stone you brought home from the farm. Press Build!"}])
 
 
 # A material in the Bank: its picture and "Stone 5".
@@ -1365,7 +1376,7 @@ func _on_craft(recipe: Dictionary) -> void:
 	message_label.text = "You crafted %d %s!" % [recipe.makes, recipe.item]
 	close_overlay()
 	refresh()
-	if send_off_due():  # Your first Torch: Kale sends you off to the farm.
+	if cellar_mission_due():  # Your first Torch: Kale sends you back to the cellar.
 		play_story()
 	else:
 		show_guild_hall()
@@ -1426,7 +1437,7 @@ func _chest_pops() -> void:
 	var pop := HBoxContainer.new()
 	pop.alignment = BoxContainer.ALIGNMENT_CENTER
 	pop.add_theme_constant_override("separation", 22)
-	var costs := MaterialInfo.parse_costs(CHEST_GIFT.replace("Material ", ""))
+	var costs := MaterialInfo.parse_costs(CHEST_SHOW)
 	for material_name in costs:
 		var item := VBoxContainer.new()
 		item.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -1460,7 +1471,7 @@ func _chest_pops() -> void:
 	tween.tween_callback(pop.queue_free)
 	tween.tween_callback(func() -> void:
 		var steps := [
-			{"target": bank_box, "text": "This is the Guild Hall. Up here is the BANK: everything you bring home is kept safe in it. The chest gave you 5 Stone, 2 Sticks, 2 Wool... and that orb. Nobody knows what it does. Yet."},
+			{"target": bank_box, "text": "This is the Guild Hall. Up here is the BANK: everything you bring home is kept safe in it. The chest gave you 5 Stone, 2 Sticks and 2 Wool. The orb goes with your KEY ITEMS: nobody knows what it does. Yet."},
 		]
 		if build_rows.has("Inn"):
 			steps.append({"target": build_rows["Inn"], "text": "Down here is the BUILD list: every building you have a blueprint for, and what it costs. The Inn needs 5 Stone, and you have it. Press Build!"})
@@ -1476,61 +1487,78 @@ func play_story() -> void:
 		show_welcome()
 	elif GameState.town_bonus(TownBuilding.INN) > 0 and not beats.has(GameState.INN_BUILT):
 		show_innkeeper_thanks()
-	elif crafting_intro_due():
-		show_crafting_intro()
 	elif send_off_due():
 		show_send_off()
-	elif beats.has(GameState.FIRST_TRIP) and not beats.has(HOME_AGAIN):
-		show_home_again()
-	elif upgrade_lesson_due():
-		show_upgrade_lesson()
-	elif chapter_end_due():
-		show_chapter_end()
-	elif GameState.adventurers_here() and not GameState.tutorial_done:
-		show_adventurer_arrives()  # (The game was closed before the training.)
-	elif GameState.adventurers_here() and GameState.tutorial_done and not GameState.story_beats.has(GameState.ADVENTURER_TRAINED):
-		show_farm_news()
-	elif GameState.story_beats.has(GameState.FIRST_LEVEL_UP) and not GameState.story_beats.has(MASTER_MET):
+	elif chapter_two_due():
+		show_chapter_two()
+	elif orb_talk_due():
+		show_orb_talk()
+	elif master_training_due():
+		show_master_training()
+	elif torch_lesson_due():
+		show_torch_lesson()
+	elif cellar_mission_due():
+		show_cellar_mission()
+	elif chapter_two_end_due():
+		show_chapter_two_end()
+	elif GameState.story_beats.has(GameState.FIRST_LEVEL_UP) and not GameState.story_beats.has(MASTER_MET) \
+			and GameState.story_beats.has(GameState.CHAPTER_2_DONE):
 		show_old_master_arrives()
 	elif inn_waiting():
 		message_label.text = "Click the Guild Hall to build the Inn."
 		show_next_story(false)
 	else:
-		if beats.has(GameState.CRAFTING_OPEN) and not beats.has(GameState.SENT_OFF):
+		if beats.has(GameState.CHAPTER_2) and not GameState.quests_done.has(GameState.SUPPLIES_QUEST):
+			message_label.text = "Hand in Kale's supplies at the Inn."
+		elif dojo_waiting():
+			message_label.text = "Build the Old Master's Dojo in the Guild Hall."
+		elif beats.has(GameState.CRAFTING_OPEN) and not beats.has(GameState.ADVENTURER_TRAINED):
 			message_label.text = "Craft a Torch at the crafting bench in the Guild Hall."
-		elif upgrade_lesson_open():
-			message_label.text = "Upgrade the Inn in the Guild Hall."
 		announce_quests(false)
 
 
-# Chapter 1's beats that are waiting to play (see the top of this file).
-func crafting_intro_due() -> bool:
-	return GameState.story_beats.has(GameState.INN_BUILT) and not GameState.story_beats.has(GameState.CRAFTING_OPEN)
-
-
+# The beats that are waiting to play (see the top of this file).
 func send_off_due() -> bool:
-	return GameState.story_beats.has(GameState.CRAFTING_OPEN) and not GameState.story_beats.has(GameState.SENT_OFF) \
+	return GameState.story_beats.has(GameState.INN_BUILT) and not GameState.story_beats.has(GameState.SENT_OFF)
+
+
+func chapter_two_due() -> bool:
+	return GameState.story_beats.has(GameState.FIRST_TRIP) and not GameState.story_beats.has(GameState.CHAPTER_2)
+
+
+func orb_talk_due() -> bool:
+	return GameState.quests_done.has(GameState.SUPPLIES_QUEST) and not GameState.story_beats.has(GameState.ORB_EXPLAINED)
+
+
+# The Old Master asked for a Dojo, and it isn't built yet.
+func dojo_waiting() -> bool:
+	var dojo := GameState.find_building(DOJO)
+	return GameState.story_beats.has(GameState.ORB_EXPLAINED) and dojo != null and GameState.town_stage(dojo) == 0
+
+
+func master_training_due() -> bool:
+	var dojo := GameState.find_building(DOJO)
+	return GameState.story_beats.has(GameState.ORB_EXPLAINED) and dojo != null and GameState.town_stage(dojo) > 0 \
+		and not GameState.story_beats.has(GameState.MASTER_TRAINING)
+
+
+func torch_lesson_due() -> bool:
+	return GameState.story_beats.has(GameState.MASTER_TRAINING) and GameState.tutorial_done \
+		and not GameState.story_beats.has(GameState.CRAFTING_OPEN)
+
+
+func cellar_mission_due() -> bool:
+	return GameState.story_beats.has(GameState.CRAFTING_OPEN) and not GameState.story_beats.has(GameState.ADVENTURER_TRAINED) \
 		and GameState.material_count(DungeonRun.TORCH) > 0
 
 
-func upgrade_lesson_due() -> bool:
-	return GameState.quests_done.has(GameState.SUPPLIES_QUEST) and not GameState.story_beats.has(UPGRADE_LESSON)
-
-
-# Kale asked for the upgrade, and the Inn isn't upgraded yet.
-func upgrade_lesson_open() -> bool:
-	var inn := GameState.find_building("Inn")
-	return GameState.story_beats.has(UPGRADE_LESSON) and inn != null and GameState.town_stage(inn) < 2
-
-
-func chapter_end_due() -> bool:
-	var inn := GameState.find_building("Inn")
-	return inn != null and GameState.town_stage(inn) >= 2 and not GameState.story_beats.has(GameState.INN_UPGRADED)
+func chapter_two_end_due() -> bool:
+	return GameState.quests_done.has(GameState.CELLAR_QUEST) and not GameState.story_beats.has(GameState.CHAPTER_2_DONE)
 
 
 # A beat to play once the quest screens close (show_next_story()).
 func story_waiting() -> bool:
-	return crafting_intro_due() or upgrade_lesson_due()
+	return orb_talk_due() or chapter_two_end_due() or torch_lesson_due()
 
 
 # Kale talking to you (talk_box.gd): his words in a speech box along the
@@ -1539,6 +1567,12 @@ func story_waiting() -> bool:
 func kale_says(lines: Array, button_text: String, on_done: Callable) -> void:
 	close_overlay()
 	TalkBox.show_in(self, KALE, INN_ICON, lines, button_text, on_done)
+
+
+# The Old Master talking (same speech box, his picture).
+func master_says(lines: Array, button_text: String, on_done: Callable) -> void:
+	close_overlay()
+	TalkBox.show_in(self, OLD_MASTER_NAME, OLD_MASTER_ART, lines, button_text, on_done)
 
 
 # STORY BEAT 1: the CHAPTER 1 title card, then you arrive. Kale meets you at his makeshift Inn, and the
@@ -1573,12 +1607,12 @@ func _on_welcome_done() -> void:
 			ScreenGuide.start(self, "town_building", [{"target": panels["Guild Hall"], "text": "Click the Guild Hall."}]))
 
 
-# STORY BEAT 3: Kale thanks you... and wants ale. He explains quests, then
-# his quest's popup (quests.csv: Starts After "Inn Built").
+# STORY BEAT 3: Kale thanks you... and wants supplies. He explains quests,
+# then his quest's popup (quests.csv: Starts After "Inn Built").
 func show_innkeeper_thanks() -> void:
 	kale_says([
 		"Ha! A roof that (mostly) doesn't leak! Thank you, Architect.",
-		"Now, an Inn with no ale is just a house. Nobody's stopping here without a drink. I need Hops... and a few other things.",
+		"Now, nobody stops at an Inn with nothing in it. I need supplies... and my ale barrels back.",
 		"When someone in town needs something, it's a QUEST. Mine are on the board in the Inn: click the Inn any time to see them, and how far along you are. Bring me what I ask, then come back and HAND IT IN.",
 	], "What do you need?", func() -> void:
 		GameState.reach_milestone(GameState.INN_BUILT)
@@ -1586,24 +1620,14 @@ func show_innkeeper_thanks() -> void:
 		announce_quests(false))
 
 
-# STORY BEAT 4: the crafting bench. Kale wants you to take a Torch.
-func show_crafting_intro() -> void:
-	kale_says([
-		"One more thing: take a Torch with you. Some of those farm cellars are pitch dark.",
-		"Don't have one? You've got Sticks and Wool from that chest. There's a crafting bench in the Guild Hall: 1 Stick and 1 Wool makes a Torch. It goes in your Bank, ready for the trip.",
-		"Not for me, for YOU. For an Architect, you sure don't know how to build nothing.",
-	], "To the crafting bench", func() -> void:
-		GameState.reach_milestone(GameState.CRAFTING_OPEN)
-		show_guild_hall())
-
-
-# STORY BEAT 5: you have a Torch. Off to the farm: the road out of town opens.
+# STORY BEAT 4: Kale's CELLAR KEY, and off to the farm: the road out of town opens.
 func show_send_off() -> void:
 	kale_says([
-		"A Torch! Now you look like an adventurer. Well... almost.",
-		"Can't fight? Don't worry, monsters never come this close to town.",
-		"Take the road out of town to the map and pick the Abandoned Farm. I'll show you how the map works when you get there.",
+		"Before you go: take this. My CELLAR KEY. There's an old cellar out on the Abandoned Farm, and my ale barrels are down there.",
+		"Get the Stone, Sticks and Wool first, THEN open the cellar. It's pitch dark down there, so just open the door and have a look.",
+		"Can't fight? Don't worry, monsters never come this close to town. Take the road out of town to the map and pick the Abandoned Farm.",
 	], "Let's go!", func() -> void:
+		GameState.give_rewards("Key Item " + GameState.CELLAR_KEY)
 		GameState.reach_milestone(GameState.SENT_OFF)
 		refresh()
 		message_label.text = "Take the road out of town to the map."
@@ -1611,59 +1635,85 @@ func show_send_off() -> void:
 			"The ROAD out of town leads to the MAP. Click it, then pick the Abandoned Farm."}]))
 
 
-# STORY BEAT 6: home from the first trip (the slimes, the glowing orb).
-func show_home_again() -> void:
-	kale_says([
-		"SLIMES? This close to town? That's never happened before...",
-		"And that orb GLOWED, you say? Hm. We'll worry about that later.",
-		"First things first: did you get my supplies? Hand them in at the Inn.",
-	], "To the quests", func() -> void:
-		GameState.story_beats.append(HOME_AGAIN)
-		GameState.save_game()
-		show_quest_board())
+# STORY BEAT 5: home from the cellar. CHAPTER 2 begins: Kale hears about the
+# slimes, and you hand in his supplies.
+func show_chapter_two() -> void:
+	ChapterCard.show_in(self, "CHAPTER 2", "The Glowing Orb and the Master", func() -> void:
+		kale_says([
+			"You're back! And you're... covered in slime?",
+			"SLIMES in my cellar? And the orb GLOWED and scared them off? Hm. Monsters never come this close to town...",
+			"Well, you got my supplies at least. Hand them in at the Inn, and let's figure this out over a drink.",
+		], "To the quests", func() -> void:
+			GameState.reach_milestone(GameState.CHAPTER_2)
+			show_quest_board()))
 
 
-# STORY BEAT 7: the Inn's upgrade, with the Stone from the first trip.
-func show_upgrade_lesson() -> void:
+# STORY BEAT 6: the Old Master explains the orb. The Adventurer class
+# unlocks, and the Dojo's ruins appear.
+func show_orb_talk() -> void:
+	master_says([
+		"(An old man in the corner of the Inn puts down his mug.) A glowing orb, you say? That scared off a pack of slimes? Show me.",
+		"Hmm. HMM. I haven't seen one of these in forty years. Long ago there were orbs like this, one for every path a hero can walk.",
+		"This one is the ORB OF THE ADVENTURER. And it chose YOU. That's why it glowed: it was protecting its new owner.",
+		"An Architect who can't fight won't last a day out there. Build me a DOJO, and I'll teach you how to use it. You've got the Stone for it.",
+	], "I'll build it", func() -> void:
+		GameState.key_items.erase(GameState.ORB)
+		GameState.give_rewards("Key Item " + GameState.ORB_AWAKE)
+		GameState.give_rewards("Unlock " + GameState.ADVENTURER_FEATURE)
+		GameState.give_rewards("Blueprint " + DOJO)
+		GameState.reach_milestone(GameState.ORB_EXPLAINED)
+		refresh()
+		var adventurer: CharacterClass = GameState.load_classes()[0]
+		UnlockBanner.show_in(self, "NEW CLASS UNLOCKED!", "The " + adventurer.display_name, adventurer.emblem,
+			"The Orb of the Adventurer has chosen you. You can FIGHT now!\n\nThe Old Master will teach you in his Dojo: build it in the Guild Hall.",
+			"To the Guild Hall", func() -> void:
+				if panels.has(DOJO):
+					show_on_street(panels[DOJO])
+					pop_in(panels[DOJO])
+				message_label.text = "Build the Old Master's Dojo in the Guild Hall."
+				show_guild_hall()))
+
+
+# STORY BEAT 7: the Dojo stands. The Master's training fight.
+func show_master_training() -> void:
+	master_says([
+		"A fine Dojo! It even smells like a Dojo.",
+		"Now. Let's see what that orb can do. Come, and don't worry: these training dummies don't hit back. Much.",
+	], "Start training", func() -> void:
+		GameState.reach_milestone(GameState.MASTER_TRAINING)
+		get_tree().change_scene_to_file(CHARACTER_SCENE))  # (Its training starts by itself.)
+
+
+# STORY BEAT 8: Kale teaches you to SEE: the crafting bench and a Torch.
+func show_torch_lesson() -> void:
 	kale_says([
-		"Hops! Now I can brew. But this place still leaks like a basket...",
-		"Buildings can be UPGRADED too. Each stage costs more, and opens something new. That Stone you brought home is just enough to upgrade the Inn!",
-	], "To the Guild Hall", func() -> void:
-		GameState.story_beats.append(UPGRADE_LESSON)
-		GameState.save_game()
+		"So the old man taught you to FIGHT. Good. Now I'll teach you to SEE.",
+		"Those slimes are still down in my cellar, and it's pitch black down there. Nobody walks into a dark place without a TORCH.",
+		"There's a crafting bench in the Guild Hall: 1 Stick and 1 Wool makes a Torch. It goes in your Bank, ready for the trip.",
+	], "To the crafting bench", func() -> void:
+		GameState.reach_milestone(GameState.CRAFTING_OPEN)
 		show_guild_hall())
 
 
-# The Inn is upgraded: the end of Chapter 1. (Until Chapter 2 is written,
-# the first Adventurer checks in next, like before.)
-func show_chapter_end() -> void:
+# STORY BEAT 9: you have a Torch: Kale's quest to clear the cellar.
+func show_cellar_mission() -> void:
+	kale_says([
+		"A Torch! Now you look like a real adventurer.",
+		"Go back to that cellar, light it up and clear those slimes out. There's bound to be a BIG one down there.",
+		"On the Prepare screen, pick my quest as your MAIN QUEST: it puts the Dark Cellar on your board.",
+	], "Let's go!", func() -> void:
+		GameState.reach_milestone(GameState.ADVENTURER_TRAINED)
+		refresh()
+		announce_quests(false))
+
+
+# The cellar is clear: the end of Chapter 2. Kale's farm quests start.
+func show_chapter_two_end() -> void:
 	close_overlay()
-	UnlockBanner.show_in(self, "CHAPTER 1 COMPLETE!", "The Inn", INN_ICON,
-		"\"The ale is flowing! Travellers will be stopping by in no time.\"\n\nThe Inn is the first building of the King's new town. But that orb is still warm in your pack...\n\nNext: Chapter 2: The Glowing Orb and the Master (coming soon). For now, the game carries on the old way from here.",
-		"Continue", func() -> void:
-			GameState.reach_milestone(GameState.INN_UPGRADED)
-			show_adventurer_arrives())
-
-
-# The Inn's first guest: the Adventurer. Off to meet them, and their
-# training (the tutorial). Back in town, Kale has jobs for them.
-func show_adventurer_arrives() -> void:
-	GameState.give_rewards("Unlock " + GameState.ADVENTURER_FEATURE)
-	GameState.save_game()
-	refresh()
-	var adventurer: CharacterClass = GameState.load_classes()[0]
-	UnlockBanner.show_in(self, "A NEW ADVENTURER!", "The %s has arrived" % adventurer.display_name, adventurer.emblem,
-		"Word has spread that the Inn's ale is flowing, and the first Adventurer has checked in! They do the fighting. You keep building the town.\n\nNEW: Character Select and the Deck Builder.",
-		"Meet the Adventurer", func() -> void: get_tree().change_scene_to_file(CHARACTER_SCENE))
-
-
-# Back from the Adventurer's training: Kale's jobs out at the farm
-# (quests.csv: Starts After "Adventurer Trained").
-func show_farm_news() -> void:
-	UnlockBanner.show_in(self, "THE ABANDONED FARM", "Kale has a job for your Adventurer", AREA_FARM_ICON,
-		"\"So you're the new Adventurer! Good. Those slimes the Architect ran into? They've moved into the old farm. Go and thin them out, and I'll make it worth your while.\"",
+	UnlockBanner.show_in(self, "CHAPTER 2 COMPLETE!", "The Glowing Orb and the Master", ORB_ICON,
+		"\"My cellar! My barrels! You're a real Adventurer now.\"\n\nBut slimes this close to town means something is stirring out there... and the Old Master is watching you closely.\n\nNEW: Kale has jobs for you on the farm.",
 		"See Kale's quests", func() -> void:
-			GameState.reach_milestone(GameState.ADVENTURER_TRAINED)
+			GameState.reach_milestone(GameState.CHAPTER_2_DONE)
 			refresh()
 			announce_quests(true))
 
@@ -1715,9 +1765,9 @@ func make_old_master() -> void:
 func show_old_master_arrives() -> void:
 	var slain := GameState.monsters_slain
 	var praise := "%d monsters already? " % slain if slain > 1 else ""
-	UnlockBanner.show_in(self, "THE OLD MASTER!", "A stranger watches from the edge of town", OLD_MASTER_ART,
-		"An old man with a long white beard steps out of the shadows.\n\n\"%sI've been watching you, young one. Impressive... for a beginner. Let's see what you're really made of.\"" % praise,
-		"Who are you?", func() -> void:
+	UnlockBanner.show_in(self, "THE OLD MASTER!", "He's waiting at the edge of town", OLD_MASTER_ART,
+		"The Old Master leans on his staff.\n\n\"%sYou've grown, young one. The orb hums louder every day. Let's see what you're really made of.\"" % praise,
+		"A duel?", func() -> void:
 			GameState.story_beats.append(MASTER_MET)
 			GameState.save_game()
 			refresh()

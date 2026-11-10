@@ -15,5 +15,6 @@ rewards = "Blueprint Shop; Blueprint Tailor; Room Abandoned Farm: Bunny Burrow; 
 next_quest = "Slay the Slime Nest"
 quest_type = "Story"
 starts_after = ""
-sort_order = 3
+sort_order = 4
+seed_cards = ""
 area = ""

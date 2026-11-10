@@ -71,8 +71,8 @@ func make_area_marker(area: Area) -> Control:
 		status_text = "Cleared ✓"  # You've beaten its boss (you can still go back).
 	elif area.coming_later:
 		status_text = "Coming later"  # Not on the new map cards yet.
-	elif not open and not GameState.adventurers_here():
-		status_text = "Build the Inn in town first"
+	elif not open and (not GameState.adventurers_here() or not GameState.tutorial_done):
+		status_text = "Carry on the story in town first"
 	elif not open:
 		status_text = "Beat the %s boss" % area.unlock_after if not area.unlock_after.is_empty() else "Locked"
 	var status := make_label(status_text, 15)
@@ -122,8 +122,8 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 			info_label.text += "  (Your first trip: Kale's supplies. No monsters this close to town, they say...)"
 		elif area.coming_later:
 			pass  # Its description already says "Coming later".
-		elif not GameState.adventurers_here():
-			info_label.text += "  (Build the Inn in town first!)"
+		elif not GameState.adventurers_here() or not GameState.tutorial_done:
+			info_label.text += "  (Carry on the story in town first!)"
 		elif not GameState.is_area_unlocked(area):
 			info_label.text += "  (Locked: beat the %s boss to open it)" % area.unlock_after \
 				if not area.unlock_after.is_empty() else "  (Locked)"

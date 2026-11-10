@@ -15,5 +15,6 @@ rewards = "Pack Medium 2"
 next_quest = "Kill Enemies 3"
 quest_type = "Side"
 starts_after = ""
-sort_order = 7
+sort_order = 8
+seed_cards = ""
 area = "Abandoned Farm"

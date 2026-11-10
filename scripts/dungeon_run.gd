@@ -139,6 +139,16 @@ var tools := {}  # Crowbars and bombs you carry: {"Crowbar": 1}.
 var roamer_square := Vector2i(-1, -1)  # Where the roaming mini boss is (face down), or (-1, -1).
 var roamer_beaten := false  # Beaten this trip: it doesn't come back.
 var last_roamer_news := ""  # "You hear stomping nearby..." (dungeon.gd shows it once).
+# EXPLORE TILES (Dusty's Chapter 2): some map cards are a little dungeon of
+# their own. Light a torch and go IN, and the board becomes that place's own
+# 3x3 map (its Inside rows in the sheet). Danger, your backpack and HP come
+# with you. Leave by the way in, any time; what you cleared stays cleared
+# for the rest of the trip, and going back in is free (your torch is lit).
+const INSIDE_ENTRANCE := Vector2i(2, 3)  # You come in at the bottom middle of the 3x3...
+const INSIDE_BOSS := Vector2i(2, 1)  # ...and its Mini Boss waits at the top middle.
+var inside := ""  # The place you're inside ("Dark Cellar"), or "" when you're on the map.
+var outside := {}  # The map while you're inside: {"rooms", "position", "came_from", "roamer"}.
+var lit_inside: Array[String] = []  # Places you've lit a torch for this trip.
 
 # What you've found, given to you when you Return to Town or beat the Boss.
 var found_gold := 0
@@ -353,9 +363,34 @@ func _deal() -> void:
 	if not guided:
 		_deal_guards()
 		_deal_roamer()
+		_deal_seed_cards()
 	position = START
 	came_from = START
 	just_flipped = Vector2i(-1, -1)
+
+
+# The trip's MAIN QUEST (picked on the Prepare screen) puts its Seed Cards
+# on the board: "The Dark Cellar" deals the Dark Cellar. Floor 1 only.
+func _deal_seed_cards() -> void:
+	var quest := GameState.current_run_quest(area)
+	if quest == null or floor_number > 1:
+		return
+	for seed_name in quest.seed_cards.split(";", false):
+		var card := _seed_card(seed_name.strip_edges())
+		if card == null:
+			push_warning("%s: no map card called '%s' to seed" % [quest.quest_name, seed_name])
+			continue
+		var square := _swap_onto_board(card)
+		if square.x >= 0:
+			add_log("Your quest: the %s is somewhere on this board." % card.room_name)
+
+
+# A card to seed by name: not a first-trip (Guide) copy.
+func _seed_card(card_name: String) -> RoomCard:
+	for card in area.cards():
+		if card.room_name == card_name and card.deck_part != RoomCard.DECK_GUIDE:
+			return card
+	return null
 
 
 # GUARDS: a card with a Guards column (the Guarded Hoard) gets its guards
@@ -475,8 +510,8 @@ func reachable() -> Dictionary:
 		var here: Vector2i = queue.pop_front()
 		for direction in DIRECTIONS:
 			var next := here + direction
-			if not in_grid(next) or seen.has(next):
-				continue
+			if not in_grid(next) or seen.has(next) or not rooms.has(next):
+				continue  # (Inside a small place, the squares around it are walls.)
 			seen[next] = seen[here] + 1
 			found[next] = {"steps": seen[next], "from": here}
 			if is_safe(next):
@@ -533,7 +568,7 @@ func _enter(square: Vector2i) -> String:
 		return "campfire"
 	var card: RoomCard = room.card
 	if card == null:
-		return "walk"
+		return "exit" if room.get("exit", false) else "walk"
 	if card.is_fight():
 		if room.cleared:
 			return "walk"
@@ -591,6 +626,126 @@ func _enter(square: Vector2i) -> String:
 	return "empty" if square == just_flipped else "walk"
 
 
+# --- Inside an Explore tile ------------------------------------------------------
+
+const CLEARED := " Cleared"  # Beat a place's Mini Boss: "Dark Cellar Cleared".
+
+
+# The cards inside a place (its Inside rows).
+func inside_cards(place: String) -> Array[RoomCard]:
+	var list: Array[RoomCard] = []
+	for card in area.cards():
+		if card.deck_part == RoomCard.DECK_INSIDE and card.inside_of == place:
+			list.append(card)
+	return list
+
+
+# Why you can't go in ("" = you can): you need a torch, unless it's lit already.
+func why_not_enter(place: String) -> String:
+	if inside_cards(place).is_empty():
+		return "There's nothing down there (no Inside cards in the sheet)"
+	if not lit_inside.has(place) and torches <= 0:
+		return "It's pitch black: you need a torch (craft one at the Guild Hall)"
+	return ""
+
+
+func is_cleared(place: String) -> bool:
+	return GameState.story_beats.has(place + CLEARED) and not inside_rooms_of(place).is_empty() \
+		and inside_rooms_of(place).values().any(func(room: Dictionary) -> bool:
+			return room.card != null and room.card.type in [RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS] and room.done)
+
+
+# The inside map you left behind this trip (empty if you haven't been in).
+func inside_rooms_of(place: String) -> Dictionary:
+	if place == inside:
+		return rooms
+	var board: Dictionary = outside.get("rooms", rooms)
+	for square: Vector2i in board:
+		var room: Dictionary = board[square]
+		if room.get("inside_place", "") == place:
+			return room.get("inside_rooms", {})
+	return {}
+
+
+# Go in: the board becomes the place's own map. The first time this trip it
+# burns a torch and deals its cards; after that you find it as you left it.
+func enter_inside(place: String) -> bool:
+	if not inside.is_empty() or not why_not_enter(place).is_empty():
+		return false
+	var door := position
+	if not lit_inside.has(place):
+		torches -= 1
+		lit_inside.append(place)
+		add_log("You light a torch and go down into the %s. (%d torch%s left)" % [place, torches, "" if torches == 1 else "es"])
+	else:
+		add_log("You go back down into the %s." % place)
+	outside = {"rooms": rooms, "position": door, "came_from": came_from, "roamer": roamer_square}
+	rooms[door].inside_place = place
+	var saved: Dictionary = rooms[door].get("inside_rooms", {})
+	roamer_square = Vector2i(-1, -1)  # The roamer stays up on the map.
+	inside = place
+	if saved.is_empty():
+		_deal_inside(place)
+	else:
+		rooms = saved
+	position = INSIDE_ENTRANCE
+	came_from = INSIDE_ENTRANCE
+	just_flipped = Vector2i(-1, -1)
+	return true
+
+
+# The 3x3: the way in at the bottom middle, the Mini Boss at the top middle,
+# the rest shuffled. The squares around it are walls (not in rooms at all).
+func _deal_inside(place: String) -> void:
+	rooms = {}
+	var cards: Array[RoomCard] = []
+	var boss: RoomCard = null
+	for card in inside_cards(place):
+		if card.type in [RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS]:
+			boss = card
+			continue
+		for i in card.copies:
+			cards.append(card)
+	cards.shuffle()
+	for y in range(1, 4):
+		for x in range(1, 4):
+			var square := Vector2i(x, y)
+			var card: RoomCard = null
+			if square == INSIDE_ENTRANCE:
+				rooms[square] = {"card": null, "revealed": true, "cleared": true, "done": true,
+					"campfire": false, "opened": false, "exit": true}
+				continue
+			if square == INSIDE_BOSS and boss != null:
+				card = boss
+			elif not cards.is_empty():
+				card = cards.pop_back()
+			if card == null:
+				rooms[square] = {"card": null, "revealed": true, "cleared": true, "done": true, "campfire": false, "opened": false}
+			else:
+				rooms[square] = {"card": card, "revealed": false, "cleared": false, "done": false, "campfire": false, "opened": false}
+
+
+# Climb back out to the map, onto the door you went in by.
+func leave_inside() -> void:
+	if inside.is_empty():
+		return
+	var place := inside
+	var inner := rooms
+	rooms = outside.rooms
+	position = outside.position
+	came_from = outside.came_from
+	roamer_square = outside.roamer
+	just_flipped = Vector2i(-1, -1)
+	inside = ""
+	outside = {}
+	rooms[position].inside_rooms = inner
+	if is_cleared(place):
+		rooms[position].done = true  # Nothing left to do down there.
+		rooms[position].cleared = true
+		rooms[position].event_open = false
+	add_log("You climb back out of the %s." % place)
+
+
 # --- Events -------------------------------------------------------------------
 
 # A random event for this place and floor, preferring ones you haven't seen this run.
@@ -614,6 +769,11 @@ func choice_hidden(event: DungeonEvent, index: int) -> bool:
 	for effect in DungeonEvent.split_effects(event.effects[index]):
 		words.append(effect.strip_edges().to_lower().get_slice(" ", 0))
 	if words.has("enchant") and not GameState.enchants_open():
+		return true
+	# The Cellar Door: Kale's key on the first trip, a torch after that.
+	if words.has("cellar") and GameState.story_beats.has(GameState.CELLAR_OPENED):
+		return true
+	if words.has("enter") and (guided or not GameState.story_beats.has(GameState.CELLAR_OPENED)):
 		return true
 	# A choice that only buys a potion ("Pay 10; Potion") is hidden until the
 	# Alchemist is built. If something else happens too (like the Toothy
@@ -644,6 +804,17 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 			"fighter":  # Only a hero with a class can do this (not the Architect).
 				if not GameState.adventurers_here():
 					return "You're an Architect, not a fighter"
+			"key":  # "Key Item Cellar Key": you need that key item.
+				var item := effect.substr(8).strip_edges() if words.size() > 1 and words[1].to_lower() == "item" else ""
+				if not item.is_empty() and not GameState.key_items.has(item):
+					return "You need the %s" % item
+			"supplies":  # Kale's supplies first (the first trip's materials).
+				if not guide_goal_met():
+					return "First gather Kale's supplies (%s)" % hunting_text()
+			"enter":  # "Enter Dark Cellar": needs a torch, unless it's already lit.
+				var why := why_not_enter(effect.substr(6).strip_edges())
+				if not why.is_empty():
+					return why
 			"drop":  # "Drop 3": throw away supplies from your backpack.
 				if found_materials.is_empty():
 					return "Your backpack has no supplies to throw in"
@@ -697,7 +868,8 @@ func choose(index: int) -> Dictionary:
 		room.done = false  # Not finished: step on it again to have another go.
 		if not on_event_card:
 			room.event_open = true  # (And no scavenging until you do.)
-	return {"text": text, "fight": outcome.fight, "blueprint": outcome.blueprint, "again": false}
+	return {"text": text, "fight": outcome.fight, "blueprint": outcome.blueprint, "again": false,
+		"ambush": outcome.ambush, "enter": outcome.enter}
 
 
 # Do a list of effects (see dungeon_event.gd). Returns {"lines": what happened, "fight": bool}.
@@ -708,10 +880,14 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 	var fight := false
 	var come_back := false
 	var blueprint := ""  # The building whose blueprint you got, if any.
+	var ambush := false  # The end of Chapter 1: the slimes burst out of the cellar.
+	var enter := ""  # The place you're going inside ("Dark Cellar").
 	var max_hp := GameState.player_max_hp()
 	for effect in list:
 		var words := effect.split(" ", false)
 		var word := words[0].to_lower()
+		if word == "key" and words.size() > 1 and words[1].to_lower() == "item":
+			continue  # "Key Item Cellar Key": only a requirement (see choice_blocked()).
 		var number := words[-1].to_int() if words.size() > 1 else 0
 		match word:
 			"heal":
@@ -822,15 +998,21 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 				fight = not fight_enemies.is_empty()
 				if fight:
 					fight_square = at
-			"fighter":
-				pass  # Only a requirement (see choice_blocked()).
+			"fighter", "supplies":
+				pass  # Only requirements (see choice_blocked()).
+			"cellar":  # "Cellar Ambush": the end of the first trip (dungeon.gd plays it).
+				GameState.reach_milestone(GameState.CELLAR_OPENED)
+				ambush = true
+			"enter":  # "Enter Dark Cellar": dungeon.gd takes you in (enter_inside()).
+				enter = effect.substr(6).strip_edges()
+				come_back = true  # The door stays: step on it again to go back in.
 			_:
 				# Everything else is a loot word, like a chest: Gold 5-10, Key, Potion...
 				# "Pack | Card | Potion" = one of them, picked at random.
 				var loot_card := RoomCard.new()
 				loot_card.loot = CardImporter._parse_list(effect.replace("|", ","))
 				lines.append("You get " + take_loot(loot_card))
-	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint}
+	return {"lines": lines, "fight": fight, "come_back": come_back, "blueprint": blueprint, "ambush": ambush, "enter": enter}
 
 
 # --- Tools and hidden interactions ------------------------------------------------
@@ -1266,7 +1448,7 @@ func _swap_onto_board(card: RoomCard) -> Vector2i:
 # go into the deck.
 func _returns_to_deck(card: RoomCard) -> bool:
 	return card != null and card.deck_part not in [RoomCard.DECK_CAMPFIRE, RoomCard.DECK_BOSS, RoomCard.DECK_GUIDE,
-		RoomCard.DECK_LINKED, RoomCard.DECK_ROAMER, RoomCard.DECK_SECRET]
+		RoomCard.DECK_LINKED, RoomCard.DECK_ROAMER, RoomCard.DECK_SECRET, RoomCard.DECK_QUEST, RoomCard.DECK_INSIDE]
 
 
 # A card of this place by name (any Deck), or null.
@@ -1311,6 +1493,9 @@ func win_fight() -> String:
 		if plan_card:
 			found_plans.append(plan_card.card_name)
 			add_log("A PLAN! You can craft a %s with it (in the Binder)." % plan_card.card_name)
+	if card.deck_part == RoomCard.DECK_INSIDE and card.type in [RoomCard.Type.MINI_BOSS, RoomCard.Type.BOSS]:
+		GameState.reach_milestone(card.inside_of + CLEARED)  # "Dark Cellar Cleared" (a quest's Reach part).
+		add_log("You beat the %s! The %s is cleared." % [card.room_name, card.inside_of])
 	if card.type == RoomCard.Type.BOSS:
 		result = "won"
 		add_log("You beat the boss! The %s is cleared." % area.display_name)

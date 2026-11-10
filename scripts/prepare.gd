@@ -2,10 +2,15 @@
 #
 # PREPARE EXPEDITION (scenes/prepare.tscn): the one stop between picking a
 # place on the map and setting out. Everything you choose before a trip is
-# on this screen, in three columns:
+# on this screen, in four columns:
+#   0. Quest:     the trip's MAIN QUEST (a Story quest: its Seed Cards go on the
+#                 board, and only it counts this trip), the side quests that
+#                 always count, and your KEY ITEMS.
 #   1. Hero:      your class, spec and deck (buttons hop to their screens and come back here).
 #   2. Map Cards: which of YOUR map cards go into the place's map deck.
 #   3. Pack:      your flask, how many torches and tools, and the potions/enchants you bought in town.
+# Chapter 1's first trip (the Architect: no class, no deck) only shows the
+# Quest column and your torches.
 # Along the bottom: LOADOUTS (save this whole setup by name, load it again
 # later), "Same as last time", Back to the Map and Set Out!
 #
@@ -38,6 +43,8 @@ const BORDER_COLOR := Color(0.45, 0.36, 0.25)
 const BAD_COLOR := Color(1, 0.5, 0.45)
 
 var area: Area
+var guided := false  # Chapter 1's first trip: only the quest and torches.
+var quest_box: VBoxContainer
 var hero_box: VBoxContainer
 var cards_box: VBoxContainer
 var pack_box: VBoxContainer
@@ -52,6 +59,7 @@ func _ready() -> void:
 	GameState.ensure_ready()  # For running this scene on its own with F6.
 	GameState.preparing = false
 	area = GameState.current_area
+	guided = GameState.is_guided_run(area) or GameState.character_class == null
 	build_screen()
 	refresh()
 	start_guide.call_deferred()
@@ -59,7 +67,14 @@ func _ready() -> void:
 
 # The first visit: a short guide around the screen (screen_guide.gd).
 func start_guide() -> void:
+	if guided:
+		ScreenGuide.start(self, "prepare first trip", [
+			{"target": panel_of(quest_box), "text": "PREPARE EXPEDITION: before every trip you pick what you're going for. This is your QUEST for the trip: Kale's supplies. Your KEY ITEMS are here too: Kale's Cellar Key and that strange orb."},
+			{"target": set_out_button, "text": "Ready? Set Out!"},
+		])
+		return
 	ScreenGuide.start(self, "prepare", [
+		{"target": panel_of(quest_box), "text": "QUEST: pick this trip's MAIN QUEST. It can put its own map cards on the board (like the Dark Cellar), and only it counts this trip. SIDE quests (defeat X monsters...) always count."},
 		{"target": panel_of(hero_box), "text": "PREPARE EXPEDITION: everything you pick before a trip, in one place. HERO: your class, spec and deck. Edit Deck (or Change Class/Spec) and you come straight back here."},
 		{"target": panel_of(cards_box), "text": "MAP CARDS: your own map cards. Ticked ones go into the map deck with the place's base cards. Untick fights for a safer trip, or keep them for more drops."},
 		{"target": panel_of(pack_box), "text": "PACK: your flask, how many torches you bring, and tools (crowbars, bombs) made from your Bank materials. Each kind takes a backpack slot, so packing less = more room for loot."},
@@ -123,10 +138,10 @@ func build_screen() -> void:
 		("  ★ %d" % points if points > 0 else "")
 	if points > 0:
 		perks_button.theme_type_variation = &"PrimaryButton"
-	perks_button.visible = not GameState.area_perk_list(area).is_empty()
+	perks_button.visible = not guided and not GameState.area_perk_list(area).is_empty()
 	title_row.add_child(perks_button)
 	# The place's binder (its cards, found and not), if it has booster packs.
-	if not area.booster.is_empty():
+	if not area.booster.is_empty() and not guided:
 		var binder_button := make_button("Binder  %d%%" % GameState.binder_percent(area), _show_screen.bind(BINDER_SCENE))
 		binder_button.custom_minimum_size = Vector2(0, 44)
 		title_row.add_child(binder_button)
@@ -135,9 +150,11 @@ func build_screen() -> void:
 	columns.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	columns.add_theme_constant_override("separation", 12)
 	page.add_child(columns)
+	quest_box = add_column(columns, "Quest")
 	hero_box = add_column(columns, "Hero")
 	cards_box = add_column(columns, "Map Cards")
 	pack_box = add_column(columns, "Pack")
+
 
 	status_label = make_label("", 16, DIM_COLOR)
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
@@ -182,6 +199,12 @@ func build_screen() -> void:
 	set_out_button.add_theme_font_size_override("font_size", 22)
 	set_out_button.pressed.connect(_on_set_out)
 	bar.add_child(set_out_button)
+	if guided:  # The Architect: no hero to pick, the first trip's board is set, no loadouts.
+		panel_of(hero_box).visible = false
+		panel_of(cards_box).visible = false
+		for part in bar.get_children():
+			if part not in [spacer, back, set_out_button]:
+				part.visible = false
 
 
 # A column: a dark panel with a gold heading, holding a box we fill in refresh().
@@ -218,13 +241,17 @@ func add_column(parent: Control, heading: String) -> VBoxContainer:
 # ---------------------------------------------------------------------------
 
 func refresh() -> void:
-	for box in [hero_box, cards_box, pack_box, loadout_row]:
+	for box in [quest_box, hero_box, cards_box, pack_box, loadout_row]:
 		for old in box.get_children():
 			old.queue_free()
-	fill_hero()
-	fill_map_cards()
-	fill_pack()
-	fill_loadouts()
+	fill_quest()
+	if guided:
+		fill_torches()
+	else:
+		fill_hero()
+		fill_map_cards()
+		fill_pack()
+		fill_loadouts()
 	var problem := set_out_problem()
 	set_out_button.disabled = not problem.is_empty()
 	set_out_button.tooltip_text = problem if not problem.is_empty() else "Head out to the %s." % area.display_name
@@ -234,10 +261,65 @@ func refresh() -> void:
 
 # Why you can't set out yet ("" = you can).
 func set_out_problem() -> String:
+	if guided:
+		return ""
 	var rules := GameState.character_class
 	if GameState.deck.size() < rules.min_deck_size:
 		return "Your deck needs at least %d cards (it has %d). Press Edit Deck." % [rules.min_deck_size, GameState.deck.size()]
 	return ""
+
+
+# The trip's MAIN QUEST (one of your Story quests for this place), the side
+# quests that count on every trip, and your key items.
+func fill_quest() -> void:
+	var mains := GameState.main_quests_for(area)
+	var current := GameState.current_run_quest(area)
+	GameState.run_quest = current.quest_name if current else ""
+	quest_box.add_child(make_label("Main quest", 18, GOLD_COLOR))
+	if mains.is_empty():
+		quest_box.add_child(make_label("No story quest out here right now.", 15, DIM_COLOR, true))
+	var group := ButtonGroup.new()
+	for quest in mains:
+		var pick := CheckBox.new()
+		pick.button_group = group
+		pick.text = quest.quest_name
+		pick.focus_mode = Control.FOCUS_NONE
+		pick.button_pressed = quest == current
+		pick.add_theme_font_size_override("font_size", 18)
+		pick.disabled = guided  # The first trip is always Kale's supplies.
+		pick.toggled.connect(func(on: bool) -> void:
+			if on and GameState.run_quest != quest.quest_name:
+				GameState.run_quest = quest.quest_name
+				GameState.save_game()
+				refresh())
+		quest_box.add_child(pick)
+		var status := GameState.quest_status(quest)
+		quest_box.add_child(make_label("%s  (%d/%d)" % [quest.objective_text(), status.x, status.y], 15,
+			Color.WHITE if quest == current else DIM_COLOR, true))
+		if not quest.seed_cards.is_empty():
+			quest_box.add_child(make_label("Puts on your board: " + quest.seed_cards.replace(";", ","), 15, Color(0.6, 0.9, 1), true))
+	# Side quests: they always count.
+	var sides: Array[Quest] = []
+	for quest in GameState.quests_active():
+		if quest.quest_type != "Story" and (quest.area.is_empty() or quest.area == area.display_name):
+			sides.append(quest)
+	if not sides.is_empty():
+		quest_box.add_child(make_label("Side quests (always count)", 18, GOLD_COLOR))
+		for quest in sides:
+			var status := GameState.quest_status(quest)
+			quest_box.add_child(make_label("%s: %s  (%d/%d)" % [quest.quest_name, quest.objective_text(), status.x, status.y], 15, DIM_COLOR, true))
+	# Key items: story things, never used up or lost.
+	quest_box.add_child(make_label("Key items", 18, GOLD_COLOR))
+	quest_box.add_child(make_label(", ".join(GameState.key_items) if not GameState.key_items.is_empty() else "None yet.", 15,
+		Color(0.62, 0.85, 1) if not GameState.key_items.is_empty() else DIM_COLOR, true))
+
+
+# The first trip's Pack: just your torches (from the Bank).
+func fill_torches() -> void:
+	var in_bank := GameState.material_count(DungeonRun.TORCH)
+	pack_box.add_child(make_label("Torches: %d" % in_bank, 18, Color.WHITE))
+	pack_box.add_child(make_label("You take every torch in your Bank. Torches light up DARK places." if in_bank > 0 \
+		else "No torches yet. You won't need one today: Kale's key opens the cellar.", 15, DIM_COLOR, true))
 
 
 func fill_hero() -> void:
@@ -541,7 +623,8 @@ func _on_delete_loadout(index: int) -> void:
 func _on_set_out() -> void:
 	if not set_out_problem().is_empty():
 		return
-	GameState.last_loadout = GameState.current_loadout("Last time")
+	if not guided:
+		GameState.last_loadout = GameState.current_loadout("Last time")
 	GameState.save_game()
 	GameState.start_run()  # A fresh dungeon, at full HP.
 	get_tree().change_scene_to_file(DUNGEON_SCENE)

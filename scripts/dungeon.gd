@@ -331,6 +331,9 @@ func refresh() -> void:
 	var hp := GameState.run_hp if GameState.run_hp > 0 else GameState.player_max_hp()
 	title_label.text = "%s  ·  Floor %d" % [dungeon.area.display_name, dungeon.floor_number] \
 		if not dungeon.guided else "%s  ·  Your first trip" % dungeon.area.display_name
+	if not dungeon.inside.is_empty():
+		title_label.text = "%s  ·  inside the %s" % [dungeon.inside, dungeon.area.display_name]
+	background.modulate = Color(0.32, 0.3, 0.4) if not dungeon.inside.is_empty() else Color.WHITE  # Down in the dark.
 	var lines: Array[String] = []
 	lines.append("[color=#ff8080]HP %d / %d[/color]   [color=#ffd75a]Keys: %d[/color]   [color=#ffb060]Torches: %d[/color]   [color=#a0ffa0]Luck: %d[/color]" % [
 		hp, GameState.player_max_hp(), dungeon.keys, dungeon.torches, dungeon.luck])
@@ -344,6 +347,8 @@ func refresh() -> void:
 		var next := "Danger card" + (", +%d Str" % (dungeon.enemy_strength() + 1) if dungeon.next_danger_adds_strength() else "")
 		lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Str  ·  [color=#ffb080]%d more → %s[/color]" % [
 			danger_color, dungeon.danger(), dungeon.enemy_strength(), dungeon.danger_to_next(), next])
+	if not GameState.key_items.is_empty():
+		lines.append("[color=#9fd8ff]Key items: %s[/color]" % ", ".join(GameState.key_items))
 	var hunting := dungeon.hunting_text()
 	if not hunting.is_empty():
 		lines.append("[color=#a8e0ff]Hunting: %s[/color]" % hunting)
@@ -416,6 +421,10 @@ func card_art(card: RoomCard) -> Texture2D:
 #                            colour. Used-up cards go grey.
 func draw_square(square: Vector2i) -> void:
 	var button: Button = squares[square]
+	# Inside a small place (the Dark Cellar's 3x3), the squares around it are
+	# walls: invisible (but still there, so the grid keeps its shape).
+	button.modulate.a = 1.0 if dungeon.rooms.has(square) else 0.0
+	button.mouse_filter = Control.MOUSE_FILTER_STOP if dungeon.rooms.has(square) else Control.MOUSE_FILTER_IGNORE
 	var back: TextureRect = button.get_node("Back")
 	var window: Panel = button.get_node("Window")
 	var art: TextureRect = button.get_node("Window/Art")
@@ -456,7 +465,13 @@ func draw_square(square: Vector2i) -> void:
 		back.modulate = Color.WHITE if reachable else Color(0.5, 0.5, 0.5)
 		border = Color(0.95, 0.75, 0.3) if reachable else Color(0.25, 0.2, 0.12)
 	elif card == null:
-		if room.get("start", false):
+		if room.get("exit", false):
+			# The way back out to the map (the door you came in by).
+			var door: RoomCard = dungeon.outside.rooms[dungeon.outside.position].card if not dungeon.outside.is_empty() else null
+			art.texture = card_art(door) if door else load(GATE_ICON_PATH)
+			label.text = "Way Out"
+			color = FACE_DONE_COLOR
+		elif room.get("start", false):
 			# Floor 1: the Farm Gate you came in by. Deeper: your old campfire,
 			# burnt out. Neither takes you home: find this floor's campfire!
 			art.texture = load(GATE_ICON_PATH) if dungeon.floor_number == 1 else ICONS[RoomCard.Type.CAMPFIRE]
@@ -472,8 +487,9 @@ func draw_square(square: Vector2i) -> void:
 	else:
 		label.text = card.room_name
 		# DARK until you light it with a torch (its event is done).
-		if GameState.is_dark(card) and not (room.get("event_rolled", false) and not room.get("event_open", false)):
-			label.text += "  ·  DARK"
+		var tag := GameState.card_tag(card)
+		if not tag.is_empty() and not room.get("done", false) and not (room.get("event_rolled", false) and not room.get("event_open", false)):
+			label.text += "  ·  " + tag.get_slice(" ", 0)
 		art.texture = card_art(card)
 		border = RoomCard.TILE_COLORS[card.tile].darkened(0.15)
 		if card.type == RoomCard.Type.EVENT and room.get("event") != null and card.event_name.is_empty():
@@ -624,6 +640,8 @@ func describe_square(square: Vector2i) -> String:
 		return "A face-down card.\nFlip a card next to it first."
 	var card: RoomCard = room.card
 	if card == null:
+		if room.get("exit", false):
+			return "The way back out to the %s. Stand here and click it to climb out (you can come back in this trip)." % dungeon.area.display_name
 		if room.get("start", false):
 			return "The Farm Gate, where you came in. It's not a way home: find the campfire hidden on the board to Return to Town." \
 				if dungeon.floor_number == 1 else "Your campfire from the floor above, burnt out. Find this floor's campfire to get home!"
@@ -780,6 +798,8 @@ func _on_square_pressed(square: Vector2i) -> void:
 		var here: Dictionary = dungeon.rooms[square]
 		if here.campfire:
 			what = "campfire"
+		elif here.get("exit", false):
+			what = "exit"
 		elif here.get("event_open", false) or (here.has("event") and not here.done and here.card.type == RoomCard.Type.EVENT):
 			what = "event"  # An event you left for later (a dark cellar, a locked shed).
 		elif dungeon.can_scavenge(square) or not dungeon.pile_at(square).is_empty():
@@ -813,6 +833,8 @@ func _on_square_pressed(square: Vector2i) -> void:
 			show_chest()
 		"campfire":
 			show_campfire()
+		"exit":
+			show_exit()
 		"event":
 			show_event()
 		"empty":
@@ -1942,14 +1964,10 @@ func make_deck_row(entry: Dictionary) -> Control:
 const FARM_GOALS := [
 	{"id": "flip", "text": "Flip a map card", "hint": "Click a card with a gold border, next to you. You step onto it and it flips over."},
 	{"id": "dig", "text": "Scavenge something", "hint": "Stand on a card with ? along its bottom (a Dirt Road!) and click it. Dig, then Stop and drag what you found into your backpack."},
-	{"id": "Stone", "text": "Stone", "hint": "Roads, fields, the Stone Pile and the cellars have Stone. Keep scavenging!"},
+	{"id": "Stone", "text": "Stone", "hint": "Roads, fields and the Stone Piles have Stone. Keep scavenging!"},
 	{"id": "Sticks", "text": "Sticks", "hint": "The Old Barns (and the Farmer's House) have Sticks."},
 	{"id": "Wool", "text": "Wool", "hint": "Barns and Animal Pens have Wool. A loose sheep has lots!"},
-	{"id": "key", "text": "Find the Farmer's Key", "hint": "The Farmer's House (gold border) has a spare key hidden by the door. Go and look!"},
-	{"id": "cellar", "text": "Light a Dark Cellar with a torch", "hint": "Find a Dark Cellar and light it with one of your torches. Something good is hidden down there."},
-	{"id": "Hops", "text": "Open the sheds for Hops", "hint": "Walk to a Farmer's Shed with a key and open it. One key per shed."},
-	{"id": "campfire", "text": "Find the hidden campfire", "hint": "There's no way home where you came in. The campfire is somewhere on the board: keep exploring!"},
-	{"id": "home", "text": "Head home", "hint": "Stand on the campfire and click it, then head home."},
+	{"id": "cellar", "text": "Open the Dark Cellar with Kale's key", "hint": "You have Kale's supplies! Now find the Dark Cellar and unlock it with his key. (Bonus: the Farmer's Sheds have Hops, if you find the farmer's key.)"},
 ]
 const GUIDE_GOLD := Color(1, 0.84, 0.35)
 
@@ -2006,8 +2024,7 @@ func farm_goal_done(id: String) -> bool:
 		"key":
 			return dungeon.keys > 0 or dungeon.material_total("Hops") > 0 or GameState.material_count("Hops") > 0
 		"cellar":
-			return dungeon.rooms.values().any(func(room: Dictionary) -> bool:
-				return room.card != null and room.card.room_name == "Dark Cellar" and room.get("event_rolled", false) and not room.get("event_open", false))
+			return GameState.story_beats.has(GameState.CELLAR_OPENED)
 		"torch":
 			return dungeon.rooms.values().any(func(room: Dictionary) -> bool: return room.get("scouted", false))
 		"campfire":
@@ -2113,7 +2130,7 @@ func celebrate_goal(goal_text: String, big_word := "GOAL COMPLETE!", color := GU
 # The first thing you see: a big banner, then a spotlight tour.
 func start_farm_tour() -> void:
 	UnlockBanner.show_in(self, "THE ABANDONED FARM", "Your first trip", dungeon.area.icon,
-		"Kale needs %s.\nFind it all, then find the campfire to get home with it.\n\nNo monsters come this close to town... but every failed dig makes noise. Don't push your luck!" % dungeon.hunting_text(),
+		"Kale needs %s.\nFind it all, then open the old Dark Cellar with his key.\n\nNo monsters come this close to town... but every failed dig makes noise. Don't push your luck!" % dungeon.hunting_text(),
 		"Let's explore! →", func() -> void:
 			var reachable_card: Control = null
 			for square: Vector2i in reach:
@@ -2124,7 +2141,7 @@ func start_farm_tour() -> void:
 				{"target": grid, "text": "This is the farm, laid out as MAP CARDS. Dark cards are face down: places you haven't been yet."},
 				{"target": squares[dungeon.position], "text": "You're HERE, at the Farm Gate. It's only the way in, not the way home: there's a campfire hidden somewhere on the board. Find it to get home!"},
 				{"target": reachable_card, "text": "Cards with a GOLD border are right next to you. Click one to step onto it: it flips over and turns light. Light cards = places you've been."},
-				{"target": stats_label, "text": "Your keys, torches and LUCK. You start every trip with %d Luck: it adds +1 to your scavenge rolls, and each thing you find uses 1 up. And DANGER: it goes up every time a dig fails. Kale says no monsters come this close... (Kale says a lot of things.)" % DungeonRun.LUCK_POOL},
+				{"target": stats_label, "text": "Your keys, KEY ITEMS (Kale's Cellar Key!) and LUCK. You start every trip with %d Luck: all of it is added to every scavenge roll, and each thing you find uses 1 up. And DANGER: it goes up every time a dig fails. Kale says no monsters come this close... (Kale says a lot of things.)" % DungeonRun.LUCK_POOL},
 				{"target": guide_label.get_parent().get_parent(), "text": "Your GOALS. Each one ticks off by itself. The gold one is what to do next, with a hint under it."},
 			]))
 
@@ -2173,7 +2190,7 @@ func guide_progress() -> String:
 
 # Once you have it all: back to a campfire.
 func guide_goal_text() -> String:
-	return "You have everything Kale asked for! Find the campfire hidden somewhere on the board and head home."
+	return "You have everything Kale asked for! Now find the Dark Cellar and open it with his key."
 
 
 # Called after anything happens on the first trip: tick the goals.
@@ -2188,7 +2205,8 @@ func show_guided_campfire() -> void:
 	var text := "The campfire! It's your way home, with everything you found."
 	var home := "Head home"
 	if dungeon.guide_goal_met():
-		text += "\nYou have everything Kale asked for. Time to head home!"
+		text += "\nYou have Kale's supplies! But he also asked you to open the Dark Cellar with his key. Head home now, and you'll have to come back for that."
+		home = "Head home anyway"
 	else:
 		text += "\nKale is still waiting for some of it (%s). Head home now, and you'll have to come back out for the rest." % guide_progress()
 		home = "Head home anyway"
@@ -2210,6 +2228,8 @@ func show_event() -> void:
 		for effect in DungeonEvent.split_effects(event.effects[i]):
 			if effect.to_lower().begins_with("pay "):
 				label += " (%s coins)" % effect.substr(4)  # Show the price.
+			if effect.to_lower().begins_with("enter ") and dungeon.lit_inside.has(effect.substr(6).strip_edges()):
+				label = "Go back in"  # Your torch is already lit down there.
 		if event.chances[i] < 100:
 			label += " (%d%%)" % event.chances[i]
 		var blocked := dungeon.choice_blocked(event, i)
@@ -2237,6 +2257,14 @@ func _on_event_choice(index: int) -> void:
 	refresh()
 	if outcome.again:  # The Farmer's Key: wrong place, look somewhere else.
 		show_popup(event.event_name, outcome.text, [["Keep looking", show_event]])
+		return
+	if outcome.ambush:  # The end of Chapter 1: the slimes burst out of the cellar!
+		close_popup()
+		leave_first_trip(true)
+		return
+	if not str(outcome.enter).is_empty():  # Down into the Dark Cellar.
+		close_popup()
+		go_inside(outcome.enter)
 		return
 	if not str(outcome.blueprint).is_empty():
 		# Someone gave you a blueprint (the trapped Enchanter): they jump out!
@@ -2325,6 +2353,62 @@ func show_campfire() -> void:
 		choices.append(["Go Deeper", _on_go_deeper])
 	choices.append(["Not now", close_popup])
 	show_popup("Campfire", text, choices, ICONS[RoomCard.Type.CAMPFIRE], "pop")
+
+
+# Step into an Explore tile: the board is swept away and the place's own
+# little map is dealt (dungeon_run.gd enter_inside()).
+func go_inside(place: String) -> void:
+	busy = true
+	var tween := create_tween().set_parallel()
+	for square: Vector2i in squares:
+		tween.tween_property(squares[square], "scale", Vector2(0.0, 0.0), 0.25).set_delay(randf_range(0.0, 0.2))
+	await tween.finished
+	dungeon.enter_inside(place)
+	await deal_board_in()
+	busy = false
+	info_label.text = "You're in the %s! Your torch lights the way. Find what's down here, and the way out is where you came in." % place
+	if guide_label == null and not GameState.seen_guides.has("inside " + place):
+		GameState.seen_guides.append("inside " + place)
+		var top: Control = squares[DungeonRun.INSIDE_BOSS]
+		ScreenGuide.start(self, "inside", [
+			{"target": grid, "text": "An EXPLORE TILE has a little map of its own. You're inside the %s now: Danger, your HP and your backpack came with you." % place},
+			{"target": squares[dungeon.position], "text": "The WAY OUT is where you came in. Stand on it and click it to climb back out, any time. What you clear down here stays cleared for the rest of this trip."},
+			{"target": top, "text": "Something big is waiting at the far end. Beat it to clear the %s." % place},
+		])
+
+
+# Back out onto the map, on the door you went in by.
+func show_exit() -> void:
+	var text := "Climb back out to the %s?" % dungeon.area.display_name
+	if dungeon.is_cleared(dungeon.inside):
+		text += "\nYou cleared the %s!" % dungeon.inside
+	else:
+		text += "\nYou can come back in this trip: your torch stays lit, and what you cleared stays cleared."
+	show_popup("Way Out", text, [["Climb out", _on_climb_out], ["Stay", close_popup]], card_art(dungeon.outside.rooms[dungeon.outside.position].card), "pop")
+
+
+func _on_climb_out() -> void:
+	close_popup()
+	busy = true
+	var tween := create_tween().set_parallel()
+	for square: Vector2i in squares:
+		tween.tween_property(squares[square], "scale", Vector2(0.0, 0.0), 0.2).set_delay(randf_range(0.0, 0.15))
+	await tween.finished
+	dungeon.leave_inside()
+	await deal_board_in()
+	busy = false
+	info_label.text = "Back out on the %s." % dungeon.area.display_name
+
+
+# The board's cards grow back in, one after another.
+func deal_board_in() -> void:
+	refresh()
+	var tween := create_tween().set_parallel()
+	var i := 0
+	for square: Vector2i in squares:
+		tween.tween_property(squares[square], "scale", Vector2.ONE, 0.2).set_delay(i * 0.03).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		i += 1
+	await tween.finished
 
 
 func _on_go_deeper() -> void:
@@ -2443,24 +2527,24 @@ func _on_leave() -> void:
 		[["To Town", func() -> void: get_tree().change_scene_to_file(TOWN_SCENE)]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
 
 
-# CHAPTER 1's first trip ends on the road home: SLIMES! The Architect can't
-# fight... and the mysterious orb starts to glow. (Chapter 2 picks it up
-# from there.) Without everything Kale asked for, you just go home and the
-# next trip is another no-fighting one.
-func leave_first_trip() -> void:
+# CHAPTER 1's first trip ends at the Dark Cellar (Dusty's redesign): you
+# unlock it with Kale's key, SLIMES burst out, the orb glows, and you slam
+# the door and run home (orb_cutscene.gd). Chapter 2 picks it up in town.
+# Going home by the campfire before that is fine: the next trip out is the
+# same kind (no monsters, Kale's supplies, the cellar).
+func leave_first_trip(ambush := false) -> void:
 	close_popup()
-	var goal_met := dungeon.guide_goal_met()
-	var noisy := dungeon.danger() >= DungeonRun.GUIDE_DANGER_WARNING
 	dungeon.leave()
 	dungeon.claim_loot()
 	var to_town := func() -> void: get_tree().change_scene_to_file(TOWN_SCENE)
-	if not goal_met:
-		show_popup("Home safe!", "You bring home %s.\nKale still needs some of it (%s). Your next trip out is the same kind: no monsters, just scavenging." % [
-			dungeon.loot_text(), guide_progress()], [["To Town", to_town]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
+	if not ambush:
+		var still := "Kale still needs some of it (%s)" % guide_progress() if not dungeon.guide_goal_met() \
+			else "You still have to open the Dark Cellar with Kale's key"
+		show_popup("Home safe!", "You bring home %s.\n%s. Your next trip out is the same kind: no monsters, just scavenging." % [
+			dungeon.loot_text(), still], [["To Town", to_town]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
 		return
 	GameState.reach_milestone(GameState.FIRST_TRIP)
-	# The road home: slimes cut you off, and the orb glows (orb_cutscene.gd).
-	OrbCutscene.play(self, noisy, to_town)
+	OrbCutscene.play(self, to_town)
 
 
 # --- The popup ----------------------------------------------------------------

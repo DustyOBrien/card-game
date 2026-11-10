@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+event_name = "Cellar Door"
+area = "Room"
+min_tier = 1
+text = "The old cellar door, half buried in the grass. Something down there goes... squelch."
+picture = ""
+choice_labels = PackedStringArray("Unlock it with Kale's key", "Light a torch and go in", "Leave it for now")
+chances = Array[int]([100, 100, 100])
+effects = PackedStringArray("Key Item Cellar Key; Supplies; Cellar Ambush", "Enter Dark Cellar", "Come Back")
+fail_effects = PackedStringArray("", "", "")
+results = PackedStringArray("", "Your torch flickers to life. Down the steps you go...", "You leave the cellar door alone. For now.")
+fail_results = PackedStringArray("", "", "")

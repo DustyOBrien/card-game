@@ -9,17 +9,18 @@
 #   2. On the RIGHT, the place's DEFAULT cards: always in its deck. Each one
 #      shows what you can scavenge there (a ? until you've found it) and any
 #      EVENT it can have.
-#   3. Kale's gift: your own map cards (2 Farmer's Sheds, 2 Dark Cellars, a
-#      Stone Pile). They fly into YOUR MAP CARDS on the left, and are
+#   3. Kale's gift: your own map cards (2 Farmer's Sheds and the Stone
+#      Piles). They fly into YOUR MAP CARDS on the left, and are
 #      unlocked for good (they're "Yours" rows in farm_cards.csv).
-#   4. "Into the Abandoned Farm!" deals the board.
+#   4. "Into the Abandoned Farm!" goes to Prepare Expedition (Dusty: the
+#      first trip goes through it too: your quest and torches), then the board.
 #
 # Which cards are which comes from the sheet: the first trip's board is the
 # Guide rows; a Guide card that ALSO has a Yours row is one of Kale's.
 # Everything is built in code (like prepare.gd), so the .tscn is one Control.
 extends Control
 
-const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
+const PREPARE_SCENE := "res://scenes/prepare.tscn"
 const MAP_SCENE := "res://scenes/map.tscn"
 const INN_ICON := preload("res://art/town/inn.svg")
 const DECK_ICON := preload("res://art/map_cards/card_back.svg")
@@ -196,7 +197,7 @@ func make_card(card: RoomCard, copies: int) -> PanelContainer:
 	var name_label := make_label(card.room_name + ("  ×%d" % copies if copies > 1 else ""), 15, INK)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	names.add_child(name_label)
-	var tile := make_label(card.tile_name().to_upper() + ("  ·  DARK (needs a torch)" if GameState.is_dark(card) else ""), 11, RoomCard.TILE_COLORS[card.tile].darkened(0.35))
+	var tile := make_label(card.tile_name().to_upper() + ("  ·  " + GameState.card_tag(card) if not GameState.card_tag(card).is_empty() else ""), 11, RoomCard.TILE_COLORS[card.tile].darkened(0.35))
 	tile.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	names.add_child(tile)
 	var items := card.scavenge_items()
@@ -310,5 +311,4 @@ func total_cards() -> int:
 
 
 func _on_go() -> void:
-	GameState.start_run()  # A fresh trip: the first trip's board is dealt.
-	get_tree().change_scene_to_file(DUNGEON_SCENE)
+	get_tree().change_scene_to_file(PREPARE_SCENE)  # Your quest and torches, then Set Out.

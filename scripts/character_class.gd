@@ -150,7 +150,7 @@ func is_unlocked(all_cards: Array[CardData]) -> bool:
 # e.g. "Unlock 12 Strength cards (6 / 12)"
 func get_unlock_text(all_cards: Array[CardData]) -> String:
 	if not GameState.adventurers_here():
-		return "Finish Chapter 1: adventurers come once the Inn is upgraded"
+		return "Keep playing the story: the orb has a secret (Chapter 2)"
 	var school_name: String = CardData.School.find_key(unlock_school).capitalize()
 	return "Unlock %d %s cards (%d / %d)" % [
 		unlock_card_count, school_name, unlock_progress(all_cards), unlock_card_count]
