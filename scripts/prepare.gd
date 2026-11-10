@@ -486,16 +486,16 @@ func fill_pack() -> void:
 	torch_row.add_child(torch_icon)
 	# Torches come from your Bank: craft them at the Guild Hall's crafting bench.
 	var in_bank := GameState.material_count(DungeonRun.TORCH)
-	var packed := mini(GameState.packed_torches, in_bank)
-	var torch_label := make_label("Torches: %d  (Bank %d)" % [packed, in_bank], 18, Color.WHITE)
+	var torches_packed := mini(GameState.packed_torches, in_bank)
+	var torch_label := make_label("Torches: %d  (Bank %d)" % [torches_packed, in_bank], 18, Color.WHITE)
 	torch_label.custom_minimum_size = Vector2(170, 0)
 	torch_label.tooltip_text = "Torches light up DARK places. Craft more at the Guild Hall's crafting bench."
 	torch_row.add_child(torch_label)
 	var fewer := make_button("−", _change_torches.bind(-1))
-	fewer.disabled = packed <= 0
+	fewer.disabled = torches_packed <= 0
 	torch_row.add_child(fewer)
 	var more := make_button("+", _change_torches.bind(1))
-	more.disabled = packed >= mini(GameState.MAX_PACKED_TORCHES, in_bank)
+	more.disabled = torches_packed >= mini(GameState.MAX_PACKED_TORCHES, in_bank)
 	torch_row.add_child(more)
 	pack_box.add_child(torch_row)
 	# Tools: crowbars and bombs to use on map cards. Made from Bank materials
@@ -532,7 +532,7 @@ func fill_pack() -> void:
 		row.add_child(price)
 		pack_box.add_child(row)
 	var slots := DungeonRun.BACKPACK_SLOTS + GameState.town_bonus(TownBuilding.BACKPACK_SLOTS)
-	var torch_slots := DungeonRun.stacks(packed)
+	var torch_slots := DungeonRun.stacks(torches_packed)
 	pack_box.add_child(make_label("Backpack: %d slots, %d free for loot. Torches share one slot, and each kind of tool another (up to %d of one thing in a slot)." % [
 		slots, slots - torch_slots - tool_slots, DungeonRun.BACKPACK_STACK], 15, DIM_COLOR, true))
 
