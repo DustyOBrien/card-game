@@ -90,7 +90,7 @@ const TORCH_TARGETS: Array[int] = [2, 3, 4, 5]
 const SCAVENGE_DIE := 6
 const SCAVENGE_NEED := 4  # Every dig needs this on the d6 (Luck adds +1).
 const SCAVENGE_MAX_DIGS := 5  # The most finds one spot can give (the scavenge box's slots).
-const LUCK_POOL := 5  # The Luck you start every trip with.
+const LUCK_POOL := 3  # The Luck you start every trip with (Dusty's example).
 # A find's TIER, and how likely each one is (out of 100).
 const LOOT_TIERS := ["Common", "Uncommon", "Rare", "Legendary"]
 const TIER_ODDS: Array[int] = [70, 25, 4, 1]
@@ -1014,9 +1014,10 @@ func scavenge_need(square: Vector2i) -> int:
 	return SCAVENGE_NEED
 
 
-# What Luck adds to a dig: +1 while you have any left.
+# What Luck adds to a dig: ALL the Luck you have left (Dusty: start with 3
+# Luck and roll a 3 = 3 + 3 = 6). Each find uses 1, so it shrinks as you go.
 func luck_bonus() -> int:
-	return 1 if luck > 0 else 0
+	return maxi(luck, 0)
 
 
 # Roll a find's tier: 0 Common, 1 Uncommon, 2 Rare, 3 Legendary (TIER_ODDS).

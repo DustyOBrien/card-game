@@ -359,7 +359,7 @@ func refresh() -> void:
 		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Coins, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
 		"Torches: light up DARK places (like a Dark Cellar) so you can explore them.",
 		"Tools: drag a crowbar, bomb or torch onto a face-up card next to you. The corner badge says how many tool tricks a card has; the Journal remembers the ones you find.",
-		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; it adds +1 to a dig, and each find uses 1. A natural 6 always works and keeps your Luck; a natural 1 fails and costs 1 Luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
+		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; all of it is added to a dig (3 Luck: roll + 3), and each find uses 1. A natural 6 (the die itself) always works and keeps your Luck; a natural 1 fails and costs 1 Luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
@@ -1190,7 +1190,7 @@ func scavenge_odds(square: Vector2i) -> String:
 		return "This first dig always finds something!"
 	var bonus := dungeon.luck_bonus()
 	var chance := roundi(clampi(DungeonRun.SCAVENGE_DIE - (need - bonus) + 1, 1, DungeonRun.SCAVENGE_DIE - 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
-	var luck_text := "d6 + %d Luck (%d Luck left, a find uses 1)" % [bonus, dungeon.luck] if bonus > 0 else "no Luck left"
+	var luck_text := "d6 + %d Luck (a find uses 1 Luck)" % bonus if bonus > 0 else "no Luck left"
 	return "Next dig: %d+ on %s (%d%%) · natural 6: Luck kept · natural 1: -1 Luck · a fail adds Danger" % [need, luck_text, chance]
 
 
@@ -2391,9 +2391,10 @@ func roll_die(sides: int, value: int, text: String, color: Color, bonus := 0) ->
 	die.sides = sides
 	die.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	die_row.add_child(die)
+	var plus: Label = null
 	if bonus > 0:
-		var plus := Label.new()
-		plus.text = "+ %d" % bonus
+		plus = Label.new()
+		plus.text = "+ %d Luck" % bonus
 		plus.tooltip_text = "Luck"
 		plus.add_theme_font_size_override("font_size", 48)
 		plus.add_theme_color_override("font_color", Color(0.63, 1, 0.63))
@@ -2418,6 +2419,8 @@ func roll_die(sides: int, value: int, text: String, color: Color, bonus := 0) ->
 		await get_tree().create_timer(0.05).timeout
 	die.rotation = 0.0
 	die.show_value(value, value == sides)
+	if plus:  # "3 + 3 Luck = 6": the die stays a 3, so a natural 6 is only ever the die itself.
+		plus.text += " = %d" % (value + bonus)
 	die.pivot_offset = die.size / 2
 	die.scale = Vector2.ONE * 1.3
 	var tween := create_tween()
