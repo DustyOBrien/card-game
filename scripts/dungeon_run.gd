@@ -759,7 +759,7 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 				blueprint = effect.substr(10).strip_edges()
 				GameState.give_rewards("Blueprint " + blueprint)
 				GameState.save_game()
-				lines.append("Blueprint: %s! Build it back in town." % blueprint)
+				lines.append("The %s is unlocked! Build it back in town." % blueprint)
 			"luck":  # "Luck 1": more Luck for scavenging this trip.
 				luck += maxi(number, 1)
 				lines.append("Luck +%d (%d)" % [maxi(number, 1), luck])

@@ -66,6 +66,7 @@ const CHEST_GIFT := "Material Stone 5; Material Sticks 2; Material Wool 2; Mater
 const HOME_AGAIN := "Home Again"  # Story beat: Kale heard about your first trip.
 const UPGRADE_LESSON := "Upgrade Lesson"  # Story beat: Kale asked you to upgrade the Inn.
 const ORB_ICON := preload("res://art/materials/orb.svg")
+const KALE := "Kale"  # The Innkeeper.
 const GOLD_COLOR := Color(1, 0.84, 0.35)
 const DONE_COLOR := Color(0.55, 0.95, 0.55)
 
@@ -351,17 +352,18 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 		"built" if stage == 1 and building.needs_blueprint else "upgraded", building.stage_texts[stage - 1]]
 	close_overlay()
 	refresh()
-	# A brand new building pops up on the street (scrolled into view first).
-	if stage == 1 and panels.has(building.building_name):
+	# The building goes up on the street (scrolled into view first): its own
+	# BUILD animation, not the unlock pop (Dusty's playtest).
+	if panels.has(building.building_name):
 		show_on_street(panels[building.building_name])
-		pop_in(panels[building.building_name])
+		play_build_animation(panels[building.building_name], stage == 1)
 	# The Inn: Kale comes out to thank you (play_story() does the rest).
 	if not GameState.story_beats.has(GameState.INN_BUILT) and building.bonus(TownBuilding.INN, stage) > 0:
-		get_tree().create_timer(0.7).timeout.connect(play_story)
+		get_tree().create_timer(2.0).timeout.connect(play_story)  # After the build animation.
 		return
 	# The Inn's upgrade: the end of Chapter 1.
 	if chapter_end_due():
-		get_tree().create_timer(0.5).timeout.connect(play_story)
+		get_tree().create_timer(1.6).timeout.connect(play_story)
 		return
 	# Building what a quest asked for: straight to the quests, to hand it in.
 	if GameState.quests_active().any(func(q: Quest) -> bool: return q.objective == Quest.BUILD and GameState.quest_ready(q)):
@@ -465,6 +467,76 @@ func pop_in(control: Control) -> void:
 	control.scale = Vector2(0.2, 0.2)
 	control.create_tween().tween_property(control, "scale", Vector2.ONE, 0.5) \
 		.set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+
+
+# BUILDING IT: the building rises from its base in three hammer hits (a
+# BANG! and a puff of dust each time), then shines. An upgrade gets two
+# quicker hits and the shine.
+func play_build_animation(control: Control, brand_new: bool) -> void:
+	await get_tree().process_frame  # Wait until it has a size.
+	if not is_instance_valid(control):
+		return
+	control.pivot_offset = Vector2(control.size.x / 2, control.size.y)  # Grow up from its base.
+	var hits := 3 if brand_new else 2
+	var tween := control.create_tween()
+	if brand_new:
+		control.modulate = Color(0.4, 0.35, 0.3)
+		control.scale = Vector2(1, 0.12)
+	for i in hits:
+		tween.tween_callback(_build_hit.bind(control, i))
+		if brand_new:
+			var height := 0.12 + 0.88 * (i + 1) / float(hits)
+			tween.tween_property(control, "scale", Vector2(1, height), 0.2).set_trans(Tween.TRANS_BACK).set_ease(Tween.EASE_OUT)
+		else:
+			tween.tween_property(control, "scale", Vector2(1.04, 0.96), 0.08)
+			tween.tween_property(control, "scale", Vector2.ONE, 0.12)
+		tween.tween_interval(0.3)
+	tween.tween_property(control, "modulate", Color(1.6, 1.45, 1.1), 0.15)
+	tween.tween_property(control, "modulate", Color.WHITE, 0.5)
+	tween.tween_callback(_float_word.bind(control, "BUILT!" if brand_new else "UPGRADED!", 40, GOLD_COLOR))
+
+
+const BUILD_SOUNDS := ["BANG!", "THUNK!", "CLANG!"]
+
+
+func _build_hit(control: Control, hit: int) -> void:
+	_float_word(control, BUILD_SOUNDS[hit % BUILD_SOUNDS.size()], 26, Color(1, 0.95, 0.85))
+	# Dust puffs out from both sides of the base.
+	var base := control.global_position - global_position + Vector2(control.size.x / 2, control.size.y)
+	for side in [-1, 1]:
+		for i in 3:
+			var puff := Panel.new()
+			var style := StyleBoxFlat.new()
+			style.bg_color = Color(0.75, 0.68, 0.55, 0.8)
+			style.set_corner_radius_all(14)
+			puff.add_theme_stylebox_override("panel", style)
+			puff.size = Vector2(26, 26)
+			puff.pivot_offset = puff.size / 2
+			puff.position = base - puff.size / 2 + Vector2(side * 20, -10)
+			puff.mouse_filter = Control.MOUSE_FILTER_IGNORE
+			add_child(puff)
+			var drift := puff.create_tween().set_parallel()
+			drift.tween_property(puff, "position", puff.position + Vector2(side * randf_range(50, 110), randf_range(-40, -5)), 0.6)
+			drift.tween_property(puff, "scale", Vector2.ONE * randf_range(1.4, 2.0), 0.6)
+			drift.tween_property(puff, "modulate:a", 0.0, 0.6)
+			drift.chain().tween_callback(puff.queue_free)
+
+
+# A word that jumps up over a building and fades: "BANG!", "BUILT!".
+func _float_word(control: Control, text: String, font_size: int, color: Color) -> void:
+	var word := make_label(text, font_size, color)
+	word.autowrap_mode = TextServer.AUTOWRAP_OFF
+	word.add_theme_color_override("font_outline_color", Color.BLACK)
+	word.add_theme_constant_override("outline_size", 8)
+	word.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	add_child(word)
+	word.reset_size()
+	var top := control.global_position - global_position
+	word.position = top + Vector2((control.size.x - word.size.x) / 2 + randf_range(-30, 30), randf_range(-10, 40))
+	var rise := word.create_tween().set_parallel()
+	rise.tween_property(word, "position:y", word.position.y - 60, 0.8)
+	rise.tween_property(word, "modulate:a", 0.0, 0.8).set_delay(0.3)
+	rise.chain().tween_callback(word.queue_free)
 
 
 func _buy_enchant() -> void:
@@ -1050,7 +1122,7 @@ func show_next_story(back_to_board: bool) -> void:
 	box.add_child(ok)
 
 
-# "Material Lumber 5; Blueprint Inn" -> "5 Lumber, Inn blueprint".
+# "Material Lumber 5; Blueprint Inn" -> "5 Lumber, unlocks the Inn".
 func quest_reward_text(text: String) -> String:
 	var parts: Array[String] = []
 	for part in text.split(";", false):
@@ -1059,7 +1131,7 @@ func quest_reward_text(text: String) -> String:
 		var rest := reward.substr(word.length()).strip_edges()
 		match word:
 			"material": parts.append(MaterialInfo.costs_text(MaterialInfo.parse_costs(rest)))
-			"blueprint": parts.append("%s blueprint" % rest)
+			"blueprint": parts.append("unlocks the %s" % rest)
 			"room": parts.append("new room: " + rest.get_slice(":", 1).strip_edges())
 			"pack":  # "Small 2" -> "2 Small Farm Booster Packs"
 				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
@@ -1178,7 +1250,7 @@ func show_guild_hall() -> void:
 			build_rows[building.building_name] = make_build_row(building, stage)
 			list.add_child(build_rows[building.building_name])
 	if build_rows.is_empty():
-		list.add_child(make_label("Nothing to build right now. Quests (and the dungeons) give you new blueprints.", 15, Color(1, 1, 1, 0.6)))
+		list.add_child(make_label("Nothing to build right now. The story and quests unlock new buildings.", 15, Color(1, 1, 1, 0.6)))
 
 	# The Crafting Bench (once Kale has shown it to you): turn materials into
 	# things you take on a trip (data/progression/crafting.csv).
@@ -1344,9 +1416,10 @@ func make_build_row(building: TownBuilding, stage: int) -> PanelContainer:
 # STORY BEAT 2: the medallion chest. A banner, then what was inside pops up
 # and floats into the Bank, then a guide shows how to build the Inn.
 func _chest_opens() -> void:
-	UnlockBanner.show_in(self, "THE MEDALLION CHEST", "In a corner of the Guild Hall", ORB_ICON,
-		"An old iron chest with no keyhole, just a round dent the size of your medallion. You press the King's Architect medallion into it... CLICK.\n\nInside: 5 Stone, 2 Sticks, 2 Wool, and a strange orb. It's cold, and dark, and heavier than it looks.",
-		"Take it all", _chest_pops)
+	TalkBox.show_in(self, "The Medallion Chest", ORB_ICON, [
+		"In a corner of the Guild Hall: an old iron chest with no keyhole, just a round dent the size of your medallion.",
+		"You press the King's Architect medallion into it... CLICK. Inside: 5 Stone, 2 Sticks, 2 Wool, and a strange orb. It's cold, and dark, and heavier than it looks.",
+	], "Take it all", _chest_pops)
 
 
 func _chest_pops() -> void:
@@ -1460,99 +1533,105 @@ func story_waiting() -> bool:
 	return crafting_intro_due() or upgrade_lesson_due()
 
 
-# STORY BEAT 1: welcome to town, and the Inn blueprint.
+# Kale talking to you (talk_box.gd): his words in a speech box along the
+# bottom of the screen. (Dusty's playtest: the people in the story do the
+# explaining, not big UNLOCKED banners.)
+func kale_says(lines: Array, button_text: String, on_done: Callable) -> void:
+	close_overlay()
+	TalkBox.show_in(self, KALE, INN_ICON, lines, button_text, on_done)
+
+
+# STORY BEAT 1: the CHAPTER 1 title card, then you arrive. Kale meets you at his makeshift Inn, and the
+# Inn's ruins appear: the story unlocks buildings now (no blueprint popup).
 func show_welcome() -> void:
-	UnlockBanner.show_in(self, "WELCOME TO TOWN!", "A mission from the King", GUILD_HALL_ICON,
-		"You are the King's ARCHITECT. Your mission: rebuild this ruined town into the heart of his empire.\n\nOnly the Guild Hall still stands... and a makeshift Inn: a few planks, a barrel, and a man named KALE.\n\n\"The King's Architects always rebuild the Inn first,\" he grins. \"They need the ale.\"",
-		"Where do I start?", show_blueprint_unlock)
+	ChapterCard.show_in(self, "CHAPTER 1", "The Inn", _kale_welcome)
 
 
-func show_blueprint_unlock() -> void:
-	UnlockBanner.show_in(self, "NEW BLUEPRINT!", "The Inn", BLUEPRINT_ICON,
-		"A BLUEPRINT is the plan for a building. Every building needs one: once you have its blueprint, the building shows up in town (in ruins), ready to be built.\n\nYou'll earn more blueprints from quests, and find some out in the dungeons.",
-		"Read Blueprint", _on_read_blueprint)
+func _kale_welcome() -> void:
+	kale_says([
+		"Well, well. Another one of the King's Architects! Welcome to what's left of town.",
+		"Only the Guild Hall still stands. Everything else is ruins... except my Inn. Well. A few planks, a barrel and me.",
+		"The King's Architects always rebuild the Inn first. They need the ale! Come on, I'll show you.",
+	], "Show me", _on_welcome_done)
 
 
-func _on_read_blueprint() -> void:
-	GameState.give_rewards("Blueprint Inn")
+func _on_welcome_done() -> void:
+	GameState.give_rewards("Blueprint Inn")  # (How a building appears in town: it's still a blueprint inside.)
 	GameState.story_beats.append(WELCOME)
 	GameState.save_game()
 	refresh()
 	if panels.has("Inn"):
+		show_on_street(panels["Inn"])
 		pop_in(panels["Inn"])
 	message_label.text = "Click the Guild Hall to build the Inn."
 	await get_tree().create_timer(0.6).timeout  # Let the Inn finish popping in first.
-	# How building works: point at the Inn's ruins, then at the Guild Hall.
-	var steps := []
-	if panels.has("Inn"):
-		steps.append({"target": panels["Inn"], "text": "The blueprint shows you the Inn's ruins. To BUILD it you need MATERIALS: the Inn takes 5 Stone. Some buildings cost coins too. You find materials out on the map, and each area has its own (the Abandoned Farm has Stone, Sticks and Wool)."})
-	if panels.has("Guild Hall"):
-		steps.append({"target": panels["Guild Hall"], "text": "Everything is built from the GUILD HALL. It also holds your Bank, where your materials are kept. Kale says there's an old chest in there that only opens for the King's medallion... Click the Guild Hall."})
-	ScreenGuide.start(self, "town_building", steps)
+	kale_says([
+		"That heap of boards is my Inn. To BUILD it you need MATERIALS: 5 Stone should do it.",
+		"Everything gets built from the GUILD HALL. There's an old chest in there that only opens for the King's medallion. Go and take a look!",
+	], "To the Guild Hall", func() -> void:
+		if panels.has("Guild Hall"):
+			ScreenGuide.start(self, "town_building", [{"target": panels["Guild Hall"], "text": "Click the Guild Hall."}]))
 
 
-# STORY BEAT 3: Kale thanks you... and wants ale. The quest tutorial, then
-# his quest (quests.csv: Starts After "Inn Built").
+# STORY BEAT 3: Kale thanks you... and wants ale. He explains quests, then
+# his quest's popup (quests.csv: Starts After "Inn Built").
 func show_innkeeper_thanks() -> void:
-	close_overlay()
-	UnlockBanner.show_in(self, "THE INN IS REPAIRED!", "Kale comes out to meet you", INN_ICON,
-		"\"Ha! A roof that (mostly) doesn't leak! Thank you, Architect.\"\n\n\"Now, an Inn with no ale is just a house. Nobody's stopping here without a drink. I need Hops, and a few other things...\"",
-		"What do you need?", show_quest_tutorial)
-
-
-func show_quest_tutorial() -> void:
-	UnlockBanner.show_in(self, "QUESTS UNLOCKED!", "How quests work", QUEST_ICON,
-		"People in town will ask you for help. Each QUEST has an objective (bring something home, build something...) and a REWARD.\n\n•  Your quests live at the INN: click it any time to see them, and how far along you are.\n•  When one is done, come back to the Inn and press HAND IN to get the reward.\n•  You can be on several quests at once.",
-		"See Kale's quest", func() -> void:
-			GameState.reach_milestone(GameState.INN_BUILT)
-			refresh()
-			announce_quests(false))
+	kale_says([
+		"Ha! A roof that (mostly) doesn't leak! Thank you, Architect.",
+		"Now, an Inn with no ale is just a house. Nobody's stopping here without a drink. I need Hops... and a few other things.",
+		"When someone in town needs something, it's a QUEST. Mine are on the board in the Inn: click the Inn any time to see them, and how far along you are. Bring me what I ask, then come back and HAND IT IN.",
+	], "What do you need?", func() -> void:
+		GameState.reach_milestone(GameState.INN_BUILT)
+		refresh()
+		announce_quests(false))
 
 
 # STORY BEAT 4: the crafting bench. Kale wants you to take a Torch.
 func show_crafting_intro() -> void:
-	close_overlay()
-	var torch := GameState.find_material(DungeonRun.TORCH)
-	UnlockBanner.show_in(self, "THE CRAFTING BENCH", "Kale has one more thing", torch.icon if torch else null,
-		"\"Take a Torch with you. Some of those farm cellars are pitch dark.\"\n\n\"Don't have one? You've got Sticks and Wool from that chest. There's a crafting bench in the Guild Hall: 1 Stick and 1 Wool makes a Torch.\"\n\nHe looks you up and down. \"Not for me, for YOU. For an Architect, you sure don't know how to build nothing.\"",
-		"To the crafting bench", func() -> void:
-			GameState.reach_milestone(GameState.CRAFTING_OPEN)
-			show_guild_hall())
+	kale_says([
+		"One more thing: take a Torch with you. Some of those farm cellars are pitch dark.",
+		"Don't have one? You've got Sticks and Wool from that chest. There's a crafting bench in the Guild Hall: 1 Stick and 1 Wool makes a Torch. It goes in your Bank, ready for the trip.",
+		"Not for me, for YOU. For an Architect, you sure don't know how to build nothing.",
+	], "To the crafting bench", func() -> void:
+		GameState.reach_milestone(GameState.CRAFTING_OPEN)
+		show_guild_hall())
 
 
 # STORY BEAT 5: you have a Torch. Off to the farm: the road out of town opens.
 func show_send_off() -> void:
-	close_overlay()
-	UnlockBanner.show_in(self, "OFF TO THE FARM", "The road out of town is open", AREA_FARM_ICON,
-		"\"A Torch! Now you look like an adventurer. Well... almost.\"\n\nYou remind him you can't fight.\n\n\"Don't worry, monsters never come this close to town. Take the road to the map and pick the Abandoned Farm. I'll show you how the map works when you get there.\"",
-		"Let's go!", func() -> void:
-			GameState.reach_milestone(GameState.SENT_OFF)
-			refresh()
-			message_label.text = "Take the road out of town to the map."
-			ScreenGuide.start(self, "town_road", [{"target": road, "text":
-				"The ROAD out of town leads to the MAP. Click it, then pick the Abandoned Farm."}]))
+	kale_says([
+		"A Torch! Now you look like an adventurer. Well... almost.",
+		"Can't fight? Don't worry, monsters never come this close to town.",
+		"Take the road out of town to the map and pick the Abandoned Farm. I'll show you how the map works when you get there.",
+	], "Let's go!", func() -> void:
+		GameState.reach_milestone(GameState.SENT_OFF)
+		refresh()
+		message_label.text = "Take the road out of town to the map."
+		ScreenGuide.start(self, "town_road", [{"target": road, "text":
+			"The ROAD out of town leads to the MAP. Click it, then pick the Abandoned Farm."}]))
 
 
 # STORY BEAT 6: home from the first trip (the slimes, the glowing orb).
 func show_home_again() -> void:
-	close_overlay()
-	UnlockBanner.show_in(self, "HOME AGAIN", "Kale is waiting at the door", INN_ICON,
-		"\"SLIMES? This close to town? That's never happened before...\"\n\nKale stares at the orb in your pack. \"And it GLOWED, you say? Hm. We'll worry about that later.\"\n\n\"First things first: did you get my supplies? Hand them in at the Inn.\"",
-		"To the quests", func() -> void:
-			GameState.story_beats.append(HOME_AGAIN)
-			GameState.save_game()
-			show_quest_board())
+	kale_says([
+		"SLIMES? This close to town? That's never happened before...",
+		"And that orb GLOWED, you say? Hm. We'll worry about that later.",
+		"First things first: did you get my supplies? Hand them in at the Inn.",
+	], "To the quests", func() -> void:
+		GameState.story_beats.append(HOME_AGAIN)
+		GameState.save_game()
+		show_quest_board())
 
 
 # STORY BEAT 7: the Inn's upgrade, with the Stone from the first trip.
 func show_upgrade_lesson() -> void:
-	close_overlay()
-	UnlockBanner.show_in(self, "UPGRADES!", "Kale wants a proper Inn", INN_ICON,
-		"\"Hops! Now I can brew. But this place still leaks like a basket...\"\n\nBuildings can be UPGRADED too. Each stage costs more materials, and opens up something new. The Stone you brought home is just enough to upgrade the Inn.",
-		"To the Guild Hall", func() -> void:
-			GameState.story_beats.append(UPGRADE_LESSON)
-			GameState.save_game()
-			show_guild_hall())
+	kale_says([
+		"Hops! Now I can brew. But this place still leaks like a basket...",
+		"Buildings can be UPGRADED too. Each stage costs more, and opens something new. That Stone you brought home is just enough to upgrade the Inn!",
+	], "To the Guild Hall", func() -> void:
+		GameState.story_beats.append(UPGRADE_LESSON)
+		GameState.save_game()
+		show_guild_hall())
 
 
 # The Inn is upgraded: the end of Chapter 1. (Until Chapter 2 is written,
@@ -1589,24 +1668,10 @@ func show_farm_news() -> void:
 			announce_quests(true))
 
 
-# NEW QUESTS! A big banner listing the quests that just started (so you don't
-# miss them), then each one's story. Nothing new: straight on.
+# New quests: straight to each one's popup (show_next_story()). (Dusty: a
+# new quest isn't an UNLOCK, so no big banner for it any more.)
 func announce_quests(back_to_board: bool) -> void:
-	var fresh: Array[Quest] = []
-	for quest_name in GameState.unseen_quests:
-		var quest := GameState.find_quest(quest_name)
-		if quest and GameState.active_quests.has(quest_name):
-			fresh.append(quest)
-	if fresh.is_empty():
-		show_next_story(back_to_board)
-		return
-	var lines: Array[String] = []
-	for quest in fresh:
-		var kind := "" if quest.quest_type == "Story" else "  (%s quest)" % quest.quest_type
-		lines.append("•  %s%s:  %s" % [quest.quest_name, kind, quest.objective_text()])
-	var title := "NEW QUEST!" if fresh.size() == 1 else "%d NEW QUESTS!" % fresh.size()
-	UnlockBanner.show_in(self, title, "Find them at the Inn any time", QUEST_ICON,
-		"\n".join(lines), "Read them" if fresh.size() > 1 else "Read it", show_next_story.bind(back_to_board))
+	show_next_story(back_to_board)
 
 
 # --- The Old Master ------------------------------------------------------------------

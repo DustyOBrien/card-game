@@ -2456,19 +2456,8 @@ func leave_first_trip() -> void:
 			dungeon.loot_text(), guide_progress()], [["To Town", to_town]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
 		return
 	GameState.reach_milestone(GameState.FIRST_TRIP)
-	var found := dungeon.loot_text()
-	var orb := GameState.find_material("Mysterious Orb")
-	var slime_art: Texture2D = load("res://art/enemies/slime.svg")
-	UnlockBanner.show_in(self, "SLIMES!", "On the road home", slime_art,
-		("All that noise you made out there brought a whole pack of them!" if noisy else "Halfway home, the ground starts to squelch.") +
-		" Slimes ooze out of the ditches and block the road. They're coming straight for you.\n\nYou're an Architect, not a fighter. And Kale said monsters never come this close to town...",
-		"Back away...", func() -> void:
-			UnlockBanner.show_in(self, "THE ORB IS GLOWING!", "Something in your pack", orb.icon if orb else null,
-				"Your pack is getting warm. You pull out the mysterious orb from the medallion chest... and it's GLOWING, brighter and brighter.\n\nThe slimes stop. They're staring at it.",
-				"...", func() -> void:
-					UnlockBanner.show_in(self, "THE SLIMES BACK AWAY", "Run!", orb.icon if orb else null,
-						"The light gets brighter... and the slimes slither back into the ditches. You don't wait to find out why. You run all the way home with %s.\n\n(Kale will want to hear about this. And about his supplies.)" % found,
-						"To Town", to_town)))
+	# The road home: slimes cut you off, and the orb glows (orb_cutscene.gd).
+	OrbCutscene.play(self, noisy, to_town)
 
 
 # --- The popup ----------------------------------------------------------------

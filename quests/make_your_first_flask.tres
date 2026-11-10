@@ -6,7 +6,7 @@
 script = ExtResource("2_script")
 quest_name = "Make your first Flask"
 giver = "Kale"
-text = "\"Remember that Alchemist blueprint? Build the workshop and the Alchemist will brew you a Health Flask from that Ooze.\" Flasks refill at the start of every run. Blue Slimes now live on the farm too."
+text = "\"Remember the Alchemist? Build the workshop and the Alchemist will brew you a Health Flask from that Ooze.\" Flasks refill at the start of every run. Blue Slimes now live on the farm too."
 objective = "brew"
 target = "Health Flask"
 amount = 1

@@ -1215,7 +1215,7 @@ func restore_blocked(building: TownBuilding) -> String:
 	if stage >= building.max_stage():
 		return "Fully restored"
 	if not has_blueprint(building):
-		return "You need its blueprint"
+		return "Not unlocked yet"
 	# Chapter 1: the Inn's upgrade is the UPGRADE lesson, after Kale's supplies
 	# (so the first Stone isn't spent before the quest can be handed in).
 	if building.building_name == "Inn" and stage == 1 and not quests_done.has(SUPPLIES_QUEST):
