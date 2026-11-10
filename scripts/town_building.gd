@@ -28,7 +28,8 @@ const INN := "inn"  # Opens quests, the map and adventuring.
 const BANK := "bank"  # The Guild Hall's Bank: see your materials.
 const DOJO := "dojo"  # The Old Master's Dojo: the Talents screen, from town.
 const SHOP_STOCK := "shop stock"  # More packs in the Shop's stock after every trip.
-const EFFECTS := [SHOP, PACK_DISCOUNT, SHOP_STOCK, SACK_SLOTS, GOLD_STACK, ENCHANTER, ENCHANT_CHOICE,
+const INN_GUESTS := "inn guests"  # The Inn is ready for guests: people stay there and give you quests (town.gd).
+const EFFECTS := [INN_GUESTS, SHOP, PACK_DISCOUNT, SHOP_STOCK, SACK_SLOTS, GOLD_STACK, ENCHANTER, ENCHANT_CHOICE,
 	ALCHEMIST, POTION_SLOTS, MAPMAKER, DANGER_STEPS, BACKPACK_SLOTS, INN, BANK, DOJO]
 
 @export var building_name: String = "Building"

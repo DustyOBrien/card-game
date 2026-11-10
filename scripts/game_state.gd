@@ -294,6 +294,10 @@ var blueprints: Array[String] = []  # Buildings you can build: ["Inn", "Alchemis
 var active_quests: Array[String] = []  # The quests you're on (story, class and side quests). See quest.gd.
 var quest_progress := {}  # Quest name -> kills / rooms / packs / tier counted for it.
 var unseen_quests: Array[String] = []  # Just started: town shows their story once.
+# Quests waiting for you to TALK to their giver in the Inn (once the Inn is
+# ready for guests, Dusty): side and Adventurer quests. Story quests still
+# start by themselves. Saved.
+var offered_quests: Array[String] = []
 var quests_done: Array[String] = []
 # Parts of the game a quest has opened up ("Unlock Talents" reward), e.g. ["Talents"].
 var unlocked_features: Array[String] = []
@@ -330,6 +334,8 @@ const CHAPTER_2 := "Chapter 2"  # The title card has shown.
 const ORB_EXPLAINED := "Orb Explained"  # The Old Master told you about the orbs: the Adventurer is unlocked.
 const MASTER_TRAINING := "Master Training"  # The Dojo is built: off to the Master's training fight.
 const CHAPTER_2_DONE := "Chapter 2 Done"  # You cleared the Dark Cellar and told Kale: the old quests start.
+const INN_FIX_ASKED := "Inn Fix Asked"  # Kale asked you to fix the Inn up for guests (its stage 2).
+const INN_GUESTS := "Inn Guests"  # The Inn's stage 2: guests move in, and side quests come from talking to them.
 const ORB := "Mysterious Orb"  # Key items.
 const ORB_AWAKE := "Orb of the Adventurer"  # What the orb turns out to be.
 const CELLAR_KEY := "Cellar Key"
@@ -413,6 +419,7 @@ func start_fresh() -> void:
 	active_quests.clear()
 	quest_progress.clear()
 	unseen_quests.clear()
+	offered_quests.clear()
 	# No quests at the start: they only appear once the Inn is built (the
 	# town's welcome, in town.gd, hands you the Inn blueprint first).
 	legacy_talent_points = 0
@@ -1335,15 +1342,44 @@ func quests_active() -> Array[Quest]:
 	return list
 
 
+# Is the Inn ready for guests (its stage 2)? Then people stay there, and
+# their side quests are OFFERED: you talk to them in the Inn to take one.
+func inn_guests_open() -> bool:
+	return town_bonus(TownBuilding.INN_GUESTS) > 0
+
+
 # Start a quest: hand out its Start Gift, and town shows its story next visit.
-func start_quest(quest_name: String) -> void:
+# Once the Inn has guests, a side or Adventurer quest waits for you to talk
+# to whoever gives it (accept_quest()) instead.
+func start_quest(quest_name: String, accepted := false) -> void:
 	var quest := find_quest(quest_name)
 	if quest == null or active_quests.has(quest.quest_name) or quests_done.has(quest.quest_name):
 		return
+	if not accepted and quest.quest_type != "Story" and inn_guests_open():
+		if not offered_quests.has(quest.quest_name):
+			offered_quests.append(quest.quest_name)
+		return
+	offered_quests.erase(quest.quest_name)
 	active_quests.append(quest.quest_name)
 	quest_progress[quest.quest_name] = 0
 	unseen_quests.append(quest.quest_name)
 	give_rewards(quest.start_gift)
+
+
+# You talked to them in the Inn and took the quest.
+func accept_quest(quest_name: String) -> void:
+	start_quest(quest_name, true)
+	unseen_quests.erase(quest_name)  # (You just read it.)
+	save_game()
+
+
+# The quests someone in the Inn is offering you.
+func offered_by(giver: String) -> Array[Quest]:
+	var list: Array[Quest] = []
+	for quest in load_quests():
+		if offered_quests.has(quest.quest_name) and quest.giver == giver:
+			list.append(quest)
+	return list
 
 
 # How far along a quest is, and how much it needs: Vector2i(3, 5).
@@ -2254,6 +2290,7 @@ func save_game() -> void:
 		"active_quests": active_quests,
 		"quest_progress": quest_progress,
 		"unseen_quests": unseen_quests,
+		"offered_quests": offered_quests,
 		"quests_done": quests_done,
 		"unlocked_features": unlocked_features,
 		"seen_guides": seen_guides,
@@ -2355,6 +2392,7 @@ func load_game() -> bool:
 	var saved_progress = data.get("quest_progress", {})
 	quest_progress = _whole_numbers(saved_progress) if saved_progress is Dictionary else {}
 	unseen_quests.assign(data.get("unseen_quests", []))
+	offered_quests.assign(data.get("offered_quests", []))
 	# A save from when there was one quest at a time.
 	if data.has("active_quest") and not str(data.active_quest).is_empty() and active_quests.is_empty():
 		active_quests.append(str(data.active_quest))

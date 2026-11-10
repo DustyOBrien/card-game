@@ -20,13 +20,13 @@
 #                   Kale runs a makeshift Inn, and its ruins appear. Kale
 #                   sends you to the Guild Hall.
 #   2. Medallion Chest   Your first visit to the Guild Hall: the chest that
-#                   only opens for your medallion. 5 Stone, 2 Sticks, 2 Wool
-#                   go in the Bank, the Mysterious Orb in your KEY ITEMS, and
+#                   only opens for your medallion. 5 Stone go in the Bank,
+#                   the Mysterious Orb in your KEY ITEMS, and
 #                   a guide shows you how to BUILD the Inn.
 #   3. Inn Built    Kale thanks you: the QUEST tutorial, then his quest
-#                   "Supplies for the Inn" (quests.csv).
-#   4. Off to the Farm   Kale gives you his CELLAR KEY (a key item), and the
-#                   road out of town opens. (The first trip is map_deck.gd,
+#                   "Supplies for the Inn" (quests.csv). It hands you his
+#                   CELLAR KEY (a key item, the quest's Start Gift).
+#   4. Off to the Farm   Kale sends you off, and the road out of town opens. (The first trip is map_deck.gd,
 #                   prepare.gd and dungeon.gd. It ends when you open the
 #                   Dark Cellar: slimes, the orb glows, you slam the door.)
 # CHAPTER 2: THE GLOWING ORB AND THE MASTER
@@ -43,6 +43,10 @@
 #   9. Adventurer Trained   With a Torch: Kale's quest "The Dark Cellar" (go
 #                   back in and clear it). Its hand-in ends Chapter 2, and
 #                   the farm quests start (Starts After "Chapter 2 Done").
+# THE INN'S GUESTS (Dusty): Chapter 2 done, Kale asks you to fix the Inn up
+# for guests (its stage 2, "Inn Fix Asked"). Once it's upgraded, guests move
+# in ("Inn Guests"): clicking the Inn shows the people staying there, and
+# TALKING to them is how you get side quests (show_inn()).
 # After that, your first level up brings the Old Master's duel.
 extends Control
 
@@ -70,8 +74,8 @@ const MASTER_MET := "Old Master Met"  # Story beat: his arrival banner has playe
 # because quests.csv can name them in Starts After.
 const WELCOME := "Welcome"
 # What's in the medallion chest in the Guild Hall (story beat 2).
-const CHEST_GIFT := "Material Stone 5; Material Sticks 2; Material Wool 2; Key Item Mysterious Orb"
-const CHEST_SHOW := "Stone 5; Sticks 2; Wool 2; Mysterious Orb 1"  # What pops out of the chest.
+const CHEST_GIFT := "Material Stone 5; Key Item Mysterious Orb"  # (Dusty: no Sticks or Wool: those come from the farm.)
+const CHEST_SHOW := "Stone 5; Mysterious Orb 1"  # What pops out of the chest.
 const OLD_MASTER_NAME := "The Old Master"
 const DOJO := "Dojo"
 const ORB_ICON := preload("res://art/materials/orb.svg")
@@ -269,8 +273,8 @@ func make_building(building: TownBuilding) -> PanelContainer:
 	# Click anywhere on the built Inn to see your quests, or on the Guild Hall to go in.
 	var on_click := Callable()
 	if stage > 0 and building.bonus(TownBuilding.INN, stage) > 0:
-		panel.tooltip_text = "Click the Inn to see your quests."
-		on_click = show_quest_board
+		panel.tooltip_text = "Click the Inn to meet its guests." if GameState.inn_guests_open() else "Click the Inn to see your quests."
+		on_click = open_inn
 	elif stage > 0 and building.bonus(TownBuilding.BANK, stage) > 0:
 		panel.tooltip_text = "Click the Guild Hall to build, upgrade and see your Bank."
 		on_click = show_guild_hall
@@ -305,11 +309,16 @@ func make_action(building: TownBuilding, stage: int) -> Button:
 	var button := Button.new()
 	if building.bonus(TownBuilding.INN, stage) > 0:
 		var ready := GameState.quests_ready_count()
-		button.text = "Quests" + ("  ✓ %d ready!" % ready if ready > 0 else "  (%d)" % GameState.quests_active().size())
-		button.tooltip_text = "Every quest you're on, how far along it is, and what it gives you."
-		if ready > 0:
+		var offered := GameState.offered_quests.size()
+		if GameState.inn_guests_open():
+			button.text = "Visit the Inn" + ("  ✓ %d ready!" % ready if ready > 0 else "") + ("  ! %d new" % offered if offered > 0 else "")
+			button.tooltip_text = "Meet the guests. Talk to them for quests, and hand quests in."
+		else:
+			button.text = "Quests" + ("  ✓ %d ready!" % ready if ready > 0 else "  (%d)" % GameState.quests_active().size())
+			button.tooltip_text = "Every quest you're on, how far along it is, and what it gives you."
+		if ready > 0 or offered > 0:
 			button.theme_type_variation = &"PrimaryButton"
-		button.pressed.connect(show_quest_board)
+		button.pressed.connect(open_inn)
 	elif building.bonus(TownBuilding.BANK, stage) > 0:
 		button.text = "Enter the Guild Hall"
 		button.tooltip_text = "Build and upgrade the town, and see the materials in your Bank."
@@ -369,6 +378,10 @@ func _on_restore_pressed(building: TownBuilding) -> void:
 	# The Inn: Kale comes out to thank you (play_story() does the rest).
 	if not GameState.story_beats.has(GameState.INN_BUILT) and building.bonus(TownBuilding.INN, stage) > 0:
 		get_tree().create_timer(2.0).timeout.connect(play_story)  # After the build animation.
+		return
+	# The Inn is ready for guests: Kale shows them in.
+	if guests_arrive_due():
+		get_tree().create_timer(1.6).timeout.connect(play_story)
 		return
 	# The Dojo: the Old Master wants to see what you can do.
 	if master_training_due():
@@ -956,9 +969,10 @@ func quest_tab_of(quest: Quest) -> String:
 
 func show_quest_board() -> void:
 	var box := open_overlay(820)
-	box.add_child(make_label("Quests", 32, GOLD_COLOR))
+	box.add_child(make_label("Quests" if quest_giver.is_empty() else "%s's quests" % quest_giver, 32, GOLD_COLOR))
 	# TABS by place: the town's own quests, then each place's (quests.csv Area).
-	var all_active := GameState.quests_active()
+	# (From a guest in the Inn: only the quests they gave you.)
+	var all_active := GameState.quests_active().filter(func(q: Quest) -> bool: return quest_giver.is_empty() or q.giver == quest_giver)
 	var tabs: Array[String] = [ALL_TAB]
 	for quest in all_active:
 		var tab := quest_tab_of(quest)
@@ -1025,8 +1039,14 @@ func show_quest_board() -> void:
 	close.custom_minimum_size = Vector2(160, 44)
 	close.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
 	close.pressed.connect(func() -> void:
-		close_overlay()
-		refresh())
+		quest_giver = ""
+		if GameState.inn_guests_open():
+			show_inn()  # Back to the guests.
+		else:
+			close_overlay()
+			refresh())
+	if GameState.inn_guests_open():
+		close.text = "Back to the Inn"
 	box.add_child(close)
 
 
@@ -1289,6 +1309,9 @@ func show_guild_hall() -> void:
 	elif bench_box and GameState.material_count(DungeonRun.TORCH) == 0:
 		ScreenGuide.start(self, "crafting_bench", [{"target": bench_box, "text":
 			"The CRAFTING BENCH turns materials into things you can use. A Torch takes 1 Sticks and 1 Wool, and you have both from the chest. Press Craft!"}])
+	elif inn_fix_open() and build_rows.has("Inn"):
+		ScreenGuide.start(self, "inn_upgrade", [{"target": build_rows["Inn"], "text":
+			"Buildings can be UPGRADED too: each stage opens something new. The Inn's next stage makes it ready for GUESTS. Press Upgrade!"}])
 	elif dojo_waiting() and build_rows.has(DOJO):
 		ScreenGuide.start(self, "dojo_build", [{"target": build_rows[DOJO], "text":
 			"The Old Master's DOJO. It takes 5 Stone: the Stone you brought home from the farm. Press Build!"}])
@@ -1429,7 +1452,7 @@ func make_build_row(building: TownBuilding, stage: int) -> PanelContainer:
 func _chest_opens() -> void:
 	TalkBox.show_in(self, "The Medallion Chest", ORB_ICON, [
 		"In a corner of the Guild Hall: an old iron chest with no keyhole, just a round dent the size of your medallion.",
-		"You press the King's Architect medallion into it... CLICK. Inside: 5 Stone, 2 Sticks, 2 Wool, and a strange orb. It's cold, and dark, and heavier than it looks.",
+		"You press the King's Architect medallion into it... CLICK. Inside: 5 Stone, and a strange orb. It's cold, and dark, and heavier than it looks.",
 	], "Take it all", _chest_pops)
 
 
@@ -1471,7 +1494,7 @@ func _chest_pops() -> void:
 	tween.tween_callback(pop.queue_free)
 	tween.tween_callback(func() -> void:
 		var steps := [
-			{"target": bank_box, "text": "This is the Guild Hall. Up here is the BANK: everything you bring home is kept safe in it. The chest gave you 5 Stone, 2 Sticks and 2 Wool. The orb goes with your KEY ITEMS: nobody knows what it does. Yet."},
+			{"target": bank_box, "text": "This is the Guild Hall. Up here is the BANK: everything you bring home is kept safe in it. The chest gave you 5 Stone. The orb goes with your KEY ITEMS: nobody knows what it does. Yet."},
 		]
 		if build_rows.has("Inn"):
 			steps.append({"target": build_rows["Inn"], "text": "Down here is the BUILD list: every building you have a blueprint for, and what it costs. The Inn needs 5 Stone, and you have it. Press Build!"})
@@ -1501,6 +1524,10 @@ func play_story() -> void:
 		show_cellar_mission()
 	elif chapter_two_end_due():
 		show_chapter_two_end()
+	elif inn_fix_due():
+		show_inn_fix()
+	elif guests_arrive_due():
+		show_guests_arrive()
 	elif GameState.story_beats.has(GameState.FIRST_LEVEL_UP) and not GameState.story_beats.has(MASTER_MET) \
 			and GameState.story_beats.has(GameState.CHAPTER_2_DONE):
 		show_old_master_arrives()
@@ -1512,6 +1539,8 @@ func play_story() -> void:
 			message_label.text = "Hand in Kale's supplies at the Inn."
 		elif dojo_waiting():
 			message_label.text = "Build the Old Master's Dojo in the Guild Hall."
+		elif inn_fix_open():
+			message_label.text = "Upgrade the Inn in the Guild Hall, so it's ready for guests."
 		elif beats.has(GameState.CRAFTING_OPEN) and not beats.has(GameState.ADVENTURER_TRAINED):
 			message_label.text = "Craft a Torch at the crafting bench in the Guild Hall."
 		announce_quests(false)
@@ -1552,13 +1581,29 @@ func cellar_mission_due() -> bool:
 		and GameState.material_count(DungeonRun.TORCH) > 0
 
 
+func inn_fix_due() -> bool:
+	return GameState.story_beats.has(GameState.CHAPTER_2_DONE) and not GameState.story_beats.has(GameState.INN_FIX_ASKED)
+
+
+# Kale asked for the Inn's upgrade, and it isn't done yet.
+func inn_fix_open() -> bool:
+	return GameState.story_beats.has(GameState.INN_FIX_ASKED) and not GameState.inn_guests_open()
+
+
+func guests_arrive_due() -> bool:
+	return GameState.inn_guests_open() and not GameState.story_beats.has(GameState.INN_GUESTS)
+
+
 func chapter_two_end_due() -> bool:
 	return GameState.quests_done.has(GameState.CELLAR_QUEST) and not GameState.story_beats.has(GameState.CHAPTER_2_DONE)
 
 
 # A beat to play once the quest screens close (show_next_story()).
+# (Dusty's playtest: the send-off was missing here, so after Kale's first
+# quest nothing opened the road out of town.)
 func story_waiting() -> bool:
-	return orb_talk_due() or chapter_two_end_due() or torch_lesson_due()
+	return send_off_due() or chapter_two_due() or orb_talk_due() or master_training_due() or torch_lesson_due() \
+		or cellar_mission_due() or chapter_two_end_due() or inn_fix_due() or guests_arrive_due()
 
 
 # Kale talking to you (talk_box.gd): his words in a speech box along the
@@ -1612,7 +1657,7 @@ func _on_welcome_done() -> void:
 func show_innkeeper_thanks() -> void:
 	kale_says([
 		"Ha! A roof that (mostly) doesn't leak! Thank you, Architect.",
-		"Now, nobody stops at an Inn with nothing in it. I need supplies... and my ale barrels back.",
+		"Now, nobody stops at an Inn with no ale and nothing in it. I need supplies to fix this place up... and my ale.",
 		"When someone in town needs something, it's a QUEST. Mine are on the board in the Inn: click the Inn any time to see them, and how far along you are. Bring me what I ask, then come back and HAND IT IN.",
 	], "What do you need?", func() -> void:
 		GameState.reach_milestone(GameState.INN_BUILT)
@@ -1620,14 +1665,15 @@ func show_innkeeper_thanks() -> void:
 		announce_quests(false))
 
 
-# STORY BEAT 4: Kale's CELLAR KEY, and off to the farm: the road out of town opens.
+# STORY BEAT 4: off to the farm: the road out of town opens. (Kale's
+# Cellar Key came with his quest.)
 func show_send_off() -> void:
 	kale_says([
-		"Before you go: take this. My CELLAR KEY. There's an old cellar out on the Abandoned Farm, and my ale barrels are down there.",
-		"Get the Stone, Sticks and Wool first, THEN open the cellar. It's pitch dark down there, so just open the door and have a look.",
-		"Can't fight? Don't worry, monsters never come this close to town. Take the road out of town to the map and pick the Abandoned Farm.",
+		"Get the Stone, Sticks and Wool first, THEN open the cellar with my key. It's pitch dark down there, so just open the door and bring up a barrel.",
+		"Can't fight? Don't worry, monsters never come this close to town.",
+		"Take the road out of town to the map and pick the Abandoned Farm.",
 	], "Let's go!", func() -> void:
-		GameState.give_rewards("Key Item " + GameState.CELLAR_KEY)
+		GameState.give_rewards("Key Item " + GameState.CELLAR_KEY)  # (In case an older save started the quest without it.)
 		GameState.reach_milestone(GameState.SENT_OFF)
 		refresh()
 		message_label.text = "Take the road out of town to the map."
@@ -1689,7 +1735,7 @@ func show_torch_lesson() -> void:
 	kale_says([
 		"So the old man taught you to FIGHT. Good. Now I'll teach you to SEE.",
 		"Those slimes are still down in my cellar, and it's pitch black down there. Nobody walks into a dark place without a TORCH.",
-		"There's a crafting bench in the Guild Hall: 1 Stick and 1 Wool makes a Torch. It goes in your Bank, ready for the trip.",
+		"There's a crafting bench in the Guild Hall: 1 Stick and 1 Wool makes a Torch. You brought both back from the farm. It goes in your Bank, ready for the trip.",
 	], "To the crafting bench", func() -> void:
 		GameState.reach_milestone(GameState.CRAFTING_OPEN)
 		show_guild_hall())
@@ -1718,10 +1764,185 @@ func show_chapter_two_end() -> void:
 			announce_quests(true))
 
 
+# After Chapter 2: Kale wants the Inn fixed up for guests (its stage 2).
+func show_inn_fix() -> void:
+	kale_says([
+		"With those slimes gone, travellers will start coming this way again. But look at this place! Nobody's sleeping here.",
+		"Let's fix it up so it's READY FOR GUESTS: proper rooms, a working tap. Upgrade the Inn in the Guild Hall. It takes Stone, and the cellar had plenty.",
+		"Once there are guests, come in and talk to them. Adventurers always need a hand with something.",
+	], "To the Guild Hall", func() -> void:
+		GameState.reach_milestone(GameState.INN_FIX_ASKED)
+		message_label.text = "Upgrade the Inn in the Guild Hall, so it's ready for guests."
+		show_guild_hall())
+
+
+# The Inn's stage 2: the first guests move in.
+func show_guests_arrive() -> void:
+	kale_says([
+		"Would you look at that: GUESTS! Real ones, who pay and everything.",
+		"Come in and meet them. Talk to anyone with a ! over their head: they've got a job for you.",
+	], "Visit the Inn", func() -> void:
+		GameState.reach_milestone(GameState.INN_GUESTS)  # Kale's farm side quests are offered now.
+		refresh()
+		show_inn())
+
+
 # New quests: straight to each one's popup (show_next_story()). (Dusty: a
 # new quest isn't an UNLOCK, so no big banner for it any more.)
 func announce_quests(back_to_board: bool) -> void:
 	show_next_story(back_to_board)
+
+
+# --- The Inn and its guests ---------------------------------------------------------
+# Clicking the Inn: Kale's quest board until the Inn is ready for guests
+# (stage 2), then THE INN: everyone staying there, one card each. Talk to
+# someone with a ! to get their quest; talk to anyone to see their quests.
+
+const ALCHEMIST_ART := preload("res://art/town/alchemist.svg")
+# Who can be in the Inn, their picture, and what they say when you walk up.
+const GUESTS := {
+	"Kale": {"picture": INN_ICON, "hello": "\"Need a drink? Or a job? I've got both.\""},
+	"The Old Master": {"picture": OLD_MASTER_ART, "hello": "\"Hmph. Sit, young one. The orb hums louder every day.\""},
+	"The Alchemist": {"picture": ALCHEMIST_ART, "hello": "\"Careful, that one's still bubbling. What can I do for you?\""},
+	"The Adventurer": {"picture": null, "hello": "\"Another adventurer! Pull up a chair.\""},
+}
+var quest_giver := ""  # The quest board shows only this person's quests ("" = everyone's).
+
+
+func open_inn() -> void:
+	if GameState.inn_guests_open():
+		show_inn()
+	else:
+		quest_giver = ""
+		show_quest_board()
+
+
+# Everyone in the Inn: Kale, plus anyone who has a quest for you or one
+# you're on (quests.csv Giver), plus the Old Master once you've met him.
+func inn_guests() -> Array[String]:
+	var people: Array[String] = ["Kale"]
+	if GameState.story_beats.has(GameState.ORB_EXPLAINED):
+		people.append(OLD_MASTER_NAME)
+	for quest in GameState.load_quests():
+		var here := GameState.offered_quests.has(quest.quest_name) or GameState.active_quests.has(quest.quest_name)
+		if here and not quest.giver.is_empty() and quest.giver != "The King" and not people.has(quest.giver):
+			people.append(quest.giver)
+	return people
+
+
+func show_inn() -> void:
+	quest_giver = ""
+	var box := open_overlay(860)
+	box.add_child(make_label("The Inn", 32, GOLD_COLOR))
+	box.add_child(make_label("Kale's Inn is open for guests. Talk to anyone with a ! for a new quest.", 15, Color(1, 1, 1, 0.75)))
+	var row := HFlowContainer.new()
+	row.alignment = FlowContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("h_separation", 12)
+	row.add_theme_constant_override("v_separation", 12)
+	box.add_child(row)
+	for person in inn_guests():
+		row.add_child(make_guest(person))
+	var buttons := HBoxContainer.new()
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	buttons.add_theme_constant_override("separation", 14)
+	box.add_child(buttons)
+	var board := Button.new()
+	board.text = "All your quests (%d)" % GameState.quests_active().size()
+	board.custom_minimum_size = Vector2(200, 44)
+	board.pressed.connect(func() -> void:
+		quest_giver = ""
+		show_quest_board())
+	buttons.add_child(board)
+	var close := Button.new()
+	close.text = "Leave the Inn"
+	close.custom_minimum_size = Vector2(160, 44)
+	close.pressed.connect(func() -> void:
+		close_overlay()
+		refresh())
+	buttons.add_child(close)
+
+
+# One guest: their picture, name, and a ! (a quest for you) or ✓ (one to hand in).
+func make_guest(person: String) -> Button:
+	var offers := GameState.offered_by(person)
+	var theirs := GameState.quests_active().filter(func(q: Quest) -> bool: return q.giver == person)
+	var ready := theirs.filter(GameState.quest_ready)
+	var card := Button.new()
+	card.custom_minimum_size = Vector2(180, 230)
+	card.icon = guest_picture(person)
+	card.expand_icon = true
+	card.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	card.vertical_icon_alignment = VERTICAL_ALIGNMENT_TOP
+	var mark := "  !" if not offers.is_empty() else ("  ✓" if not ready.is_empty() else "")
+	var note := "Has a job for you!" if not offers.is_empty() else ("Quest ready to hand in" if not ready.is_empty() \
+		else ("%d quest%s on" % [theirs.size(), "" if theirs.size() == 1 else "s"] if not theirs.is_empty() else "Just here for the ale"))
+	card.text = "%s%s\n%s" % [person, mark, note]
+	card.add_theme_font_size_override("font_size", 15)
+	if not offers.is_empty() or not ready.is_empty():
+		card.theme_type_variation = &"PrimaryButton"
+	card.pressed.connect(talk_to.bind(person))
+	return card
+
+
+func guest_picture(person: String) -> Texture2D:
+	var info: Dictionary = GUESTS.get(person, {})
+	var picture: Texture2D = info.get("picture")
+	if picture == null and person == "The Adventurer":
+		picture = GameState.load_classes()[0].emblem
+	return picture if picture else QUEST_ICON
+
+
+# Walk up to someone: they say hello, then offer their new quests (one at a
+# time: Take it or Not now), or show the quests you're on for them.
+func talk_to(person: String) -> void:
+	var info: Dictionary = GUESTS.get(person, {})
+	var hello: String = info.get("hello", "\"Hello there.\"")
+	close_overlay()
+	TalkBox.show_in(self, person, guest_picture(person), [hello], "...", func() -> void:
+		var offers := GameState.offered_by(person)
+		if not offers.is_empty():
+			show_offer(person, offers[0])
+		elif GameState.quests_active().any(func(q: Quest) -> bool: return q.giver == person):
+			quest_giver = person
+			show_quest_board()
+		else:
+			show_inn())
+
+
+# A quest someone offers you, like a new quest's popup, with Take it / Not now.
+func show_offer(person: String, quest: Quest) -> void:
+	var box := open_overlay()
+	var kind := "" if quest.quest_type == "Story" else "  (%s quest)" % quest.quest_type
+	box.add_child(make_label(person + " asks:" + kind, 16, Color(1, 1, 1, 0.7)))
+	box.add_child(make_label(quest.quest_name, 30, GOLD_COLOR))
+	box.add_child(make_label(quest.text, 16, Color.WHITE))
+	box.add_child(make_label("Objective: " + quest.objective_text(), 18, GOLD_COLOR))
+	if not quest.rewards.is_empty():
+		box.add_child(make_label("Reward: " + quest_reward_text(quest.rewards), 15, Color(1, 1, 1, 0.8)))
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 14)
+	box.add_child(row)
+	var take := Button.new()
+	take.text = "Take it!"
+	take.theme_type_variation = &"PrimaryButton"
+	take.custom_minimum_size = Vector2(160, 46)
+	take.pressed.connect(func() -> void:
+		GameState.accept_quest(quest.quest_name)
+		if not quest.start_gift.is_empty():
+			message_label.text = "%s gave you %s." % [person, quest_reward_text(quest.start_gift)]
+		refresh()
+		var more := GameState.offered_by(person)
+		if not more.is_empty():
+			show_offer(person, more[0])
+		else:
+			show_inn())
+	row.add_child(take)
+	var later := Button.new()
+	later.text = "Not now"
+	later.custom_minimum_size = Vector2(140, 46)
+	later.pressed.connect(show_inn)
+	row.add_child(later)
 
 
 # --- The Old Master ------------------------------------------------------------------

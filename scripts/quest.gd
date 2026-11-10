@@ -96,7 +96,7 @@ func objective_text() -> String:
 
 
 # What a Reach part says on the quest screen.
-const REACH_TEXTS := {"Cellar Opened": "open the Dark Cellar with Kale's key", "Dark Cellar Cleared": "clear out the Dark Cellar (beat what lives at the bottom)"}
+const REACH_TEXTS := {"Cellar Opened": "open the Dark Cellar with Kale's key for his ale", "Dark Cellar Cleared": "clear out the Dark Cellar (beat what lives at the bottom)"}
 
 
 # A Gather quest's checklist: "Have Stone 5; Deliver Hops 2" ->
