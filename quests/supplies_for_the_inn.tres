@@ -1,0 +1,19 @@
+[gd_resource type="Resource" script_class="Quest" format=3]
+
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+quest_name = "Supplies for the Inn"
+giver = "Kale"
+text = "\"An Inn with no ale is just a house! The only Hops around here are out on the Abandoned Farm, locked in the farmers' sheds. You should find keys if you scavenge around. And bring back some Stone, Sticks and Wool while you're at it.\" Monsters never come this close to town... but don't push your luck out there."
+objective = "gather"
+target = "Have Stone 5; Have Sticks 2; Have Wool 2; Deliver Hops 2"
+amount = 1
+start_gift = ""
+rewards = "Blueprint Alchemist"
+next_quest = ""
+quest_type = "Story"
+starts_after = "Inn Built"
+sort_order = 0
+area = "Abandoned Farm"

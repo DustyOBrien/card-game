@@ -1,16 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_xd7kw"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_xd7kw")
+script = ExtResource("2_script")
 quest_name = "Clear the Slimes"
-giver = "The Innkeeper"
+giver = "Kale"
 text = "\"Slimes are taking over the farm, and travellers won't come near us! Thin them out, and bring me back 5 Green Ooze while you're at it.\" Green Slimes drop Green Ooze. Like everything you find, it's only yours once you get home."
 objective = "have"
 target = "Green Ooze"
 amount = 5
+start_gift = ""
 rewards = "Pack Small 2; Room Abandoned Farm: Blue Slime Patch"
 next_quest = "Make your first Flask"
-sort_order = 3
+quest_type = "Story"
+starts_after = "Adventurer Trained"
+sort_order = 2
 area = "Abandoned Farm"

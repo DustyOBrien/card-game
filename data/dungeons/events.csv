@@ -51,6 +51,6 @@ Stone Bridge,,,,Enjoy the view,100,Heal 3,,The water sparkles. You feel refreshe
 Lights Out,Room,1,"A cellar door in the grass. The steps go down into the dark: you can't see a thing down there.",Light it with a torch,100,Use Torch; Loot Uncommon,,"Your torch lights up the cellar: dusty shelves, old jars... and something tucked behind them. Now you can scavenge down here too.",,
 Lights Out,,,,Leave it for now,100,Come Back,,You close the door on the dark. You can come back with a torch.,,
 Farmer's Shed,Room,1,"The farmer's shed, padlocked tight. You can smell the Hops inside.",Use a key,100,Use Key; Hops 1,,Click! The padlock opens. Inside: a sack of Hops.,,
-Farmer's Shed,,,,Use a crowbar,50,Use Crowbar; Hops 1,Danger 1; Come Back,"CRACK! The door pops open. Inside: a sack of Hops.","The crowbar slips with a loud CLANG. The door holds. (Try again, but it's noisy.)",
-Farmer's Shed,,,,Kick the door open,25,Hops 1,Danger 1; Come Back,"BANG! The door flies open. Inside: a sack of Hops.","Ow! The door holds, and that was LOUD. (Try again, or find a key.)",
+Farmer's Shed,,,,Pry it open with a crowbar,50,Use Crowbar; Hops 1,Danger 1; Come Back,"CRACK! The door pops open. Inside: a sack of Hops.","The crowbar slips with a loud CLANG. The door holds. (Try again, but it's noisy.)",
+Farmer's Shed,,,,Beat down the door,25,Fighter; Hops 1,Danger 1; Come Back,"BANG! The door flies open. Inside: a sack of Hops.","Ow! The door holds, and that was LOUD. (Try again, or find a key.)",
 Farmer's Shed,,,,Leave it for now,100,Come Back,,You leave the shed for now. It'll still be here.,,

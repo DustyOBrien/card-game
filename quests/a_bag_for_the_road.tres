@@ -1,14 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_21qrb"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_21qrb")
+script = ExtResource("2_script")
 quest_name = "A Bag for the Road"
 giver = "The Alchemist"
 text = "\"You keep losing good loot when you fall. My cousin the Tailor could sew you a Save Sack, but she needs soft Animal Hair. Bunny Warriors have moved onto the farm, and they shed like crazy.\" Bring home 5 Animal Hair and build the Tailor. (Word is someone has been heard shouting from a chest out on the farm...)"
+objective = "build"
 target = "Tailor"
+amount = 1
+start_gift = ""
 rewards = "Pack Small 1; Room Abandoned Farm: Trapped Chest"
+next_quest = ""
 quest_type = "Side"
 starts_after = "Make your first Flask"
-sort_order = 10
+sort_order = 9
+area = ""

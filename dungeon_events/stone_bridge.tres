@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+event_name = "Stone Bridge"
+area = "Room"
+min_tier = 1
+text = "An old stone bridge over a stream. You stop and take a breath. What now?"
+picture = ""
+choice_labels = PackedStringArray("Look for loose stones", "Throw a coin off the bridge", "Enjoy the view")
+chances = Array[int]([100, 100, 100])
+effects = PackedStringArray("Stone 0-3", "Pay 1; Luck 1", "Heal 3")
+fail_effects = PackedStringArray("", "", "")
+results = PackedStringArray("You poke around the old stonework.", "Plip! The coin sinks. You feel a little luckier (+1 Luck).", "The water sparkles. You feel refreshed.")
+fail_results = PackedStringArray("", "", "")

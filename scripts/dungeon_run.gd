@@ -193,12 +193,13 @@ func _init(for_area: Area) -> void:
 func start() -> void:
 	guided = GameState.is_guided_run(area)
 	luck = LUCK_POOL
-	if guided:
-		# Chapter 1: the torches you crafted at the Guild Hall come with you.
-		torches = GameState.material_count(TORCH)
+	# Torches come out of the Bank (craft them at the Guild Hall). The first
+	# trip takes every torch you have; later trips take what you packed on
+	# the Prepare screen. Unused ones go back in the Bank (claim_loot()).
+	var in_bank := GameState.material_count(TORCH)
+	torches = in_bank if guided else mini(GameState.packed_torches, in_bank)
+	if torches > 0:
 		GameState.spend_materials({TORCH: torches})
-	else:
-		torches = GameState.packed_torches  # Packed on the Prepare screen.
 	if not guided:
 		_build_deck()
 		keys += GameState.area_perk_total(area, AreaPerk.START_KEY)  # Starter Kit perks.
@@ -548,6 +549,8 @@ func _enter(square: Vector2i) -> String:
 			if randi_range(1, 100) <= card.event_chance:
 				room.event = GameState.find_event(card.event_name)
 				room.event_open = room.event != null
+				if room.event_open:  # Its "Event: ???" on the map card shows its name from now on.
+					GameState.learn_find(area, card.room_name, GameState.EVENT_FIND + card.event_name)
 		if room.get("event_open", false):
 			return "event"
 	match card.type:
@@ -560,6 +563,8 @@ func _enter(square: Vector2i) -> String:
 				return "walk"
 			if not room.has("event"):
 				room.event = GameState.find_event(card.event_name) if not card.event_name.is_empty() else pick_event()
+			if room.event != null and not card.event_name.is_empty():
+				GameState.learn_find(area, card.room_name, GameState.EVENT_FIND + card.event_name)
 			if room.event == null:
 				room.cleared = true  # No events in the sheet: just an empty card.
 				room.done = true
@@ -626,7 +631,7 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 			"pay":
 				var cost := words[1].to_int() if words.size() > 1 else 0
 				if found_gold < cost:
-					return "Needs %d found gold (you have %d)" % [cost, found_gold]
+					return "Needs %d found coins (you have %d)" % [cost, found_gold]
 			"use":  # "Use Key" / "Use Torch" / "Use Crowbar"
 				if words.size() > 1 and words[1].to_lower() == "torch":
 					if torches <= 0:
@@ -636,6 +641,9 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 						return "You need a crowbar"
 				elif keys <= 0:
 					return "You need a small key"
+			"fighter":  # Only a hero with a class can do this (not the Architect).
+				if not GameState.adventurers_here():
+					return "You're an Architect, not a fighter"
 			"drop":  # "Drop 3": throw away supplies from your backpack.
 				if found_materials.is_empty():
 					return "Your backpack has no supplies to throw in"
@@ -716,7 +724,7 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 				lines.append("Lost %d HP (HP %d/%d)" % [before - GameState.run_hp, GameState.run_hp, max_hp])
 			"pay":
 				found_gold -= mini(number, found_gold)
-				lines.append("Paid %d gold" % number)
+				lines.append("Paid %d coins" % number)
 			"flask":
 				if flask:
 					flask_charges = mini(flask_charges + 1, flask_stats[Flask.CHARGES])
@@ -814,6 +822,8 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 				fight = not fight_enemies.is_empty()
 				if fight:
 					fight_square = at
+			"fighter":
+				pass  # Only a requirement (see choice_blocked()).
 			_:
 				# Everything else is a loot word, like a chest: Gold 5-10, Key, Potion...
 				# "Pack | Card | Potion" = one of them, picked at random.
@@ -1001,7 +1011,12 @@ func can_scavenge(square: Vector2i) -> bool:
 func scavenge_need(square: Vector2i) -> int:
 	if guided and rooms[square].get("scavenges", 0) == 0:
 		return 0  # The first trip: the first dig at each spot always finds something.
-	return SCAVENGE_NEED - (1 if luck > 0 else 0)
+	return SCAVENGE_NEED
+
+
+# What Luck adds to a dig: +1 while you have any left.
+func luck_bonus() -> int:
+	return 1 if luck > 0 else 0
 
 
 # Roll a find's tier: 0 Common, 1 Uncommon, 2 Rare, 3 Legendary (TIER_ODDS).
@@ -1046,9 +1061,15 @@ func scavenge() -> Dictionary:
 	var card: RoomCard = room.card
 	var tries: int = room.get("scavenges", 0)
 	var need := scavenge_need(position)
-	var used_luck := need > 0 and luck > 0
+	var bonus := luck_bonus() if need > 0 else 0
 	var roll := randi_range(1, SCAVENGE_DIE) if need > 0 else 0
-	var worked := need == 0 or roll >= need
+	# A natural 6 always works, and keeps your Luck. A natural 1 always
+	# fails, and costs you a Luck (Dusty).
+	var nat6 := need > 0 and roll == SCAVENGE_DIE
+	var nat1 := need > 0 and roll == 1
+	var worked := need == 0 or nat6 or (not nat1 and roll + bonus >= need)
+	var used_luck := worked and bonus > 0 and not nat6
+	var lost_luck := nat1 and luck > 0
 	digs_done += 1
 	if not room.has("box"):
 		room.box = []
@@ -1057,9 +1078,13 @@ func scavenge() -> Dictionary:
 		var lost := {}
 		if SCAVENGE_FAIL_LOSES_ITEM and not room.box.is_empty():
 			lost = room.box.pop_back()
-		add_log("Scavenging %s: rolled %d (needed %d+). Nothing but noise! Danger +1." % [card.room_name, roll, need])
+		if lost_luck:
+			luck -= 1
+		add_log("Scavenging %s: rolled %d%s (needed %d+). Nothing but noise! Danger +1.%s" % [card.room_name, roll,
+			" + %d Luck" % bonus if bonus > 0 else "", need, " A natural 1: -1 Luck." if lost_luck else ""])
 		_open_box(position)
-		return {"roll": roll, "need": need, "worked": false, "used_luck": false, "over": true, "lost": lost}
+		return {"roll": roll, "bonus": bonus, "need": need, "worked": false, "used_luck": false, "nat6": false, "nat1": nat1,
+			"lost_luck": lost_luck, "over": true, "lost": lost}
 	if used_luck:
 		luck -= 1  # Luck helped: it's used up.
 	room.scavenges = tries + 1
@@ -1070,11 +1095,13 @@ func scavenge() -> Dictionary:
 		find.tier = tier
 		room.box.append(find)
 	add_log("Scavenging %s: you dig something up%s" % [card.room_name,
-		"" if need == 0 else " (rolled %d, needed %d+%s)" % [roll, need, ", Luck used" if used_luck else ""]])
+		"" if need == 0 else " (rolled %d%s, needed %d+%s)" % [roll, " + %d Luck" % bonus if bonus > 0 else "", need,
+			", a natural 6: Luck kept" if nat6 and bonus > 0 else (", 1 Luck used" if used_luck else "")]])
 	var over: bool = room.scavenges >= SCAVENGE_MAX_DIGS  # Out of digs: the box opens by itself.
 	if over:
 		_open_box(position)
-	return {"roll": roll, "need": need, "worked": true, "used_luck": used_luck, "over": over, "lost": {}}
+	return {"roll": roll, "bonus": bonus, "need": need, "worked": true, "used_luck": used_luck, "nat6": nat6, "nat1": false,
+		"lost_luck": false, "over": over, "lost": {}}
 
 
 # Stop pushing your luck: the box opens and you see what you found.
@@ -1545,7 +1572,7 @@ func roll_loot(loot: PackedStringArray) -> Dictionary:
 static func find_text(find: Dictionary) -> String:
 	match find.get("kind", ""):
 		"gold":
-			return "%d gold" % find.amount
+			return "%d coins" % find.amount
 		"card":
 			return "a card: %s" % find.card.card_name
 		"pack":
@@ -1602,7 +1629,7 @@ func collect_find(find: Dictionary, overflow := true) -> String:
 			var room := GameState.unlock_random_room(area)
 			if room == null:
 				found_gold += 5  # Every card is already unlocked.
-				text = "an old map of places you know (5 gold instead)"
+				text = "an old map of places you know (5 coins instead)"
 			else:
 				text = "a Map! A new map card for the %s: %s" % [area.display_name, room.room_name]
 	find.amount = 0
@@ -1793,7 +1820,7 @@ func take_out_of_sack(slot: int) -> void:
 static func sack_item_text(item: Dictionary) -> String:
 	match item.kind:
 		"pack": return "Pack"
-		"gold": return "%d gold" % item.amount
+		"gold": return "%d coins" % item.amount
 		"card": return item.card.card_name
 		"material": return "%d %s" % [item.amount, item.name]
 	return "?"
@@ -1838,8 +1865,9 @@ func claim_loot() -> void:
 		GameState.add_card(card)
 	for material_name in found_materials:
 		GameState.add_material(material_name, found_materials[material_name])
-	if guided and torches > 0:
-		GameState.add_material(TORCH, torches)  # Chapter 1: unused torches go back in the Bank.
+	if torches > 0:
+		GameState.add_material(TORCH, torches)  # Unused torches (and ones you found) go back in the Bank.
+		torches = 0
 	GameState.save_game()
 
 
@@ -1881,7 +1909,7 @@ func hunting_text() -> String:
 func loot_text() -> String:
 	var parts: Array[String] = []
 	if found_gold > 0:
-		parts.append("%d gold" % found_gold)
+		parts.append("%d coins" % found_gold)
 	if found_packs > 0:
 		parts.append("%d pack%s" % [found_packs, "s" if found_packs > 1 else ""])
 	for pack_name in found_boss_packs:

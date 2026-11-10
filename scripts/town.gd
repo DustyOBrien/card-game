@@ -144,12 +144,12 @@ func run_summary() -> String:
 			if not GameState.sack_open():
 				return "You fell after %d fight(s), and lost what you found." % dungeon.fights_won
 			return "You fell after %d fight(s). Your Save Sack brought home %s." % [dungeon.fights_won, dungeon.loot_text()]
-	return "Build up the town with the gold and materials you bring home from the dungeons."
+	return "Build up the town with the coins and materials you bring home from the dungeons."
 
 
 # Build every building's panel again (after restoring or buying something).
 func refresh() -> void:
-	gold_label.text = "Gold %d" % GameState.gold
+	gold_label.text = "Coins %d" % GameState.gold
 	for material_name in GameState.materials:
 		if GameState.materials[material_name] > 0:
 			gold_label.text += "   %s %d" % [material_name, GameState.materials[material_name]]
@@ -277,7 +277,7 @@ func make_building(building: TownBuilding) -> PanelContainer:
 func price_text(building: TownBuilding, stage: int) -> String:
 	var prices: Array[String] = []
 	if building.cost_of_next(stage) > 0:
-		prices.append("%d gold" % building.cost_of_next(stage))
+		prices.append("%d coins" % building.cost_of_next(stage))
 	var needs := building.materials_for_next(stage)
 	if not needs.is_empty():
 		prices.append(MaterialInfo.costs_text(needs))
@@ -310,7 +310,7 @@ func make_action(building: TownBuilding, stage: int) -> Button:
 		button.text = "Enter the Shop"
 		button.pressed.connect(func() -> void: get_tree().change_scene_to_file(SHOP_SCENE))
 	elif building.bonus(TownBuilding.ENCHANTER, stage) > 0:
-		button.text = "Buy an Enchant  (%d gold)" % GameState.ENCHANT_PRICE
+		button.text = "Buy an Enchant  (%d coins)" % GameState.ENCHANT_PRICE
 		button.tooltip_text = "A random enchant for your next run: put it on a card from the dungeon screen."
 		button.disabled = GameState.gold < GameState.ENCHANT_PRICE
 		button.pressed.connect(_buy_enchant)
@@ -323,7 +323,7 @@ func make_action(building: TownBuilding, stage: int) -> Button:
 		button.tooltip_text = "Your talent points, and the Monster Book: every monster you've met."
 		button.pressed.connect(func() -> void: get_tree().change_scene_to_file(DOJO_SCENE))
 	elif building.bonus(TownBuilding.MAPMAKER, stage) > 0:
-		button.text = "Buy a Map  (%d gold)" % GameState.MAP_PRICE
+		button.text = "Buy a Map  (%d coins)" % GameState.MAP_PRICE
 		button.tooltip_text = "Unlocks a new room card in a dungeon you can visit."
 		button.disabled = GameState.gold < GameState.MAP_PRICE or map_area() == null
 		button.pressed.connect(_buy_map)
@@ -551,7 +551,7 @@ func build_alchemist_screen() -> void:
 			build_alchemist_screen())
 		tabs.add_child(tab_button)
 
-	var wallet := "Gold %d" % GameState.gold
+	var wallet := "Coins %d" % GameState.gold
 	if GameState.material_count(GameState.POTION_UNLOCK_MATERIAL) > 0 or alchemist_tab == "Potions":
 		wallet += "   ·   %s %d" % [GameState.POTION_UNLOCK_MATERIAL, GameState.material_count(GameState.POTION_UNLOCK_MATERIAL)]
 	layout.add_child(make_label(wallet, 18, GOLD_COLOR))
@@ -648,7 +648,7 @@ func make_potion_panel(potion: Potion, total_weight: int) -> PanelContainer:
 	if not unlocked:
 		var unlock := Button.new()
 		unlock.custom_minimum_size = Vector2(0, 36)
-		unlock.text = "Unlock  (%d gold, %s)" % [GameState.potion_unlock_gold(potion),
+		unlock.text = "Unlock  (%d coins, %s)" % [GameState.potion_unlock_gold(potion),
 			MaterialInfo.costs_text(GameState.potion_unlock_materials(potion))]
 		unlock.theme_type_variation = &"PrimaryButton"
 		unlock.disabled = not GameState.can_unlock_potion(potion)
@@ -685,7 +685,7 @@ func make_potion_panel(potion: Potion, total_weight: int) -> PanelContainer:
 			var next := GameState.strengthened(potion, stage + 1).effect_text() if upgrade == GameState.STRONGER \
 				else "drops %dx as often" % (stage + 2)
 			text.text = "%s (%d/%d): %s" % [upgrade, stage, stages, next]
-			buy.text = "%d gold" % cost
+			buy.text = "%d coins" % cost
 			buy.disabled = GameState.gold < cost
 			buy.pressed.connect(_buy_potion_upgrade.bind(potion, upgrade))
 		line.add_child(text)
@@ -751,7 +751,7 @@ func make_flask_panel(flask: Flask) -> PanelContainer:
 		var needs := MaterialInfo.parse_costs(flask.unlock_materials)
 		var price: Array[String] = []
 		if flask.unlock_cost > 0:
-			price.append("%d gold" % flask.unlock_cost)
+			price.append("%d coins" % flask.unlock_cost)
 		if not needs.is_empty():
 			price.append(MaterialInfo.costs_text(needs))
 		main.text = "Brew  (%s)" % ", ".join(price)
@@ -786,7 +786,7 @@ func make_flask_panel(flask: Flask) -> PanelContainer:
 		else:
 			var next_row: int = stages[stage]
 			text.text = "%s (%d/%d): %s" % [upgrade, stage, stages.size(), flask.stage_texts[next_row]]
-			buy.text = "%d gold" % flask.costs[next_row]
+			buy.text = "%d coins" % flask.costs[next_row]
 			buy.disabled = not unlocked or not GameState.alchemist_open() or GameState.gold < flask.costs[next_row]
 			if not GameState.alchemist_open():
 				buy.tooltip_text = "Restore the Alchemist first."
@@ -1065,7 +1065,7 @@ func quest_reward_text(text: String) -> String:
 				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
 				var pack := GameState.find_pack(rest.get_slice(" ", 0))
 				parts.append("%d %s%s" % [count, pack.name, "s" if count > 1 else ""])
-			"gold": parts.append("%s gold" % rest)
+			"gold": parts.append("%s coins" % rest)
 			"unlock": parts.append(("Talent System" if rest == "Talents" else rest) + " unlocked")
 			"legacy":
 				var points := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
@@ -1153,7 +1153,7 @@ func show_guild_hall() -> void:
 	var chips := HFlowContainer.new()
 	chips.add_theme_constant_override("h_separation", 10)
 	chips.add_theme_constant_override("v_separation", 8)
-	chips.add_child(make_chip(null, "Gold %d" % GameState.gold, GOLD_COLOR, "Gold: from monsters, chests and quests."))
+	chips.add_child(make_chip(null, "Coins %d" % GameState.gold, GOLD_COLOR, "Gold: from monsters, chests and quests."))
 	for info in GameState.load_materials():
 		var count := GameState.material_count(info.material_name)
 		if count > 0:
@@ -1485,7 +1485,7 @@ func _on_read_blueprint() -> void:
 	# How building works: point at the Inn's ruins, then at the Guild Hall.
 	var steps := []
 	if panels.has("Inn"):
-		steps.append({"target": panels["Inn"], "text": "The blueprint shows you the Inn's ruins. To BUILD it you need MATERIALS: the Inn takes 5 Stone. Some buildings cost gold too. You find materials out on the map, and each area has its own (the Abandoned Farm has Stone, Sticks and Wool)."})
+		steps.append({"target": panels["Inn"], "text": "The blueprint shows you the Inn's ruins. To BUILD it you need MATERIALS: the Inn takes 5 Stone. Some buildings cost coins too. You find materials out on the map, and each area has its own (the Abandoned Farm has Stone, Sticks and Wool)."})
 	if panels.has("Guild Hall"):
 		steps.append({"target": panels["Guild Hall"], "text": "Everything is built from the GUILD HALL. It also holds your Bank, where your materials are kept. Kale says there's an old chest in there that only opens for the King's medallion... Click the Guild Hall."})
 	ScreenGuide.start(self, "town_building", steps)

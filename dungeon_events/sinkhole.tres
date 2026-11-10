@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="DungeonEvent" format=3]
 
-[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_event")
+script = ExtResource("2_script")
 event_name = "Sinkhole"
 area = "Room"
+min_tier = 1
 text = "The ground here is soft and sagging. One wrong step and you're in."
+picture = ""
 choice_labels = PackedStringArray("Edge around it", "Fill it with supplies", "Jump it")
 chances = Array[int]([60, 100, 40])
 effects = PackedStringArray("", "Drop 3", "Gold 3-6")

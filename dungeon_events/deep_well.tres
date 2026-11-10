@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="DungeonEvent" format=3]
 
-[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_event"]
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_event")
+script = ExtResource("2_script")
 event_name = "Deep Well"
 area = "Room"
+min_tier = 1
 text = "A deep, cold well. The water glows a little."
+picture = ""
 choice_labels = PackedStringArray("Fill your flask", "Drink deep", "Leave it")
 chances = Array[int]([100, 100, 100])
 effects = PackedStringArray("Flask; Flask; Flask", "Heal 10", "")

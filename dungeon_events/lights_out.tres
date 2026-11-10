@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+event_name = "Lights Out"
+area = "Room"
+min_tier = 1
+text = "A cellar door in the grass. The steps go down into the dark: you can't see a thing down there."
+picture = ""
+choice_labels = PackedStringArray("Light it with a torch", "Leave it for now")
+chances = Array[int]([100, 100])
+effects = PackedStringArray("Use Torch; Loot Uncommon", "Come Back")
+fail_effects = PackedStringArray("", "")
+results = PackedStringArray("Your torch lights up the cellar: dusty shelves, old jars... and something tucked behind them. Now you can scavenge down here too.", "You close the door on the dark. You can come back with a torch.")
+fail_results = PackedStringArray("", "")

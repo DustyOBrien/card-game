@@ -1,17 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_xxt41"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_xxt41")
+script = ExtResource("2_script")
 quest_name = "Welcome to the Farm"
-giver = "The Innkeeper"
+giver = "Kale"
 text = "\"The Abandoned Farm is where every adventurer here starts out. Go and knock a few slimes about, and I'll give you something to start your collection.\" Defeat 3 monsters on the Abandoned Farm. The reward includes a card you've never found before."
 objective = "defeat"
 target = "Any"
 amount = 3
+start_gift = ""
 rewards = "Pack Medium 1; Binder Card Abandoned Farm 1"
+next_quest = ""
 quest_type = "Side"
 starts_after = "Adventurer Trained"
-sort_order = 2
+sort_order = 1
 area = "Abandoned Farm"

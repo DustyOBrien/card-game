@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialInfo" format=3]
+
+[ext_resource type="Texture2D" path="res://art/materials/sticks.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+material_name = "Sticks"
+description = "Dry sticks from the old farm. Craft them into torches at the Guild Hall's crafting bench."
+color = Color(0.6039215686274509, 0.41568627450980394, 0.21176470588235294, 1.0)
+icon = ExtResource("1_icon")

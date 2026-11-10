@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialInfo" format=3]
+
+[ext_resource type="Texture2D" path="res://art/materials/torch.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+material_name = "Torch"
+description = "A torch you crafted (1 Sticks + 1 Wool). Take it out exploring to light up dark places, like the farm's Dark Cellars."
+color = Color(1.0, 0.5411764705882353, 0.11764705882352941, 1.0)
+icon = ExtResource("1_icon")

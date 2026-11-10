@@ -43,7 +43,7 @@ func _ready() -> void:
 	if shop_built():
 		# The stock ROTATES: a new few packs after every trip (GameState.check_shop_stock()).
 		GameState.check_shop_stock()
-		summary_label.text = "Today's stock: %d pack%s, restocked after every trip. Packs cost gold AND Stone from your Bank." % [
+		summary_label.text = "Today's stock: %d pack%s, restocked after every trip. Packs cost coins AND Stone from your Bank." % [
 			GameState.shop_stock_size(), "" if GameState.shop_stock_size() == 1 else "s"]
 		summary_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 		for pack_name in GameState.shop_stock:
@@ -79,7 +79,7 @@ func shop_built() -> bool:
 
 # Update the gold, the Buy buttons and the "you own" line.
 func refresh() -> void:
-	gold_label.text = "Gold %d   Stone %d   Essence %d" % [GameState.gold, GameState.material_count("Stone"), essence_total()]
+	gold_label.text = "Coins %d   Stone %d   Essence %d" % [GameState.gold, GameState.material_count("Stone"), essence_total()]
 	gold_label.mouse_filter = Control.MOUSE_FILTER_PASS
 	gold_label.tooltip_text = essence_tooltip()
 	for panel in pack_row.get_children():
@@ -237,9 +237,9 @@ func _make_pack(pack: Dictionary) -> PanelContainer:
 	box.add_child(blurb)
 
 	var button := Button.new()
-	button.text = "Buy  (%d gold, %s)" % [price_of(pack), MaterialInfo.costs_text(pack.materials)]
+	button.text = "Buy  (%d coins, %s)" % [price_of(pack), MaterialInfo.costs_text(pack.materials)]
 	if price_of(pack) < pack.price:
-		button.tooltip_text = "Was %d gold (discount)." % pack.price  # Loot Hound / the Shop's upgrade.
+		button.tooltip_text = "Was %d coins (discount)." % pack.price  # Loot Hound / the Shop's upgrade.
 	button.custom_minimum_size = Vector2(0, 40)
 	button.focus_mode = Control.FOCUS_NONE
 	# bind() fills in buy()'s arguments, so each button buys its own pack.

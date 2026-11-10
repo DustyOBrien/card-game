@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+event_name = "Barn Animal"
+area = "Room"
+min_tier = 1
+text = "Something big shuffles in the hay: one of the old farm animals never left! It's friendly, and it's shedding everywhere."
+picture = ""
+choice_labels = PackedStringArray("Gather the hair")
+chances = Array[int]([100])
+effects = PackedStringArray("Animal Hair 2")
+fail_effects = PackedStringArray("")
+results = PackedStringArray("You gather up a big handful of soft Animal Hair.")
+fail_results = PackedStringArray("")

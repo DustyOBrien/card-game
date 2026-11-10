@@ -1,12 +1,14 @@
 [gd_resource type="Resource" script_class="DungeonEvent" format=3]
 
-[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_duhki"]
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_duhki")
+script = ExtResource("2_script")
 event_name = "Strange Fountain"
 area = "Any"
+min_tier = 1
 text = "A stone fountain bubbles with glowing blue water."
+picture = ""
 choice_labels = PackedStringArray("Drink deeply", "Fill your flask", "Walk away")
 chances = Array[int]([65, 100, 100])
 effects = PackedStringArray("Heal 8", "Flask", "")

@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="MaterialInfo" format=3]
 
-[ext_resource type="Texture2D" path="res://art/materials/animal_hair.svg" id="1_xc1ex"]
-[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_88sa5"]
+[ext_resource type="Texture2D" path="res://art/materials/animal_hair.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_script"]
 
 [resource]
-script = ExtResource("2_88sa5")
+script = ExtResource("2_script")
 material_name = "Animal Hair"
 description = "Soft hair from Bunny Warriors. The Tailor sews with it."
-color = Color(0.7137255, 0.5176471, 0.34117648, 1)
-icon = ExtResource("1_xc1ex")
+color = Color(0.7137254901960784, 0.5176470588235295, 0.3411764705882353, 1.0)
+icon = ExtResource("1_icon")

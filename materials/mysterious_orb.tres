@@ -1,0 +1,11 @@
+[gd_resource type="Resource" script_class="MaterialInfo" format=3]
+
+[ext_resource type="Texture2D" path="res://art/materials/orb.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+material_name = "Mysterious Orb"
+description = "Found in the medallion chest in the Guild Hall. It's cool to the touch, and every now and then... it hums."
+color = Color(0.6235294117647059, 0.8470588235294118, 1.0, 1.0)
+icon = ExtResource("1_icon")

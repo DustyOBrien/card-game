@@ -80,7 +80,7 @@ func add_story_button() -> void:
 func add_reset_button() -> void:
 	var reset_button := Button.new()
 	reset_button.text = "Reset Save"
-	reset_button.tooltip_text = "Start over: lose your cards, gold and Exp"
+	reset_button.tooltip_text = "Start over: lose your cards, coins and Exp"
 	# Anchor it to the top-right corner of the screen, 24 pixels in.
 	reset_button.set_anchors_and_offsets_preset(Control.PRESET_TOP_RIGHT, Control.PRESET_MODE_MINSIZE, 24)
 	reset_button.grow_horizontal = Control.GROW_DIRECTION_BEGIN  # Grow to the left, staying on screen.
@@ -88,7 +88,7 @@ func add_reset_button() -> void:
 
 	var confirm := ConfirmationDialog.new()
 	confirm.title = "Reset Save?"
-	confirm.dialog_text = "This deletes your save: every card you found, your gold,\nand all card and class Exp. You start again as a new player."
+	confirm.dialog_text = "This deletes your save: every card you found, your coins,\nand all card and class Exp. You start again as a new player."
 	confirm.ok_button_text = "Reset"
 	add_child(confirm)
 	reset_button.pressed.connect(confirm.popup_centered)

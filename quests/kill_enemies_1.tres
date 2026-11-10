@@ -1,18 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_3u5bq"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_3u5bq")
+script = ExtResource("2_script")
 quest_name = "Kill Enemies 1"
-giver = "The Innkeeper"
+giver = "Kale"
 text = "\"The roads won't be safe until the monsters are thinned out. Defeat 10 of them, any kind, and I'll make it worth your while.\""
 objective = "defeat"
 target = "Any"
 amount = 10
+start_gift = ""
 rewards = "Pack Small 1"
 next_quest = "Kill Enemies 2"
 quest_type = "Side"
 starts_after = "Adventurer Trained"
-sort_order = 7
+sort_order = 6
 area = "Abandoned Farm"

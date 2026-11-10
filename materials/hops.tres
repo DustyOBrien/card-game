@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="MaterialInfo" format=3]
 
-[ext_resource type="Texture2D" path="res://art/materials/hops.svg" id="1_y25kb"]
-[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_pl54t"]
+[ext_resource type="Texture2D" path="res://art/materials/hops.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_script"]
 
 [resource]
-script = ExtResource("2_pl54t")
+script = ExtResource("2_script")
 material_name = "Hops"
 description = "Green hop flowers. The Innkeeper brews ale with them."
-color = Color(0.6117647, 0.7882353, 0.2901961, 1)
-icon = ExtResource("1_y25kb")
+color = Color(0.611764705882353, 0.788235294117647, 0.2901960784313726, 1.0)
+icon = ExtResource("1_icon")

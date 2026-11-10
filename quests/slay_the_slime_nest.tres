@@ -1,15 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_xvvbg"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_xvvbg")
+script = ExtResource("2_script")
 quest_name = "Slay the Slime Nest"
-giver = "The Innkeeper"
+giver = "Kale"
 text = "\"Something BIG is growing on the farm. I've marked its nest on your map.\" The Big Slime Nest is now one of your map cards. Find it on the board and beat it. (It Vanishes once beaten, so it's once per trip.)"
 objective = "clear room"
 target = "Big Slime Nest"
+amount = 1
 start_gift = "Room Abandoned Farm: Big Slime Nest"
 rewards = "Pack Small 4"
-sort_order = 5
+next_quest = ""
+quest_type = "Story"
+starts_after = ""
+sort_order = 4
 area = "Abandoned Farm"

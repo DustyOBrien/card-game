@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="TownBuilding" format=3]
 
-[ext_resource type="Texture2D" path="res://art/town/enchanter.svg" id="1_rke12"]
-[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_bwf50"]
+[ext_resource type="Texture2D" path="res://art/town/enchanter.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_script"]
 
 [resource]
-script = ExtResource("2_bwf50")
+script = ExtResource("2_script")
 building_name = "Enchanter"
 description = "Enchants for your next run."
-icon = ExtResource("1_rke12")
 sort_order = 4
 costs = Array[int]([40, 70])
 effects = PackedStringArray("enchanter", "enchant choice")
@@ -15,3 +14,4 @@ amounts = Array[int]([1, 1])
 stage_texts = PackedStringArray("Buy enchants to take into your next run", "When an enchant drops, choose from 2")
 material_costs = PackedStringArray("Stone 5", "Stone 10")
 needs_blueprint = true
+icon = ExtResource("1_icon")

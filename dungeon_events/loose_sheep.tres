@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+event_name = "Loose Sheep"
+area = "Room"
+min_tier = 1
+text = "A sheep has got out of the pen and is trotting off across the field!"
+picture = ""
+choice_labels = PackedStringArray("Chase it down (4+)", "Let it go")
+chances = Array[int]([50, 100])
+effects = PackedStringArray("Wool 1-5", "")
+fail_effects = PackedStringArray("", "")
+results = PackedStringArray("You catch it, and help yourself to some of its wool.", "You let it wander off.")
+fail_results = PackedStringArray("It's too quick for you. It gets away, bleating.", "")

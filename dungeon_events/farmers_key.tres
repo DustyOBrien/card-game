@@ -1,0 +1,17 @@
+[gd_resource type="Resource" script_class="DungeonEvent" format=3]
+
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
+
+[resource]
+script = ExtResource("2_script")
+event_name = "Farmer's Key"
+area = "Room"
+min_tier = 1
+text = "The farmer locked the sheds and hid a spare key somewhere by the front door. Farmers always hide it in one of three places..."
+picture = ""
+choice_labels = PackedStringArray("Under the flower pot", "Under the floor mat", "The fake-looking rock")
+chances = Array[int]([100, 100, 100])
+effects = PackedStringArray("Hunt Key", "Hunt Key", "Hunt Key")
+fail_effects = PackedStringArray("", "", "")
+results = PackedStringArray("", "", "")
+fail_results = PackedStringArray("", "", "")

@@ -350,7 +350,7 @@ func start_battle() -> void:
 		dungeon.floor_number, ", ".join(enemy_list)], BattleLog.ENEMY_COLOR)
 	if dungeon.enemy_strength() > 0:
 		battle_log.add("Danger %d: every enemy has +%d Strength" % [dungeon.danger(), dungeon.enemy_strength()], BattleLog.ENEMY_COLOR)
-	battle_log.add("You are the %s (HP %d/%d, %d gold)" % [GameState.character_class.display_name,
+	battle_log.add("You are the %s (HP %d/%d, %d coins)" % [GameState.character_class.display_name,
 		player.hp, player.max_hp, GameState.gold], BattleLog.PLAYER_COLOR)
 	if not GameState.vanished.is_empty():
 		battle_log.add("%d card(s) have Vanished this run" % GameState.vanished.size(), BattleLog.DIM_COLOR)
@@ -1285,7 +1285,7 @@ func build_player_bar() -> void:
 	var block_box: HBoxContainer = stat_box.call(player_block_label, "block", 175,
 		"Block: stops that much damage. It goes back to your Armor at the start of each turn.")
 	stat_box.call(energy_label, "energy", 120, "Energy: playing a card costs its number.")
-	stat_box.call(gold_label, "gold", 130, "Gold you have (+ what you've found this run).")
+	stat_box.call(gold_label, "gold", 130, "Coins you have (+ what you've found this run).")
 	# Armor, small and grey, under... well, beside the Block number.
 	armor_label = Label.new()
 	armor_label.add_theme_font_size_override("font_size", 14)
@@ -1433,7 +1433,7 @@ func _on_enemy_died(view: EnemyView) -> void:
 	var dungeon := GameState.dungeon
 	dungeon.found_gold += loot
 	fight_gold += loot
-	battle_log.add("The %s is defeated and drops %d gold (%d found so far)" % [view.data.display_name, loot, dungeon.found_gold],
+	battle_log.add("The %s is defeated and drops %d coins (%d found so far)" % [view.data.display_name, loot, dungeon.found_gold],
 		BattleLog.TURN_COLOR)
 	# Materials: each Drops entry is "Green Ooze 100" = its % chance of one.
 	for drop in view.data.drops:
@@ -1456,7 +1456,7 @@ func _on_enemy_died(view: EnemyView) -> void:
 		player.heal(patch_up)
 		battle_log.add("Talent: you patch yourself up, +%d HP (HP %d/%d)" % [patch_up, player.hp, player.max_hp], BattleLog.PLAYER_COLOR)
 	GameState.run_hp = player.hp  # Carry your HP into the next fight.
-	var reward := "You found %d gold!" % fight_gold
+	var reward := "You found %d coins!" % fight_gold
 	if not fight_materials.is_empty():
 		reward += "  +" + MaterialInfo.costs_text(fight_materials)
 	# The dungeon hands out the room's rewards (keys, loot) and says what's next.

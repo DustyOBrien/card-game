@@ -229,7 +229,7 @@ func show_monster(enemy: EnemyData) -> void:
 		stats.append("Armor %d" % enemy.armor)
 	stats.append("%d Exp" % enemy.exp)
 	if enemy.bonus_gold > 0:
-		stats.append("+%d gold" % enemy.bonus_gold)
+		stats.append("+%d coins" % enemy.bonus_gold)
 	add_line("  ·  ".join(stats), Color.WHITE)
 	if not enemy.split_into.is_empty():
 		add_line("At half HP it splits into %d %s." % [enemy.split_count, enemy.split_into], Color(0.6, 1, 0.6))

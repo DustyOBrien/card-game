@@ -1,13 +1,12 @@
 [gd_resource type="Resource" script_class="TownBuilding" format=3]
 
-[ext_resource type="Texture2D" path="res://art/town/mapmaker.svg" id="1_xekk1"]
-[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_mydm2"]
+[ext_resource type="Texture2D" path="res://art/town/mapmaker.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_script"]
 
 [resource]
-script = ExtResource("2_mydm2")
+script = ExtResource("2_script")
 building_name = "Mapmaker"
 description = "Draws maps of the dungeons."
-icon = ExtResource("1_xekk1")
 sort_order = 6
 costs = Array[int]([40, 70])
 effects = PackedStringArray("mapmaker", "danger steps")
@@ -15,3 +14,4 @@ amounts = Array[int]([1, 1])
 stage_texts = PackedStringArray("Buy maps that unlock new map cards", "Danger builds slower: a Danger card every 4 Danger instead of 3")
 material_costs = PackedStringArray("Stone 5", "Stone 10")
 needs_blueprint = true
+icon = ExtResource("1_icon")

@@ -1,16 +1,17 @@
 [gd_resource type="Resource" script_class="DungeonEvent" format=3]
 
-[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_4nrv0"]
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_4nrv0")
+script = ExtResource("2_script")
 event_name = "Howling Cave"
 area = "Forest"
 min_tier = 2
 text = "Gold glints at the back of a dark cave. You hear growling."
+picture = ""
 choice_labels = PackedStringArray("Grab the gold", "Walk away")
 chances = Array[int]([100, 100])
 effects = PackedStringArray("Gold 8-12; Fight Wolf, Wolf", "")
 fail_effects = PackedStringArray("", "")
-results = PackedStringArray("There\'s gold... and its owners are home!", "Not today.")
+results = PackedStringArray("There's gold... and its owners are home!", "Not today.")
 fail_results = PackedStringArray("", "")

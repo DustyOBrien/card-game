@@ -1,17 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_256x1"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_256x1")
+script = ExtResource("2_script")
 quest_name = "Kill Enemies 2"
-giver = "The Innkeeper"
+giver = "Kale"
 text = "\"Good work! There are plenty more out there. Defeat 20 more.\""
 objective = "defeat"
 target = "Any"
 amount = 20
+start_gift = ""
 rewards = "Pack Medium 2"
 next_quest = "Kill Enemies 3"
 quest_type = "Side"
-sort_order = 8
+starts_after = ""
+sort_order = 7
 area = "Abandoned Farm"

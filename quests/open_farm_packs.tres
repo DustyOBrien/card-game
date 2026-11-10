@@ -1,16 +1,19 @@
 [gd_resource type="Resource" script_class="Quest" format=3]
 
-[ext_resource type="Script" path="res://scripts/quest.gd" id="1_he72u"]
+[ext_resource type="Script" path="res://scripts/quest.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_he72u")
+script = ExtResource("2_script")
 quest_name = "Open Farm Packs"
 giver = "The Adventurer"
 text = "\"I like to carry a bit of everything. Well, a LOT of everything. Open some Farm Booster Packs and I'll show you a new way to fight.\" Packs come from quests, chests and the Shop."
 objective = "open packs"
 target = "Farm Booster Pack"
 amount = 10
+start_gift = ""
 rewards = "Unlock Pack Rat"
+next_quest = ""
 quest_type = "Adventurer"
 starts_after = "Adventurer Trained"
-sort_order = 6
+sort_order = 5
+area = ""

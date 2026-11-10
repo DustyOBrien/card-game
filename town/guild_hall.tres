@@ -1,15 +1,17 @@
 [gd_resource type="Resource" script_class="TownBuilding" format=3]
 
-[ext_resource type="Texture2D" path="res://art/town/guild_hall.svg" id="1_06qh5"]
-[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_g5ejp"]
+[ext_resource type="Texture2D" path="res://art/town/guild_hall.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/town_building.gd" id="2_script"]
 
 [resource]
-script = ExtResource("2_g5ejp")
+script = ExtResource("2_script")
 building_name = "Guild Hall"
 description = "Your home base. Build the town from here, and its Bank keeps your materials safe."
-icon = ExtResource("1_06qh5")
+sort_order = 0
 costs = Array[int]([0])
 effects = PackedStringArray("bank")
 amounts = Array[int]([1])
 stage_texts = PackedStringArray("Build and upgrade the town, and the Bank keeps your materials")
 material_costs = PackedStringArray("")
+needs_blueprint = false
+icon = ExtResource("1_icon")

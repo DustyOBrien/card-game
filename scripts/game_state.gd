@@ -1221,7 +1221,7 @@ func restore_blocked(building: TownBuilding) -> String:
 	if building.building_name == "Inn" and stage == 1 and not quests_done.has(SUPPLIES_QUEST):
 		return "First bring Kale his supplies"
 	if gold < building.cost_of_next(stage):
-		return "Needs %d gold" % building.cost_of_next(stage)
+		return "Needs %d coins" % building.cost_of_next(stage)
 	var needs := building.materials_for_next(stage)
 	if not has_materials(needs):
 		return "Needs " + MaterialInfo.costs_text(needs)
@@ -1447,7 +1447,7 @@ func give_rewards(text: String, unlocks_only := false) -> Array[String]:
 		match words[0].to_lower():
 			"gold":
 				gold += rest.to_int()
-				lines.append("%d gold" % rest.to_int())
+				lines.append("%d coins" % rest.to_int())
 			"pack":  # "Pack Small 2" (or just "Pack 2" = Small)
 				var size_word := rest.get_slice(" ", 0) if rest.get_slice(" ", 0).to_int() == 0 else "Small"
 				var count := maxi(rest.get_slice(" ", rest.get_slice_count(" ") - 1).to_int(), 1)
@@ -2649,6 +2649,32 @@ func perk_requirement_met(area: Area, perk: AreaPerk) -> bool:
 
 func _finds_key(area: Area, card_name: String) -> String:
 	return "%s/%s" % [area.display_name, card_name]
+
+
+# Events are remembered the same way, as "Event: Loose Sheep": until you've
+# met one, the map card shows "Event: ???".
+const EVENT_FIND := "Event: "
+
+
+# The event line on a map card: "Event: Loose Sheep" once you've met it,
+# "Event: ???" until then. Events that only happen sometimes (under 50%)
+# say "Rare event". "" if the card has no event of its own.
+func event_line(area: Area, card: RoomCard) -> String:
+	if card.event_name.is_empty():
+		return ""
+	var kind := "Event" if card.event_chance >= 50 or card.type == RoomCard.Type.EVENT else "Rare event"
+	var known := knows_find(area, card.room_name, EVENT_FIND + card.event_name)
+	return "%s: %s" % [kind, card.event_name if known else "???"]
+
+
+# A DARK place: its event needs a torch (a choice with "Use Torch"), like the
+# Dark Cellar. The map card says DARK so you know to bring one.
+func is_dark(card: RoomCard) -> bool:
+	if card == null or card.event_name.is_empty():
+		return false
+	var event := find_event(card.event_name)
+	return event != null and Array(event.effects).any(func(effects: String) -> bool:
+		return effects.to_lower().contains("use torch"))
 
 
 # Have you ever found this item on this kind of card?

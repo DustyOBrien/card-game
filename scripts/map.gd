@@ -38,7 +38,7 @@ func _ready() -> void:
 	town_button.position = deck_button.position + (Vector2(deck_button.size.x + 12, 0) if deck_button.visible else Vector2.ZERO)
 	town_button.pressed.connect(func() -> void: get_tree().change_scene_to_file(TOWN_SCENE))
 	add_child(town_button)
-	gold_label.text = "Gold %d" % GameState.gold
+	gold_label.text = "Coins %d" % GameState.gold
 	for area in GameState.load_areas():
 		areas_layer.add_child(make_area_marker(area))
 

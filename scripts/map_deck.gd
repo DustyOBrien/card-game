@@ -196,7 +196,7 @@ func make_card(card: RoomCard, copies: int) -> PanelContainer:
 	var name_label := make_label(card.room_name + ("  ×%d" % copies if copies > 1 else ""), 15, INK)
 	name_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	names.add_child(name_label)
-	var tile := make_label(card.tile_name().to_upper(), 11, RoomCard.TILE_COLORS[card.tile].darkened(0.35))
+	var tile := make_label(card.tile_name().to_upper() + ("  ·  DARK (needs a torch)" if GameState.is_dark(card) else ""), 11, RoomCard.TILE_COLORS[card.tile].darkened(0.35))
 	tile.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	names.add_child(tile)
 	var items := card.scavenge_items()
@@ -207,8 +207,8 @@ func make_card(card: RoomCard, copies: int) -> PanelContainer:
 	finds_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 	layout.add_child(finds_label)
 	if not card.event_name.is_empty():
-		var chance := "" if card.event_chance >= 100 or card.type == RoomCard.Type.EVENT else " (%d%%)" % card.event_chance
-		var event_label := make_label("Event: %s%s" % [card.event_name, chance], 12, Color(0.55, 0.3, 0.05))
+		# "Event: ???" until you've met it: working out the events is part of the fun.
+		var event_label := make_label(GameState.event_line(area, card), 12, Color(0.55, 0.3, 0.05))
 		event_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_LEFT
 		layout.add_child(event_label)
 	return panel

@@ -394,7 +394,7 @@ func fill_pack() -> void:
 		pack_box.add_child(make_label("%d charge%s: %s" % [stats[Flask.CHARGES], "" if stats[Flask.CHARGES] == 1 else "s",
 			Flask.effect_text(stats)], 15, DIM_COLOR, true))
 
-	# Torches: more scouting, but they take backpack space.
+	# Torches: for DARK places, but they take backpack space.
 	var torch_row := HBoxContainer.new()
 	torch_row.add_theme_constant_override("separation", 6)
 	var torch_icon := TextureRect.new()
@@ -402,14 +402,18 @@ func fill_pack() -> void:
 	torch_icon.custom_minimum_size = Vector2(32, 32)
 	torch_icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	torch_row.add_child(torch_icon)
-	var torch_label := make_label("Torches: %d" % GameState.packed_torches, 18, Color.WHITE)
-	torch_label.custom_minimum_size = Vector2(110, 0)
+	# Torches come from your Bank: craft them at the Guild Hall's crafting bench.
+	var in_bank := GameState.material_count(DungeonRun.TORCH)
+	var packed := mini(GameState.packed_torches, in_bank)
+	var torch_label := make_label("Torches: %d  (Bank %d)" % [packed, in_bank], 18, Color.WHITE)
+	torch_label.custom_minimum_size = Vector2(170, 0)
+	torch_label.tooltip_text = "Torches light up DARK places. Craft more at the Guild Hall's crafting bench."
 	torch_row.add_child(torch_label)
 	var fewer := make_button("−", _change_torches.bind(-1))
-	fewer.disabled = GameState.packed_torches <= 0
+	fewer.disabled = packed <= 0
 	torch_row.add_child(fewer)
 	var more := make_button("+", _change_torches.bind(1))
-	more.disabled = GameState.packed_torches >= GameState.MAX_PACKED_TORCHES
+	more.disabled = packed >= mini(GameState.MAX_PACKED_TORCHES, in_bank)
 	torch_row.add_child(more)
 	pack_box.add_child(torch_row)
 	# Tools: crowbars and bombs to use on map cards. Made from Bank materials
@@ -446,7 +450,7 @@ func fill_pack() -> void:
 		row.add_child(price)
 		pack_box.add_child(row)
 	var slots := DungeonRun.BACKPACK_SLOTS + GameState.town_bonus(TownBuilding.BACKPACK_SLOTS)
-	var torch_slots := DungeonRun.stacks(GameState.packed_torches)
+	var torch_slots := DungeonRun.stacks(packed)
 	pack_box.add_child(make_label("Backpack: %d slots, %d free for loot. Torches share one slot, and each kind of tool another (up to %d of one thing in a slot)." % [
 		slots, slots - torch_slots - tool_slots, DungeonRun.BACKPACK_STACK], 15, DIM_COLOR, true))
 
@@ -502,7 +506,8 @@ func _change_tool(tool_name: String, by: int) -> void:
 
 
 func _change_torches(by: int) -> void:
-	GameState.packed_torches = clampi(GameState.packed_torches + by, 0, GameState.MAX_PACKED_TORCHES)
+	var in_bank := GameState.material_count(DungeonRun.TORCH)
+	GameState.packed_torches = clampi(mini(GameState.packed_torches, in_bank) + by, 0, mini(GameState.MAX_PACKED_TORCHES, in_bank))
 	GameState.save_game()
 	refresh()
 

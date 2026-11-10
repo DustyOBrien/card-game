@@ -128,6 +128,8 @@ static func loot_item_name(entry: String) -> String:
 	var words := entry.strip_edges().split(" ", false)
 	if words.is_empty():
 		return ""
+	if words[0].to_lower() == "gold":
+		return "Coins"  # Gold is called Coins on screen (Dusty).
 	if words[0].to_lower() in LOOT_WORDS:
 		return words[0].capitalize()
 	var last := words[-1].split("-")

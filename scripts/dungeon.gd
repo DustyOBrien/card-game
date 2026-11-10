@@ -93,6 +93,7 @@ var new_find_square := Vector2i(-1, -1)  # A card whose "?" just turned into an 
 var new_find_item := ""
 var scouting := false  # The torch is out: the next face-down card you click gets lit up.
 var torch_button: Button
+const SCOUTING_ON := false  # Lighting up face-down cards with a torch (off for now).
 var tool_mode := ""  # A tool you clicked (Crowbar, Bomb): the next card you click gets it.
 var tool_row: HBoxContainer  # One button per tool you carry (drag it onto a card, or click).
 var journal_button: Button
@@ -355,10 +356,10 @@ func refresh() -> void:
 		"HP: carries over from fight to fight.",
 		"Keys: fights drop a small key %d%% of the time. A key opens one locked chest or shed." % DungeonRun.KEY_CHANCE,
 		"Danger: +1 for every Unsafe card you find, and for some failed choices. Every %d Danger shuffles a bad Danger card into the map deck (it can swap onto the board too), and every %d gives every enemy +1 Strength. It lasts the whole trip." % [dungeon.danger_per_card(), dungeon.danger_per_strength()],
-		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Gold, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
-		"Torches: light up any face-down card to see it first. Each time, a d4 burnout roll: %s, then it always burns out." % torch_targets_text(),
+		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Coins, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
+		"Torches: light up DARK places (like a Dark Cellar) so you can explore them.",
 		"Tools: drag a crowbar, bomb or torch onto a face-up card next to you. The corner badge says how many tool tricks a card has; the Journal remembers the ones you find.",
-		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; it adds +1 to a dig, and each find uses 1. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
+		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; it adds +1 to a dig, and each find uses 1. A natural 6 always works and keeps your Luck; a natural 1 fails and costs 1 Luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
@@ -470,6 +471,9 @@ func draw_square(square: Vector2i) -> void:
 			ink = Color(0.6, 0.58, 0.54)
 	else:
 		label.text = card.room_name
+		# DARK until you light it with a torch (its event is done).
+		if GameState.is_dark(card) and not (room.get("event_rolled", false) and not room.get("event_open", false)):
+			label.text += "  ·  DARK"
 		art.texture = card_art(card)
 		border = RoomCard.TILE_COLORS[card.tile].darkened(0.15)
 		if card.type == RoomCard.Type.EVENT and room.get("event") != null and card.event_name.is_empty():
@@ -565,7 +569,7 @@ func make_chip_letter(text: String, on_face: bool) -> Label:
 # The picture for a thing you can find: a material's icon, gold, a torch...
 func item_icon(item: String) -> Texture2D:
 	match item:
-		"Gold": return GOLD_ICON
+		"Gold", "Coins": return GOLD_ICON
 		"Card": return CARD_ICON
 		"Pack": return PACK_ICON
 		"Key": return KEY_ICON
@@ -666,7 +670,9 @@ func describe_square(square: Vector2i) -> String:
 	if card.vanish:
 		lines.append("Vanish: once it's used, it's gone for the rest of this trip.")
 	if not card.loot.is_empty() and not room.done:
-		lines.append("Loot: one of " + ", ".join(Array(card.loot)))
+		lines.append("Loot: one of " + ", ".join(Array(card.loot)).replace("Gold", "Coins"))
+	if not GameState.event_line(dungeon.area, card).is_empty():
+		lines.append(GameState.event_line(dungeon.area, card))
 	if card.can_scavenge():
 		lines.append(finds_text(card))
 	var pile := dungeon.pile_at(square)
@@ -868,7 +874,9 @@ func refresh_torch_button() -> void:
 	if torch_button == null:
 		return
 	# Chapter 1: your crafted torches are for the Dark Cellars, not for scouting.
-	torch_button.visible = not dungeon.guided
+	# Dusty (Chapter 1 playtest): no more lighting up face-down cards for now.
+	# Torches are only for DARK places (their events' "Use Torch" choice).
+	torch_button.visible = SCOUTING_ON and not dungeon.guided
 	torch_button.text = ("Put it away" if scouting else "Light Torch") + " (%d)" % dungeon.torches
 	torch_button.set_pressed_no_signal(scouting)
 	torch_button.disabled = dungeon.torches <= 0 or not dungeon.result.is_empty()
@@ -1180,9 +1188,44 @@ func scavenge_odds(square: Vector2i) -> String:
 	var need := dungeon.scavenge_need(square)
 	if need <= 0:
 		return "This first dig always finds something!"
-	var chance := roundi((DungeonRun.SCAVENGE_DIE - need + 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
-	var luck_text := "Luck +1 (%d Luck left, a find uses 1)" % dungeon.luck if dungeon.luck > 0 else "no Luck left"
-	return "Next dig: %d+ on a d6 (%d%%) · %s · a fail adds Danger" % [need, chance, luck_text]
+	var bonus := dungeon.luck_bonus()
+	var chance := roundi(clampi(DungeonRun.SCAVENGE_DIE - (need - bonus) + 1, 1, DungeonRun.SCAVENGE_DIE - 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
+	var luck_text := "d6 + %d Luck (%d Luck left, a find uses 1)" % [bonus, dungeon.luck] if bonus > 0 else "no Luck left"
+	return "Next dig: %d+ on %s (%d%%) · natural 6: Luck kept · natural 1: -1 Luck · a fail adds Danger" % [need, luck_text, chance]
+
+
+# "Drops here:  [icon] Stone  [icon] Coins  ?" : what this card can give
+# (a "?" until you've found it once), for the scavenge box.
+func make_drops_row(card: RoomCard) -> HBoxContainer:
+	var row := HBoxContainer.new()
+	row.alignment = BoxContainer.ALIGNMENT_CENTER
+	row.add_theme_constant_override("separation", 6)
+	var heading := Label.new()
+	heading.text = "Drops here:"
+	heading.add_theme_font_size_override("font_size", 15)
+	heading.add_theme_color_override("font_color", Color(1, 1, 1, 0.7))
+	row.add_child(heading)
+	for item in card.scavenge_items():
+		var known := GameState.knows_find(dungeon.area, card.room_name, item)
+		if known and item_icon(item) != null:
+			var icon := TextureRect.new()
+			icon.texture = item_icon(item)
+			icon.custom_minimum_size = Vector2(24, 24)
+			icon.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+			icon.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			row.add_child(icon)
+		var name_label := Label.new()
+		name_label.text = (item if known else "?") + "  "
+		name_label.add_theme_font_size_override("font_size", 15)
+		name_label.add_theme_color_override("font_color", Color(1, 0.9, 0.65) if known else Color(1, 1, 1, 0.5))
+		row.add_child(name_label)
+	if not dungeon.guided:
+		var extra := Label.new()
+		extra.text = "+ rare finds from the %s loot table" % dungeon.area.display_name
+		extra.add_theme_font_size_override("font_size", 13)
+		extra.add_theme_color_override("font_color", Color(1, 1, 1, 0.45))
+		row.add_child(extra)
+	return row
 
 
 func rarity_of(find: Dictionary) -> String:
@@ -1234,6 +1277,7 @@ func open_scav_box() -> void:
 	tile.add_theme_font_size_override("font_size", 15)
 	tile.add_theme_color_override("font_color", RoomCard.TILE_COLORS[card.tile])
 	head.add_child(tile)
+	box.add_child(make_drops_row(card))
 	scav_status = Label.new()
 	scav_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	scav_status.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
@@ -1312,7 +1356,9 @@ func scav_update() -> void:
 	if scav_mode == "dig":
 		scav_status.text = scavenge_odds(dungeon.position)
 		var need := dungeon.scavenge_need(dungeon.position)
-		add_scav_button("Dig (sure thing)" if need <= 0 else "Dig (%d+)" % need, _on_scav_dig, true)
+		var bonus := dungeon.luck_bonus()
+		add_scav_button("Dig (sure thing)" if need <= 0 else ("Dig (d6+%d, need %d+)" % [bonus, need] if bonus > 0 else "Dig (d6, need %d+)" % need),
+			_on_scav_dig, true)
 		add_scav_button("Stop & look" if hidden > 0 else "Leave", _on_scav_stop, false)
 	else:
 		var pile := dungeon.pile_at(dungeon.position)
@@ -1445,7 +1491,7 @@ func find_icon(find: Dictionary) -> Texture2D:
 func find_label(find: Dictionary) -> String:
 	match find.kind:
 		"gold":
-			return "%d gold" % find.amount
+			return "%d coins" % find.amount
 		"card":
 			return find.card.card_name
 		"material":
@@ -1464,8 +1510,13 @@ func _on_scav_dig() -> void:
 	set_scav_buttons_disabled(true)
 	var worked: bool = outcome.worked
 	if outcome.need > 0:
-		await roll_die(DungeonRun.SCAVENGE_DIE, outcome.roll, "Lucky!" if worked else "Noise!",
-			Color(0.55, 0.95, 0.55) if worked else Color(1, 0.45, 0.4))
+		var text := "Found something!" if worked else "Noise!"
+		if outcome.nat6:
+			text = "NATURAL 6! Luck kept!" if outcome.bonus > 0 else "NATURAL 6!"
+		elif outcome.nat1:
+			text = "NATURAL 1! -1 Luck" if outcome.lost_luck else "NATURAL 1!"
+		await roll_die(DungeonRun.SCAVENGE_DIE, outcome.roll, text,
+			Color(0.55, 0.95, 0.55) if worked else Color(1, 0.45, 0.4), outcome.bonus)
 	if worked:
 		var count := scav_question_count() + 1
 		var slot := put_slot(count - 1, {}, true)
@@ -2158,7 +2209,7 @@ func show_event() -> void:
 		var label := event.choice_labels[i]
 		for effect in DungeonEvent.split_effects(event.effects[i]):
 			if effect.to_lower().begins_with("pay "):
-				label += " (%s gold)" % effect.substr(4)  # Show the price.
+				label += " (%s coins)" % effect.substr(4)  # Show the price.
 		if event.chances[i] < 100:
 			label += " (%d%%)" % event.chances[i]
 		var blocked := dungeon.choice_blocked(event, i)
@@ -2326,15 +2377,29 @@ func roll_flask_die(sides: int, value: int, heal: int) -> void:
 
 # Any die tumbling in the middle of the screen: it lands on `value`, then
 # `text` fades in under it (the flask, a torch's burnout roll, scavenging).
-func roll_die(sides: int, value: int, text: String, color: Color) -> void:
+# bonus: shown beside the die as "+ 1" (your Luck on a scavenge roll).
+func roll_die(sides: int, value: int, text: String, color: Color, bonus := 0) -> void:
 	var holder := VBoxContainer.new()
 	holder.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	holder.alignment = BoxContainer.ALIGNMENT_CENTER
 	add_child(holder)
+	var die_row := HBoxContainer.new()
+	die_row.alignment = BoxContainer.ALIGNMENT_CENTER
+	die_row.add_theme_constant_override("separation", 14)
+	holder.add_child(die_row)
 	var die := DieView.new(110)
 	die.sides = sides
 	die.size_flags_horizontal = Control.SIZE_SHRINK_CENTER
-	holder.add_child(die)
+	die_row.add_child(die)
+	if bonus > 0:
+		var plus := Label.new()
+		plus.text = "+ %d" % bonus
+		plus.tooltip_text = "Luck"
+		plus.add_theme_font_size_override("font_size", 48)
+		plus.add_theme_color_override("font_color", Color(0.63, 1, 0.63))
+		plus.add_theme_color_override("font_outline_color", Color.BLACK)
+		plus.add_theme_constant_override("outline_size", 8)
+		die_row.add_child(plus)
 	var label := Label.new()
 	label.text = text
 	label.add_theme_font_size_override("font_size", 40)
@@ -2637,7 +2702,7 @@ func build_sack_panel() -> void:
 	sack_picture.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	sack_title.add_child(sack_picture)
 	sack_title.add_child(make_small_label("Save Sack: kept even if you die", Color(1, 0.85, 0.5)))
-	sack_title.tooltip_text = "Drag what you've found into a slot (or click it). If you die, you keep what's in the sack.\nEach slot holds a pack, a card, or up to %d gold. The Tailor in town makes it bigger." % GameState.gold_stack()
+	sack_title.tooltip_text = "Drag what you've found into a slot (or click it). If you die, you keep what's in the sack.\nEach slot holds a pack, a card, or up to %d coins. The Tailor in town makes it bigger." % GameState.gold_stack()
 	sack_row = HFlowContainer.new()  # Wraps onto a second line when the Tailor adds slots.
 	sack_row.add_theme_constant_override("h_separation", 6)
 	sack_row.add_theme_constant_override("v_separation", 4)
@@ -2730,8 +2795,8 @@ func refresh_sack() -> void:
 		sack_row.add_child(slot)
 	# What you've found, as chips you can drag.
 	if dungeon.found_gold > 0:
-		found_row.add_child(make_chip("%d gold" % dungeon.found_gold, {"kind": "gold"},
-			"Drag into the sack: a slot holds up to %d gold." % GameState.gold_stack()))
+		found_row.add_child(make_chip("%d coins" % dungeon.found_gold, {"kind": "gold"},
+			"Drag into the sack: a slot holds up to %d coins." % GameState.gold_stack()))
 	if dungeon.found_packs > 0:
 		var pack_chip := make_chip("x%d" % dungeon.found_packs, {"kind": "pack"}, "")
 		pack_chip.icon = PACK_ICON  # A Small Farm Booster Pack.
@@ -2788,7 +2853,7 @@ func refresh_backpack() -> void:
 	var slots := dungeon.backpack_slots()
 	backpack_title.text = "Backpack %d / %d slots (lost if you die):" % [used, slots]
 	backpack_title.add_theme_color_override("font_color", Color(1, 0.6, 0.45) if used >= slots else Color(0.85, 0.82, 0.76))
-	backpack_title.tooltip_text = "Materials and torches go in your backpack: up to %d of one thing in each slot.\nGold, cards, packs and keys don't take space. Click a slot to drop it.\nThe Tailor in town sews a bigger backpack." % DungeonRun.BACKPACK_STACK
+	backpack_title.tooltip_text = "Materials and torches go in your backpack: up to %d of one thing in each slot.\nCoins, cards, packs and keys don't take space. Click a slot to drop it.\nThe Tailor in town sews a bigger backpack." % DungeonRun.BACKPACK_STACK
 	var contents := dungeon.backpack_contents()
 	for i in maxi(slots, contents.size()):
 		var slot := Button.new()

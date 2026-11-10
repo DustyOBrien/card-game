@@ -1,15 +1,17 @@
 [gd_resource type="Resource" script_class="DungeonEvent" format=3]
 
-[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="1_5o6ns"]
+[ext_resource type="Script" path="res://scripts/dungeon_event.gd" id="2_script"]
 
 [resource]
-script = ExtResource("1_5o6ns")
+script = ExtResource("2_script")
 event_name = "Toothy Chest"
 area = "Abandoned Farm"
+min_tier = 1
 text = "A chest sits alone in the grass. It has... teeth marks? Or teeth?"
+picture = ""
 choice_labels = PackedStringArray("Open it", "Leave it")
 chances = Array[int]([50, 100])
 effects = PackedStringArray("Gold 8-12; Potion", "")
 fail_effects = PackedStringArray("Fight Big Slime", "")
 results = PackedStringArray("Just a chest! Full of gold.", "You back away slowly.")
-fail_results = PackedStringArray("It\'s a slime wearing a chest! It attacks!", "")
+fail_results = PackedStringArray("It's a slime wearing a chest! It attacks!", "")

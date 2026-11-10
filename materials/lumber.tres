@@ -1,11 +1,11 @@
 [gd_resource type="Resource" script_class="MaterialInfo" format=3]
 
-[ext_resource type="Texture2D" path="res://art/materials/lumber.svg" id="1_jj2fk"]
-[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_el8f4"]
+[ext_resource type="Texture2D" path="res://art/materials/lumber.svg" id="1_icon"]
+[ext_resource type="Script" path="res://scripts/material_info.gd" id="2_script"]
 
 [resource]
-script = ExtResource("2_el8f4")
+script = ExtResource("2_script")
 material_name = "Lumber"
 description = "Planks and logs for building."
-color = Color(0.7529412, 0.5411765, 0.3137255, 1)
-icon = ExtResource("1_jj2fk")
+color = Color(0.7529411764705882, 0.5411764705882353, 0.3137254901960784, 1.0)
+icon = ExtResource("1_icon")
