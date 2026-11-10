@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- The Farmer's House: a little farmhouse, shutters hanging loose. -->
+  <path d="M4 48 L60 48 L60 60 L4 60 Z" fill="#5f8a36"/>
+  <path d="M12 30 L52 30 L52 52 L12 52 Z" fill="#c9a66b" stroke="#5a3d1a" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M6 32 L32 10 L58 32 Z" fill="#9a3b2a" stroke="#4e1c12" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M27 52 L27 38 L37 38 L37 52 Z" fill="#6b4422" stroke="#3a240f" stroke-width="2"/>
+  <rect x="15" y="36" width="8" height="8" fill="#ffe7a0" stroke="#5a3d1a" stroke-width="2"/>
+  <rect x="41" y="36" width="8" height="8" fill="#3b3326" stroke="#5a3d1a" stroke-width="2"/>
+  <path d="M49 36 L53 46" stroke="#7a5428" stroke-width="3" stroke-linecap="round"/>
+  <ellipse cx="20" cy="54" rx="4" ry="3" fill="#b0572e" stroke="#5a2a12" stroke-width="1.5"/>
+  <path d="M20 51 L18 46 M20 51 L23 47" stroke="#4f8a2e" stroke-width="2" stroke-linecap="round"/>
+</svg>

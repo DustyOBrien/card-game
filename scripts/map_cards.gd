@@ -16,7 +16,9 @@
 #   Loot        "Stone 1-2 | Gold 1-3" (one is picked)
 #   Scavenge, Scavenge Uncommon, Scavenge Rare
 #               what scavenging finds here, by Luck (see dungeon_run.gd)
-#   Event       Event cards: the event in events.csv (blank = a random one)
+#   Event       Event cards: the event in events.csv (blank = a random one).
+#               Other cards (an Old Barn): an event that happens first, when it flips
+#   Event Chance  % chance that event happens (blank = always)
 #   Vanish      Yes = gone for the rest of the run once it's used
 #   Floor       it joins the deck when you reach this floor (blank = 1)
 #   Art         the picture, from the art/ folder: "map_cards/barn.svg"
@@ -65,6 +67,7 @@ static func load_sheet(path: String) -> Array[RoomCard]:
 		card.floor_from = maxi(CardImporter._to_int(row.get("floor", ""), 1), 1)
 		card.text = row.get("text", "")
 		card.event_name = row.get("event", "")
+		card.event_chance = clampi(CardImporter._to_int(row.get("event chance", ""), 100), 0, 100)
 		card.guards = row.get("guards", "")
 		var art_name: String = row.get("art", "")
 		var art_path := ART_FOLDER + art_name

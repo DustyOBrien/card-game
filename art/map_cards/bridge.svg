@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64">
+  <!-- The Stone Bridge: an old arch over a stream. -->
+  <path d="M0 40 L64 40 L64 64 L0 64 Z" fill="#4c86c4"/>
+  <path d="M6 50 Q14 47 22 50 M38 56 Q46 53 54 56" fill="none" stroke="#a9d4ff" stroke-width="2.5" stroke-linecap="round"/>
+  <path d="M2 38 L62 38 L62 46 Q48 46 44 56 L20 56 Q16 46 2 46 Z" fill="#a3a8b2" stroke="#2e3036" stroke-width="2.5" stroke-linejoin="round"/>
+  <path d="M2 30 L62 30 L62 38 L2 38 Z" fill="#8a8f99" stroke="#2e3036" stroke-width="2.5"/>
+  <path d="M12 30 L12 38 M24 30 L24 38 M36 30 L36 38 M48 30 L48 38" stroke="#2e3036" stroke-width="2"/>
+  <circle cx="44" cy="22" r="3" fill="#f5cf4a" stroke="#8a6a12" stroke-width="1.5"/>
+</svg>

@@ -23,7 +23,11 @@ const BACKGROUND := preload("res://art/town/town_background.svg")
 const RUINS := preload("res://art/town/ruins.svg")
 const GUILD_HALL := preload("res://art/town/guild_hall.svg")
 const KING := preload("res://art/story/king.svg")
-const DARK_WIZARD := preload("res://art/story/dark_wizard.svg")
+const DARK_LORD := preload("res://art/story/dark_wizard.svg")  # (The old Dark Wizard picture.)
+const ORB := preload("res://art/story/orb.svg")
+# The elders' orbs, one per school colour (red, green, blue, purple).
+const ORB_COLORS := [Color(1, 0.55, 0.5), Color(0.6, 1, 0.6), Color(0.6, 0.8, 1), Color(0.85, 0.6, 1)]
+const ORB_SIZE := 48.0
 const ARCHITECT := preload("res://art/story/architect.svg")
 # The thriving town's buildings, left to right. The Guild Hall is in the
 # middle, because it's the one that survives.
@@ -50,10 +54,11 @@ var panels: Array = []
 
 func make_panels() -> Array:
 	return [
-	[panel_thriving, "Long ago, in the heart of the Kingdom, stood the greatest town of all. Its markets were loud, its halls were full, and its adventurers were the bravest in the land."],
-	[panel_attack, "Then the DARK WIZARD came. In one night of storm and fire, he tore the whole area to the ground."],
-	[panel_ruins, "When the smoke cleared, the town lay in ruins. Only the old Guild Hall was still standing."],
-	[panel_architects, "The King sent architect after architect to rebuild it. Every single one of them failed."],
+	[panel_thriving, "Long ago, in the heart of the Kingdom, stood the greatest town of all. Its elders made powerful ORBS, and the orbs made its heroes the strongest in the land."],
+	[panel_attack, "Then the DARK LORD came. He wanted the orbs for himself, and the town's warriors could not stop him."],
+	[panel_explosion, "But the moment he touched the orbs, they EXPLODED. The blast banished the Dark Lord... and scattered the orbs across the land."],
+	[panel_ruins, "When the smoke cleared, the town lay in ruins, twisted by the orbs' wild power. Only the old Guild Hall was still standing."],
+	[panel_architects, "The King sent his Architects to rebuild it as the heart of his empire. Not one of them ever came back."],
 	[panel_until_you, ""],
 	]
 
@@ -275,7 +280,8 @@ func add_town_row(ruined: bool) -> Array[TextureRect]:
 	return row
 
 
-# PANEL 1: the town in its glory. The buildings bob gently, like it's busy.
+# PANEL 1: the town in its glory. The buildings bob gently, like it's busy,
+# and the elders' orbs float above the Guild Hall.
 func panel_thriving() -> void:
 	var row := add_town_row(false)
 	for i in row.size():
@@ -285,13 +291,30 @@ func panel_thriving() -> void:
 		bob.tween_property(building, "scale", Vector2(1.04, 0.97), 0.5).set_trans(Tween.TRANS_SINE)
 		bob.tween_property(building, "scale", Vector2.ONE, 0.5).set_trans(Tween.TRANS_SINE)
 		bob.tween_interval(0.6)
+	for orb in add_orbs(ROW_Y - 10):
+		var float_up := make_loop()
+		float_up.tween_property(orb, "position:y", -10.0, 0.9).as_relative().set_trans(Tween.TRANS_SINE)
+		float_up.tween_property(orb, "position:y", 10.0, 0.9).as_relative().set_trans(Tween.TRANS_SINE)
 
 
-# PANEL 2: night falls, the Dark Wizard rises, lightning, the buildings shake.
+# The four orbs in a row over the Guild Hall (the middle of the screen),
+# standing on the line y = foot_y.
+func add_orbs(foot_y: float) -> Array[TextureRect]:
+	var orbs: Array[TextureRect] = []
+	for i in ORB_COLORS.size():
+		var x := 640.0 + (i - (ORB_COLORS.size() - 1) / 2.0) * (ORB_SIZE + 8)
+		var orb := add_picture(ORB, Vector2(ORB_SIZE, ORB_SIZE), Vector2(x, foot_y))
+		orb.modulate = ORB_COLORS[i]
+		orb.pivot_offset = orb.size / 2.0  # Grow from the middle.
+		orbs.append(orb)
+	return orbs
+
+
+# PANEL 2: night falls, the Dark Lord rises, lightning, the buildings shake.
 func panel_attack() -> void:
 	var row := add_town_row(false)
 	create_tween().tween_property(tint, "color:a", 0.55, 1.5)
-	var wizard := add_picture(DARK_WIZARD, Vector2(200, 245), Vector2(640, 300))
+	var wizard := add_picture(DARK_LORD, Vector2(200, 245), Vector2(640, 300))
 	wizard.modulate.a = 0.0
 	wizard.position.y += 40
 	var rise := create_tween().set_parallel()
@@ -311,6 +334,34 @@ func panel_attack() -> void:
 	storm.tween_callback(func() -> void: strike(row))
 	storm.tween_property(flash, "color:a", 0.0, 0.25).from(0.5)
 	storm.tween_interval(1.2)
+
+
+# PANEL 3: the Dark Lord reaches for the orbs. They swell up, shake... and
+# burst: a white flash, the orbs fly off to every corner of the land, and
+# the Dark Lord is gone.
+func panel_explosion() -> void:
+	var row := add_town_row(false)
+	tint.color.a = 0.55
+	var lord := add_picture(DARK_LORD, Vector2(200, 245), Vector2(640, 260))
+	var orbs := add_orbs(ROW_Y + 40)
+	var blast := create_tween()
+	blast.tween_interval(0.9)
+	# Swell (all at once: parallel() joins the step before), and shake.
+	blast.tween_property(orbs[0], "scale", Vector2(1.7, 1.7), 0.9).set_trans(Tween.TRANS_SINE)
+	for i in range(1, orbs.size()):
+		blast.parallel().tween_property(orbs[i], "scale", Vector2(1.7, 1.7), 0.9).set_trans(Tween.TRANS_SINE)
+	for i in 6:
+		blast.tween_property(stage, "position", Vector2(randf_range(-8, 8), randf_range(-5, 5)), 0.05)
+	blast.tween_property(stage, "position", Vector2.ZERO, 0.05)
+	# BOOM.
+	blast.tween_callback(func() -> void: strike(row))
+	blast.tween_property(flash, "color:a", 0.0, 1.2).from(1.0)
+	for i in orbs.size():
+		var away := Vector2.from_angle(TAU * i / orbs.size() - PI / 3.0) * 900.0
+		blast.parallel().tween_property(orbs[i], "position", away, 1.4).as_relative().set_ease(Tween.EASE_IN)
+	blast.parallel().tween_property(lord, "modulate:a", 0.0, 0.5)
+	blast.parallel().tween_property(lord, "scale", Vector2(0.2, 0.2), 0.5)
+	blast.parallel().tween_property(tint, "color:a", 0.25, 1.2)
 
 
 # One lightning strike: a jagged bolt on a random building, and they all shake.
@@ -337,7 +388,7 @@ func strike(row: Array[TextureRect]) -> void:
 		shake.tween_property(building, "position", start, 0.04)
 
 
-# PANEL 3: the morning after. Ruins and smoke; the Guild Hall still stands.
+# PANEL 4: the morning after. Ruins and smoke; the Guild Hall still stands.
 func panel_ruins() -> void:
 	background.modulate = Color(0.45, 0.42, 0.45)
 	var row := add_town_row(true)
@@ -380,7 +431,7 @@ func add_smoke(ruin: TextureRect, delay: float) -> void:
 	rise.tween_interval(0.01)
 
 
-# PANEL 4: the King sends architects. One by one they walk up to the ruins...
+# PANEL 5: the King sends architects. One by one they walk up to the ruins...
 # and give up: they go grey, slump and fade away.
 func panel_architects() -> void:
 	background.modulate = Color(0.45, 0.42, 0.45)
@@ -411,7 +462,7 @@ func send_architect(delay: float) -> void:
 	walk.tween_property(walker, "modulate:a", 0.0, 0.8)
 
 
-# PANEL 5: darkness, then "Until you..." and the new architect, in gold.
+# PANEL 6: darkness, then "Until you..." and the new architect, in gold.
 func panel_until_you() -> void:
 	background.visible = false
 	# A soft golden glow for the new architect to stand in: a RADIAL gradient

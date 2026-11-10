@@ -331,13 +331,18 @@ func refresh() -> void:
 	title_label.text = "%s  ·  Floor %d" % [dungeon.area.display_name, dungeon.floor_number] \
 		if not dungeon.guided else "%s  ·  Your first trip" % dungeon.area.display_name
 	var lines: Array[String] = []
-	lines.append("[color=#ff8080]HP %d / %d[/color]     [color=#ffd75a]Keys: %d[/color]     [color=#ffb060]Torches: %d[/color]" % [
-		hp, GameState.player_max_hp(), dungeon.keys, dungeon.torches])
+	lines.append("[color=#ff8080]HP %d / %d[/color]   [color=#ffd75a]Keys: %d[/color]   [color=#ffb060]Torches: %d[/color]   [color=#a0ffa0]Luck: %d[/color]" % [
+		hp, GameState.player_max_hp(), dungeon.keys, dungeon.torches, dungeon.luck])
 	# The DANGER METER: how much, what it does now, and when it gets worse.
 	var danger_color := "#ffffff" if dungeon.danger() == 0 else "#ff9050"
-	var next := "Danger card" + (", +%d Str" % (dungeon.enemy_strength() + 1) if dungeon.next_danger_adds_strength() else "")
-	lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Str  ·  [color=#ffb080]%d more → %s[/color]" % [
-		danger_color, dungeon.danger(), dungeon.enemy_strength(), dungeon.danger_to_next(), next])
+	if dungeon.guided:
+		# Chapter 1: no monsters (yet). Kale said not to push your luck...
+		lines.append("[color=%s]Danger %d[/color]  ·  [color=#ffb080]%s[/color]" % [danger_color, dungeon.danger(),
+			"Something out there is listening..." if dungeon.danger() >= DungeonRun.GUIDE_DANGER_WARNING else "Failed digs make noise"])
+	else:
+		var next := "Danger card" + (", +%d Str" % (dungeon.enemy_strength() + 1) if dungeon.next_danger_adds_strength() else "")
+		lines.append("[color=%s]Danger %d[/color]  ·  enemies +%d Str  ·  [color=#ffb080]%d more → %s[/color]" % [
+			danger_color, dungeon.danger(), dungeon.enemy_strength(), dungeon.danger_to_next(), next])
 	var hunting := dungeon.hunting_text()
 	if not hunting.is_empty():
 		lines.append("[color=#a8e0ff]Hunting: %s[/color]" % hunting)
@@ -353,7 +358,7 @@ func refresh() -> void:
 		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Gold, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
 		"Torches: light up any face-down card to see it first. Each time, a d4 burnout roll: %s, then it always burns out." % torch_targets_text(),
 		"Tools: drag a crowbar, bomb or torch onto a face-up card next to you. The corner badge says how many tool tricks a card has; the Journal remembers the ones you find.",
-		"Scavenge: stand on a wall, field, hay bale... and click it. The first dig is free, then push your luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card.",
+		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; it adds +1 to a dig, and each find uses 1. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
@@ -365,7 +370,9 @@ func refresh() -> void:
 	refresh_sack()
 	if guide_label:
 		refresh_goals()
-		guide_torch_nudge.call_deferred()  # Once any popup from this click is up (it waits for those).
+		if dungeon.guided and dungeon.danger() >= DungeonRun.GUIDE_DANGER_WARNING and not dungeon.slimes_heard:
+			dungeon.slimes_heard = true
+			celebrate_goal.call_deferred("Squelch... squelch... Something is coming closer.", "DANGER!", Color(1, 0.45, 0.35))
 	if not dungeon.left_over.is_empty() or dungeon.last_danger_card != null or not dungeon.last_roamer_news.is_empty():
 		show_news.call_deferred()
 
@@ -764,8 +771,11 @@ func _on_square_pressed(square: Vector2i) -> void:
 		return
 	var what := ""
 	if square == dungeon.position:
-		if dungeon.rooms[square].campfire:
+		var here: Dictionary = dungeon.rooms[square]
+		if here.campfire:
 			what = "campfire"
+		elif here.get("event_open", false) or (here.has("event") and not here.done and here.card.type == RoomCard.Type.EVENT):
+			what = "event"  # An event you left for later (a dark cellar, a locked shed).
 		elif dungeon.can_scavenge(square) or not dungeon.pile_at(square).is_empty():
 			what = "scavenge"
 		elif dungeon.can_take_treasure(square):
@@ -857,6 +867,8 @@ func _on_torch_pressed() -> void:
 func refresh_torch_button() -> void:
 	if torch_button == null:
 		return
+	# Chapter 1: your crafted torches are for the Dark Cellars, not for scouting.
+	torch_button.visible = not dungeon.guided
 	torch_button.text = ("Put it away" if scouting else "Light Torch") + " (%d)" % dungeon.torches
 	torch_button.set_pressed_no_signal(scouting)
 	torch_button.disabled = dungeon.torches <= 0 or not dungeon.result.is_empty()
@@ -1136,10 +1148,10 @@ func make_journal_row(trick: Interaction) -> Control:
 
 
 # --- Scavenging: the SCAVENGE BOX ------------------------------------------------
-# Stand on a wall, field, hay bale... and click it: the box opens on top of
-# the board. Push your luck: the first dig is free, then each one needs a
-# higher d6 roll. Every success drops a new "?" into the box (you don't know
-# what it is yet) and raises your Luck (better finds). A fail adds Danger.
+# Stand on a road, field, barn... and click it: the box opens on top of the
+# board. Push your luck: each dig needs 4+ on a d6 (your Luck pool adds +1,
+# and a find uses 1 up). Every success drops a new "?" into the box (you
+# don't know what it is yet, or how rare). A fail adds Danger.
 # Stop (or fail, or run out of tries) and the ?s flip over one by one,
 # glowing by rarity. Then drag what you want into your backpack (or click
 # it). Whatever you leave lies on the card (a little pile icon) for later.
@@ -1150,6 +1162,7 @@ const RARITY_COLORS := {
 	"Common": Color(0.8, 0.8, 0.8),
 	"Uncommon": Color(0.4, 0.9, 0.4),
 	"Rare": Color(1, 0.75, 0.25),
+	"Legendary": Color(1, 0.5, 1),
 }
 const PILE_ICON_PATH := "res://art/map_cards/pile.svg"  # load()ed: a new picture, Godot imports it on first open.
 
@@ -1162,18 +1175,18 @@ var scav_pack_label: Label
 var scav_buttons: HBoxContainer
 
 
-# "4+ on a d6 (50%) · finds Uncommon things"
+# "Next dig: 4+ on a d6 (50%) · Luck 3 left · a fail adds Danger"
 func scavenge_odds(square: Vector2i) -> String:
 	var need := dungeon.scavenge_need(square)
-	var finds := DungeonRun.luck_name(dungeon.next_scavenge_luck(square))
 	if need <= 0:
-		return "Free dig · finds %s things" % finds
+		return "This first dig always finds something!"
 	var chance := roundi((DungeonRun.SCAVENGE_DIE - need + 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
-	return "Next dig: %d+ on a d6 (%d%%) · finds %s things · a fail adds Danger" % [need, chance, finds]
+	var luck_text := "Luck +1 (%d Luck left, a find uses 1)" % dungeon.luck if dungeon.luck > 0 else "no Luck left"
+	return "Next dig: %d+ on a d6 (%d%%) · %s · a fail adds Danger" % [need, chance, luck_text]
 
 
 func rarity_of(find: Dictionary) -> String:
-	return DungeonRun.luck_name(int(find.get("luck", 0)))
+	return DungeonRun.tier_name(int(find.get("tier", 0)))
 
 
 func open_scav_box() -> void:
@@ -1240,7 +1253,7 @@ func open_scav_box() -> void:
 	slots.add_theme_constant_override("separation", 10)
 	grid_box.add_child(slots)
 	scav_cells.clear()
-	for i in maxi(DungeonRun.SCAVENGE_TARGETS.size(), dungeon.pile_at(dungeon.position).size()):
+	for i in maxi(DungeonRun.SCAVENGE_MAX_DIGS, dungeon.pile_at(dungeon.position).size()):
 		var cell := Control.new()  # Holds a slot at a free position, so it can drop in.
 		cell.custom_minimum_size = SLOT_SIZE
 		var frame := Panel.new()  # The empty slot's outline.
@@ -1283,7 +1296,7 @@ func open_scav_box() -> void:
 	if guide_label:
 		ScreenGuide.start(self, "farm trip scavenge box", [
 			{"target": grid_box, "text": "The SCAVENGE BOX. Every dig that works drops a ? in here. You don't know what it is until you stop!"},
-			{"target": scav_buttons, "text": "The first dig is free. After that, PUSH YOUR LUCK: each dig needs a higher roll, but finds better things. A failed roll adds Danger and ends the dig. Stop whenever you like."},
+			{"target": scav_buttons, "text": "Digging is free, but each dig needs a 4+ on a d6. Your LUCK adds +1 to the roll, and every find uses 1 Luck up. A failed roll adds Danger and ends the dig here. Stop whenever you like. (On this first trip, your first dig at each spot always finds something.)"},
 		])
 
 
@@ -1299,7 +1312,7 @@ func scav_update() -> void:
 	if scav_mode == "dig":
 		scav_status.text = scavenge_odds(dungeon.position)
 		var need := dungeon.scavenge_need(dungeon.position)
-		add_scav_button("Dig (free)" if need <= 0 else "Push your luck (%d+)" % need, _on_scav_dig, true)
+		add_scav_button("Dig (sure thing)" if need <= 0 else "Dig (%d+)" % need, _on_scav_dig, true)
 		add_scav_button("Stop & look" if hidden > 0 else "Leave", _on_scav_stop, false)
 	else:
 		var pile := dungeon.pile_at(dungeon.position)
@@ -1856,9 +1869,9 @@ func make_deck_row(entry: Dictionary) -> Control:
 
 
 # --- The first trip ---------------------------------------------------------------
-# The Adventurer's first trip to the Farm, for the Innkeeper's first two
-# quests: Stone (from Collapsed Walls) and Hops (locked in sheds, so you
-# learn keys). The board is always the same (the Guide rows of
+# The Architect's first trip to the Farm (Chapter 1), for Kale's supplies:
+# Stone, Sticks, Wool and Hops (locked in sheds, so you learn keys). No
+# monsters, just scavenging. The board is always the same (the Guide rows of
 # farm_cards.csv). Dusty's playtest asked for it to be flashier and clearer,
 # so it's built like the battle training:
 #   1. A big intro banner ("THE ABANDONED FARM"), then a SPOTLIGHT TOUR
@@ -1877,12 +1890,15 @@ func make_deck_row(entry: Dictionary) -> Control:
 # id, text, and the hint shown while it's the goal you're on.
 const FARM_GOALS := [
 	{"id": "flip", "text": "Flip a map card", "hint": "Click a card with a gold border, next to you. You step onto it and it flips over."},
-	{"id": "Stone", "text": "Scavenge Stone", "hint": "Collapsed Walls (green border) give Stone. Step on one and dig, then Stop and drag the Stone into your backpack."},
-	{"id": "key", "text": "Find a key", "hint": "Keys lie around in the mud. Keep flipping cards!"},
-	{"id": "Hops", "text": "Open the sheds for Hops", "hint": "Locked Sheds (gold border) hold the Hops. Walk to one with your key and use it."},
-	{"id": "torch", "text": "Peek at a card with your torch", "hint": "Click Light Torch (right), then ANY face-down card: you see what it is without stepping on it."},
+	{"id": "dig", "text": "Scavenge something", "hint": "Stand on a card with ? along its bottom (a Dirt Road!) and click it. Dig, then Stop and drag what you found into your backpack."},
+	{"id": "Stone", "text": "Stone", "hint": "Roads, fields, the Stone Pile and the cellars have Stone. Keep scavenging!"},
+	{"id": "Sticks", "text": "Sticks", "hint": "The Old Barns (and the Farmer's House) have Sticks."},
+	{"id": "Wool", "text": "Wool", "hint": "Barns and Animal Pens have Wool. A loose sheep has lots!"},
+	{"id": "key", "text": "Find the Farmer's Key", "hint": "The Farmer's House (gold border) has a spare key hidden by the door. Go and look!"},
+	{"id": "cellar", "text": "Light a Dark Cellar with a torch", "hint": "Find a Dark Cellar and light it with one of your torches. Something good is hidden down there."},
+	{"id": "Hops", "text": "Open the sheds for Hops", "hint": "Walk to a Farmer's Shed with a key and open it. One key per shed."},
 	{"id": "campfire", "text": "Find the hidden campfire", "hint": "There's no way home where you came in. The campfire is somewhere on the board: keep exploring!"},
-	{"id": "home", "text": "Return to Town", "hint": "Stand on the campfire and click it, then Return to Town."},
+	{"id": "home", "text": "Head home", "hint": "Stand on the campfire and click it, then head home."},
 ]
 const GUIDE_GOLD := Color(1, 0.84, 0.35)
 
@@ -1934,8 +1950,13 @@ func farm_goal_done(id: String) -> bool:
 	match id:
 		"flip":
 			return dungeon.cards_flipped > 0
+		"dig":
+			return dungeon.digs_done > 0
 		"key":
-			return dungeon.keys > 0 or dungeon.rooms.values().any(func(room: Dictionary) -> bool: return room.opened)
+			return dungeon.keys > 0 or dungeon.material_total("Hops") > 0 or GameState.material_count("Hops") > 0
+		"cellar":
+			return dungeon.rooms.values().any(func(room: Dictionary) -> bool:
+				return room.card != null and room.card.room_name == "Dark Cellar" and room.get("event_rolled", false) and not room.get("event_open", false))
 		"torch":
 			return dungeon.rooms.values().any(func(room: Dictionary) -> bool: return room.get("scouted", false))
 		"campfire":
@@ -1982,7 +2003,7 @@ func refresh_goals() -> void:
 
 # GOAL COMPLETE! A big gold word over the board, sparkles, then it floats
 # away by itself. It doesn't stop you clicking (mouse_filter IGNORE).
-func celebrate_goal(goal_text: String) -> void:
+func celebrate_goal(goal_text: String, big_word := "GOAL COMPLETE!", color := GUIDE_GOLD) -> void:
 	var layer := Control.new()
 	layer.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	layer.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
@@ -1992,15 +2013,15 @@ func celebrate_goal(goal_text: String) -> void:
 	box.alignment = BoxContainer.ALIGNMENT_CENTER
 	layer.add_child(box)
 	var word := Label.new()
-	word.text = "GOAL COMPLETE!"
+	word.text = big_word
 	word.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	word.add_theme_font_size_override("font_size", 52)
-	word.add_theme_color_override("font_color", GUIDE_GOLD)
+	word.add_theme_color_override("font_color", color)
 	word.add_theme_color_override("font_outline_color", Color(0.35, 0.18, 0))
 	word.add_theme_constant_override("outline_size", 12)
 	box.add_child(word)
 	var line := Label.new()
-	line.text = "✓ " + goal_text
+	line.text = ("✓ " if big_word == "GOAL COMPLETE!" else "") + goal_text
 	line.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	line.add_theme_font_size_override("font_size", 24)
 	line.add_theme_color_override("font_outline_color", Color.BLACK)
@@ -2024,7 +2045,7 @@ func celebrate_goal(goal_text: String) -> void:
 	sparkles.gravity = Vector2(0, 300)
 	sparkles.scale_amount_min = 3
 	sparkles.scale_amount_max = 6
-	sparkles.color = GUIDE_GOLD
+	sparkles.color = color
 	layer.add_child(sparkles)
 	layer.move_child(sparkles, 0)
 	sparkles.emitting = true
@@ -2041,7 +2062,7 @@ func celebrate_goal(goal_text: String) -> void:
 # The first thing you see: a big banner, then a spotlight tour.
 func start_farm_tour() -> void:
 	UnlockBanner.show_in(self, "THE ABANDONED FARM", "Your first trip", dungeon.area.icon,
-		"The Innkeeper needs %s.\nFind it all, then find the campfire to get home with it. Watch out: if you fall, you lose what you found!" % dungeon.hunting_text(),
+		"Kale needs %s.\nFind it all, then find the campfire to get home with it.\n\nNo monsters come this close to town... but every failed dig makes noise. Don't push your luck!" % dungeon.hunting_text(),
 		"Let's explore! →", func() -> void:
 			var reachable_card: Control = null
 			for square: Vector2i in reach:
@@ -2052,7 +2073,7 @@ func start_farm_tour() -> void:
 				{"target": grid, "text": "This is the farm, laid out as MAP CARDS. Dark cards are face down: places you haven't been yet."},
 				{"target": squares[dungeon.position], "text": "You're HERE, at the Farm Gate. It's only the way in, not the way home: there's a campfire hidden somewhere on the board. Find it to get home!"},
 				{"target": reachable_card, "text": "Cards with a GOLD border are right next to you. Click one to step onto it: it flips over and turns light. Light cards = places you've been."},
-				{"target": stats_label, "text": "Your HP, keys and torches. And DANGER: red cards (Unsafe) are always a fight and raise it. The more Danger, the stronger the monsters."},
+				{"target": stats_label, "text": "Your keys, torches and LUCK. You start every trip with %d Luck: it adds +1 to your scavenge rolls, and each thing you find uses 1 up. And DANGER: it goes up every time a dig fails. Kale says no monsters come this close... (Kale says a lot of things.)" % DungeonRun.LUCK_POOL},
 				{"target": guide_label.get_parent().get_parent(), "text": "Your GOALS. Each one ticks off by itself. The gold one is what to do next, with a hint under it."},
 			]))
 
@@ -2067,9 +2088,11 @@ func guide_spotlight(what: String, square: Vector2i) -> void:
 	var steps := []
 	var guide_name := "farm trip " + what
 	match what:
+		"event":
+			steps = [{"target": squares[square], "text": "An EVENT! Some cards have something going on when they flip over. Events always come FIRST: deal with it, and then you can scavenge here."}]
 		"scavenge":
 			steps = [
-				{"target": squares[square], "text": "A COLLAPSED WALL: a Safe card (green border) you can SCAVENGE. Each ? along the bottom is something you can dig up here. Let's dig!"},
+				{"target": squares[square], "text": "A card you can SCAVENGE (dig through for things). Each ? along the bottom is something you can find here. Let's dig!"},
 				{"target": squares[square].get_node("Finds"), "text": "Find one, and its ? turns into a picture of it, for good. Next time you'll know what this kind of card gives!"},
 			]
 		"fight":
@@ -2092,18 +2115,6 @@ func guide_spotlight(what: String, square: Vector2i) -> void:
 		await guide.finished
 
 
-# The torch: once you've flipped a few cards, a spotlight on the torch button.
-func guide_torch_nudge() -> void:
-	if guide_label == null or popup.visible or busy or scav_layer or farm_goal_done("torch") or dungeon.torches <= 0:
-		return
-	if get_children().any(func(child: Node) -> bool: return child is ScreenGuide or child is UnlockBanner):
-		return  # Another spotlight or banner is up: wait for the next click.
-	if dungeon.cards_flipped < 3 or GameState.seen_guides.has("farm trip torch"):
-		return
-	ScreenGuide.start(self, "farm trip torch", [{"target": torch_button,
-		"text": "Your TORCH! Click it, then click ANY face-down card on the board: you see what it is, without stepping on it. Then it rolls to keep burning (harder each time)."}])
-
-
 # "Stone 3 / 5  Hops 1 / 3" for the guide, from what the quests need.
 func guide_progress() -> String:
 	return dungeon.hunting_text()
@@ -2111,7 +2122,7 @@ func guide_progress() -> String:
 
 # Once you have it all: back to a campfire.
 func guide_goal_text() -> String:
-	return "You have the Stone and the Hops! Find the campfire hidden somewhere on the board and Return to Town."
+	return "You have everything Kale asked for! Find the campfire hidden somewhere on the board and head home."
 
 
 # Called after anything happens on the first trip: tick the goals.
@@ -2120,17 +2131,17 @@ func show_guide_tip(_what: String, _square: Vector2i) -> void:
 	refresh_goals()
 
 
-# The first trip's campfire: Return to Town is the only choice, greyed out
-# until you have the Stone and the Hops.
+# The first trip's campfire: your way home. (Going home without everything
+# is allowed: you just come back on the same kind of trip next time.)
 func show_guided_campfire() -> void:
-	var text := "Campfires let you return to town with everything you found."
-	var blocked := ""
+	var text := "The campfire! It's your way home, with everything you found."
+	var home := "Head home"
 	if dungeon.guide_goal_met():
-		text += "\nYou have everything the Innkeeper asked for. Time to head home!"
+		text += "\nYou have everything Kale asked for. Time to head home!"
 	else:
-		blocked = "The Innkeeper is still waiting for some of it (%s)." % guide_progress()
-		text += "\n" + blocked
-	show_popup("Campfire", text, [["Return to Town", _on_leave, blocked], ["Keep exploring", close_popup]],
+		text += "\nKale is still waiting for some of it (%s). Head home now, and you'll have to come back out for the rest." % guide_progress()
+		home = "Head home anyway"
+	show_popup("Campfire", text, [[home, _on_leave], ["Keep exploring", close_popup]],
 		ICONS[RoomCard.Type.CAMPFIRE], "pop")
 
 
@@ -2173,6 +2184,9 @@ func _on_event_choice(index: int) -> void:
 		return  # Not shown, or greyed out (not enough gold...).
 	var outcome := dungeon.choose(index)
 	refresh()
+	if outcome.again:  # The Farmer's Key: wrong place, look somewhere else.
+		show_popup(event.event_name, outcome.text, [["Keep looking", show_event]])
+		return
 	if not str(outcome.blueprint).is_empty():
 		# Someone gave you a blueprint (the trapped Enchanter): they jump out!
 		var art := "res://art/town/%s.svg" % str(outcome.blueprint).to_snake_case()
@@ -2181,8 +2195,17 @@ func _on_event_choice(index: int) -> void:
 		return
 	if outcome.fight:
 		show_popup(event.event_name, outcome.text + "\n" + enemy_list(dungeon.fight_enemies), [["Fight!", start_fight]])
+	elif dungeon.can_scavenge(dungeon.position):
+		# The event came first (an animal in the barn): now you can dig here.
+		show_popup(event.event_name, outcome.text if not outcome.text.is_empty() else "...",
+			[["Scavenge here", _scavenge_after_event], ["Not now", close_popup]])
 	else:
 		show_popup(event.event_name, outcome.text if not outcome.text.is_empty() else "...", [["OK", close_popup]])
+
+
+func _scavenge_after_event() -> void:
+	close_popup()
+	open_scav_box()
 
 
 func enemy_list(enemies: Array[EnemyData]) -> String:
@@ -2343,12 +2366,44 @@ func roll_die(sides: int, value: int, text: String, color: Color) -> void:
 
 func _on_leave() -> void:
 	if dungeon.guided:
-		GameState.reach_milestone(GameState.FIRST_TRIP)  # The first trip is done: next time, a shuffled deck.
+		leave_first_trip()
+		return
 	dungeon.leave()
 	dungeon.claim_loot()
 	# What the trip gave the place (Farm Exp, level ups) before heading home.
 	show_popup("Home safe!", "You bring home %s.\n%s" % [dungeon.loot_text(), dungeon.area_exp_text()],
 		[["To Town", func() -> void: get_tree().change_scene_to_file(TOWN_SCENE)]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
+
+
+# CHAPTER 1's first trip ends on the road home: SLIMES! The Architect can't
+# fight... and the mysterious orb starts to glow. (Chapter 2 picks it up
+# from there.) Without everything Kale asked for, you just go home and the
+# next trip is another no-fighting one.
+func leave_first_trip() -> void:
+	close_popup()
+	var goal_met := dungeon.guide_goal_met()
+	var noisy := dungeon.danger() >= DungeonRun.GUIDE_DANGER_WARNING
+	dungeon.leave()
+	dungeon.claim_loot()
+	var to_town := func() -> void: get_tree().change_scene_to_file(TOWN_SCENE)
+	if not goal_met:
+		show_popup("Home safe!", "You bring home %s.\nKale still needs some of it (%s). Your next trip out is the same kind: no monsters, just scavenging." % [
+			dungeon.loot_text(), guide_progress()], [["To Town", to_town]], ICONS[RoomCard.Type.CAMPFIRE], "pop")
+		return
+	GameState.reach_milestone(GameState.FIRST_TRIP)
+	var found := dungeon.loot_text()
+	var orb := GameState.find_material("Mysterious Orb")
+	var slime_art: Texture2D = load("res://art/enemies/slime.svg")
+	UnlockBanner.show_in(self, "SLIMES!", "On the road home", slime_art,
+		("All that noise you made out there brought a whole pack of them!" if noisy else "Halfway home, the ground starts to squelch.") +
+		" Slimes ooze out of the ditches and block the road. They're coming straight for you.\n\nYou're an Architect, not a fighter. And Kale said monsters never come this close to town...",
+		"Back away...", func() -> void:
+			UnlockBanner.show_in(self, "THE ORB IS GLOWING!", "Something in your pack", orb.icon if orb else null,
+				"Your pack is getting warm. You pull out the mysterious orb from the medallion chest... and it's GLOWING, brighter and brighter.\n\nThe slimes stop. They're staring at it.",
+				"...", func() -> void:
+					UnlockBanner.show_in(self, "THE SLIMES BACK AWAY", "Run!", orb.icon if orb else null,
+						"The light gets brighter... and the slimes slither back into the ditches. You don't wait to find out why. You run all the way home with %s.\n\n(Kale will want to hear about this. And about his supplies.)" % found,
+						"To Town", to_town)))
 
 
 # --- The popup ----------------------------------------------------------------

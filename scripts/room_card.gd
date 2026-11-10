@@ -89,16 +89,21 @@ const GUIDE_TIER := -1
 # Words the game knows: Gold N-M, Card, Pack, Map, Key, Potion, Enchant, or a
 # material ("Stone 1-2", "Hops 1").
 @export var loot: PackedStringArray = []
-# SCAVENGING (dungeon_run.gd): what you can dig up here, by how lucky you
-# are. Luck 0-1 takes from Common, Luck 2 from Uncommon, Luck 3+ from Rare
-# (an empty table falls back to the one below). Same words as loot.
-# A card with none of these can't be scavenged.
+# SCAVENGING (dungeon_run.gd): what you can dig up here. Each find rolls a
+# tier: Common finds come from scavenge_common (the card's own things);
+# Uncommon / Rare from scavenge_uncommon / scavenge_rare if the card has
+# them, otherwise from the place's loot table (GameState.area_loot()).
+# Same words as loot. A card with none of these can't be scavenged.
 @export var scavenge_common: PackedStringArray = []
 @export var scavenge_uncommon: PackedStringArray = []
 @export var scavenge_rare: PackedStringArray = []
 # Events only: the event this card always is (the sheet's Event column),
 # e.g. "Old Well". Empty = a random event, like "Mystery".
+# Any other card can have an Event too (an Old Barn, a Dark Cellar): it
+# happens FIRST, when the card flips, and then you can scavenge. Event
+# Chance = how likely it is to happen (25 = 1 time in 4; blank = always).
 @export var event_name: String = ""
+@export var event_chance: int = 100
 # GUARDS (map cards): the card dealt next to this one (up to 2), e.g. the
 # Guarded Hoard's "Slime Guard". You can't take this card's loot while one stands.
 @export var guards: String = ""
@@ -111,15 +116,6 @@ func is_fight() -> bool:
 
 func can_scavenge() -> bool:
 	return not (scavenge_common.is_empty() and scavenge_uncommon.is_empty() and scavenge_rare.is_empty())
-
-
-# The scavenge loot table for this much Luck (falls back to a lower one if it's empty).
-func scavenge_table(luck: int) -> PackedStringArray:
-	var tables: Array[PackedStringArray] = [scavenge_common, scavenge_common, scavenge_uncommon, scavenge_rare]
-	for i in range(mini(luck, 3), -1, -1):
-		if not tables[i].is_empty():
-			return tables[i]
-	return scavenge_uncommon if not scavenge_uncommon.is_empty() else scavenge_rare
 
 
 # The loot words that aren't materials ("Gold 5-10", "Torch", "Card"...).

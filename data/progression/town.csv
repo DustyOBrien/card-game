@@ -1,6 +1,7 @@
 Building,Stage,Cost,Effect,Amount,Icon,Description,Stage Text,Materials,Blueprint
 Guild Hall,1,0,Bank,1,guild_hall.svg,"Your home base. Build the town from here, and its Bank keeps your materials safe.","Build and upgrade the town, and the Bank keeps your materials",,
-Inn,1,0,Inn,1,inn.svg,Rest your feet and find quests. Adventurers stay here.,Opens quests: the Innkeeper needs your help,Stone 5,Yes
+Inn,1,0,Inn,1,inn.svg,"Kale's Inn. Rest your feet and find quests here.","Repaired: Kale can give you quests",Stone 5,Yes
+Inn,2,0,Inn,1,,,"A proper roof and a working tap: Kale's ale is flowing, and the Inn is ready for guests",Stone 5,
 Shop,1,15,Shop,1,shop.svg,Sells booster packs.,Open for business: buy booster packs,Stone 5,Yes
 Shop,2,60,Pack Discount,1,,,Packs cost 1 gold less,Stone 10,
 Shop,3,80,Shop Stock,1,,,One more pack in stock after every trip,Stone 15,

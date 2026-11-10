@@ -12,6 +12,7 @@ const DUNGEON_SCENE := "res://scenes/dungeon.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const TOWN_SCENE := "res://scenes/town.tscn"
 const PREPARE_SCENE := "res://scenes/prepare.tscn"
+const MAP_DECK_SCENE := "res://scenes/map_deck.tscn"
 const LOCK_ICON := preload("res://art/map/lock.svg")
 
 const BUTTON_SIZE := Vector2(110, 110)  # The round area pictures.
@@ -118,7 +119,7 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 	if hovered:
 		info_label.text = "%s: %s" % [area.display_name, area.description]
 		if GameState.is_area_unlocked(area) and GameState.is_guided_run(area):
-			info_label.text += "  (Your first trip: the Innkeeper's Stone and Hops. Tips show you how the map cards work.)"
+			info_label.text += "  (Your first trip: Kale's supplies. No monsters this close to town, they say...)"
 		elif area.coming_later:
 			pass  # Its description already says "Coming later".
 		elif not GameState.adventurers_here():
@@ -130,13 +131,13 @@ func _on_area_hovered(area: Area, button: TextureButton, hovered: bool) -> void:
 		info_label.text = "Choose where to adventure."
 
 
-# The first trip sets out straight away (the tips explain everything).
-# Every other trip goes through Prepare Expedition first.
+# The first trip (Chapter 1) goes to the map deck screen first, where Kale
+# shows you the Farm's cards. Every other trip goes through Prepare Expedition.
 func _on_area_chosen(area: Area) -> void:
 	GameState.current_area = area
 	if GameState.is_guided_run(area):
-		GameState.start_run()  # A fresh dungeon, at full HP.
-		get_tree().change_scene_to_file(DUNGEON_SCENE)
+		# Chapter 1: Kale shows you the map deck first (map_deck.gd starts the trip).
+		get_tree().change_scene_to_file(MAP_DECK_SCENE)
 	else:
 		get_tree().change_scene_to_file(PREPARE_SCENE)
 

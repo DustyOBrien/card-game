@@ -38,7 +38,7 @@ extends PanelContainer
 
 const BATTLE_SCENE := "res://scenes/battle.tscn"
 const AFTER_SCENE := "res://scenes/character_select.tscn"
-const TOWN_SCENE := "res://scenes/town.tscn"  # Back to town after the training, for the Innkeeper's news.
+const TOWN_SCENE := "res://scenes/town.tscn"  # Back to town after the training, for Kale's news.
 const SPEC_SCENE := "res://scenes/spec_select.tscn"
 const DECK_BUILDER_SCENE := "res://scenes/deck_builder.tscn"
 const CARD_SCENE := preload("res://scenes/card.tscn")
@@ -809,6 +809,6 @@ func _mini_card(card: CardData, delay: float) -> Control:
 # Where to go when the tutorial ends: town if there's a quest story waiting
 # (or no Inn yet), otherwise Character Select.
 static func after_scene() -> String:
-	# Back to town if there's a new quest to read (the Innkeeper's first job).
+	# Back to town if there's a new quest to read (Kale's first job).
 	var unread := not GameState.unseen_quests.is_empty()
 	return TOWN_SCENE if not GameState.adventurers_here() or unread else AFTER_SCENE

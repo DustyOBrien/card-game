@@ -23,6 +23,9 @@
 #                Any = any monster, but not the training dummies)
 #   Open Packs   Farm Booster Pack 10     open that many packs (any size)
 #   Reach Tier   3              get to that floor in any dungeon (Go Deeper)
+#   Gather       Have Stone 5; Have Sticks 2; Deliver Hops 2
+#                several things at once, as a CHECKLIST. Each part is Have
+#                (you keep it) or Deliver (you hand it over). Amount is ignored.
 #
 # Rewards and Start Gift (several, split by ";"):
 #   Gold 20, Pack Small 2 (Small / Medium / Large Farm Booster Packs),
@@ -39,11 +42,12 @@ const CLEAR_ROOM := "clear room"
 const DEFEAT := "defeat"
 const REACH_TIER := "reach tier"
 const OPEN_PACKS := "open packs"
-const OBJECTIVES := [BUILD, HAVE, DELIVER, BREW, CLEAR_ROOM, DEFEAT, REACH_TIER, OPEN_PACKS]
+const GATHER := "gather"
+const OBJECTIVES := [BUILD, HAVE, DELIVER, BREW, CLEAR_ROOM, DEFEAT, REACH_TIER, OPEN_PACKS, GATHER]
 const ANY := "any"  # Defeat Any: every monster counts.
 
 @export var quest_name: String = "Quest"
-@export var giver: String = ""  # Who gives it: "The King", "The Innkeeper"...
+@export var giver: String = ""  # Who gives it: "The King", "Kale"...
 @export_multiline var text: String = ""  # The story.
 @export var objective: String = BUILD
 @export var target: String = ""
@@ -69,4 +73,35 @@ func objective_text() -> String:
 		DEFEAT: return "Defeat %d %s" % [amount, "enemies" if target.to_lower() == ANY else target]
 		OPEN_PACKS: return "Open %d %ss" % [amount, target]
 		REACH_TIER: return "Reach Floor %d of a dungeon" % amount
+		GATHER:
+			var items: Array[String] = []
+			for part in parts():
+				items.append("%d %s" % [part.amount, part.name])
+			return "Bring home " + ", ".join(items)
 	return "%s %s" % [objective, target]
+
+
+# A Gather quest's checklist: "Have Stone 5; Deliver Hops 2" ->
+# [{"verb": "have", "name": "Stone", "amount": 5}, {"verb": "deliver", ...}].
+# (A plain Have or Deliver quest is a checklist of one.)
+func parts() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	if objective in [HAVE, DELIVER]:
+		list.append({"verb": objective, "name": target, "amount": amount})
+	if objective != GATHER:
+		return list
+	for text in target.split(";", false):
+		var words := text.strip_edges().split(" ", false)
+		if words.size() < 2:
+			continue
+		var verb := words[0].to_lower()
+		if not verb in [HAVE, DELIVER]:
+			verb = HAVE  # "Stone 5" on its own means Have.
+		else:
+			words.remove_at(0)
+		var count := 1
+		if words.size() > 1 and words[-1].is_valid_int():
+			count = words[-1].to_int()
+			words.remove_at(words.size() - 1)
+		list.append({"verb": verb, "name": " ".join(words), "amount": count})
+	return list

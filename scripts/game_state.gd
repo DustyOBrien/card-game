@@ -209,6 +209,10 @@ var rare_pity := 0  # Medium/Large packs opened since your last Rare (or better)
 # data/progression/binder_rewards.csv.
 const BINDER_EXP := {CardData.Rarity.COMMON: 5, CardData.Rarity.UNCOMMON: 10, CardData.Rarity.RARE: 20, CardData.Rarity.LEGENDARY: 40}
 const BINDER_REWARDS_SHEET := "res://data/progression/binder_rewards.csv"
+# Each place's SCAVENGE LOOT TABLE (Common / Uncommon / Rare / Legendary).
+const AREA_LOOT_SHEET := "res://data/dungeons/area_loot.csv"
+# The Guild Hall's CRAFTING BENCH: what you can make, and from what.
+const CRAFTING_SHEET := "res://data/progression/crafting.csv"
 var binder_claimed := {}  # Place name -> the highest % reward you've had: {"Abandoned Farm": 50}
 var explorer_bonus := {}  # Place name -> extra Explorer points (from binder rewards).
 
@@ -288,7 +292,7 @@ var quests_done: Array[String] = []
 var unlocked_features: Array[String] = []
 var seen_guides: Array[String] = []  # Screen guides you've seen (screen_guide.gd): each shows once.
 # STORY BEATS: the one-time moments of the start of the game that have
-# already played (the King's welcome, the Innkeeper's thanks...). See town.gd.
+# already played (the King's welcome, Kale's thanks...). See town.gd.
 # Some of them are also MILESTONES that start quests: a quest whose
 # "Starts After" is "Inn Built" starts when that beat happens (reach_milestone()).
 var story_beats: Array[String] = []
@@ -297,11 +301,17 @@ const TALENTS_FEATURE := "Talents"
 # Until then you're the Architect, running the town: nobody can explore yet.
 const ADVENTURER_FEATURE := "Adventurer"
 # Milestones (quests.csv "Starts After" can name one of these instead of a quest).
-const INN_BUILT := "Inn Built"  # The Innkeeper has thanked you, and the Adventurer checks in.
+const INN_BUILT := "Inn Built"  # The Inn is repaired: Kale's quest starts.
 const ADVENTURER_TRAINED := "Adventurer Trained"  # Back in town after the training + deck builder: the first quests.
-# Story beat: the FIRST TRIP to the Farm is done (you came home with the
-# Innkeeper's Stone and Hops). Until then, every Farm trip is that guided one.
+# Story beat: the FIRST TRIP to the Farm is done (you came home with
+# Kale's supplies). Until then, every Farm trip is that guided one.
 const FIRST_TRIP := "First Farm Trip"
+# CHAPTER 1: THE INN (town.gd plays it). The beats in order:
+const MEDALLION_CHEST := "Medallion Chest"  # Opened the chest in the Guild Hall (Stone, Sticks, Wool, the orb).
+const CRAFTING_OPEN := "Crafting Bench"  # Kale showed you the crafting bench (make a Torch).
+const SENT_OFF := "Off to the Farm"  # Kale explained the map: the road out of town opens.
+const SUPPLIES_QUEST := "Supplies for the Inn"  # Kale's Chapter 1 quest: the Inn's upgrade waits for it.
+const INN_UPGRADED := "Inn Upgraded"  # You upgraded the Inn with the Stone from your first trip: Chapter 1 is done.
 const STORY_INTRO := "Story Intro"  # The story cutscene (story_intro.gd) has been seen or skipped.
 const FIRST_LEVEL_UP := "First Level Up"  # Any class reached level 2: the Old Master appears.
 # Monsters you've beaten in the dungeons (not the training dummies). Saved.
@@ -848,6 +858,41 @@ func _sheet(path: String) -> Array[Dictionary]:
 	return _sheets[path]
 
 
+# One tier of a place's scavenge loot table: ["Key", "Torch", "Gold 5"].
+# (Empty if the sheet has no row for it.)
+func area_loot(area: Area, tier: String) -> PackedStringArray:
+	var list := PackedStringArray()
+	for row in _sheet(AREA_LOOT_SHEET):
+		if row.get("place", "").to_lower() == area.display_name.to_lower() and row.get("tier", "").to_lower() == tier.to_lower():
+			for entry in row.get("loot", "").split("|", false):
+				if not entry.strip_edges().is_empty():
+					list.append(entry.strip_edges())
+	return list
+
+
+# THE CRAFTING BENCH (Guild Hall): every recipe, as
+# [{"item": "Torch", "makes": 1, "costs": {"Sticks": 1, "Wool": 1}, "text": "..."}].
+func recipes() -> Array[Dictionary]:
+	var list: Array[Dictionary] = []
+	for row in _sheet(CRAFTING_SHEET):
+		if not CardImporter._parse_yes_no(row.get("unlocked", ""), true):
+			continue
+		list.append({"item": row.get("item", ""), "makes": maxi(CardImporter._to_int(row.get("makes", ""), 1), 1),
+			"costs": MaterialInfo.parse_costs(row.get("materials", "")), "text": row.get("description", "")})
+	return list
+
+
+# Craft one recipe: pay its materials, and the item goes in the Bank.
+# Returns false if you can't afford it.
+func craft(recipe: Dictionary) -> bool:
+	if not has_materials(recipe.costs):
+		return false
+	spend_materials(recipe.costs)
+	add_material(recipe.item, recipe.makes)
+	save_game()
+	return true
+
+
 # The binder rewards for this place: [{"percent": 25, "rewards": "Pack Medium 1"}], lowest first.
 func binder_rewards(area: Area) -> Array[Dictionary]:
 	var list: Array[Dictionary] = []
@@ -1111,8 +1156,9 @@ func start_run() -> void:
 			var potion := find_potion(potion_name)
 			if potion:
 				dungeon.add_potion(potion)
-		# Your flask, full of charges.
-		dungeon.flask = current_flask()
+		# Your flask, full of charges. (Not on Chapter 1's first trip: the
+		# Architect doesn't have one.)
+		dungeon.flask = current_flask() if adventurers_here() else null
 		if dungeon.flask:
 			dungeon.flask_stats = flask_stats(dungeon.flask)
 			dungeon.flask_charges = dungeon.flask_stats[Flask.CHARGES]
@@ -1170,6 +1216,10 @@ func restore_blocked(building: TownBuilding) -> String:
 		return "Fully restored"
 	if not has_blueprint(building):
 		return "You need its blueprint"
+	# Chapter 1: the Inn's upgrade is the UPGRADE lesson, after Kale's supplies
+	# (so the first Stone isn't spent before the quest can be handed in).
+	if building.building_name == "Inn" and stage == 1 and not quests_done.has(SUPPLIES_QUEST):
+		return "First bring Kale his supplies"
 	if gold < building.cost_of_next(stage):
 		return "Needs %d gold" % building.cost_of_next(stage)
 	var needs := building.materials_for_next(stage)
@@ -1283,8 +1333,12 @@ func quest_status(quest: Quest) -> Vector2i:
 		Quest.BUILD:
 			var building := find_building(quest.target)
 			return Vector2i(mini(town_stage(building) if building else 0, 1), 1)
-		Quest.HAVE, Quest.DELIVER:
-			return Vector2i(mini(material_count(quest.target), quest.amount), quest.amount)
+		Quest.HAVE, Quest.DELIVER, Quest.GATHER:
+			# Every line of the checklist, added up: Stone 3/5 + Hops 2/2 = 5/7.
+			var status := Vector2i.ZERO
+			for part in quest.parts():
+				status += Vector2i(mini(material_count(part.name), part.amount), part.amount)
+			return status
 		Quest.BREW:
 			var flask := find_flask(quest.target)
 			return Vector2i(1 if flask and is_flask_unlocked(flask) else 0, 1)
@@ -1331,8 +1385,9 @@ func complete_quest(quest: Quest) -> Array[String]:
 	unseen_quests.erase(quest.quest_name)
 	quests_done.append(quest.quest_name)
 	# Deliver: you hand the materials over (Have just checks you've got them).
-	if quest.objective == Quest.DELIVER:
-		spend_materials({quest.target: quest.amount})
+	for part in quest.parts():
+		if part.verb == Quest.DELIVER:
+			spend_materials({part.name: part.amount})
 	var lines := give_rewards(quest.rewards)
 	start_quest(quest.next_quest)
 	_start_quests_after(quest.quest_name)
@@ -1369,8 +1424,8 @@ func reach_milestone(beat: String) -> bool:
 func guide_needs() -> Dictionary:
 	var needs := {}
 	for quest in quests_active():
-		if quest.objective in [Quest.HAVE, Quest.DELIVER]:
-			needs[quest.target] = needs.get(quest.target, 0) + quest.amount
+		for part in quest.parts():
+			needs[part.name] = needs.get(part.name, 0) + part.amount
 	return needs
 
 
@@ -1786,9 +1841,15 @@ func enchant_card(deck_index: int, enchant: Enchant) -> void:
 	run_enchants[deck_index] = enchant
 
 
+# The Architect's HP on the first trip, before any class (no fights, but
+# the Stone Bridge can still heal you).
+const ARCHITECT_HP := 20
+
 # Your max HP in a fight: your class's, plus Max HP talents, plus Heavy Pack
 # (+Amount for every 2 cards above 20 in your deck).
 func player_max_hp() -> int:
+	if character_class == null:
+		return ARCHITECT_HP  # Chapter 1's first trip: just you, no class yet.
 	var per_two := talent_bonus(character_class, Talent.HP_PER_EXTRA_CARDS)
 	return character_class.max_hp + talent_bonus(character_class, Talent.MAX_HP) \
 		+ maxi(deck.size() - 20, 0) / 2 * per_two
@@ -2090,7 +2151,7 @@ func talent_points_text(for_class: CharacterClass) -> String:
 # talents and the last deck you built for each class. NOT saved: a run in progress.
 # Quit in the middle of a run and you start a new one next time.
 const SAVE_PATH := "user://save.json"
-const SAVE_VERSION := 8  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp). 8 = foils, binders, the rare pity counter and spec levels (class Exp goes into specs).
+const SAVE_VERSION := 9  # Bump this if the save format changes. 2 = the town starts empty (quests). 3 = Guild Hall first, Stone for the Inn. 4 = first cards come at the end of the training. 5 = Guild Hall stands, the Inn's Stone and Hops quests bring the Adventurer. 6 = the Abandoned Farm's map cards, and the Adventurer arrives with the Inn. 7 = rarity copy limits and Essence (no card Exp). 8 = foils, binders, the rare pity counter and spec levels (class Exp goes into specs). 9 = Chapter 1: Kale, the medallion chest, crafting, and the Architect's no-combat first trip.
 
 
 func save_game() -> void:
@@ -2333,8 +2394,10 @@ func load_classes() -> Array[CharacterClass]:
 # Is this area open on the map? Open from the start, or its Unlock After
 # area has been cleared (you beat that area's boss).
 func is_area_unlocked(area: Area) -> bool:
-	if area.coming_later or not adventurers_here():
-		return false  # Still being built, or nobody to send out yet (the Adventurer comes with the Inn).
+	if area.coming_later:
+		return false  # Still being built.
+	if not adventurers_here():
+		return is_guided_run(area)  # Chapter 1: only the Architect's first trip (no fighting).
 	return area.unlocked or (not area.unlock_after.is_empty() and cleared_areas.has(area.unlock_after))
 
 
@@ -2344,9 +2407,9 @@ func has_guide_rooms(area: Area) -> bool:
 
 
 # Until you've come home from it once, a trip to the Farm is the FIRST TRIP:
-# a set board with tips (dungeon.gd), for the Innkeeper's Stone and Hops.
+# a set board with tips (dungeon.gd), for Kale's supplies (Chapter 1).
 func is_guided_run(area: Area) -> bool:
-	return adventurers_here() and has_guide_rooms(area) and not story_beats.has(FIRST_TRIP)
+	return story_beats.has(SENT_OFF) and has_guide_rooms(area) and not story_beats.has(FIRST_TRIP)
 
 
 # Talents and specs stay hidden until a quest unlocks them (after the first boss).

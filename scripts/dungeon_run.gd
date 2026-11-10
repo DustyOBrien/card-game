@@ -30,11 +30,17 @@
 #      see what it is before you step on it. Then the torch makes a BURNOUT
 #      roll on a d4: 2+ to keep burning, then 3+, then 4+, and the 4th time
 #      it always burns out. So a torch scouts 1 to 4 cards (about 2.2).
-#   7. SCAVENGING (push your luck). Some Safe cards (walls, fields, hay) can
-#      be scavenged. The first try always works. Then roll a d6: 3+, 4+, 5+,
-#      6+. Each success raises your LUCK for that spot, and Luck picks the
-#      loot table: Luck 0-1 Common, 2 Uncommon, 3+ Rare (about an 11%
-#      chance to get that far). A fail ends scavenging there and Danger +1.
+#   7. SCAVENGING (push your luck). Cards with things to find (roads,
+#      barns, fields...) can be scavenged, for free. Each dig rolls a d6 and
+#      needs 4+. You start every trip with a pool of LUCK (LUCK_POOL): while
+#      you have some, it adds +1 to the roll, and a dig that works uses 1 up.
+#      So Luck is what you spend to search: once it's gone, finds get harder.
+#      A fail ends scavenging there and Danger +1. Each find rolls its TIER:
+#      Common (70%) comes from the card's own list (a barn has sticks and
+#      wool), Uncommon / Rare / Legendary from the place's LOOT TABLE
+#      (data/dungeons/area_loot.csv: that's where keys live).
+#   8. EVENTS FIRST. A card can have an event (an animal in the barn, a dark
+#      cellar): it happens when the card flips, before any scavenging.
 #   Die, and you lose what you found (except what's in your Save Sack).
 #
 # This file is only rules and numbers: dungeon.gd draws it on screen, and
@@ -82,18 +88,24 @@ const TORCH_TARGETS: Array[int] = [2, 3, 4, 5]
 # Scavenging: the d6 roll for each try at one spot. 0 = always works (the
 # first try). After the last one, the spot is picked clean.
 const SCAVENGE_DIE := 6
-const SCAVENGE_TARGETS: Array[int] = [0, 3, 4, 5, 6]
+const SCAVENGE_NEED := 4  # Every dig needs this on the d6 (Luck adds +1).
+const SCAVENGE_MAX_DIGS := 5  # The most finds one spot can give (the scavenge box's slots).
+const LUCK_POOL := 5  # The Luck you start every trip with.
+# A find's TIER, and how likely each one is (out of 100).
+const LOOT_TIERS := ["Common", "Uncommon", "Rare", "Legendary"]
+const TIER_ODDS: Array[int] = [70, 25, 4, 1]
+# Chapter 1's first trip: past this much Danger you hear the slimes coming.
+const GUIDE_DANGER_WARNING := 5
 # A failed scavenge costs Danger +1 (Dusty's call, 2026-11-09). Flip this to
 # true to ALSO lose the newest find in the box, if everyone always pushes.
 const SCAVENGE_FAIL_LOSES_ITEM := false
-const LUCK_NAMES := ["Common", "Common", "Uncommon", "Rare"]  # Luck 3 and up = Rare.
 const PACK_NAME := "Small Farm Booster Pack"  # The pack that "Pack" loot gives you (GameState.PACKS).
 const CAMPFIRE_ART := preload("res://art/rooms/campfire.svg")
 # The four squares next to a square: right, left, down, up.
 const DIRECTIONS: Array[Vector2i] = [Vector2i.RIGHT, Vector2i.LEFT, Vector2i.DOWN, Vector2i.UP]
 
 var area: Area
-# The FIRST TRIP to the Farm (the Innkeeper's Stone and Hops): a set board
+# The FIRST TRIP to the Farm (Kale's supplies): a set board
 # (the sheet's Guide rows) and tips as you go (dungeon.gd).
 var guided := false
 var floor_number := 1  # Each Go Deeper is one floor further down.
@@ -118,6 +130,10 @@ var total_steps := 0  # Steps this whole run.
 var keys := 0  # Small keys: each opens one Locked Chest.
 var danger_points := 0  # From Unsafe cards and failed choices. See enemy_strength().
 var torches := 0  # Torches in your pack (the lit one counts until it burns out).
+var luck := 0  # Your Luck pool: +1 to scavenge rolls while you have some. Each dig that works uses 1.
+var digs_done := 0  # Scavenge digs this trip (the first trip's first dig always works).
+var cellar_key_given := false  # The first trip: the first Dark Cellar always has a key.
+var slimes_heard := false  # The first trip: the "something is coming" warning has shown.
 var torch_uses := 0  # Cards the lit torch has scouted so far.
 var tools := {}  # Crowbars and bombs you carry: {"Crowbar": 1}.
 var roamer_square := Vector2i(-1, -1)  # Where the roaming mini boss is (face down), or (-1, -1).
@@ -176,7 +192,13 @@ func _init(for_area: Area) -> void:
 # Build the map deck and deal the first board.
 func start() -> void:
 	guided = GameState.is_guided_run(area)
-	torches = STARTING_TORCHES if guided else GameState.packed_torches  # Packed on the Prepare screen.
+	luck = LUCK_POOL
+	if guided:
+		# Chapter 1: the torches you crafted at the Guild Hall come with you.
+		torches = GameState.material_count(TORCH)
+		GameState.spend_materials({TORCH: torches})
+	else:
+		torches = GameState.packed_torches  # Packed on the Prepare screen.
 	if not guided:
 		_build_deck()
 		keys += GameState.area_perk_total(area, AreaPerk.START_KEY)  # Starter Kit perks.
@@ -517,6 +539,17 @@ func _enter(square: Vector2i) -> String:
 		fight_square = square
 		fight_enemies = card.pick_encounter()
 		return "fight"
+	# EVENTS FIRST: a card with an event (an animal in the barn...) rolls for
+	# it when it flips. If it happens, it comes before anything else, and
+	# until it's dealt with you can't scavenge there.
+	if card.type != RoomCard.Type.EVENT and not card.event_name.is_empty():
+		if not room.has("event_rolled"):
+			room.event_rolled = true
+			if randi_range(1, 100) <= card.event_chance:
+				room.event = GameState.find_event(card.event_name)
+				room.event_open = room.event != null
+		if room.get("event_open", false):
+			return "event"
 	match card.type:
 		RoomCard.Type.LOCKED_CHEST:
 			# You can walk past a chest you can't open yet, and come back with a key.
@@ -569,6 +602,9 @@ func pick_event() -> DungeonEvent:
 
 # Is this choice left out completely? (Enchants, before the Enchanter is built.)
 func choice_hidden(event: DungeonEvent, index: int) -> bool:
+	# The Farmer's Key: places you've already looked are gone.
+	if rooms.has(position) and rooms[position].get("event") == event and rooms[position].get("searched", []).has(index):
+		return true
 	var words: Array[String] = []
 	for effect in DungeonEvent.split_effects(event.effects[index]):
 		words.append(effect.strip_edges().to_lower().get_slice(" ", 0))
@@ -591,10 +627,13 @@ func choice_blocked(event: DungeonEvent, index: int) -> String:
 				var cost := words[1].to_int() if words.size() > 1 else 0
 				if found_gold < cost:
 					return "Needs %d found gold (you have %d)" % [cost, found_gold]
-			"use":  # "Use Key" / "Use Torch"
+			"use":  # "Use Key" / "Use Torch" / "Use Crowbar"
 				if words.size() > 1 and words[1].to_lower() == "torch":
 					if torches <= 0:
-						return "You need a torch"
+						return "You need a torch (craft them at the Guild Hall)"
+				elif words.size() > 1 and words[1].to_lower() == "crowbar":
+					if tools.get(CROWBAR, 0) <= 0:
+						return "You need a crowbar"
 				elif keys <= 0:
 					return "You need a small key"
 			"drop":  # "Drop 3": throw away supplies from your backpack.
@@ -615,10 +654,29 @@ func choose(index: int) -> Dictionary:
 	var room: Dictionary = rooms[position]
 	var event: DungeonEvent = room.event
 	var worked := randi_range(1, 100) <= event.chances[index]
+	# HUNT: the thing is hidden in ONE of the choices, picked at random. Each
+	# wrong guess is crossed off, so the last place left always has it.
+	var hunting := event.effects[index].to_lower().contains("hunt")
+	if hunting:
+		var searched: Array = room.get("searched", [])
+		var places_left := 0
+		for i in event.choice_labels.size():
+			if event.effects[i].to_lower().contains("hunt") and not searched.has(i):
+				places_left += 1
+		worked = randi_range(1, maxi(places_left, 1)) == 1
+		if not worked:
+			searched.append(index)
+			room.searched = searched
+			add_log("%s: %s. Nothing there." % [event.event_name, event.choice_labels[index]])
+			return {"text": "Nothing there... It must be somewhere else.", "fight": false, "blueprint": "", "again": true}
 	var effect_text: String = event.effects[index] if worked else event.fail_effects[index]
 	var story: String = event.results[index] if worked else event.fail_results[index]
-	room.done = true
+	var on_event_card: bool = room.card.type == RoomCard.Type.EVENT
 	room.cleared = true
+	if on_event_card:
+		room.done = true
+	else:
+		room.event_open = false  # The event's over: now you can scavenge here.
 	var outcome := apply_effects(DungeonEvent.split_effects(effect_text))
 	add_log("%s: %s" % [event.event_name, event.choice_labels[index]] + (" (%s)" % ", ".join(outcome.lines) if not outcome.lines.is_empty() else ""))
 	var text := story
@@ -629,7 +687,9 @@ func choose(index: int) -> Dictionary:
 		fight_square = position
 	if outcome.come_back:
 		room.done = false  # Not finished: step on it again to have another go.
-	return {"text": text, "fight": outcome.fight, "blueprint": outcome.blueprint}
+		if not on_event_card:
+			room.event_open = true  # (And no scavenging until you do.)
+	return {"text": text, "fight": outcome.fight, "blueprint": outcome.blueprint, "again": false}
 
 
 # Do a list of effects (see dungeon_event.gd). Returns {"lines": what happened, "fight": bool}.
@@ -676,11 +736,14 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 					add_found_material(material_name, -1)
 					dropped[material_name] = dropped.get(material_name, 0) + 1
 				lines.append("Lost " + (MaterialInfo.costs_text(dropped) if not dropped.is_empty() else "nothing"))
-			"use":  # "Use Key" / "Use Torch"
+			"use":  # "Use Key" / "Use Torch" / "Use Crowbar"
 				if words.size() > 1 and words[1].to_lower() == "torch":
 					torches = maxi(torches - 1, 0)
 					torch_uses = 0
 					lines.append("Used a torch (%d left)" % torches)
+				elif words.size() > 1 and words[1].to_lower() == "crowbar":
+					_add_tool(CROWBAR, -1)
+					lines.append("Used a crowbar")
 				else:
 					keys = maxi(keys - 1, 0)
 					lines.append("Used a small key (%d left)" % keys)
@@ -689,6 +752,22 @@ func apply_effects(list: Array[String], at: Vector2i = Vector2i(-1, -1)) -> Dict
 				GameState.give_rewards("Blueprint " + blueprint)
 				GameState.save_game()
 				lines.append("Blueprint: %s! Build it back in town." % blueprint)
+			"luck":  # "Luck 1": more Luck for scavenging this trip.
+				luck += maxi(number, 1)
+				lines.append("Luck +%d (%d)" % [maxi(number, 1), luck])
+			"hunt":  # "Hunt Key": you found it (see choose()).
+				var hunted := RoomCard.new()
+				hunted.loot = PackedStringArray([effect.substr(5).strip_edges()])
+				lines.append("Found it! " + take_loot(hunted))
+			"loot":  # "Loot Uncommon": one roll on the place's loot table, at that tier.
+				var tier := effect.substr(5).strip_edges()
+				var table := GameState.area_loot(area, tier)
+				# Chapter 1: the first Dark Cellar always has the key for the second shed.
+				if guided and not cellar_key_given:
+					table = PackedStringArray(["Key"])
+					cellar_key_given = true
+				var find := roll_loot(table)
+				lines.append(("%s find: " % tier) + (collect_find(find) if not find.is_empty() else "nothing"))
 			"come":  # "Come Back"
 				come_back = true  # (The event's Result text says so.)
 			"open":  # A tool opened it like a chest.
@@ -914,23 +993,42 @@ func can_scavenge(square: Vector2i) -> bool:
 	var room: Dictionary = rooms[square]
 	var card: RoomCard = room.card
 	return card != null and card.can_scavenge() and not room.get("scavenge_over", false) \
-		and room.get("scavenges", 0) < SCAVENGE_TARGETS.size()
+		and not room.get("event_open", false) and room.get("scavenges", 0) < SCAVENGE_MAX_DIGS
 
 
-# The Luck you have at a spot: one less than the tries so far (the free
-# first try doesn't count). It goes up with every success.
-func scavenge_luck(square: Vector2i) -> int:
-	return maxi(rooms[square].get("scavenges", 0) - 1, 0)
-
-
-# What the next try at a spot needs on the d6 (0 = it always works).
+# What the next dig needs on the d6, with your Luck counted in
+# (0 = it always works: the first trip's first dig at each spot).
 func scavenge_need(square: Vector2i) -> int:
-	return SCAVENGE_TARGETS[mini(rooms[square].get("scavenges", 0), SCAVENGE_TARGETS.size() - 1)]
+	if guided and rooms[square].get("scavenges", 0) == 0:
+		return 0  # The first trip: the first dig at each spot always finds something.
+	return SCAVENGE_NEED - (1 if luck > 0 else 0)
 
 
-# The Luck the next try would find things at, if it works.
-func next_scavenge_luck(square: Vector2i) -> int:
-	return rooms[square].get("scavenges", 0)
+# Roll a find's tier: 0 Common, 1 Uncommon, 2 Rare, 3 Legendary (TIER_ODDS).
+static func roll_tier() -> int:
+	var roll := randi_range(1, 100)
+	for tier in TIER_ODDS.size():
+		roll -= TIER_ODDS[tier]
+		if roll <= 0:
+			return tier
+	return 0
+
+
+# What a find at this tier comes from: Common = the card's own list; the
+# rest = the card's own Uncommon / Rare list if it has one, else the place's
+# loot table. Anything empty falls back to the card's own list.
+func tier_table(card: RoomCard, tier: int) -> PackedStringArray:
+	var table := PackedStringArray()
+	match tier:
+		1:
+			table = card.scavenge_uncommon if not card.scavenge_uncommon.is_empty() else GameState.area_loot(area, LOOT_TIERS[1])
+		2:
+			table = card.scavenge_rare if not card.scavenge_rare.is_empty() else GameState.area_loot(area, LOOT_TIERS[2])
+		3:
+			table = GameState.area_loot(area, LOOT_TIERS[3])
+	if table.is_empty():
+		table = card.scavenge_common
+	return table
 
 
 # Scavenge where you stand: one roll. A success drops a new hidden find
@@ -939,7 +1037,7 @@ func next_scavenge_luck(square: Vector2i) -> int:
 # stop_scavenging(), and running out of tries. Once the box is open its
 # finds sit in the spot's PILE (room.pile): drag them into your backpack
 # (take_from_pile()), and whatever you leave stays on the card for later.
-# Returns {"roll", "need", "worked", "luck", "over" (the box opened),
+# Returns {"roll", "need", "worked", "used_luck", "over" (the box opened),
 # "lost" (a find lost to the fail, or {})}, or {} if you can't scavenge.
 func scavenge() -> Dictionary:
 	if not can_scavenge(position) or not result.is_empty():
@@ -948,8 +1046,10 @@ func scavenge() -> Dictionary:
 	var card: RoomCard = room.card
 	var tries: int = room.get("scavenges", 0)
 	var need := scavenge_need(position)
+	var used_luck := need > 0 and luck > 0
 	var roll := randi_range(1, SCAVENGE_DIE) if need > 0 else 0
 	var worked := need == 0 or roll >= need
+	digs_done += 1
 	if not room.has("box"):
 		room.box = []
 	if not worked:
@@ -959,19 +1059,22 @@ func scavenge() -> Dictionary:
 			lost = room.box.pop_back()
 		add_log("Scavenging %s: rolled %d (needed %d+). Nothing but noise! Danger +1." % [card.room_name, roll, need])
 		_open_box(position)
-		return {"roll": roll, "need": need, "worked": false, "luck": scavenge_luck(position), "over": true, "lost": lost}
-	var luck := tries  # The free try finds at Luck 0, the next at 1...
+		return {"roll": roll, "need": need, "worked": false, "used_luck": false, "over": true, "lost": lost}
+	if used_luck:
+		luck -= 1  # Luck helped: it's used up.
 	room.scavenges = tries + 1
-	var find := roll_loot(card.scavenge_table(luck))
+	# The first trip only finds what the card shows (so the quest can be done).
+	var tier: int = 0 if guided else roll_tier()
+	var find := roll_loot(tier_table(card, tier))
 	if not find.is_empty():
-		find.luck = luck
+		find.tier = tier
 		room.box.append(find)
-	add_log("Scavenging %s (Luck %d, %s): you dig something up%s" % [card.room_name, luck, luck_name(luck),
-		"" if need == 0 else " (rolled %d, needed %d+)" % [roll, need]])
-	var over: bool = room.scavenges >= SCAVENGE_TARGETS.size()  # Out of tries: the box opens by itself.
+	add_log("Scavenging %s: you dig something up%s" % [card.room_name,
+		"" if need == 0 else " (rolled %d, needed %d+%s)" % [roll, need, ", Luck used" if used_luck else ""]])
+	var over: bool = room.scavenges >= SCAVENGE_MAX_DIGS  # Out of digs: the box opens by itself.
 	if over:
 		_open_box(position)
-	return {"roll": roll, "need": need, "worked": true, "luck": luck, "over": over, "lost": {}}
+	return {"roll": roll, "need": need, "worked": true, "used_luck": used_luck, "over": over, "lost": {}}
 
 
 # Stop pushing your luck: the box opens and you see what you found.
@@ -1033,8 +1136,9 @@ func has_room_for(find: Dictionary) -> bool:
 	return true
 
 
-static func luck_name(luck: int) -> String:
-	return LUCK_NAMES[mini(luck, LUCK_NAMES.size() - 1)]
+# "Common", "Uncommon"... for a find's tier.
+static func tier_name(tier: int) -> String:
+	return LOOT_TIERS[clampi(tier, 0, LOOT_TIERS.size() - 1)]
 
 
 # --- Danger ------------------------------------------------------------------
@@ -1430,6 +1534,8 @@ func roll_loot(loot: PackedStringArray) -> Dictionary:
 			var last := words[-1].split("-")
 			if words.size() > 1 and last[0].is_valid_int():
 				find.amount = randi_range(last[0].to_int(), last[-1].to_int())
+				if find.amount <= 0:
+					return {}  # "Stone 0-3" can come up empty.
 			if find.kind == "material" and not guided and randi_range(1, 100) <= _material_find_bonus():
 				find.amount += 1  # Rock Hound: a sharp eye for good finds.
 	return find
@@ -1732,6 +1838,8 @@ func claim_loot() -> void:
 		GameState.add_card(card)
 	for material_name in found_materials:
 		GameState.add_material(material_name, found_materials[material_name])
+	if guided and torches > 0:
+		GameState.add_material(TORCH, torches)  # Chapter 1: unused torches go back in the Bank.
 	GameState.save_game()
 
 
