@@ -1,7 +1,7 @@
 Place,Deck,Card,Tile,Kind,Copies,Unlocked,Encounters,Loot,Scavenge,Scavenge Uncommon,Scavenge Rare,Event,Event Chance,Vanish,Floor,Art,Text,Guards,Inside,Notes
 Abandoned Farm,Guide,Animal Pen,Safe,Empty,1,Yes,,,Wool 1 | Animal Hair 1,,,Loose Sheep,25,,,map_cards/sheep_pen.svg,A broken fence. A few sheep never left.,,"CHAPTER 1's first trip (Guide rows): dealt onto the board in this order, left to right and top to bottom, skipping the middle square. 20 cards + the campfire, so the last 3 squares stay bare. The Farm's default cards, plus Kale's 5 (the ones that also have a Yours row: Farmer's Shed, Dark Cellar, Stone Pile)",
 Abandoned Farm,Guide,Crop Field,Safe,Empty,1,Yes,,,Grain 1 | Stone 1,,,,,,,map_cards/field.svg,"Old crop rows, gone to seed.",,,
-Abandoned Farm,Guide,Farmer's Shed,Explore,Event,1,Yes,,,,,,Farmer's Shed,,,,map_cards/shed.svg,A padlocked shed. It smells of Hops.,,,
+Abandoned Farm,Guide,Farmer's Shed,Explore,Event,1,Yes,,,,,,Farmer's Shed,,,,map_cards/shed.svg,A padlocked shed. Something rattles inside.,,,
 Abandoned Farm,Guide,Old Barn,Safe,Empty,1,Yes,,,Sticks 1 | Wool 1,,,Barn Animal,25,,,map_cards/barn.svg,A barn with a sagging roof. Something might still live in the hay.,,,
 Abandoned Farm,Guide,Dark Cellar,Explore,Event,1,Yes,,,,,,Cellar Door,,,,map_cards/cellar.svg,"The old cellar door, half buried in the grass. Kale's key fits it.",,,
 Abandoned Farm,Guide,Crop Field,Safe,Empty,1,Yes,,,Grain 1 | Stone 1,,,,,,,map_cards/field.svg,"Old crop rows, gone to seed.",,,
@@ -17,7 +17,7 @@ Abandoned Farm,Guide,Stone Pile,Safe,Empty,1,Yes,,,Stone 1-2,,,,,,,materials/sto
 Abandoned Farm,Guide,Crop Field,Safe,Empty,1,Yes,,,Grain 1 | Stone 1,,,,,,,map_cards/field.svg,"Old crop rows, gone to seed.",,,
 Abandoned Farm,Guide,Dirt Road,Safe,Empty,1,Yes,,,Stone 1 | Gold 1-3,,,,,,,map_cards/path.svg,"An old dirt road, rutted by cart wheels.",,,
 Abandoned Farm,Guide,Old Barn,Safe,Empty,1,Yes,,,Sticks 1 | Wool 1,,,Barn Animal,25,,,map_cards/barn.svg,A barn with a sagging roof. Something might still live in the hay.,,,
-Abandoned Farm,Guide,Farmer's Shed,Explore,Event,1,Yes,,,,,,Farmer's Shed,,,,map_cards/shed.svg,A padlocked shed. It smells of Hops.,,,
+Abandoned Farm,Guide,Farmer's Shed,Explore,Event,1,Yes,,,,,,Farmer's Shed,,,,map_cards/shed.svg,A padlocked shed. Something rattles inside.,,,
 Abandoned Farm,Guide,Stone Pile,Safe,Empty,1,Yes,,,Stone 1-2,,,,,,,materials/stone.svg,A pile of good stone someone left behind.,,,
 Abandoned Farm,Guide,Campfire,Safe,Campfire,1,Yes,,,,,,,,,,rooms/campfire.svg,A ring of stones and dry wood. Warm and safe.,,,
 Abandoned Farm,Campfire,Campfire,Safe,Campfire,1,Yes,,,,,,,,,,rooms/campfire.svg,A ring of stones and dry wood. Warm and safe.,,"Every floor hides one on the board. Return to Town, or Go Deeper (a new board, one floor down)",
@@ -56,7 +56,7 @@ Abandoned Farm,Inside,Old Shelves,Safe,Empty,1,Yes,,,Hops 1 | Stone 1,Hops 2 | T
 Abandoned Farm,Inside,Cellar Chest,Explore,Locked Chest,1,Yes,,Gold 5-10 | Pack | Hops 1-2 | Potion,,,,,,,,rooms/chest.svg,"A heavy chest in the corner, locked.",,Dark Cellar,
 Abandoned Farm,Inside,Slime Puddle,Unsafe,Fight,1,Yes,"Slime | Small Slime, Slimeling",,,,,,,,,enemies/slime.svg,A puddle that wobbles when you look at it.,,Dark Cellar,
 Abandoned Farm,Inside,Slime Mother,Unsafe,Mini Boss,1,Yes,"Big Slime, Slimeling",Hops 2,,,,,,,,enemies/big_slime.svg,"The biggest slime you have ever seen, sitting on Kale's ale barrels.",,Dark Cellar,The Mini Boss: beat it to clear the Dark Cellar (quest The Dark Cellar)
-Abandoned Farm,Yours,Farmer's Shed,Explore,Event,2,Quest,,,,,,Farmer's Shed,,,,map_cards/shed.svg,A padlocked shed. It smells of Hops.,,Kale gives you 2 before your first trip: the Hops are inside,
+Abandoned Farm,Yours,Farmer's Shed,Explore,Event,2,Quest,,,,,,Farmer's Shed,,,,map_cards/shed.svg,A padlocked shed. Something rattles inside.,,Kale gives you 2 before your first trip: Sticks are inside (Hops now come from the Dark Cellar),
 Abandoned Farm,Yours,Stone Pile,Safe,Empty,1,Quest,,,Stone 1-2,,,,,,,materials/stone.svg,A pile of good stone someone left behind.,,Kale gives you 1 before your first trip,
 Abandoned Farm,Base,Rusty Lever,Explore,Event,1,Yes,,,,,,Rusty Lever,,,,map_cards/lever.svg,A rusty lever sticks out of the ground. What does it open?,,LINKED: pulling it adds the Sealed Vault to the board (face down somewhere),
 Abandoned Farm,Linked,Sealed Vault,Explore,Treasure,1,Yes,,Pack | Card | Gold 10-15 | Potion | Golden Fleece 1,,,,,,Yes,,map_cards/vault.svg,"A stone vault, its door now standing open.",,"Linked cards: never in the deck, only added by another card (the Rusty Lever)",
