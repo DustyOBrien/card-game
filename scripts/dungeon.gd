@@ -83,6 +83,7 @@ const USED_TINT := Color(1, 1, 1, 0.45)  # The picture on a card you've used up.
 @onready var popup_title: Label = %PopupTitle
 @onready var popup_text: Label = %PopupText
 @onready var popup_buttons: HBoxContainer = %PopupButtons
+var popup_warning: Label  # Red text above the popup's buttons (made in show_popup()).
 
 var dungeon: DungeonRun
 var squares := {}  # Vector2i -> the Button drawn for that square.
@@ -364,7 +365,7 @@ func refresh() -> void:
 		"Backpack: %d slots, each holds up to %d of one thing (materials and torches). Coins, cards, packs and keys don't take space. The Tailor sews a bigger one." % [dungeon.backpack_slots(), DungeonRun.BACKPACK_STACK],
 		"Torches: light up DARK places (like a Dark Cellar) so you can explore them.",
 		"Tools: drag a crowbar, bomb or torch onto a face-up card next to you. The corner badge says how many tool tricks a card has; the Journal remembers the ones you find.",
-		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; all of it is added to a dig (3 Luck: roll + 3), and each find uses 1. A natural 6 (the die itself) always works and keeps your Luck; a natural 1 fails and costs 1 Luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
+		"Scavenge: stand on a road, field, barn... and click it. Each dig needs %d+ on a d6. Luck: you start every trip with %d; all of it is added to a dig (3 Luck: roll + 3), and each find uses 1. A natural 6 (the die itself) always works, keeps your Luck and gives +1 Luck; a natural 1 fails and costs 1 Luck. Stop to see what you found and drag it into your backpack; what you leave stays on the card." % [DungeonRun.SCAVENGE_NEED, DungeonRun.LUCK_POOL],
 		"Hunting: what your quests want you to bring home (the Bank counts too).",
 		"Found: only yours once you get home (Return to Town at a campfire, or beat the Boss). Die and it's lost.",
 	])
@@ -1213,7 +1214,7 @@ func scavenge_odds(square: Vector2i) -> String:
 	var bonus := dungeon.luck_bonus()
 	var chance := roundi(clampi(DungeonRun.SCAVENGE_DIE - (need - bonus) + 1, 1, DungeonRun.SCAVENGE_DIE - 1) * 100.0 / DungeonRun.SCAVENGE_DIE)
 	var luck_text := "d6 + %d Luck (a find uses 1 Luck)" % bonus if bonus > 0 else "no Luck left"
-	return "Next dig: %d+ on %s (%d%%) · natural 6: Luck kept · natural 1: -1 Luck · a fail adds Danger" % [need, luck_text, chance]
+	return "Next dig: %d+ on %s (%d%%) · natural 6: +1 Luck · natural 1: -1 Luck · a fail adds Danger" % [need, luck_text, chance]
 
 
 # "Drops here:  [icon] Stone  [icon] Coins  ?" : what this card can give
@@ -1534,7 +1535,7 @@ func _on_scav_dig() -> void:
 	if outcome.need > 0:
 		var text := "Found something!" if worked else "Noise!"
 		if outcome.nat6:
-			text = "NATURAL 6! Luck kept!" if outcome.bonus > 0 else "NATURAL 6!"
+			text = "NATURAL 6! +1 Luck"
 		elif outcome.nat1:
 			text = "NATURAL 1! -1 Luck" if outcome.lost_luck else "NATURAL 1!"
 		await roll_die(DungeonRun.SCAVENGE_DIE, outcome.roll, text,
@@ -1967,7 +1968,7 @@ const FARM_GOALS := [
 	{"id": "Stone", "text": "Stone", "hint": "Roads, fields and the Stone Piles have Stone. Keep scavenging!"},
 	{"id": "Sticks", "text": "Sticks", "hint": "The Old Barns (and the Farmer's House) have Sticks."},
 	{"id": "Wool", "text": "Wool", "hint": "Barns and Animal Pens have Wool. A loose sheep has lots!"},
-	{"id": "cellar", "text": "Open the Dark Cellar with Kale's key", "hint": "You have Kale's supplies! Now find the Dark Cellar and unlock it with his key. (Bonus: the Farmer's Sheds have Hops, if you find the farmer's key.)"},
+	{"id": "cellar", "text": "Open the Dark Cellar with Kale's key", "hint": "You have Kale's supplies! Now find the Dark Cellar and unlock it with his key."},
 ]
 const GUIDE_GOLD := Color(1, 0.84, 0.35)
 
@@ -2199,19 +2200,18 @@ func show_guide_tip(_what: String, _square: Vector2i) -> void:
 	refresh_goals()
 
 
-# The first trip's campfire: your way home. (Going home without everything
-# is allowed: you just come back on the same kind of trip next time.)
+# The first trip's campfire. You CAN'T go home from it (Dusty): the trip only
+# ends at the Dark Cellar, so "Back to Town" is greyed out with a red note.
+const CAMPFIRE_LOCKED := "Find the Hops first (open the Dark Cellar with Kale's key) before going back to town."
+
 func show_guided_campfire() -> void:
-	var text := "The campfire! It's your way home, with everything you found."
-	var home := "Head home"
+	var text := "The campfire! Warm yourself for a moment."
 	if dungeon.guide_goal_met():
-		text += "\nYou have Kale's supplies! But he also asked you to open the Dark Cellar with his key. Head home now, and you'll have to come back for that."
-		home = "Head home anyway"
+		text += "\nYou have Kale's supplies! Now find the Dark Cellar and open it with his key."
 	else:
-		text += "\nKale is still waiting for some of it (%s). Head home now, and you'll have to come back out for the rest." % guide_progress()
-		home = "Head home anyway"
-	show_popup("Campfire", text, [[home, _on_leave], ["Keep exploring", close_popup]],
-		ICONS[RoomCard.Type.CAMPFIRE], "pop")
+		text += "\nKale is still waiting for some of his supplies (%s)." % guide_progress()
+	show_popup("Campfire", text, [["Keep exploring", close_popup], ["Back to Town", _on_leave, CAMPFIRE_LOCKED]],
+		ICONS[RoomCard.Type.CAMPFIRE], "pop", null, CAMPFIRE_LOCKED)
 
 
 # An Explore card's event: its story and a button per choice. Choices you
@@ -2221,6 +2221,7 @@ func show_event() -> void:
 	var event: DungeonEvent = room.event
 	var card: RoomCard = room.card
 	var choices := []
+	var warning := ""  # Red text above the buttons.
 	for i in event.choice_labels.size():
 		if dungeon.choice_hidden(event, i):
 			continue  # Not open yet (enchants before the Enchanter).
@@ -2234,10 +2235,13 @@ func show_event() -> void:
 			label += " (%d%%)" % event.chances[i]
 		var blocked := dungeon.choice_blocked(event, i)
 		choices.append([label, _on_event_choice.bind(i), blocked])
+		# The Cellar Door's key waits for Kale's supplies (Dusty): say so in red.
+		if not blocked.is_empty() and "supplies" in event.effects[i].to_lower():
+			warning = "Complete all other tasks before entering the cellar."
 	var picture := event_picture(event)
 	if picture[0] == null and card:
 		picture = [card_art(card), "flip"]
-	show_popup(event.event_name, event.text, choices, picture[0], picture[1], card)
+	show_popup(event.event_name, event.text, choices, picture[0], picture[1], card, warning)
 
 
 # The picture (and animation) an event shows, from its Picture column:
@@ -2530,8 +2534,8 @@ func _on_leave() -> void:
 # CHAPTER 1's first trip ends at the Dark Cellar (Dusty's redesign): you
 # unlock it with Kale's key, SLIMES burst out, the orb glows, and you slam
 # the door and run home (orb_cutscene.gd). Chapter 2 picks it up in town.
-# Going home by the campfire before that is fine: the next trip out is the
-# same kind (no monsters, Kale's supplies, the cellar).
+# The campfire can't send you home on this trip any more (Dusty), but if a
+# trip ever ends early, the next trip out is the same kind.
 func leave_first_trip(ambush := false) -> void:
 	close_popup()
 	dungeon.leave()
@@ -2552,7 +2556,8 @@ func leave_first_trip(ambush := false) -> void:
 # choices: a list of [button text, function to call], or [text, function,
 # why it's blocked] to grey a button out (with the reason as its tooltip).
 # card: the map card it's about, so the popup shows its tile (Safe/Unsafe/Explore).
-func show_popup(heading: String, text: String, choices: Array, picture: Texture2D = null, animation := "", card: RoomCard = null) -> void:
+# warning: red text just above the buttons (why one is greyed out), or "".
+func show_popup(heading: String, text: String, choices: Array, picture: Texture2D = null, animation := "", card: RoomCard = null, warning := "") -> void:
 	play_picture(picture, animation)
 	popup_badge.visible = card != null
 	if card:
@@ -2560,6 +2565,17 @@ func show_popup(heading: String, text: String, choices: Array, picture: Texture2
 		popup_badge.add_theme_color_override("font_color", RoomCard.TILE_COLORS[card.tile])
 	popup_title.text = heading
 	popup_text.text = text
+	if popup_warning == null:  # Made once, the first time: a red Label just above the buttons.
+		popup_warning = Label.new()
+		popup_warning.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+		popup_warning.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+		popup_warning.custom_minimum_size = Vector2(500, 0)
+		popup_warning.add_theme_font_size_override("font_size", 18)
+		popup_warning.add_theme_color_override("font_color", Color(1, 0.4, 0.35))
+		popup_buttons.get_parent().add_child(popup_warning)
+		popup_buttons.get_parent().move_child(popup_warning, popup_buttons.get_index())
+	popup_warning.text = warning
+	popup_warning.visible = not warning.is_empty()
 	for old in popup_buttons.get_children():
 		old.queue_free()
 	for choice in choices:

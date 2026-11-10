@@ -1246,8 +1246,8 @@ func scavenge() -> Dictionary:
 	var need := scavenge_need(position)
 	var bonus := luck_bonus() if need > 0 else 0
 	var roll := randi_range(1, SCAVENGE_DIE) if need > 0 else 0
-	# A natural 6 always works, and keeps your Luck. A natural 1 always
-	# fails, and costs you a Luck (Dusty).
+	# A natural 6 always works, keeps your Luck AND gives you +1 Luck back.
+	# A natural 1 always fails, and costs you a Luck (Dusty).
 	var nat6 := need > 0 and roll == SCAVENGE_DIE
 	var nat1 := need > 0 and roll == 1
 	var worked := need == 0 or nat6 or (not nat1 and roll + bonus >= need)
@@ -1270,6 +1270,8 @@ func scavenge() -> Dictionary:
 			"lost_luck": lost_luck, "over": true, "lost": lost}
 	if used_luck:
 		luck -= 1  # Luck helped: it's used up.
+	if nat6:
+		luck += 1  # A natural 6 gives a Luck back (Dusty).
 	room.scavenges = tries + 1
 	# The first trip only finds what the card shows (so the quest can be done).
 	var tier: int = 0 if guided else roll_tier()
@@ -1279,7 +1281,7 @@ func scavenge() -> Dictionary:
 		room.box.append(find)
 	add_log("Scavenging %s: you dig something up%s" % [card.room_name,
 		"" if need == 0 else " (rolled %d%s, needed %d+%s)" % [roll, " + %d Luck" % bonus if bonus > 0 else "", need,
-			", a natural 6: Luck kept" if nat6 and bonus > 0 else (", 1 Luck used" if used_luck else "")]])
+			", a natural 6: +1 Luck" if nat6 else (", 1 Luck used" if used_luck else "")]])
 	var over: bool = room.scavenges >= SCAVENGE_MAX_DIGS  # Out of digs: the box opens by itself.
 	if over:
 		_open_box(position)

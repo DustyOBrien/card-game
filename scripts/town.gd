@@ -138,11 +138,35 @@ func _ready() -> void:
 	flask_button.add_sibling(packs_button)
 	make_old_master()
 	make_street_scroll()
+	add_clear_save_button()
 	summary_label.text = run_summary()
 	message_label.text = ""
 	refresh()
 	# The welcome, Kale... or just any new quests' stories.
 	play_story()
+
+
+# Top right, next to your coins: wipe the save and start the game over, so you
+# can test the start more than once (Dusty). It asks first.
+func add_clear_save_button() -> void:
+	var clear_button := Button.new()
+	clear_button.text = "Clear Save"
+	clear_button.tooltip_text = "Delete your save and start the game over from the very beginning."
+	clear_button.size_flags_vertical = Control.SIZE_SHRINK_CENTER
+	gold_label.add_sibling(clear_button)  # The Header row: Title ... Coins, then this, at the far right.
+	var confirm := ConfirmationDialog.new()
+	confirm.title = "Clear Save?"
+	confirm.dialog_text = "This deletes your save: your town, coins, materials, cards and quests.\nThe game starts again from the story intro."
+	confirm.ok_button_text = "Clear"
+	add_child(confirm)
+	clear_button.pressed.connect(confirm.popup_centered)
+	confirm.confirmed.connect(_on_clear_save_confirmed)
+
+
+func _on_clear_save_confirmed() -> void:
+	GameState.reset_save()
+	# Character Select sees a brand new game and plays the story intro.
+	get_tree().change_scene_to_file(CHARACTER_SCENE)
 
 
 # How the last run went (empty if you haven't been on one yet).
